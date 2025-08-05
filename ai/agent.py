@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, TypedDict, Annotated, Any
 from uuid import uuid4
 import asyncio
+from dotenv import load_dotenv
 
 # LangChain imports
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -16,6 +17,9 @@ from pydantic import BaseModel, Field
 # LangGraph imports
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+
+# Load environment variables
+load_dotenv()
 
 # Data models
 class Task(BaseModel):
@@ -174,7 +178,7 @@ class CopilotAgent:
     def __init__(self, gemini_api_key: str):
         # Initialize Gemini AI
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",
+            model="gemini-1.5-flash",
             google_api_key=gemini_api_key,
             temperature=0.1,
             convert_system_message_to_human=True
@@ -193,21 +197,23 @@ class CopilotAgent:
 
     def extract_task_info(self, user_input: str) -> Dict[str, Any]:
         """Extract task information from natural language input."""
+        system_message = """You are an expert task extraction system. Extract task information from the user's natural language input.
+
+        Current date: {current_date}
+
+        Rules for extraction:
+        1. Extract a clear, concise task title
+        2. Identify any due dates (convert relative dates like 'tomorrow', 'next week' to absolute dates)
+        3. Identify any due times
+        4. Determine priority if mentioned (high, medium, low)
+        5. Identify reminder frequency if mentioned (daily, weekly, monthly)
+        6. Set needs_clarification to true if the task is too vague or ambiguous
+        7. Generate a clarification question if needed
+
+        Return valid JSON only."""
+
         extraction_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are an expert task extraction system. Extract task information from the user's natural language input.
-
-            Current date: {current_date}
-
-            Rules for extraction:
-            1. Extract a clear, concise task title
-            2. Identify any due dates (convert relative dates like 'tomorrow', 'next week' to absolute dates)
-            3. Identify any due times
-            4. Determine priority if mentioned (high, medium, low)
-            5. Identify reminder frequency if mentioned (daily, weekly, monthly)
-            6. Set needs_clarification to true if the task is too vague or ambiguous
-            7. Generate a clarification question if needed
-
-            Return valid JSON only."""),
+            ("system", system_message),
             ("human", "Extract task information from: {user_input}")
         ])
 
@@ -227,7 +233,7 @@ class CopilotAgent:
                 "needs_clarification": True,
                 "clarification_question": "Could you provide more details about this task?"
             }
-
+    
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow."""
         workflow = StateGraph(AgentState)
@@ -515,211 +521,3 @@ I'm here to help with your task management needs! 🚀
 
         # Return the AI response
         return result["messages"][-1].content
-
-# Usage example and main function
-async def main():
-    """Example usage of the Copilot Agent."""
-    # Initialize the agent (replace with your actual Gemini API key)
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-gemini-api-key-here")
-
-    if GEMINI_API_KEY == "your-gemini-api-key-here":
-        print("❌ Please set your GEMINI_API_KEY environment variable")
-        print("   export GEMINI_API_KEY='your-actual-api-key'")
-        return
-
-    agent = CopilotAgent(GEMINI_API_KEY)
-
-    # Simulate user interactions
-    user_id = "user123"
-
-    test_messages = [
-        "Hi, I need help creating a task",
-        "Schedule Twitter space",
-        "yes, that's fine with daily reminders",
-        "remind me to buy eth on Sunday",
-        "list my tasks",
-    ]
-
-    print("🤖 Copilot Agent Demo")
-    print("=" * 50)
-
-    for message in test_messages:
-        print(f"\n👤 User: {message}")
-        try:
-            response = await agent.process_message(user_id, message)
-            print(f"🤖 Copilot: {response}")
-        except Exception as e:
-            print(f"❌ Error: {e}")
-
-        # Small delay to simulate real conversation
-        await asyncio.sleep(1)
-
-# Telegram Bot Integration Example
-def create_telegram_bot(agent: CopilotAgent):
-    """Example of how to integrate with python-telegram-bot"""
-    try:
-        from telegram import Update
-        from telegram.ext import Application, MessageHandler, filters, ContextTypes
-
-        async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            user_id = str(update.effective_user.id)
-            message = update.message.text
-
-            try:
-                response = await agent.process_message(user_id, message)
-                # Escape markdown characters for Telegram
-                escaped_response = response.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]')
-                await update.message.reply_text(escaped_response, parse_mode='MarkdownV2')
-            except Exception as e:
-                await update.message.reply_text(f"Sorry, I encountered an error: {str(e)}")
-
-        # Create application
-        app = Application.builder().token(os.getenv.("TELEGRAM_BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")).build()
-
-        # Add message handler
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-        return app
-
-    except ImportError:
-        print("python-telegram-bot not installed. Run: pip install python-telegram-bot")
-        return None
-
-# Flask Web Interface Example
-def create_web_interface(agent: CopilotAgent):
-    """Example of how to create a simple web interface"""
-    try:
-        from flask import Flask, request, jsonify, render_template_string
-
-        app = Flask(__name__)
-
-        @app.route('/')
-        def home():
-            return render_template_string("""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Copilot Agent</title>
-                <style>
-                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                    .chat-container { border: 1px solid #ddd; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-                    .message { margin-bottom: 10px; }
-                    .user { color: blue; }
-                    .bot { color: green; }
-                    input[type="text"] { width: 80%; padding: 10px; }
-                    button { padding: 10px 20px; }
-                </style>
-            </head>
-            <body>
-                <h1>🤖 Copilot Agent</h1>
-                <div id="chat" class="chat-container"></div>
-                <input type="text" id="message" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMessage()">
-                <button onclick="sendMessage()">Send</button>
-
-                <script>
-                    async function sendMessage() {
-                        const input = document.getElementById('message');
-                        const message = input.value.trim();
-                        if (!message) return;
-
-                        addMessage('user', message);
-                        input.value = '';
-
-                        try {
-                            const response = await fetch('/chat', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({message: message, user_id: 'web_user'})
-                            });
-                            const data = await response.json();
-                            addMessage('bot', data.response);
-                        } catch (error) {
-                            addMessage('bot', 'Error: ' + error.message);
-                        }
-                    }
-
-                    function addMessage(sender, text) {
-                        const chat = document.getElementById('chat');
-                        const div = document.createElement('div');
-                        div.className = 'message ' + sender;
-                        div.innerHTML = '<strong>' + (sender === 'user' ? 'You' : 'Copilot') + ':</strong> ' + text;
-                        chat.appendChild(div);
-                        chat.scrollTop = chat.scrollHeight;
-                    }
-                </script>
-            </body>
-            </html>
-            """)
-
-        @app.route('/chat', methods=['POST'])
-        async def chat():
-            data = request.json
-            message = data.get('message', '')
-            user_id = data.get('user_id', 'web_user')
-
-            try:
-                response = await agent.process_message(user_id, message)
-                return jsonify({'response': response})
-            except Exception as e:
-                return jsonify({'error': str(e)}), 500
-
-        return app
-
-    except ImportError:
-        print("Flask not installed. Run: pip install flask")
-        return None
-
-if __name__ == "__main__":
-    # Choose how to run the agent
-    import sys
-
-    if len(sys.argv) > 1:
-        mode = sys.argv[1]
-
-        if mode == "demo":
-            # Run the demo
-            asyncio.run(main())
-
-        elif mode == "telegram":
-            # Run Telegram bot
-            GEMINI_API_KEY = "AIzaSyBieRiyDNKZD9rfqFqh2gB1_MoE9yQhm6A"
-            if not GEMINI_API_KEY:
-                print("❌ Please set GEMINI_API_KEY environment variable")
-                sys.exit(1)
-
-            agent = CopilotAgent(GEMINI_API_KEY)
-            telegram_app = create_telegram_bot(agent)
-
-            if telegram_app:
-                print("🚀 Starting Telegram bot...")
-                telegram_app.run_polling()
-
-        elif mode == "web":
-            # Run web interface
-            GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-            if not GEMINI_API_KEY:
-                print("❌ Please set GEMINI_API_KEY environment variable")
-                sys.exit(1)
-
-            agent = CopilotAgent(GEMINI_API_KEY)
-            web_app = create_web_interface(agent)
-
-            if web_app:
-                print("🌐 Starting web interface at http://localhost:5000")
-                web_app.run(debug=True)
-
-        else:
-            print("Usage: python agent.py [demo|telegram|web]")
-
-    else:
-        print("🤖 Copilot Agent")
-        print("Usage: python agent.py [demo|telegram|web]")
-        print()
-        print("Modes:")
-        print("  demo     - Run interactive demo")
-        print("  telegram - Run as Telegram bot")
-        print("  web      - Run web interface")
-        print()
-        print("Environment Variables:")
-        print("  GEMINI_API_KEY - Your Google Gemini API key")
-        print("  TELEGRAM_BOT_TOKEN - Your Telegram bot token (for telegram mode)")

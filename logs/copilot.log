@@ -473,3 +473,317 @@ Use '/help' to explore more\!
 2025-08-04 23:38:31,386 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-04 23:38:46,835 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-04 23:39:02,263 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:39:17,692 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:39:33,128 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:39:48,562 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:40:03,989 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:40:19,420 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:40:34,851 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:40:50,284 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:41:05,719 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:41:21,149 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:41:36,582 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:41:52,017 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:42:07,444 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:42:22,873 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:42:38,302 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:42:53,731 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:43:09,159 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:43:24,591 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:43:40,031 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:43:55,462 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:44:10,894 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:44:26,321 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:44:41,752 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:44:57,182 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:45:12,612 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:45:28,041 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:45:43,470 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:45:58,900 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:46:14,331 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:46:29,762 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:46:45,193 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:47:00,622 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:47:16,055 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:47:31,495 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:47:46,924 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:48:02,356 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:48:17,824 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:48:33,259 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:48:48,690 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:49:04,144 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:49:19,577 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:49:35,009 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:49:50,443 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:50:05,877 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:50:17,389 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-04 23:50:17,529 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-04 23:50:17,531 - telegram.ext.Application - INFO - Application started
+2025-08-04 23:50:20,679 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:50:20,680 - __main__ - INFO - Sending MarkdownV2 message: Welcome to Copilot
+Overview:
+Copilot is an AI\-powered assistant that helps you with your web3 journey\. It can fetch data about any cryptocurrency \(e\.g\. \- Bitcoin\)\.
+Use '/help' to explore more\!
+2025-08-04 23:50:20,837 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-04 23:50:36,113 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:50:51,541 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:51:06,978 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:51:22,407 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:51:37,844 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:51:53,274 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:52:08,707 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:52:24,139 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:52:39,567 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:52:55,005 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-04 23:53:09,590 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 409 Conflict"
+2025-08-04 23:53:09,591 - __main__ - ERROR - Update None caused error Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-08-04 23:53:21,669 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 409 Conflict"
+2025-08-04 23:53:21,670 - __main__ - ERROR - Update None caused error Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-08-05 00:51:24,288 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 00:51:24,428 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 00:51:24,430 - telegram.ext.Application - INFO - Application started
+2025-08-05 00:51:34,855 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:51:48,001 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:01,147 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:05,629 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:05,630 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 00:52:06,060 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 00:52:06,061 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 00:52:18,779 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:30,447 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:30,448 - __main__ - INFO - User (7923643903) in private: 'hey'
+2025-08-05 00:52:30,932 - __main__ - INFO - Bot response: Hey there!  Ready to conquer your to-do list?  Let me know what you need help with!  Perhaps we can turn that into a task? 😉
+2025-08-05 00:52:31,378 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:52:43,595 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:51,624 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:52:51,625 - __main__ - INFO - User (7923643903) in private: 'save'
+2025-08-05 00:52:52,758 - __main__ - INFO - Bot response: Okay, I'm ready to help you manage your tasks!  Let me know what you need.  Anything you're describing that feels like something you need to do?  We can add it to your to-do list!
+2025-08-05 00:52:53,355 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:53:03,099 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:53:03,100 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 00:53:03,523 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 00:53:03,524 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 00:53:16,245 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:53:29,391 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:53:42,546 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:53:55,691 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:02,099 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:02,099 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 00:54:02,100 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 00:54:08,203 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 00:54:08,346 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 00:54:08,347 - telegram.ext.Application - INFO - Application started
+2025-08-05 00:54:16,399 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:16,400 - __main__ - INFO - User (7923643903) in private: 'yo'
+2025-08-05 00:54:17,106 - __main__ - INFO - Bot response: Hey there!  Ready to conquer your to-do list?  Let's get organized!  What task can I help you with today? ✨
+2025-08-05 00:54:17,549 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:54:29,547 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:42,692 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:45,837 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:54:45,838 - __main__ - INFO - User (7923643903) in private: 'Hi, I need help creating a task'
+2025-08-05 00:54:47,132 - __main__ - INFO - Bot response: Please provide more details about the task.  What needs to be done?  Is there a description or goal?
+2025-08-05 00:54:47,579 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:54:58,987 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:02,134 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:02,135 - __main__ - INFO - User (7923643903) in private: 'Schedule Twitter space'
+2025-08-05 00:55:03,431 - __main__ - INFO - Bot response: Please provide more details about the Twitter Space.  For example, what is the topic, date, and time?
+2025-08-05 00:55:03,907 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:55:15,282 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:21,776 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:21,777 - __main__ - INFO - User (7923643903) in private: 'yes, that's fine with daily reminders'
+2025-08-05 00:55:22,696 - __main__ - INFO - Bot response: What needs to be reminded about daily?
+2025-08-05 00:55:23,137 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:55:34,923 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:38,068 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:38,069 - __main__ - INFO - User (7923643903) in private: 'remind me to buy eth on Sunday'
+2025-08-05 00:55:38,906 - __main__ - ERROR - Error in handle_message: 'title'
+2025-08-05 00:55:39,389 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:55:51,214 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:54,359 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:55:54,360 - __main__ - INFO - User (7923643903) in private: 'list my tasks'
+2025-08-05 00:55:55,013 - __main__ - INFO - Bot response: Please specify the tasks you would like to list.  For example, 'List my tasks for this week' or 'List my tasks related to the project X'.
+2025-08-05 00:55:55,462 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:56:07,506 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:56:10,651 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:56:10,651 - __main__ - INFO - User (7923643903) in private: 'list my tasks for this week'
+2025-08-05 00:56:11,511 - __main__ - ERROR - Error in handle_message: 'title'
+2025-08-05 00:56:11,951 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:56:23,796 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:56:33,609 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:56:33,610 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 00:56:33,610 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 00:56:42,598 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 00:56:42,740 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 00:56:42,741 - telegram.ext.Application - INFO - Application started
+2025-08-05 00:56:53,169 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:57:06,313 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:57:09,458 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:57:09,460 - __main__ - INFO - User (7923643903) in private: 'g'
+2025-08-05 00:57:09,966 - __main__ - INFO - Bot response: Okay, I'm ready to help you manage your tasks!  Let me know what you need.  😊
+2025-08-05 00:57:10,410 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 00:57:22,607 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:57:35,757 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:57:48,904 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:02,051 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:15,216 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:28,362 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:31,960 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:31,961 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 00:58:32,391 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 00:58:32,391 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 00:58:45,107 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:58:58,256 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:59:11,406 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:59:24,551 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:59:37,698 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 00:59:50,842 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:03,989 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:17,142 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:30,286 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:43,432 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:53,614 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:00:53,615 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 01:00:53,617 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 01:01:00,722 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 01:01:00,864 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 01:01:00,865 - telegram.ext.Application - INFO - Application started
+2025-08-05 01:01:11,297 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:14,444 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:14,445 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:01:14,873 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:01:14,874 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:01:15,042 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:17,730 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:17,731 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:01:17,872 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:01:17,873 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:01:18,036 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:27,198 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:27,646 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:30,882 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:30,883 - __main__ - INFO - Sending MarkdownV2 message: *Okay, what's your task?*
+*You can tell me something like 'Remind me to research AI trends next Tuesday by 3 PM'*
+2025-08-05 01:01:31,041 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:35,351 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:35,513 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:38,496 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:01:38,497 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:01:38,639 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:01:38,639 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:01:38,798 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:01:51,644 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:02:04,791 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:02:17,935 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:02:31,081 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:02:44,226 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:02:57,373 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:10,519 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:19,318 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:19,319 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 01:03:19,319 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 01:03:25,380 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 01:03:25,523 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 01:03:25,524 - telegram.ext.Application - INFO - Application started
+2025-08-05 01:03:30,633 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:30,635 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:03:31,062 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:03:31,063 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:03:31,309 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:03:33,780 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:33,781 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:03:33,924 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:03:33,925 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:03:34,106 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:03:36,927 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:03:37,098 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:03:49,340 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 01:03:49,481 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 01:03:49,483 - telegram.ext.Application - INFO - Application started
+2025-08-05 01:03:59,908 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:03,056 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:03,057 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency (e.g. \- Bitcoin).*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:04:03,485 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:04:03,486 - __main__ - ERROR - Error in start_command: Can't parse entities: character '-' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:04:03,649 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:04:16,203 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:29,349 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:36,014 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:36,015 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 01:04:36,015 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 01:04:41,877 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 01:04:42,020 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 01:04:42,022 - telegram.ext.Application - INFO - Application started
+2025-08-05 01:04:45,012 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:45,014 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency.*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:04:45,155 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:04:45,156 - __main__ - ERROR - Error in start_command: Can't parse entities: character '>' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:04:45,313 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:04:48,159 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:04:48,160 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+_Overview_:
+*Copilot is an AI-powered assistant that helps you with your web3 journey. It can fetch data about any cryptocurrency.*>
+*Use '/help' to explore more!*
+
+2025-08-05 01:04:48,307 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 400 Bad Request"
+2025-08-05 01:04:48,308 - __main__ - ERROR - Error in start_command: Can't parse entities: character '>' is reserved and must be escaped with the preceding '\'
+2025-08-05 01:04:48,472 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:05:01,306 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:05:14,451 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:05:27,598 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:05:40,744 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:05:47,943 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:05:47,944 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-08-05 01:05:47,944 - telegram.ext.Application - INFO - Application.stop() complete
+2025-08-05 01:05:53,657 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-08-05 01:05:53,798 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-05 01:05:53,800 - telegram.ext.Application - INFO - Application started
+2025-08-05 01:06:00,255 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:06:00,256 - __main__ - INFO - Sending MarkdownV2 message: *Welcome to Copilot*
+
+2025-08-05 01:06:00,933 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-08-05 01:06:13,404 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:06:26,550 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:06:39,698 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:06:52,842 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:07:05,993 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-08-05 01:07:19,138 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
