@@ -1,3 +1,5 @@
 
 python-dotenv
-telegram
+#telegramsupabase
+python-telegram-bot
+supabase
