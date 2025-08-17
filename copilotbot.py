@@ -81,7 +81,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
         "*Welcome to Copilot*\n"
         "I can help you manage tasks and explore Web3 data. Try these first steps:\n"
-        "- Type */newt_task to create your first task!\n"
+        "- Type */new_task to create your first task!\n"
         "- Use */help* for more commands.\n"
     )
     logger.info(f"Sending MarkdownV2 message: {message}")
@@ -150,10 +150,14 @@ async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'due_date': due_date.isoformat() if due_date else None
         }).execute()
         task_id = data.data[0]['id'] if data.data else 'UNKNOWN'
-        message = f"Task '{task_name}' created with ID: {task_id}"
-        escaped_message = escape_markdown_v2(message)
-        await update.message.reply_text(escaped_message, parse_mode="MarkdownV2")
         logger.info(f"Task '{task_name}' created for user: {user_id}")
+        notification = f"*🚨NEW TASK ALERT!🚨*\nTask '{task_name}' (ID: {task_id}) has been successfully created! {'You’ll be reminded on ' + due_date.strftime('%Y-%m-%d %H:%M') + '!' if due_date else 'No due date set.'}"
+        escaped_notification = escape_markdown_v2(notification)
+        await update.message.reply_text(
+            escaped_notification,
+            parse_mode="MarkdownV2",
+            disable_notification=False
+        )
     except Exception as e:
         logger.error(f'Error in new_task_command: {e}')
         await update.message.reply_text(f"Sorry, I encountered an error: {str(e)}")
