@@ -103,13 +103,12 @@ const Home = () => {
 
       {/* Waitlist Section */}
       <section
-        id="waitlist"
         className="h-[50rem] md:h-[120rem] bg-[#010103] flex flex-col justify-center relative overflow-hidden"
       >
         <div className="h-[150rem] flex flex-col justify-center relative overflow-hidden">
           <img
             src="/assets/images/waitlist.png"
-            alt="waitlist" 
+            alt="waitlist"
             className="w-full h-full object-cover"
           />
         </div>
@@ -126,7 +125,9 @@ const Home = () => {
         <div className="absolute inset-0 px-4 h-full flex justify-center items-end md:items-center z-10">
           <div className="max-w-3xl mx-auto text-center">
             {/* Waitlist Card */}
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8 lg:p-12">
+            <div 
+              id="waitlist"
+              className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8 lg:p-12">
               <div className="mb-8">
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
                   Join the Waitlist
