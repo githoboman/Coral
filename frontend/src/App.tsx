@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom';
 
 import Home from './pages/landing/Home';
 import LandingPageLayout from './pages/landing/Layout';
+import AppLayout from './pages/app/Layout'
+import Dashboard from './pages/app/Dashboard'
 function App() {
 
   return (
@@ -16,11 +18,12 @@ function App() {
           <Route index element={<Home />} />
         </Route>
         <Route
-          path="/dashboard"
           element={
-            <>Dashboard</>
+            <AppLayout />
           }
-        />
+        >
+          <Route path="/dashboard/" element={<Dashboard />} />
+        </Route>
       </Routes>
     </div>
   );

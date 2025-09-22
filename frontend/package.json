@@ -17,6 +17,7 @@
     "@mysten/sui": "^1.38.0",
     "@tailwindcss/vite": "^4.1.13",
     "@tanstack/react-query": "^5.89.0",
+    "lucide-react": "^0.544.0",
     "path": "^0.12.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
