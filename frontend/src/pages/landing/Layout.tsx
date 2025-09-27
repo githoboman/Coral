@@ -5,6 +5,9 @@ const LandingPageLayout = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
+  // Set to false to show Coming Soon screen; change to true when ready to launch
+  const isSiteLive = window.location.origin === "https://tovira.xyz";
+
   const navigationItems = [
     { name: 'Home', to: '/' },
     { name: 'About', to: '/about' },
@@ -18,6 +21,21 @@ const LandingPageLayout = () => {
     { name: 'Press', to: '/press' },
     { name: 'Blog', to: '/blog' },
   ];
+
+  if (isSiteLive) {
+    return (
+      <div className="min-h-screen bg-[#010103] flex flex-col items-center justify-center px-4">
+        <div className="text-center max-w-3xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
+            Coming Soon
+          </h1>
+          <p className="text-base sm:text-lg text-white/80 mb-8 leading-relaxed">
+            Tovira's AI-Powered Wallet Intelligence platform is launching soon!
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="bg-gradient-to-b from-[#010103] to-[#010102] text-white flex flex-col min-h-screen">
@@ -47,8 +65,8 @@ const LandingPageLayout = () => {
                     <Link
                       to={item.to}
                       className={`text-sm font-medium transition-colors duration-200 hover:text-white/80 ${location.pathname === item.to
-                          ? 'text-white'
-                          : 'text-white/70'
+                        ? 'text-white'
+                        : 'text-white/70'
                         }`}
                     >
                       {item.name}
@@ -110,8 +128,8 @@ const LandingPageLayout = () => {
                     <Link
                       to={item.to}
                       className={`block py-2 px-3 text-base font-medium transition-colors duration-200 hover:bg-white/5 rounded-lg ${location.pathname === item.to
-                          ? 'text-white'
-                          : 'text-white/70'
+                        ? 'text-white'
+                        : 'text-white/70'
                         }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
