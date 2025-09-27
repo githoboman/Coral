@@ -25,7 +25,7 @@ const Home = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
         <div className="space-y-10">
-          <div className="flex flex-col lg:flex-row flex-col-reverse items-center justify-between gap-12">
+          <div className="flex flex-col lg:flex-row flex-col-reverse items-center justify-between gap-12 w-screen overflow-hidden">
             {/* Hero Content */}
             <div className="px-4 sm:px-6 lg:px-8 flex-1 max-w-2xl lg:max-w-4xl text-left">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
@@ -56,7 +56,7 @@ const Home = () => {
             </div>
 
             {/* Hero Image Placeholder */}
-            <div className="relative flex-1 w-screen h-full flex justify-center">
+            <div className="relative flex-1 md:hidden w-screen h-full flex justify-center">
               <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm">
                 <img
                   src="/assets/images/hero-bg2.png"
@@ -75,11 +75,11 @@ const Home = () => {
             id="features"
             className="static md:absolute -bottom-32 mt-[6rem] bg-gradient-to-b from-transparent to-[#010103] backdrop-blur-md left-0 right-0 flex justify-center px-4"
           >
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center w-full max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-4 sm:gap-6 justify-center items-center w-full max-w-6xl mx-auto">
               {features.map((feature) => (
                 <div
                   key={feature.id}
-                  className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 sm:p-6 w-full sm:w-64 text-center hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:-translate-y-1 group"
+                  className="bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-4 sm:p-6 w-full text-center hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:-translate-y-1 group"
                 >
                   <div className="flex justify-center mb-4">
                     <img
