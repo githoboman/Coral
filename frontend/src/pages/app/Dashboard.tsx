@@ -46,7 +46,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white to-[#00FF88] bg-clip-text text-transparent mb-2">
-            AI Dashboard
+            Dashboard
           </h1>
           <p className="text-white/60">Manage tasks, schedule events, and stay ahead with sentiment-analyzed alerts</p>
         </div>
@@ -57,29 +57,6 @@ const Dashboard = () => {
             <span>New Task</span>
           </button>
         </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
-          <div 
-            key={index}
-            className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-200 hover:-translate-y-1"
-          >
-            <div className="flex items-center justify-between">
-              <div className="p-2 bg-white/10 rounded-lg">
-                <span className={`text-lg ${stat.color}`}>{stat.icon}</span>
-              </div>
-              <div className="text-right">
-                <p className={`text-sm text-white/60 ${stat.color}`}>{stat.name}</p>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-                <p className={`text-xs font-medium ${stat.change.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
-                  {stat.change}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* Main Content: Tasks & Alerts */}

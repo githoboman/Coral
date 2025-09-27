@@ -23,8 +23,8 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-[#010103]">
       {/* Hero Section */}
-      <section className="relative min-h-screen h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-cover bg-center bg-[#010103] flex items-center text-center">
-        <div className="container mx-auto space-y-10">
+      <section className="relative min-h-screen h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
+        <div className="space-y-10">
           <div className="flex flex-col lg:flex-row flex-col-reverse items-center justify-between gap-12">
             {/* Hero Content */}
             <div className="px-4 sm:px-6 lg:px-8 flex-1 max-w-2xl lg:max-w-4xl text-left">
@@ -56,7 +56,7 @@ const Home = () => {
             </div>
 
             {/* Hero Image Placeholder */}
-            <div className="relative flex-1 w-full h-full flex justify-center">
+            <div className="relative flex-1 w-screen h-full flex justify-center">
               <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm">
                 <img
                   src="/assets/images/hero-bg2.png"
@@ -108,7 +108,7 @@ const Home = () => {
         <div className="h-[150rem] flex flex-col justify-center relative overflow-hidden">
           <img
             src="/assets/images/waitlist.png"
-            alt="waitlist" 
+            alt="waitlist"
             className="w-full h-full object-cover"
           />
         </div>
