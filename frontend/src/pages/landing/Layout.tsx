@@ -10,13 +10,13 @@ const LandingPageLayout = () => {
 
   const navigationItems = [
     { name: 'Home', to: '/' },
-    { name: 'About', to: '/about' },
-    { name: 'Support', to: '/support' },
+    { name: 'About', to: '#about' },
+    { name: 'Support', to: '#support' },
     { name: 'Contact Us', to: '/contact' },
   ];
 
   const companyLinks = [
-    { name: 'About Us', to: '/about' },
+    { name: 'About Us', to: '#about' },
     { name: 'Careers', to: '/careers' },
     { name: 'Press', to: '/press' },
     { name: 'Blog', to: '/blog' },
@@ -24,7 +24,7 @@ const LandingPageLayout = () => {
 
   if (isSiteLive) {
     return (
-      <div className="min-h-screen bg-[#010103] flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-[#010103] flex flex-col items-center justify-center px-4 overflow-hidden">
         <div className="text-center max-w-3xl mx-auto">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
             Coming Soon
@@ -38,7 +38,7 @@ const LandingPageLayout = () => {
   }
 
   return (
-    <main className="bg-gradient-to-b from-[#010103] to-[#010102] text-white flex flex-col min-h-screen">
+    <main className="bg-gradient-to-b from-[#010103] to-[#010102] text-white flex flex-col min-h-screen max-w-screen overflow-hidden">
       {/* HEADER */}
       <header className="fixed top-0 left-0 z-50 w-full border-b border-white/10 bg-[#010103]/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-10">
@@ -62,15 +62,15 @@ const LandingPageLayout = () => {
               <ul className="flex items-center space-x-8">
                 {navigationItems.map((item) => (
                   <li key={item.name}>
-                    <Link
-                      to={item.to}
+                    <a
+                      href={item.to}
                       className={`text-sm font-medium transition-colors duration-200 hover:text-white/80 ${location.pathname === item.to
                         ? 'text-white'
                         : 'text-white/70'
                         }`}
                     >
                       {item.name}
-                    </Link>
+                    </a>
                   </li>
                 ))}
               </ul>
@@ -125,8 +125,8 @@ const LandingPageLayout = () => {
               <ul className="flex flex-col space-y-4 pt-4">
                 {navigationItems.map((item) => (
                   <li key={item.name}>
-                    <Link
-                      to={item.to}
+                    <a
+                      href={item.to}
                       className={`block py-2 px-3 text-base font-medium transition-colors duration-200 hover:bg-white/5 rounded-lg ${location.pathname === item.to
                         ? 'text-white'
                         : 'text-white/70'
@@ -134,7 +134,7 @@ const LandingPageLayout = () => {
                       onClick={() => setIsMenuOpen(false)}
                     >
                       {item.name}
-                    </Link>
+                    </a>
                   </li>
                 ))}
                 <li className="pt-2">
@@ -203,14 +203,14 @@ const LandingPageLayout = () => {
                   <ul className="space-y-2">
                     {navigationItems.map((item) => (
                       <li key={item.name}>
-                        <Link
-                          to={item.to}
+                        <a
+                          href={item.to}
                           className="text-white/60 text-sm hover:text-white transition-colors duration-200 block hover:bg-white/5 px-2 py-1 rounded group"
                         >
                           <span className="group-hover:translate-x-1 transition-transform duration-200">
                             {item.name}
                           </span>
-                        </Link>
+                        </a>
                       </li>
                     ))}
                   </ul>
