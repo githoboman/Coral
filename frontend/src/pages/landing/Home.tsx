@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, Variants } from 'framer-motion';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface Feature {
   id: number;
@@ -174,6 +176,14 @@ const AccordionItem: React.FC<AccordionItemProps> = ({ question, answer, isOpen,
 const Home: React.FC = () => {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const [email, setEmail] = useState<string>('');
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('tovira_waitlist_subscribed') === 'true') {
+      setIsSubscribed(true);
+    }
+  }, []);
 
   const toggleItem = (category: string, index: number): void => {
     setOpenItems((prev) => ({
@@ -185,6 +195,7 @@ const Home: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email) return;
+    setIsLoading(true);
     try {
       const response = await fetch('https://tovira-server.onrender.com/waitlist', {
         method: 'POST',
@@ -195,14 +206,18 @@ const Home: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        alert(data.message);
+        toast.success(data.message);
         setEmail('');
+        setIsSubscribed(true);
+        localStorage.setItem('tovira_waitlist_subscribed', 'true');
       } else {
         const errorData = await response.json();
-        alert(errorData.detail || 'Failed to join waitlist');
+        toast.error(errorData.detail || 'Failed to join waitlist');
       }
     } catch (error) {
-      alert('An error occurred. Please try again later.');
+      toast.error('An error occurred. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -265,6 +280,7 @@ const Home: React.FC = () => {
                 </a>
                 <a
                   href="https://x.com/tovira_sui"
+                  target="_blank"
                   className="inline-block bg-gradient-to-r from-[#159EF3] to-[#0D68A0] text-white font-bold py-3 px-6 rounded-xl text-center text-sm sm:text-base hover:from-[#79e8f0] hover:to-[#0687c2] transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Follow on X
@@ -290,7 +306,7 @@ const Home: React.FC = () => {
             className="w-full max-w-6xl mx-auto static md:absolute -bottom-32 mt-[6rem] bg-gradient-to-b from-transparent to-[#010103] backdrop-blur-md left-0 right-0 flex flex-col items-start gap-2 px-4"
           >
             <h2 className="font-black text-[32px] mb-4">Tovira's Features</h2>
-            
+
             <motion.div
               className="flex flex-col md:flex-row w-full gap-4 sm:gap-6 justify-center items-center"
               initial="hidden"
@@ -321,7 +337,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-      <section id="about" className="flex flex-col md:flex-row w-full relative py-20 bg-[#010103] text-white">
+      <section id="about" className="flex flex-col md:flex-row w-full relative md:mt-60 py-20 bg-[#010103] text-white">
         <motion.div
           className="w-full"
           initial="hidden"
@@ -410,7 +426,7 @@ const Home: React.FC = () => {
       </section>
       <section
         id="support"
-        className="relative py-20 bg-gradient-to-b from-[#010103] to-[#020206] px-6 sm:px-12 lg:px-20"
+        className="relative py-20 md:mt-40 bg-gradient-to-b from-[#010103] to-[#020206] px-6 sm:px-12 lg:px-20"
       >
         <motion.div
           className="relative max-w-xl mx-auto text-center space-y-12"
@@ -452,8 +468,8 @@ const Home: React.FC = () => {
           </motion.p>
         </motion.div>
       </section>
-      <section className="h-[50rem] md:h-[120rem] bg-[#010103] flex flex-col justify-center relative overflow-hidden">
-        <div className="h-[150rem] flex flex-col justify-center relative overflow-hidden">
+      <section className="h-[50rem] md:h-[80rem] bg-[#010103] flex flex-col justify-center relative overflow-hidden">
+        <div className="h-[100rem] flex flex-col justify-center relative overflow-hidden">
           <img src="/assets/images/waitlist.png" alt="Waitlist" className="w-full h-full object-cover" />
         </div>
         <div className="absolute inset-0 flex items-end md:items-center justify-center">
@@ -463,7 +479,7 @@ const Home: React.FC = () => {
             className="mb-[18rem] md:mb-[22rem] w-64 h-64 sm:w-96 sm:h-96 object-contain"
           />
         </div>
-        <div id="waitlist" className="absolute inset-0 px-4 h-full flex justify-center items-end md:items-center z-10">
+        <div id="waitlist" className="absolute inset-0 px-4 h-full flex justify-center mt-20 md:mt-0 items-center z-10">
           <motion.div
             className="max-w-3xl mx-auto text-center"
             initial="hidden"
@@ -475,51 +491,92 @@ const Home: React.FC = () => {
               className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8 lg:p-12"
               variants={itemVariants}
             >
-              <motion.div className="mb-8" variants={itemVariants}>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
-                  Join the Waitlist
-                </h2>
-                <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-                  Be the first to experience Tovira's revolutionary wallet intelligence platform. Get early access and
-                  exclusive features.
-                </p>
-              </motion.div>
-              <form className="w-full max-w-md mx-auto" onSubmit={handleSubmit}>
-                <motion.div className="space-y-4" variants={containerVariants}>
-                  <motion.div variants={itemVariants}>
-                    <input
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#8EF1FE]/30 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
-                      type="email"
-                      placeholder="Enter your email address"
-                      aria-label="Email address for waitlist"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+              {!isSubscribed ? (
+                <>
+                  <motion.div className="mb-8" variants={itemVariants}>
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
+                      Join the Waitlist
+                    </h2>
+                    <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+                      Join the waitlist to unlock early access to Tovira
+                    </p>
                   </motion.div>
-                  <motion.button
-                    className="w-full bg-gradient-to-r from-[#8EF1FE] to-[#0796D9] text-black font-bold py-3 px-6 rounded-2xl text-sm sm:text-base hover:from-[#79e8f0] hover:to-[#0687c2] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    type="submit"
-                    variants={itemVariants}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      Join Waitlist
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </span>
-                  </motion.button>
-                </motion.div>
-                <motion.div className="mt-8 pt-6 border-t border-white/10" variants={itemVariants}>
-                  <p className="text-white/40 text-xs sm:text-sm text-center">Join 15K+ others on the waitlist</p>
-                  <div className="flex justify-center items-center gap-4 mt-3 flex-wrap">
-                    <div className="w-8 h-8 bg-white/10 rounded-full"></div>
-                    <div className="w-6 h-6 bg-white/10 rounded-full"></div>
-                    <div className="w-8 h-8 bg-white/10 rounded-full"></div>
-                    <div className="w-7 h-7 bg-white/10 rounded-full"></div>
+                  <div className="w-full max-w-md mx-auto">
+                    <form onSubmit={handleSubmit}>
+                      <motion.div className="space-y-4" variants={containerVariants}>
+                        <motion.div variants={itemVariants}>
+                          <input
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#8EF1FE]/30 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
+                            type="email"
+                            placeholder="Enter your email address"
+                            aria-label="Email address for waitlist"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                          />
+                        </motion.div>
+                        <motion.button
+                          className="w-full bg-gradient-to-r from-[#8EF1FE] to-[#0796D9] text-black font-bold py-3 px-6 rounded-2xl text-sm sm:text-base hover:from-[#79e8f0] hover:to-[#0687c2] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          type="submit"
+                          variants={itemVariants}
+                          disabled={isLoading}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            {isLoading ? (
+                              <div className="loader ease-linear rounded-full border-2 border-t-8 border-r-4 border-l-1 border-black/80 h-5 w-5 animate-spin"></div>
+                            ) : (
+                              <>
+                                Join Waitlist
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                              </>
+                            )}
+                          </span>
+                        </motion.button>
+                      </motion.div>
+                    </form>
+
+                    <motion.div className="mt-8 pt-6 border-t border-white/10" variants={itemVariants}>
+                      <p className="text-white/40 text-xs sm:text-sm text-center">Built on Sui. Built for You.</p>
+                      <div className="flex justify-center items-center gap-4 mt-3 flex-wrap">
+                        <div className="w-8 h-8 bg-white/10 rounded-full"></div>
+                        <div className="w-6 h-6 bg-white/10 rounded-full"></div>
+                        <div className="w-8 h-8 bg-white/10 rounded-full"></div>
+                        <div className="w-7 h-7 bg-white/10 rounded-full"></div>
+                      </div>
+                    </motion.div>
                   </div>
-                </motion.div>
-              </form>
+                </>
+              ) : (
+                <>
+                  <motion.div className="mb-8 flex flex-col gap-4 items-center" variants={itemVariants}>
+                    <div className="w-[100px] h-[93px] rounded-[30px] bg-gradient-to-br from-[#8EF1FE] to-[#0796D9] flex items-center justify-center -rotate-45">
+                      <img
+                        src="/assets/images/waitlist-success.png"
+                        alt="waitlist-success"
+                        className="object-cover rotate-45"
+                      />
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
+                      Success
+                    </h2>
+                    <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+                      You have successfully signed to our waitlist, follow us on X for more updates
+                    </p>
+                  </motion.div>
+                  <div className="w-full flex justify-end">
+                    <a href="https://x.com/tovira_sui" target="_blank">
+                      <img
+                        src="/assets/icons/x.svg"
+                        alt="X"
+                        className=""
+                      />
+                    </a>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         </div>

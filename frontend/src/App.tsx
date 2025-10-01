@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 
 import Home from './pages/landing/Home';
 import LandingPageLayout from './pages/landing/Layout';
@@ -25,6 +26,8 @@ function App() {
           <Route path="/dashboard/" element={<Dashboard />} />
         </Route>
       </Routes>
+
+      <ToastContainer />
     </div>
   );
 }
