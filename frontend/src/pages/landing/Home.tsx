@@ -173,12 +173,37 @@ const AccordionItem: React.FC<AccordionItemProps> = ({ question, answer, isOpen,
 
 const Home: React.FC = () => {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+  const [email, setEmail] = useState<string>('');
 
   const toggleItem = (category: string, index: number): void => {
     setOpenItems((prev) => ({
       ...prev,
       [`${category}-${index}`]: !prev[`${category}-${index}`],
     }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email) return;
+    try {
+      const response = await fetch('https://tovira-server.onrender.com/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        alert(data.message);
+        setEmail('');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.detail || 'Failed to join waitlist');
+      }
+    } catch (error) {
+      alert('An error occurred. Please try again later.');
+    }
   };
 
   const containerVariants: Variants = {
@@ -459,7 +484,7 @@ const Home: React.FC = () => {
                   exclusive features.
                 </p>
               </motion.div>
-              <form className="w-full max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
+              <form className="w-full max-w-md mx-auto" onSubmit={handleSubmit}>
                 <motion.div className="space-y-4" variants={containerVariants}>
                   <motion.div variants={itemVariants}>
                     <input
@@ -467,6 +492,8 @@ const Home: React.FC = () => {
                       type="email"
                       placeholder="Enter your email address"
                       aria-label="Email address for waitlist"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </motion.div>
