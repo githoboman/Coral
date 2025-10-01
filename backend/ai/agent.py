@@ -575,7 +575,7 @@ Return JSON with 'tasks' array, 'needs_clarification', 'clarification_question'.
 class CopilotAgent:
     def __init__(self, gemini_api_key: str, supabase_client: Client):
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             google_api_key=gemini_api_key,
             temperature=0.1
         )

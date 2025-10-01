@@ -51642,3 +51642,875 @@ telegram.error.Conflict: Conflict: terminated by other getUpdates request; make 
 2025-09-14 22:07:37,928 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2025-09-14 22:07:37,944 - telegram.ext.Application - INFO - Application.stop() complete
 2025-09-14 22:09:23,579 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2.0 seconds as it raised RetryError: Timeout of 600.0s exceeded, last exception: 503 failed to connect to all addresses; last error: UNAVAILABLE: ipv4:172.217.17.10:443: End of TCP stream.
+2025-09-27 10:25:56,637 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-09-27 10:25:56,639 - apscheduler.scheduler - INFO - Added job "Send task reminders to users" to job store "default"
+2025-09-27 10:25:56,639 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-27 10:25:56,863 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-27 10:25:56,863 - telegram.ext.Application - INFO - Application started
+2025-09-27 10:26:57,177 - __main__ - ERROR - Error creating user profile: [Errno 11001] getaddrinfo failed
+2025-09-27 10:26:57,178 - __main__ - INFO - Start command for user: 7923643903
+2025-09-27 10:26:57,183 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:27:56 WAT)" (scheduled at 2025-09-27 10:26:56.637086+01:00)
+2025-09-27 10:26:58,837 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:27:56 WAT)" executed successfully
+2025-09-27 10:27:56,640 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:28:56 WAT)" (scheduled at 2025-09-27 10:27:56.637086+01:00)
+2025-09-27 10:27:58,595 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:28:56 WAT)" executed successfully
+2025-09-27 10:28:56,648 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:29:56 WAT)" (scheduled at 2025-09-27 10:28:56.637086+01:00)
+2025-09-27 10:29:39,508 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:29:56 WAT)" executed successfully
+2025-09-27 10:29:56,644 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:30:56 WAT)" (scheduled at 2025-09-27 10:29:56.637086+01:00)
+2025-09-27 10:30:39,439 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:30:56 WAT)" executed successfully
+2025-09-27 10:30:56,651 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:31:56 WAT)" (scheduled at 2025-09-27 10:30:56.637086+01:00)
+2025-09-27 10:31:39,691 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:31:56 WAT)" executed successfully
+2025-09-27 10:31:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:32:56 WAT)" (scheduled at 2025-09-27 10:31:56.637086+01:00)
+2025-09-27 10:31:58,592 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:32:56 WAT)" executed successfully
+2025-09-27 10:32:56,639 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:33:56 WAT)" (scheduled at 2025-09-27 10:32:56.637086+01:00)
+2025-09-27 10:33:01,281 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:33:56 WAT)" executed successfully
+2025-09-27 10:33:56,654 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:34:56 WAT)" (scheduled at 2025-09-27 10:33:56.637086+01:00)
+2025-09-27 10:34:39,748 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:34:56 WAT)" executed successfully
+2025-09-27 10:34:56,648 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:35:56 WAT)" (scheduled at 2025-09-27 10:34:56.637086+01:00)
+2025-09-27 10:35:40,637 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:35:56 WAT)" executed successfully
+2025-09-27 10:35:56,648 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:36:56 WAT)" (scheduled at 2025-09-27 10:35:56.637086+01:00)
+2025-09-27 10:36:39,499 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:36:56 WAT)" executed successfully
+2025-09-27 10:36:56,639 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:37:56 WAT)" (scheduled at 2025-09-27 10:36:56.637086+01:00)
+2025-09-27 10:37:39,616 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:37:56 WAT)" executed successfully
+2025-09-27 10:37:56,642 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:38:56 WAT)" (scheduled at 2025-09-27 10:37:56.637086+01:00)
+2025-09-27 10:37:58,566 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:38:56 WAT)" executed successfully
+2025-09-27 10:38:56,643 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:39:56 WAT)" (scheduled at 2025-09-27 10:38:56.637086+01:00)
+2025-09-27 10:39:39,411 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:39:56 WAT)" executed successfully
+2025-09-27 10:39:56,650 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:40:56 WAT)" (scheduled at 2025-09-27 10:39:56.637086+01:00)
+2025-09-27 10:40:39,479 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:40:56 WAT)" executed successfully
+2025-09-27 10:40:56,644 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:41:56 WAT)" (scheduled at 2025-09-27 10:40:56.637086+01:00)
+2025-09-27 10:41:39,338 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:41:56 WAT)" executed successfully
+2025-09-27 10:41:56,646 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:42:56 WAT)" (scheduled at 2025-09-27 10:41:56.637086+01:00)
+2025-09-27 10:42:39,345 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:42:56 WAT)" executed successfully
+2025-09-27 10:42:56,639 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:43:56 WAT)" (scheduled at 2025-09-27 10:42:56.637086+01:00)
+2025-09-27 10:43:39,376 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:43:56 WAT)" executed successfully
+2025-09-27 10:43:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:44:56 WAT)" (scheduled at 2025-09-27 10:43:56.637086+01:00)
+2025-09-27 10:43:58,408 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:44:56 WAT)" executed successfully
+2025-09-27 10:44:56,652 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:45:56 WAT)" (scheduled at 2025-09-27 10:44:56.637086+01:00)
+2025-09-27 10:44:58,722 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:45:56 WAT)" executed successfully
+2025-09-27 10:45:56,647 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:46:56 WAT)" (scheduled at 2025-09-27 10:45:56.637086+01:00)
+2025-09-27 10:46:39,431 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:46:56 WAT)" executed successfully
+2025-09-27 10:46:56,649 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:47:56 WAT)" (scheduled at 2025-09-27 10:46:56.637086+01:00)
+2025-09-27 10:47:39,322 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:47:56 WAT)" executed successfully
+2025-09-27 10:47:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:48:56 WAT)" (scheduled at 2025-09-27 10:47:56.637086+01:00)
+2025-09-27 10:48:39,367 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:48:56 WAT)" executed successfully
+2025-09-27 10:48:56,647 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:49:56 WAT)" (scheduled at 2025-09-27 10:48:56.637086+01:00)
+2025-09-27 10:49:39,331 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:49:56 WAT)" executed successfully
+2025-09-27 10:49:56,643 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:50:56 WAT)" (scheduled at 2025-09-27 10:49:56.637086+01:00)
+2025-09-27 10:49:58,255 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:50:56 WAT)" executed successfully
+2025-09-27 10:50:56,643 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:51:56 WAT)" (scheduled at 2025-09-27 10:50:56.637086+01:00)
+2025-09-27 10:51:39,696 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:51:56 WAT)" executed successfully
+2025-09-27 10:51:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:52:56 WAT)" (scheduled at 2025-09-27 10:51:56.637086+01:00)
+2025-09-27 10:52:39,516 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:52:56 WAT)" executed successfully
+2025-09-27 10:52:56,645 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:53:56 WAT)" (scheduled at 2025-09-27 10:52:56.637086+01:00)
+2025-09-27 10:53:39,340 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:53:56 WAT)" executed successfully
+2025-09-27 10:53:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:54:56 WAT)" (scheduled at 2025-09-27 10:53:56.637086+01:00)
+2025-09-27 10:54:39,363 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:54:56 WAT)" executed successfully
+2025-09-27 10:54:56,645 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:55:56 WAT)" (scheduled at 2025-09-27 10:54:56.637086+01:00)
+2025-09-27 10:55:39,324 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:55:56 WAT)" executed successfully
+2025-09-27 10:55:56,650 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:56:56 WAT)" (scheduled at 2025-09-27 10:55:56.637086+01:00)
+2025-09-27 10:56:00,425 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:56:56 WAT)" executed successfully
+2025-09-27 10:56:56,646 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:57:56 WAT)" (scheduled at 2025-09-27 10:56:56.637086+01:00)
+2025-09-27 10:57:40,512 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:57:56 WAT)" executed successfully
+2025-09-27 10:57:56,640 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:58:56 WAT)" (scheduled at 2025-09-27 10:57:56.637086+01:00)
+2025-09-27 10:58:39,377 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:58:56 WAT)" executed successfully
+2025-09-27 10:58:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:59:56 WAT)" (scheduled at 2025-09-27 10:58:56.637086+01:00)
+2025-09-27 10:59:39,269 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 10:59:56 WAT)" executed successfully
+2025-09-27 10:59:56,645 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:00:56 WAT)" (scheduled at 2025-09-27 10:59:56.637086+01:00)
+2025-09-27 11:00:39,304 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:00:56 WAT)" executed successfully
+2025-09-27 11:00:56,649 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:01:56 WAT)" (scheduled at 2025-09-27 11:00:56.637086+01:00)
+2025-09-27 11:01:39,334 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:01:56 WAT)" executed successfully
+2025-09-27 11:01:56,639 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:02:56 WAT)" (scheduled at 2025-09-27 11:01:56.637086+01:00)
+2025-09-27 11:01:58,371 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:02:56 WAT)" executed successfully
+2025-09-27 11:02:56,650 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:03:56 WAT)" (scheduled at 2025-09-27 11:02:56.637086+01:00)
+2025-09-27 11:02:58,435 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:03:56 WAT)" executed successfully
+2025-09-27 11:03:56,641 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:04:56 WAT)" (scheduled at 2025-09-27 11:03:56.637086+01:00)
+2025-09-27 11:04:40,683 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:04:56 WAT)" executed successfully
+2025-09-27 11:04:56,650 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:05:56 WAT)" (scheduled at 2025-09-27 11:04:56.637086+01:00)
+2025-09-27 11:05:39,372 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:05:56 WAT)" executed successfully
+2025-09-27 11:05:56,647 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:06:56 WAT)" (scheduled at 2025-09-27 11:05:56.637086+01:00)
+2025-09-27 11:06:39,344 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:06:56 WAT)" executed successfully
+2025-09-27 11:06:56,654 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:07:56 WAT)" (scheduled at 2025-09-27 11:06:56.637086+01:00)
+2025-09-27 11:07:39,483 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:07:56 WAT)" executed successfully
+2025-09-27 11:07:56,638 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:08:56 WAT)" (scheduled at 2025-09-27 11:07:56.637086+01:00)
+2025-09-27 11:08:39,566 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:08:56 WAT)" executed successfully
+2025-09-27 11:08:56,646 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:09:56 WAT)" (scheduled at 2025-09-27 11:08:56.637086+01:00)
+2025-09-27 11:09:00,419 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:09:56 WAT)" executed successfully
+2025-09-27 11:09:56,652 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:10:56 WAT)" (scheduled at 2025-09-27 11:09:56.637086+01:00)
+2025-09-27 11:10:39,457 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-27 11:10:56 WAT)" executed successfully
+2025-09-27 11:10:47,596 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-09-27 11:10:47,601 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-09-27 11:10:47,621 - telegram.ext.Application - INFO - Application.stop() complete
+2025-09-30 11:30:20,531 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-09-30 11:30:20,532 - apscheduler.scheduler - INFO - Added job "Send task reminders to users" to job store "default"
+2025-09-30 11:30:20,532 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 11:30:21,378 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 11:30:21,378 - telegram.ext.Application - INFO - Application started
+2025-09-30 11:30:26,499 - __main__ - INFO - User profile created/updated for user: 7923643903
+2025-09-30 11:30:26,500 - __main__ - INFO - Start command for user: 7923643903
+2025-09-30 11:30:31,507 - __main__ - ERROR - Error in start_command: Timed out
+2025-09-30 11:31:20,547 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:32:20 WAT)" (scheduled at 2025-09-30 11:31:20.530737+01:00)
+2025-09-30 11:31:37,140 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:32:20 WAT)" executed successfully
+2025-09-30 11:32:20,537 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:33:20 WAT)" (scheduled at 2025-09-30 11:32:20.530737+01:00)
+2025-09-30 11:32:24,466 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:33:20 WAT)" executed successfully
+2025-09-30 11:33:20,539 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:34:20 WAT)" (scheduled at 2025-09-30 11:33:20.530737+01:00)
+2025-09-30 11:33:34,649 - __main__ - ERROR - Error in send_reminders: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-09-30 11:33:34,650 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:34:20 WAT)" executed successfully
+2025-09-30 11:34:20,534 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:35:20 WAT)" (scheduled at 2025-09-30 11:34:20.530737+01:00)
+2025-09-30 11:34:37,569 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:35:20 WAT)" executed successfully
+2025-09-30 11:35:20,540 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:36:20 WAT)" (scheduled at 2025-09-30 11:35:20.530737+01:00)
+2025-09-30 11:35:21,410 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:36:20 WAT)" executed successfully
+2025-09-30 11:36:20,533 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:37:20 WAT)" (scheduled at 2025-09-30 11:36:20.530737+01:00)
+2025-09-30 11:36:32,564 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:32,565 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:37:20 WAT)" executed successfully
+2025-09-30 11:36:32,569 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:38,587 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:39,602 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:41,125 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:43,387 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:36:46,769 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:37:20,534 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:38:20 WAT)" (scheduled at 2025-09-30 11:37:20.530737+01:00)
+2025-09-30 11:38:32,451 - __main__ - ERROR - Error in send_reminders: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-09-30 11:38:32,452 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:38:20 WAT)" executed successfully
+2025-09-30 11:38:32,455 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:39:20 WAT)" was missed by 0:00:11.924346
+2025-09-30 11:39:20,534 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:40:20 WAT)" (scheduled at 2025-09-30 11:39:20.530737+01:00)
+2025-09-30 11:39:20,548 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:20,549 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:40:20 WAT)" executed successfully
+2025-09-30 11:39:22,561 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:23,565 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:25,078 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:27,349 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:30,739 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:35,823 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:43,436 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:39:54,831 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:40:11,932 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:40:20,549 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:41:20 WAT)" (scheduled at 2025-09-30 11:40:20.530737+01:00)
+2025-09-30 11:40:20,556 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:40:20,557 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:41:20 WAT)" executed successfully
+2025-09-30 11:40:37,599 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:41:20,538 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:42:20 WAT)" (scheduled at 2025-09-30 11:41:20.530737+01:00)
+2025-09-30 11:41:36,302 - __main__ - ERROR - Error in send_reminders: [WinError 10051] A socket operation was attempted to an unreachable network
+2025-09-30 11:41:36,362 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:42:20 WAT)" executed successfully
+2025-09-30 11:41:36,493 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:41:37,510 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:41:39,024 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:41:41,286 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:20,542 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:43:20 WAT)" (scheduled at 2025-09-30 11:42:20.530737+01:00)
+2025-09-30 11:42:32,601 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:32,603 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:43:20 WAT)" executed successfully
+2025-09-30 11:42:47,675 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:48,696 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:50,215 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:52,476 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:42:55,871 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:43:00,943 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:43:08,555 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:43:19,959 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:43:20,540 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:44:20 WAT)" (scheduled at 2025-09-30 11:43:20.530737+01:00)
+2025-09-30 11:43:20,549 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:43:20,550 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:44:20 WAT)" executed successfully
+2025-09-30 11:43:37,068 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:44:02,713 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:44:20,539 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:45:20 WAT)" (scheduled at 2025-09-30 11:44:20.530737+01:00)
+2025-09-30 11:44:20,545 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:44:20,547 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:45:20 WAT)" executed successfully
+2025-09-30 11:44:32,719 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:45:02,767 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:45:20,545 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:46:20 WAT)" (scheduled at 2025-09-30 11:45:20.530737+01:00)
+2025-09-30 11:45:32,594 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:45:32,595 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:46:20 WAT)" executed successfully
+2025-09-30 11:46:20,533 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:47:20 WAT)" (scheduled at 2025-09-30 11:46:20.530737+01:00)
+2025-09-30 11:46:39,101 - __main__ - ERROR - Error in send_reminders: Server disconnected
+2025-09-30 11:46:39,103 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:47:20 WAT)" executed successfully
+2025-09-30 11:47:07,138 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:47:20,213 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:47:20,539 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:48:20 WAT)" (scheduled at 2025-09-30 11:47:20.530737+01:00)
+2025-09-30 11:49:34,450 - __main__ - ERROR - Error in send_reminders: _ssl.c:1015: The handshake operation timed out
+2025-09-30 11:49:34,451 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:48:20 WAT)" executed successfully
+2025-09-30 11:49:34,456 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:50:20 WAT)" was missed by 0:00:13.926008
+2025-09-30 11:50:16,747 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:17,758 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:19,280 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:20,539 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:51:20 WAT)" (scheduled at 2025-09-30 11:50:20.530737+01:00)
+2025-09-30 11:50:20,547 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:20,552 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:51:20 WAT)" executed successfully
+2025-09-30 11:50:21,542 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:24,928 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:29,998 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:37,604 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:50:49,003 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:51:06,126 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:51:20,537 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:52:20 WAT)" (scheduled at 2025-09-30 11:51:20.530737+01:00)
+2025-09-30 11:51:20,545 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:51:20,546 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:52:20 WAT)" executed successfully
+2025-09-30 11:51:31,759 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:52:01,776 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:52:20,539 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:53:20 WAT)" (scheduled at 2025-09-30 11:52:20.530737+01:00)
+2025-09-30 11:52:20,544 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:52:20,545 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:53:20 WAT)" executed successfully
+2025-09-30 11:52:31,786 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:53:01,793 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:53:20,538 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:54:20 WAT)" (scheduled at 2025-09-30 11:53:20.530737+01:00)
+2025-09-30 11:53:20,546 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:53:20,547 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:54:20 WAT)" executed successfully
+2025-09-30 11:53:31,803 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:54:01,812 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:54:20,543 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:55:20 WAT)" (scheduled at 2025-09-30 11:54:20.530737+01:00)
+2025-09-30 11:54:20,550 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:54:20,551 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:55:20 WAT)" executed successfully
+2025-09-30 11:54:31,821 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:11,874 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:12,898 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:14,420 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:16,686 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:20,067 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:20,535 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:56:20 WAT)" (scheduled at 2025-09-30 11:55:20.530737+01:00)
+2025-09-30 11:55:20,543 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:20,546 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:56:20 WAT)" executed successfully
+2025-09-30 11:55:25,144 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:32,744 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:55:44,153 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:56:01,251 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 11:56:20,543 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:57:20 WAT)" (scheduled at 2025-09-30 11:56:20.530737+01:00)
+2025-09-30 11:56:32,579 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 11:56:32,580 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 11:57:20 WAT)" executed successfully
+2025-09-30 11:59:42,732 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 12:00:20 WAT)" was missed by 0:00:22.201863
+2025-09-30 11:59:48,483 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-09-30 11:59:48,484 - telegram.ext.Application - CRITICAL - Fetching updates was aborted due to KeyboardInterrupt(). Suppressing exception to ensure graceful shutdown.
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 673, in stop
+    self.__update_fetcher_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 1228, in _update_fetcher
+    await self.__update_fetcher()
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 1224, in __update_fetcher
+    await self.__process_update_wrapper(update)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 1239, in __process_update_wrapper
+    await self._update_processor.process_update(update, self.process_update(update))
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_baseupdateprocessor.py", line 170, in process_update
+    await self.do_process_update(update, coroutine)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_baseupdateprocessor.py", line 195, in do_process_update
+    await coroutine
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 1311, in process_update
+    await coroutine
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_handlers\basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\Desktop\Tovira\backend\copilotbot.py", line 619, in handle_message
+    await update_user_activity(user_id)
+  File "C:\Users\HP\Desktop\Tovira\backend\copilotbot.py", line 130, in update_user_activity
+    }).eq('user_id', user_id).execute()
+                              ~~~~~~~^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\postgrest\_sync\request_builder.py", line 57, in execute
+    r = self.session.request(
+        self.http_method,
+    ...<3 lines>...
+        headers=self.headers,
+    )
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+        request,
+    ...<2 lines>...
+        history=[],
+    )
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+        request,
+        follow_redirects=follow_redirects,
+        history=history,
+    )
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_sync\connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_sync\connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+        pool_request.request
+    )
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_sync\connection.py", line 101, in handle_request
+    raise exc
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_sync\connection.py", line 78, in handle_request
+    stream = self._connect(request)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_sync\connection.py", line 156, in _connect
+    stream = stream.start_tls(**kwargs)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\sync.py", line 165, in start_tls
+    sock = ssl_context.wrap_socket(
+        self._sock, server_hostname=server_hostname
+    )
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\ssl.py", line 1076, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\ssl.py", line 1374, in do_handshake
+    self.settimeout(timeout)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+KeyboardInterrupt
+2025-09-30 11:59:48,784 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-09-30 11:59:48,802 - telegram.ext.Application - INFO - Application.stop() complete
+2025-09-30 12:00:23,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-09-30 12:00:23,155 - apscheduler.scheduler - INFO - Added job "Send task reminders to users" to job store "default"
+2025-09-30 12:00:23,156 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 15:00:57,543 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:01:23 WAT)" was missed by 0:00:34.392211
+2025-09-30 15:00:58,058 - telegram.ext - ERROR - Network Retry Loop (Bootstrap delete Webhook): Failed run number 7 of 0. Aborting.
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 273, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_utils\networkloop.py", line 115, in network_retry_loop
+    if not await do_action():
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_utils\networkloop.py", line 93, in do_action
+    return await action_cb()
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_updater.py", line 685, in bootstrap_del_webhook
+    await self.bot.delete_webhook(drop_pending_updates=drop_pending_updates)
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 1480, in delete_webhook
+    return await super().delete_webhook(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 4783, in delete_webhook
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 698, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 727, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 197, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 304, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 297, in do_request
+    raise NetworkError(f"httpx.{err.__class__.__name__}: {err}") from err
+telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:30:54,787 - telegram.ext - ERROR - Network Retry Loop (Bootstrap Initialize Application): Failed run number 0 of 0. Aborting.
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 273, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_utils\networkloop.py", line 115, in network_retry_loop
+    if not await do_action():
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_utils\networkloop.py", line 93, in do_action
+    return await action_cb()
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 316, in initialize
+    await super().initialize()
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 845, in initialize
+    await self.get_me()
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 1981, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 976, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 698, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 727, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 197, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 304, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 297, in do_request
+    raise NetworkError(f"httpx.{err.__class__.__name__}: {err}") from err
+telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:32:50,279 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-09-30 15:32:50,280 - apscheduler.scheduler - INFO - Added job "Send task reminders to users" to job store "default"
+2025-09-30 15:32:50,281 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 15:32:50,453 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 15:32:50,454 - telegram.ext.Application - INFO - Application started
+2025-09-30 15:32:56,119 - __main__ - INFO - User profile created/updated for user: 7923643903
+2025-09-30 15:32:56,120 - __main__ - INFO - Start command for user: 7923643903
+2025-09-30 15:32:57,249 - __main__ - INFO - User profile created/updated for user: 7923643903
+2025-09-30 15:32:57,265 - __main__ - INFO - Start command for user: 7923643903
+2025-09-30 15:33:20,369 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to buy groceries tomorrow at 3 PM'
+2025-09-30 15:33:20,625 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:33:20,665 - ai.agent - INFO - Processing message for user_id: 7923643903, message_length: 43, timezone: UTC
+2025-09-30 15:33:20,958 - ai.agent - INFO - Routing message for user_id: 7923643903, message_length: 43
+2025-09-30 15:33:20,984 - ai.agent - INFO - Routing to task_creation for user_id: 7923643903
+2025-09-30 15:33:21,105 - ai.agent - INFO - Handling task creation for user_id: 7923643903, input_length: 43
+2025-09-30 15:33:22,519 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2.0 seconds as it raised NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods..
+2025-09-30 15:33:26,488 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4.0 seconds as it raised NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods..
+2025-09-30 15:33:30,672 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8.0 seconds as it raised NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods..
+2025-09-30 15:33:38,909 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16.0 seconds as it raised NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods..
+2025-09-30 15:33:55,117 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 32.0 seconds as it raised NotFound: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods..
+2025-09-30 15:34:27,345 - ai.agent - ERROR - Task extraction failed: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+2025-09-30 15:34:27,346 - ai.agent - INFO - Fallback extraction for input: Remind me to buy groceries tomorrow at 3 PM
+2025-09-30 15:34:49,705 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:34:50 WAT)" was missed by 0:00:59.425039
+2025-09-30 15:35:32,886 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-09-30 15:35:32,888 - apscheduler.scheduler - INFO - Added job "Send task reminders to users" to job store "default"
+2025-09-30 15:35:32,890 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 15:35:33,159 - apscheduler.scheduler - INFO - Scheduler started
+2025-09-30 15:35:33,160 - telegram.ext.Application - INFO - Application started
+2025-09-30 15:36:17,514 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to buy groceries tomorrow at 3 PM'
+2025-09-30 15:36:17,757 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:36:17,760 - ai.agent - INFO - Processing message for user_id: 7923643903, message_length: 43, timezone: UTC
+2025-09-30 15:36:17,775 - ai.agent - INFO - Routing message for user_id: 7923643903, message_length: 43
+2025-09-30 15:36:17,777 - ai.agent - INFO - Routing to task_creation for user_id: 7923643903
+2025-09-30 15:36:17,784 - ai.agent - INFO - Handling task creation for user_id: 7923643903, input_length: 43
+2025-09-30 15:36:22,954 - ai.agent - INFO - Extracted 1 tasks from input: Remind me to buy groceries tomorrow at 3 PM
+2025-09-30 15:37:05,734 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:05,977 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:05,977 - ai.agent - INFO - Created draft task: Buy groceries (ID: 20) for user_id: 7923643903
+2025-09-30 15:37:06,228 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:06,228 - ai.agent - INFO - Formatted 1 draft tasks for review for user_id: 7923643903
+2025-09-30 15:37:06,230 - ai.agent - INFO - Task creation decision: pending drafts, waiting for user for user_id: 7923643903
+2025-09-30 15:37:06,232 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:37:32 WAT)" was missed by 0:00:33.346391
+2025-09-30 15:37:06,247 - ai.agent - INFO - Workflow completed, waiting for next user input for user_id: 7923643903
+2025-09-30 15:37:06,250 - ai.agent - INFO - Response for user_id: 7923643903, response_length: 370
+2025-09-30 15:37:06,251 - __main__ - INFO - Bot response length: 351 chars
+2025-09-30 15:37:07,538 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to buy groceries tomorrow at 3 PM'
+2025-09-30 15:37:07,811 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:07,814 - ai.agent - INFO - Processing message for user_id: 7923643903, message_length: 43, timezone: UTC
+2025-09-30 15:37:07,841 - ai.agent - INFO - Routing message for user_id: 7923643903, message_length: 43
+2025-09-30 15:37:07,846 - ai.agent - INFO - Routing to hitl_confirmation for user_id: 7923643903
+2025-09-30 15:37:07,849 - ai.agent - INFO - Handling HITL confirmation for user_id: 7923643903, input_length: 43, draft_ids: [20]
+2025-09-30 15:37:08,078 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:14,536 - ai.agent - INFO - AI intent recognized for user_id: 7923643903: edit (certainty: 1.0)
+2025-09-30 15:37:57,235 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:58,824 - ai.agent - INFO - Extracted 0 tasks from input: due tomorrow at 3 pm UTC
+2025-09-30 15:37:59,046 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:37:59,047 - ai.agent - INFO - Formatted 1 draft tasks for review for user_id: 7923643903
+2025-09-30 15:37:59,048 - ai.agent - INFO - Draft tasks updated via AI intent for user_id: 7923643903
+2025-09-30 15:37:59,051 - ai.agent - INFO - HITL decision for user_id: 7923643903, input_length: 43
+2025-09-30 15:37:59,054 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:38:32 WAT)" was missed by 0:00:26.169024
+2025-09-30 15:37:59,063 - ai.agent - INFO - Workflow completed, waiting for next user input for user_id: 7923643903
+2025-09-30 15:37:59,073 - ai.agent - INFO - Response for user_id: 7923643903, response_length: 400
+2025-09-30 15:37:59,088 - __main__ - INFO - Bot response length: 381 chars
+2025-09-30 15:38:03,122 - __main__ - INFO - User Sal (7923643903) in private: 'This task is okay, confirm it'
+2025-09-30 15:38:03,346 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:38:03,346 - ai.agent - INFO - Processing message for user_id: 7923643903, message_length: 29, timezone: UTC
+2025-09-30 15:38:03,355 - ai.agent - INFO - Routing message for user_id: 7923643903, message_length: 29
+2025-09-30 15:38:03,356 - ai.agent - INFO - Routing to hitl_confirmation for user_id: 7923643903
+2025-09-30 15:38:03,359 - ai.agent - INFO - Handling HITL confirmation for user_id: 7923643903, input_length: 29, draft_ids: [20]
+2025-09-30 15:38:03,360 - ai.agent - INFO - User confirmed draft tasks for user_id: 7923643903
+2025-09-30 15:38:03,361 - ai.agent - INFO - HITL decision for user_id: 7923643903, input_length: 29
+2025-09-30 15:38:03,367 - ai.agent - INFO - Executing task creation for user_id: 7923643903, draft_ids: [20]
+2025-09-30 15:38:03,622 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:38:04,087 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:38:04,088 - ai.agent - INFO - Finalized task: Buy groceries (ID: 207) for user_id: 7923643903
+2025-09-30 15:38:04,345 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:38:04,346 - ai.agent - INFO - Deleted draft task ID: 20 for user_id: 7923643903
+2025-09-30 15:38:04,349 - ai.agent - INFO - Finalized 1 tasks, 0 failed for user_id: 7923643903
+2025-09-30 15:38:04,358 - ai.agent - INFO - Cleared HITL state for user_id: 7923643903
+2025-09-30 15:38:04,378 - ai.agent - INFO - Response for user_id: 7923643903, response_length: 92
+2025-09-30 15:38:04,384 - __main__ - INFO - Bot response length: 92 chars
+2025-09-30 15:38:32,894 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:39:32 WAT)" (scheduled at 2025-09-30 15:38:32.885585+01:00)
+2025-09-30 15:38:36,650 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:39:32 WAT)" executed successfully
+2025-09-30 15:39:32,899 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:40:32 WAT)" (scheduled at 2025-09-30 15:39:32.885585+01:00)
+2025-09-30 15:39:34,585 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:40:32 WAT)" executed successfully
+2025-09-30 15:39:35,329 - ai.agent - INFO - Database operation executed successfully
+2025-09-30 15:39:35,329 - ai.agent - INFO - Processing message for user_id: 7923643903, message_length: 16, timezone: UTC
+2025-09-30 15:39:35,345 - ai.agent - INFO - Routing message for user_id: 7923643903, message_length: 16
+2025-09-30 15:39:35,350 - ai.agent - INFO - Routing to general_chat for user_id: 7923643903
+2025-09-30 15:39:35,357 - ai.agent - INFO - Handling general chat for user_id: 7923643903, input_length: 16
+2025-09-30 15:39:38,383 - ai.agent - INFO - Response for user_id: 7923643903, response_length: 195
+2025-09-30 15:40:19,009 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:20,021 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:21,541 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:23,803 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:27,186 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:32,261 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:32,892 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:41:32 WAT)" (scheduled at 2025-09-30 15:40:32.885585+01:00)
+2025-09-30 15:40:32,909 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:32,911 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:41:32 WAT)" executed successfully
+2025-09-30 15:40:39,909 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:40:51,307 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:41:08,406 - __main__ - ERROR - Update None caused error httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 15:41:32,892 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:42:32 WAT)" (scheduled at 2025-09-30 15:41:32.885585+01:00)
+2025-09-30 15:42:18,863 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:42:32 WAT)" executed successfully
+2025-09-30 15:42:32,902 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:43:32 WAT)" (scheduled at 2025-09-30 15:42:32.885585+01:00)
+2025-09-30 15:43:17,558 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:43:32 WAT)" executed successfully
+2025-09-30 15:43:32,889 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:44:32 WAT)" (scheduled at 2025-09-30 15:43:32.885585+01:00)
+2025-09-30 15:44:16,540 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:44:32 WAT)" executed successfully
+2025-09-30 15:44:32,890 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:45:32 WAT)" (scheduled at 2025-09-30 15:44:32.885585+01:00)
+2025-09-30 15:44:34,967 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:45:32 WAT)" executed successfully
+2025-09-30 15:45:32,900 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:46:32 WAT)" (scheduled at 2025-09-30 15:45:32.885585+01:00)
+2025-09-30 15:46:17,444 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:46:32 WAT)" executed successfully
+2025-09-30 15:46:32,898 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:47:32 WAT)" (scheduled at 2025-09-30 15:46:32.885585+01:00)
+2025-09-30 15:47:15,698 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:47:32 WAT)" executed successfully
+2025-09-30 15:47:32,898 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:48:32 WAT)" (scheduled at 2025-09-30 15:47:32.885585+01:00)
+2025-09-30 15:48:15,930 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:48:32 WAT)" executed successfully
+2025-09-30 15:48:32,900 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:49:32 WAT)" (scheduled at 2025-09-30 15:48:32.885585+01:00)
+2025-09-30 15:49:15,618 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:49:32 WAT)" executed successfully
+2025-09-30 15:49:32,893 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:50:32 WAT)" (scheduled at 2025-09-30 15:49:32.885585+01:00)
+2025-09-30 15:50:15,735 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:50:32 WAT)" executed successfully
+2025-09-30 15:50:32,897 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:51:32 WAT)" (scheduled at 2025-09-30 15:50:32.885585+01:00)
+2025-09-30 15:50:44,778 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:51:32 WAT)" executed successfully
+2025-09-30 15:51:32,891 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:52:32 WAT)" (scheduled at 2025-09-30 15:51:32.885585+01:00)
+2025-09-30 15:52:15,754 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:52:32 WAT)" executed successfully
+2025-09-30 15:52:32,897 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:53:32 WAT)" (scheduled at 2025-09-30 15:52:32.885585+01:00)
+2025-09-30 15:53:15,780 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:53:32 WAT)" executed successfully
+2025-09-30 15:53:32,890 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:54:32 WAT)" (scheduled at 2025-09-30 15:53:32.885585+01:00)
+2025-09-30 15:54:16,072 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:54:32 WAT)" executed successfully
+2025-09-30 15:54:32,900 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:55:32 WAT)" (scheduled at 2025-09-30 15:54:32.885585+01:00)
+2025-09-30 16:07:24,929 - __main__ - ERROR - Error in send_reminders: [WinError 10065] A socket operation was attempted to an unreachable host
+2025-09-30 16:07:24,943 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 15:55:32 WAT)" executed successfully
+2025-09-30 16:07:25,278 - apscheduler.executors.default - WARNING - Run time of job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 16:07:32 WAT)" was missed by 0:00:52.392749
+2025-09-30 16:07:32,982 - apscheduler.executors.default - INFO - Running job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 16:08:32 WAT)" (scheduled at 2025-09-30 16:07:32.885585+01:00)
+2025-09-30 16:07:33,760 - __main__ - ERROR - Error in send_reminders: [Errno 11001] getaddrinfo failed
+2025-09-30 16:07:33,849 - apscheduler.executors.default - INFO - Job "Send task reminders to users (trigger: interval[0:01:00], next run at: 2025-09-30 16:08:32 WAT)" executed successfully
+2025-09-30 16:07:42,066 - telegram.ext.Updater - ERROR - Error while calling `get_updates` one more time to mark all fetched updates as read: %s. Suppressing error to ensure graceful shutdown. When polling for updates is restarted, updates may be fetched again. Please adjust timeouts via `ApplicationBuilder` or the parameter `get_updates_request` of `Bot`.
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_async\connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_backends\anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 273, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2032.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_updater.py", line 399, in _get_updates_cleanup
+    await self.bot.get_updates(
+    ...<4 lines>...
+    )
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 670, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 4611, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 698, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\_bot.py", line 727, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 197, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_baserequest.py", line 304, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\HP\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\telegram\request\_httpxrequest.py", line 297, in do_request
+    raise NetworkError(f"httpx.{err.__class__.__name__}: {err}") from err
+telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo failed
+2025-09-30 16:07:42,429 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-09-30 16:07:42,436 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-09-30 16:07:42,451 - telegram.ext.Application - INFO - Application.stop() complete
