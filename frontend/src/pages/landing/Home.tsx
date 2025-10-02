@@ -81,28 +81,28 @@ const faqData: FAQCategory[] = [
     questions: [
       {
         question: 'What is Tovira?',
-        answer: 'Tovira is an AI-powered crypto companion built on the Sui blockchain, designed to provide real-time insights, sentiment analysis, token and NFT research, and smart notifications to help users navigate the crypto market efficiently.',
+        answer: 'Tovira is an AI-powered Web3 companion that helps you track wallets, Tokens and NFTs, monitor sentiment, set reminders, and receive personalized notifications. Built on the Sui blockchain, it combines AI research with real-time on-chain data in one seamless tool.',
       },
       {
         question: 'Who is Tovira for?',
-        answer: 'Tovira is for traders, investors, and enthusiasts at all levels, from beginners to experienced degens, looking to gain actionable insights and stay ahead in the fast-paced crypto world.',
+        answer: 'Tovira is designed for traders, degen farmers, NFT collectors, and crypto newcomers who want clarity in a noisy market.',
       },
     ],
   },
   {
-    category: 'Features and Use Cases',
+    category: 'Features & Use Cases',
     questions: [
       {
         question: 'What can I do with Tovira?',
-        answer: 'With Tovira, you can research tokens and NFTs, analyze market sentiment in real time, receive smart notifications for wallet movements and price actions, and leverage an AI that learns from your behavior to provide tailored insights.',
+        answer: 'With Tovira you can: - Track Sui wallets in real-time. - Monitor NFT Floor prices. - Perform sentiment lookups. - Set reminders & schedules. - Receive notifications via Telegram, Email - Manage your profile and subscriptions easily.',
       },
       {
         question: 'What platforms does Tovira support?',
-        answer: 'Tovira is accessible via a web app, mobile app, and integrates with platforms like Telegram and Discord for notifications and updates.',
+        answer: 'Tovira is available as a Telegram bot (with Web App integration), a browser extension (post-MVP), and a dashboard-style web app.',
       },
       {
         question: 'How is Tovira different from other tools?',
-        answer: 'Tovira stands out by combining AI-driven insights with real-time data and a learning algorithm that adapts to user behavior, offering a personalized experience unlike static dashboards or generic analytics tools.',
+        answer: 'Unlike platforms that only give analytics, Tovira merges AI-powered insights, wallet tracking, sentiment analysis, and multi-channel notifications into one assistant.',
       },
     ],
   },
@@ -111,11 +111,11 @@ const faqData: FAQCategory[] = [
     questions: [
       {
         question: 'Why use Sui blockchain?',
-        answer: 'Tovira leverages the Sui blockchain for its high-speed transactions, low costs, and scalability, ensuring real-time insights and efficient processing for crypto-related activities.',
+        answer: 'Sui provides low-cost, fast transactions. Tovira uses it for wallet creation, subscriptions, and gas-related operations.',
       },
       {
         question: 'Can I create a wallet with Tovira?',
-        answer: 'Tovira does not directly create wallets but integrates seamlessly with existing Sui-compatible wallets, allowing you to monitor and manage your assets effectively.',
+        answer: 'Yes. You can import an existing wallet or create a new one using biometrics during onboarding.',
       },
     ],
   },
@@ -124,15 +124,16 @@ const faqData: FAQCategory[] = [
     questions: [
       {
         question: 'Does Tovira have a rewards system?',
-        answer: 'Yes, Tovira offers a rewards program for early adopters and active users, providing exclusive benefits and access to premium features. Join the waitlist to learn more.',
+        answer: 'Yes. You can earn points by completing on-chain tasks, referring active friends, and staying consistent with usage.',
       },
       {
         question: 'How does the referral system work?',
-        answer: 'Tovira’s referral system allows users to invite others and earn rewards, such as extended access or additional features. Specific details will be shared with waitlist members upon launch.',
+        answer: 'You get points when someone joins via your link and completes basic on-chain tasks. Points earned are accumulated for rewards at a later time.',
       },
     ],
   },
 ];
+
 
 interface AccordionItemProps {
   question: string;
