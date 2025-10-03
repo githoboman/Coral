@@ -271,7 +271,7 @@ export function LoginDrawer({ isOpen, onClose, loading, message, onSignIn, onCle
         if (drawerRef.current) {
           drawerRef.current.style.transition = '';
         }
-      }, 300);
+      }, 350);
     }
   };
 
