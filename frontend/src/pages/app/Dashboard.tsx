@@ -1,11 +1,10 @@
 // src/pages/app/Dashboard.tsx
-import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Copy, Check, Plus, AlertTriangle, Zap, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 const Dashboard = () => {
-  const { address, pubkeyHex, signOut } = useAuth();
+  const { address, signOut } = useAuth();
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, field: string) => {
@@ -31,13 +30,6 @@ const Dashboard = () => {
     { id: 1, title: 'SUI price surge detected', sentiment: 'bullish', score: 85, time: '2 min ago' },
     { id: 2, title: 'New Sui dApp launch event', sentiment: 'neutral', score: 60, time: '1 hr ago' },
     { id: 3, title: 'Market volatility alert', sentiment: 'bearish', score: 25, time: '3 hrs ago' },
-  ];
-
-  const stats = [
-    { name: 'Active Tasks', value: '12', change: '+3', icon: '📋', color: 'text-green-400' },
-    { name: 'AI Alerts', value: '47', change: '+12', icon: '🔔', color: 'text-blue-400' },
-    { name: 'Sentiment Score', value: '78%', change: '+5%', icon: '😊', color: 'text-purple-400' },
-    { name: 'Scheduled Events', value: '5', change: '+1', icon: '⏰', color: 'text-pink-400' },
   ];
 
   return (

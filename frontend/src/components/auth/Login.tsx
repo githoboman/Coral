@@ -230,14 +230,13 @@ export function LoginDrawer({ isOpen, onClose, loading, message, onSignIn, onCle
   };
 
   // Handle drag end
-  const handleDragEnd = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleDragEnd = () => {
     if (!isDragging) return;
     
     setIsDragging(false);
     document.body.style.cursor = 'default';
     
     const threshold = 100; // pixels to trigger dismiss
-    const velocityThreshold = 500; // px/s for velocity dismiss
     
     if (currentY > threshold) {
       // Close if dragged past threshold

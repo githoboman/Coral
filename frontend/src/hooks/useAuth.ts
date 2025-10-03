@@ -37,14 +37,16 @@ function hexToBytes(hex: string) {
 // Check if passkeys are supported
 function isPasskeySupported(): boolean {
   return !!(
+    typeof window !== 'undefined' &&
     window.navigator &&
     window.navigator.credentials &&
-    window.navigator.credentials.create &&
-    window.navigator.credentials.get &&
+    typeof window.navigator.credentials.create === 'function' &&
+    typeof window.navigator.credentials.get === 'function' &&
     window.PublicKeyCredential &&
     typeof window.PublicKeyCredential === 'function'
   );
 }
+
 
 // Check if we're in a secure context (HTTPS or localhost)
 function isSecureContext(): boolean {

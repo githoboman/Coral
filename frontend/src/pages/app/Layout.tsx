@@ -1,11 +1,9 @@
 // src/pages/app/Layout.tsx
-import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Sidebar } from '@/components/app/Sidebar';
 import { BottomBar } from '@/components/app/BottomBar';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut } from 'lucide-react';
 
 export default function AppLayout() {
   const { signOut } = useAuth();

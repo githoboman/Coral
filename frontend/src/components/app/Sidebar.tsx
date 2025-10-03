@@ -1,5 +1,4 @@
 // src/pages/app/components/appp/Sidebar.tsx
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 
