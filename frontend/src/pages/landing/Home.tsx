@@ -246,7 +246,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#010103]">
-      <section className="relative min-h-screen h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
+      <section className="relative  h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
         <div className="space-y-10">
           <motion.div
             className="flex flex-col md:flex-row flex-col-reverse items-center justify-between gap-12 md:gap-0 w-screen overflow-hidden"
