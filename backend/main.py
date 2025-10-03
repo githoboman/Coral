@@ -27,6 +27,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",  # Allow local development
         "https://tovira.xyz",  # Add your production frontend URL
+        "https://www.tovira.xyz",
         "https://tovira.onrender.com/",
     ],
     allow_credentials=True,
