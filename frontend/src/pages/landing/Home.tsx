@@ -246,8 +246,8 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#010103]">
-      <section className="relative md:min-h-[40rem] h-full md:py-20 md:pt-[4rem] mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
-        <div className="space-y-10">
+      <section className="relative md:min-h-[45rem] h-full mb-[8rem] md:bg-[url('/assets/images/hero-bg.png')] bg-no-repeat bg-cover bg-center bg-[#010103] flex items-center text-center">
+        <div className="space-y-10 ">
           <motion.div
             className="flex flex-col md:flex-row flex-col-reverse items-center justify-between gap-12 md:gap-0 w-screen overflow-hidden"
             initial="hidden"
@@ -292,14 +292,14 @@ const Home: React.FC = () => {
               className="relative flex-1 w-screen h-full flex justify-center"
               variants={itemVariants}
             >
-              <div className="w-full h-full bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm">
+              <div className="md:hidden w-full h-full bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm">
                 <img
                   src="/assets/images/hero-bg2.png"
                   alt="Hero Illustration"
                   className="w-full h-full object-contain rounded-2xl"
                 />
               </div>
-              <div className="absolute bottom-0 h-[4rem] w-full bg-gradient-to-b from-transparent to-[#010103] rounded-2xl pointer-events-none"></div>
+              <div className="md:hidden absolute bottom-0 h-[4rem] w-full bg-gradient-to-b from-transparent to-[#010103] rounded-2xl pointer-events-none"></div>
             </motion.div>
           </motion.div>
           <div
@@ -338,6 +338,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
+
       <section id="about" className="flex flex-col md:flex-row w-full relative md:mt-60 py-20 bg-[#010103] text-white">
         <motion.div
           className="w-full"
