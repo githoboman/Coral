@@ -254,11 +254,11 @@ export function LoginDrawer({ isOpen, onClose, loading, message, onSignIn, onCle
   // Handle mouse/touch events on handle
   const handleMouseDown = (e: React.MouseEvent) => handleDragStart(e);
   const handleMouseMove = (e: React.MouseEvent) => handleDragMove(e);
-  const handleMouseUp = (e: React.MouseEvent) => handleDragEnd(e);
+  const handleMouseUp = (e: React.MouseEvent) => handleDragEnd();
 
   const handleTouchStart = (e: React.TouchEvent) => handleDragStart(e);
   const handleTouchMove = (e: React.TouchEvent) => handleDragMove(e);
-  const handleTouchEnd = (e: React.TouchEvent) => handleDragEnd(e);
+  const handleTouchEnd = (e: React.TouchEvent) => handleDragEnd();
 
   // Close drawer animation
   const closeDrawer = () => {
