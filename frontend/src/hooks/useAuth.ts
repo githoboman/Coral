@@ -1,4 +1,3 @@
-// src/hooks/useAuth.ts
 import { useState, useEffect } from 'react';
 import {
   BrowserPasskeyProvider,
@@ -34,7 +33,6 @@ function hexToBytes(hex: string) {
   return out;
 }
 
-// Check if passkeys are supported
 function isPasskeySupported(): boolean {
   return !!(
     typeof window !== 'undefined' &&
@@ -47,8 +45,6 @@ function isPasskeySupported(): boolean {
   );
 }
 
-
-// Check if we're in a secure context (HTTPS or localhost)
 function isSecureContext(): boolean {
   return (
     window.isSecureContext ||
@@ -333,7 +329,6 @@ export function useAuth() {
     });
   };
 
-  // ✅ Fix: define clearMessage
   const clearMessage = () => {
     setAuthState((prev) => ({
       ...prev,
@@ -346,5 +341,6 @@ export function useAuth() {
     signIn,
     signOut,
     clearMessage,
+    setAuthState, // Added to allow updating auth state
   };
 }

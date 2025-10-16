@@ -1,77 +1,114 @@
-// src/pages/app/components/appp/Sidebar.tsx
 import { Link } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { Search, Home, Bell, Settings, Users, PanelLeftClose, PanelRightClose, MessageSquare, CheckSquare } from 'lucide-react';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 interface SidebarProps {
   navItems: Array<{
     name: string;
     to: string;
-    icon: string;
+    icon: keyof typeof iconMap;
     active: boolean;
   }>;
   onSignOut: () => void;
 }
 
-export function Sidebar({ navItems, onSignOut }: SidebarProps) {
+const iconMap = {
+  home: Home,
+  settings: Settings,
+  users: Users,
+  messageSquare: MessageSquare,
+  bell: Bell,
+};
+
+export function Sidebar({ navItems }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
   return (
-    <div className="w-64 bg-gradient-to-b from-[#010103]/95 to-[#010103]/90 backdrop-blur-xl border-r border-white/10 flex flex-col">
+    <motion.div
+      animate={{ width: isCollapsed ? 64 : 256, opacity: isCollapsed ? 0.8 : 1 }}
+      transition={{ duration: 0.3, ease: 'easeInOut' }}
+      className="h-full bg-gradient-to-b from-[#fdfdfd]/10 to-[#010103]/90 backdrop-blur-xl rounded-[30px] border border-white/10 flex flex-col"
+    >
       {/* Logo/Brand */}
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-15 h-15 bg-gradient-to-r from-transparent to-[#00103] backdrop-blur-md rounded-xl flex items-center justify-center">
-            <img
-              src="/assets/logo.png"
-              alt="Logo"
-              className=" h-full w-full bg-cover"
-            />
+      <div className={`p-6 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
+        {!isCollapsed && (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img
+                src="/assets/logo.png"
+                alt="Logo"
+                className="h-full w-full bg-cover"
+              />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">
+                Tovira
+              </h1>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">
-              Tovira
-            </h1>
-            <p className="text-white/40 text-xs">AI Task Manager on Sui</p>
-          </div>
+        )}
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+        >
+          {isCollapsed ? <PanelRightClose size={20} className="text-white/60" /> : <PanelLeftClose size={20} className="text-white/60" />}
+        </button>
+      </div>
+
+      {/* Search Through Chat section */}
+      <div className={`px-4 ${isCollapsed ? 'hidden' : ''}`}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={18} />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-full pl-10 pr-4 py-2 bg-white/5 rounded-[30px] text-white/80 placeholder-white/40 border border-white/10 focus:outline-none focus:border-[#00FF88] transition-colors"
+          />
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-6">
         <ul className="space-y-1 px-3">
-          {navItems.map((item) => (
-            <li key={item.name}>
-              <Link
-                to={item.to}
-                className={`group flex items-center px-3 py-3 rounded-xl transition-all duration-200 ${item.active
-                    ? 'bg-gradient-to-r from-[#00FF88]/20 to-[#00CC6A]/20 border border-[#00FF88]/30 text-white shadow-lg'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
+          {navItems.map((item) => {
+            const Icon = iconMap[item.icon] || Home;
+            return (
+              <li key={item.name}>
+                <Link
+                  to={item.to}
+                  className={`group flex items-center px-3 py-3 rounded-xl transition-all duration-200 gap-3 ${isCollapsed && "justify-center"} ${
+                    item.active
+                      ? 'bg-gradient-to-r from-[#ffffff]/5 to-[#fdfdfd]/5 border border-[#ffffff]/10 text-white shadow-lg'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
-              >
-                <span className={`mr-3 text-lg flex-shrink-0 ${item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'} transition-colors duration-200`}>
-                  {item.icon}
-                </span>
-                <span className="text-sm font-medium">{item.name}</span>
-              </Link>
-            </li>
-          ))}
+                >
+                  <Icon
+                    className={`flex-shrink-0 ${
+                      item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'
+                    } transition-colors duration-200`}
+                    size={20}
+                  />
+                  {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-white/10">
-        <button
-          onClick={onSignOut}
-          className="w-full flex items-center gap-3 px-3 py-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 text-white/70 hover:text-white"
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="text-sm font-medium">Sign Out</span>
-        </button>
-
-        <div className="mt-4 pt-4 border-t border-white/10">
+      <div className={`p-4 ${isCollapsed ? 'hidden' : ''}`}>
+        <div className="mt-4 pt-4">
           <p className="text-white/30 text-xs text-center">
             Built on <span className="font-semibold text-[#00FF88]">Sui</span>
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

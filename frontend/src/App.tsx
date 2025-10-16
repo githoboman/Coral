@@ -23,7 +23,9 @@ function App() {
             <AppLayout />
           }
         >
-          <Route path="/dashboard/" element={<Dashboard />} />
+          <Route path="/c/" element={<Dashboard />}>
+            <Route path="/c/:chatId" element={<Dashboard />} />
+          </Route>
         </Route>
       </Routes>
 
