@@ -1,11 +1,44 @@
-python-dotenv
-#telegramsupabase
-python-telegram-bot
-supabase
+# --- Core Framework ---
+fastapi==0.115.2
+uvicorn[standard]==0.32.0
+gunicorn==23.0.0
+numpy
+
+# --- Data Models & Config ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+
+# --- Database / Storage ---
+supabase==2.9.1
+redis==5.1.1
+
+# --- AI / Agents ---
+langchain
+langchain-core
+langchain-google-genai
+langgraph
+
+# --- Blockchain / Web3 ---
+web3==7.3.0
+
+# --- Messaging / Telegram Bot ---
+aiogram==3.13.1
+python-telegram-bot==21.6
+
+# --- Auth / Security ---
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic==2.9.2
+
+# --- Logging / Rate Limiting ---
+structlog==24.4.0
+slowapi==0.1.9
+
+# --- Testing / Dev Tools ---
+pytest==8.3.3
+pytest-asyncio==0.24.0
 httpx==0.27.2
+
+# --- Optional Utilities ---
+pydantic[email]==2.9.2

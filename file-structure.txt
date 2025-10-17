@@ -1,0 +1,67 @@
+#file/folder structure
+tovira-backend/
+├── app/                          # Core application code
+│   ├── __init__.py
+│   ├── main.py                   # Entry point: FastAPI app setup, routers, middleware
+│   ├── api/                      # API endpoints and routers
+│   │   ├── __init__.py
+│   │   ├── deps.py               # Dependencies (e.g., auth, DB session)
+│   │   ├── routers/              # Modular routers for different features
+│   │   │   ├── __init__.py
+│   │   │   ├── chats.py          # Chat-related endpoints (GET/POST/PATCH/DELETE /api/chat)
+│   │   │   ├── agents.py         # Multi-agent endpoints (e.g., /api/agents for AI workflows)
+│   │   │   ├── alerts.py         # Crypto alerts endpoints
+│   │   │   ├── insights.py       # Insights and on-chain data endpoints
+│   │   │   └── auth.py           # Authentication endpoints (e.g., JWT login)
+│   ├── core/                     # Core utilities and config
+│   │   ├── __init__.py
+│   │   ├── config.py             # App settings (e.g., env vars, Pydantic settings)
+│   │   ├── logging.py            # Custom logging setup
+│   │   ├── security.py           # Auth utilities (e.g., JWT, hashing)
+│   │   └── events.py             # Startup/shutdown events (e.g., DB connect)
+│   ├── db/                       # Database integration (Supabase or SQLAlchemy)
+│   │   ├── __init__.py
+│   │   ├── session.py            # DB session management
+│   │   ├── models.py             # DB models (e.g., Chat, Message, User)
+│   │   └── repositories.py       # CRUD operations (repos for chats, messages)
+│   ├── schemas/                  # Pydantic schemas for API validation
+│   │   ├── __init__.py
+│   │   ├── chat.py               # Schemas for chats (create, update, response)
+│   │   ├── message.py            # Schemas for messages
+│   │   ├── agent.py              # Schemas for AI agent requests/responses
+│   │   └── user.py               # Schemas for users/auth
+│   ├── services/                 # Business logic layers
+│   │   ├── __init__.py
+│   │   ├── agents/               # Multi-agent logic (e.g., LangGraph workflows for alerts/insights)
+│   │   │   ├── __init__.py
+│   │   │   ├── langgraph_agent.py # LangGraph agent implementation
+│   │   │   └── sui_integration.py # Web3/SuiNetwork on-chain automation
+│   │   ├── alerts.py             # Service for real-time crypto alerts (e.g., Celery tasks)
+│   │   ├── insights.py           # Service for AI insights generation
+│   │   └── telegram_bot.py       # Telegram bot integration (aiogram bot logic)
+│   └── utils/                    # Helper utilities
+│       ├── __init__.py
+│       ├── web3_utils.py         # Web3/SuiNetwork helpers
+│       ├── ai_utils.py           # AI/multi-agent utilities
+│       └── misc.py               # General helpers (e.g., date formatting)
+├── tests/                        # Unit/integration tests
+│   ├── __init__.py
+│   ├── conftest.py               # Pytest fixtures (e.g., test DB)
+│   ├── test_api/                 # API endpoint tests
+│   │   └── test_chats.py
+│   ├── test_services/            # Service layer tests
+│   │   └── test_agents.py
+│   └── test_bot.py               # Telegram bot tests
+├── docs/                         # Documentation
+│   └── api.md                    # API docs (e.g., Swagger/OpenAPI)
+├── deployments/                  # Deployment configs
+│   ├── Dockerfile                # Docker build for containerization
+│   ├── docker-compose.yml        # For local dev (API + DB + Bot + Redis)
+│   ├── gunicorn.conf.py          # Gunicorn config for production workers
+│   └── kubernetes/               # Optional: K8s manifests for scaling
+├── .env.example                  # Example env file (API keys, DB URL, bot token)
+├── .gitignore                    # Git ignore file
+├── pyproject.toml                # Poetry config for dependencies
+├── README.md                     # Project overview, setup, deployment instructions
+├── requirements.txt              # Frozen dependencies (for non-Poetry users)
+└── tasks.py                      # Celery/RQ tasks for background jobs (e.g., alerts)
