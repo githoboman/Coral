@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './global.css';
 
+import "highlight.js/styles/github-dark.css";
+
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

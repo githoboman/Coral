@@ -56,3 +56,6 @@ Thumbs.db
 
 # --- Git ---
 .gitignore
+
+# --- Rough work ---
+file-structure.txt
