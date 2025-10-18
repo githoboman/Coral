@@ -176,50 +176,12 @@ const AccordionItem: React.FC<AccordionItemProps> = ({ question, answer, isOpen,
 
 const Home: React.FC = () => {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
-  const [email, setEmail] = useState<string>('');
-  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (localStorage.getItem('tovira_waitlist_subscribed') === 'true') {
-      setIsSubscribed(true);
-    }
-  }, []);
-
+  
   const toggleItem = (category: string, index: number): void => {
     setOpenItems((prev) => ({
       ...prev,
       [`${category}-${index}`]: !prev[`${category}-${index}`],
     }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email) return;
-    setIsLoading(true);
-    try {
-      const response = await fetch('https://tovira-server.onrender.com/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(data.message);
-        setEmail('');
-        setIsSubscribed(true);
-        localStorage.setItem('tovira_waitlist_subscribed', 'true');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.detail || 'Failed to join waitlist');
-      }
-    } catch (error) {
-      toast.error('An error occurred. Please try again later.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const containerVariants: Variants = {

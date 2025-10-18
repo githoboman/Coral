@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Home, Bell, Settings, Users, MessageSquare, CheckSquare, LogOut } from 'lucide-react';
+import { Home, Bell, Settings, Users, MessageSquare, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface BottomBarProps {
