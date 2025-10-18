@@ -493,92 +493,31 @@ const Home: React.FC = () => {
               className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 sm:p-8 lg:p-12"
               variants={itemVariants}
             >
-              {!isSubscribed ? (
-                <>
-                  <motion.div className="mb-8" variants={itemVariants}>
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
-                      Join the Waitlist
-                    </h2>
-                    <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-                      Join the waitlist to unlock early access to Tovira
-                    </p>
-                  </motion.div>
-                  <div className="w-full max-w-md mx-auto">
-                    <form onSubmit={handleSubmit}>
-                      <motion.div className="space-y-4" variants={containerVariants}>
-                        <motion.div variants={itemVariants}>
-                          <input
-                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#8EF1FE]/30 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
-                            type="email"
-                            placeholder="Enter your email address"
-                            aria-label="Email address for waitlist"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                          />
-                        </motion.div>
-                        <motion.button
-                          className="w-full bg-gradient-to-r from-[#8EF1FE] to-[#0796D9] text-black font-bold py-3 px-6 rounded-2xl text-sm sm:text-base hover:from-[#79e8f0] hover:to-[#0687c2] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                          type="submit"
-                          variants={itemVariants}
-                          disabled={isLoading}
-                        >
-                          <span className="flex items-center justify-center gap-2">
-                            {isLoading ? (
-                              <div className="loader ease-linear rounded-full border-2 border-t-8 border-r-4 border-l-1 border-black/80 h-5 w-5 animate-spin"></div>
-                            ) : (
-                              <>
-                                Join Waitlist
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                              </>
-                            )}
-                          </span>
-                        </motion.button>
-                      </motion.div>
-                    </form>
+              <motion.div className="mb-8 flex flex-col gap-4 items-center" variants={itemVariants}>
+                <div className="w-[100px] h-[93px] rounded-[30px] bg-gradient-to-br from-[#8EF1FE] to-[#0796D9] flex items-center justify-center -rotate-45">
+                  <img
+                    src="/assets/images/waitlist-success.png"
+                    alt="waitlist-success"
+                    className="object-cover rotate-45"
+                  />
+                </div>
 
-                    <motion.div className="mt-8 pt-6 border-t border-white/10" variants={itemVariants}>
-                      <p className="text-white/40 text-xs sm:text-sm text-center">Built on Sui. Built for You.</p>
-                      <div className="flex justify-center items-center gap-4 mt-3 flex-wrap">
-                        <div className="w-8 h-8 bg-white/10 rounded-full"></div>
-                        <div className="w-6 h-6 bg-white/10 rounded-full"></div>
-                        <div className="w-8 h-8 bg-white/10 rounded-full"></div>
-                        <div className="w-7 h-7 bg-white/10 rounded-full"></div>
-                      </div>
-                    </motion.div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <motion.div className="mb-8 flex flex-col gap-4 items-center" variants={itemVariants}>
-                    <div className="w-[100px] h-[93px] rounded-[30px] bg-gradient-to-br from-[#8EF1FE] to-[#0796D9] flex items-center justify-center -rotate-45">
-                      <img
-                        src="/assets/images/waitlist-success.png"
-                        alt="waitlist-success"
-                        className="object-cover rotate-45"
-                      />
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
-                      Success
-                    </h2>
-                    <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-                      You have successfully signed to our waitlist, follow us on X for more updates
-                    </p>
-                  </motion.div>
-                  <div className="w-full flex justify-end">
-                    <a href="https://x.com/tovira_sui" target="_blank">
-                      <img
-                        src="/assets/icons/x.svg"
-                        alt="X"
-                        className=""
-                      />
-                    </a>
-                  </div>
-                </>
-              )}
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white via-white to-[#8EF1FE] bg-clip-text text-transparent">
+                  Success
+                </h2>
+                <p className="text-white/60 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+                  Wait-list concluded, watch out for an email from us....
+                </p>
+              </motion.div>
+              <div className="w-full flex justify-end">
+                <a href="https://x.com/tovira_sui" target="_blank">
+                  <img
+                    src="/assets/icons/x.svg"
+                    alt="X"
+                    className=""
+                  />
+                </a>
+              </div>
             </motion.div>
           </motion.div>
         </div>
