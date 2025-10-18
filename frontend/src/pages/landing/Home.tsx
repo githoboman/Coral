@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, Variants } from 'framer-motion';
-import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 interface Feature {
