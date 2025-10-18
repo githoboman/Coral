@@ -514,7 +514,6 @@ const Home: React.FC = () => {
                   <img
                     src="/assets/icons/x.svg"
                     alt="X"
-                    className=""
                   />
                 </a>
               </div>
