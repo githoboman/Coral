@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Home, Bell, Settings, Users, PanelLeftClose, PanelRightClose, MessageSquare, CheckSquare } from 'lucide-react';
+import { Search, Home, Bell, Settings, Users, PanelLeftClose, PanelRightClose, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
