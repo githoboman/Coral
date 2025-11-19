@@ -12621,7 +12621,7 @@ Note: Enable notification in chat settings for task alerts
 2025-09-12 01:40:19,789 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 01:40:27,597 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 01:40:27,599 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to eat breakfast and brush my teeth afterwards'
-2025-09-12 01:40:27,600 - __main__ - ERROR - Error in handle_message: 'CopilotAgent' object has no attribute '_execute_supabase'
+2025-09-12 01:40:27,600 - __main__ - ERROR - Error in handle_message: 'ToviraAgent' object has no attribute '_execute_supabase'
 2025-09-12 01:40:28,267 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
 2025-09-12 01:40:38,074 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 01:40:48,265 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
@@ -17498,7 +17498,7 @@ Note: Enable notification in chat settings for task alerts'
 2025-09-12 11:24:55,073 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 11:24:58,330 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 11:24:58,333 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to buy groceries tomorrow and call John at 3 PM'
-2025-09-12 11:24:58,334 - __main__ - ERROR - Error in handle_message: 'CopilotAgent' object has no attribute 'db'
+2025-09-12 11:24:58,334 - __main__ - ERROR - Error in handle_message: 'ToviraAgent' object has no attribute 'db'
 2025-09-12 11:24:59,009 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
 2025-09-12 11:25:08,545 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-12 11:25:18,799 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
@@ -45703,7 +45703,7 @@ Note: Enable notification in chat settings for task alerts
 2025-09-13 17:49:05,583 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-13 17:49:12,396 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-13 17:49:12,400 - __main__ - INFO - User Sal (7923643903) in private: 'Remind me to go to church tomorrow'
-2025-09-13 17:49:12,401 - __main__ - ERROR - Error in handle_message: CopilotAgent.process_message() takes 3 positional arguments but 4 were given
+2025-09-13 17:49:12,401 - __main__ - ERROR - Error in handle_message: ToviraAgent.process_message() takes 3 positional arguments but 4 were given
 2025-09-13 17:49:13,113 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
 2025-09-13 17:49:22,575 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-09-13 17:49:32,819 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
@@ -52514,3 +52514,252 @@ telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo faile
 2025-09-30 16:07:42,429 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
 2025-09-30 16:07:42,436 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2025-09-30 16:07:42,451 - telegram.ext.Application - INFO - Application.stop() complete
+2025-11-18 16:30:09,512 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:10,203 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:10,646 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:10,919 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:30:43,184 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:43,960 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:44,190 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:44,388 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:30:56,556 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:57,225 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:57,476 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:30:57,741 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:31:10,319 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:10,992 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:11,222 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:11,417 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:31:23,511 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:24,200 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:24,510 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:31:24,756 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:34:27,370 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:34:28,042 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:34:28,280 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:34:28,514 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:36:25,406 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:26,075 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:26,309 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:26,508 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:36:38,928 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:39,601 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:39,855 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:36:40,114 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:36:44,276 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getMe "HTTP/1.1 200 OK"
+2025-11-18 16:36:44,281 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-18 16:36:44,283 - telegram.ext.Application - INFO - Application started
+2025-11-18 16:36:44,498 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-18 16:36:55,049 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:05,288 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:15,529 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:25,778 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:36,004 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:46,244 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:37:56,397 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:06,620 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:16,857 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:23,571 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:23,578 - app.telegram_bot.telegram_bot - INFO - /start from 7923643903 (@Salfromearth)
+2025-11-18 16:38:24,258 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
+2025-11-18 16:38:33,754 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:43,992 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:38:54,233 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:04,481 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:14,712 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:24,954 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:35,125 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:45,337 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:39:55,500 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:05,706 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:15,946 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:24,548 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:24,553 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-11-18 16:40:24,556 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-11-18 16:40:24,566 - telegram.ext.Application - INFO - Application.stop() complete
+2025-11-18 16:40:39,143 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:40:39,753 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:40:39,976 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-18 16:40:40,219 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-18 16:40:42,569 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
+2025-11-18 16:40:42,573 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-18 16:40:42,574 - telegram.ext.Application - INFO - Application started
+2025-11-18 16:40:42,876 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-18 16:40:43,492 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:43,775 - app.telegram_bot.telegram_bot - INFO - /start from 7923643903 (@Salfromearth)
+2025-11-18 16:40:43,965 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-18 16:40:43,968 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-18 16:40:44,153 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-18 16:40:54,037 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:55,675 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:58,018 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:40:58,024 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-18 16:40:59,129 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-18 16:41:08,272 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:41:18,452 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:41:28,648 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:41:38,887 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:41:49,055 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:41:59,262 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:42:09,509 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:42:19,744 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:42:29,892 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:42:34,691 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-18 16:42:34,692 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-11-18 16:42:34,693 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2025-11-18 16:42:34,704 - telegram.ext.Application - INFO - Application.stop() complete
+2025-11-19 07:32:27,964 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 17:19:52,753 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
+2025-11-19 17:19:52,755 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 17:19:53,621 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 17:19:54,297 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 17:19:54,551 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 17:19:54,704 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
+2025-11-19 17:19:54,705 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 17:19:54,706 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
+2025-11-19 17:19:54,708 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
+2025-11-19 17:19:54,709 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-19 17:19:55,179 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 17:19:56,478 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
+2025-11-19 17:19:56,482 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-19 17:19:56,485 - telegram.ext.Application - INFO - Application started
+2025-11-19 17:19:56,492 - app.main - INFO - ✅ Telegram bot started successfully
+2025-11-19 17:19:56,694 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-19 17:20:07,671 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:20:18,177 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:20:27,698 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:20:38,191 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:20:48,698 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:20:58,197 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:08,703 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:19,243 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:28,856 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:33,435 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:33,442 - app.telegram_bot.telegram_bot - INFO - /start from 7923643903 (@Salfromearth)
+2025-11-19 17:21:35,065 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:21:43,952 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:53,459 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:59,681 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:21:59,765 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-19 17:22:00,649 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:22:10,315 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:19,917 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:22,641 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:33,151 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:41,081 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:50,612 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:58,059 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:22:58,074 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-19 17:22:58,722 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:23:01,024 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:05,342 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:09,261 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:09,280 - app.telegram_bot.checkin - INFO - Received /checkin command from user 7923643903 (@Salfromearth)
+2025-11-19 17:23:10,729 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:23:10,749 - app.telegram_bot.utils - WARNING - Receipts directory does not exist for user 7923643903
+2025-11-19 17:23:14,552 - httpx - INFO - HTTP Request: GET https://ctbgmbiojgxiuroeosde.supabase.co/rest/v1/user_profiles?select=%2A&telegram_id=eq.7923643903 "HTTP/2 200 OK"
+2025-11-19 17:23:14,603 - app.telegram_bot.utils - ERROR - Failed to fetch/create profile in Supabase for user 7923643903: type object 'SuiKeyPair' has no attribute 'ed25519'
+2025-11-19 17:23:14,604 - app.telegram_bot.checkin - ERROR - No session found for user 7923643903
+2025-11-19 17:23:14,715 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:14,898 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/editMessageText "HTTP/1.1 200 OK"
+2025-11-19 17:23:19,943 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:23,005 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:24,407 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:31,391 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:31,395 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-19 17:23:32,985 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:23:35,858 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:35,875 - app.telegram_bot.utils - WARNING - Receipts directory does not exist for user 7923643903
+2025-11-19 17:23:37,297 - httpx - INFO - HTTP Request: GET https://ctbgmbiojgxiuroeosde.supabase.co/rest/v1/user_profiles?select=%2A&telegram_id=eq.7923643903 "HTTP/2 200 OK"
+2025-11-19 17:23:37,314 - app.telegram_bot.utils - ERROR - Failed to fetch/create profile in Supabase for user 7923643903: type object 'SuiKeyPair' has no attribute 'ed25519'
+2025-11-19 17:23:37,575 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 17:23:46,848 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:48,243 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:23:49,725 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-11-19 17:23:49,922 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/editMessageText "HTTP/1.1 200 OK"
+2025-11-19 17:23:54,274 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:04,823 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:14,366 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:24,876 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:35,387 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:44,929 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:24:55,455 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:05,969 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:15,523 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:26,886 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:37,375 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:46,901 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:25:52,400 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:02,930 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:12,507 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:23,015 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:33,548 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:43,084 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:26:53,628 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:27:04,208 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 17:27:13,879 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:27:30,555 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
+2025-11-19 19:27:30,569 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 19:27:32,283 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 19:27:33,310 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 19:27:33,627 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
+2025-11-19 19:27:33,864 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
+2025-11-19 19:27:33,865 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 19:27:33,869 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
+2025-11-19 19:27:33,873 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
+2025-11-19 19:27:33,877 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
+2025-11-19 19:27:35,187 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 19:27:36,026 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
+2025-11-19 19:27:36,034 - apscheduler.scheduler - INFO - Scheduler started
+2025-11-19 19:27:36,043 - telegram.ext.Application - INFO - Application started
+2025-11-19 19:27:36,051 - app.main - INFO - ✅ Telegram bot started successfully
+2025-11-19 19:27:36,521 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-19 19:27:37,552 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:27:37,571 - app.telegram_bot.telegram_bot - INFO - /start from 7923643903 (@Salfromearth)
+2025-11-19 19:27:37,982 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 19:27:37,999 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-19 19:27:38,391 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 19:27:38,396 - app.telegram_bot.portfolio_command - INFO - Portfolio command started for user 7923643903
+2025-11-19 19:27:38,636 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 19:27:38,646 - app.telegram_bot.checkin - INFO - Received /checkin command from user 7923643903 (@Salfromearth)
+2025-11-19 19:27:38,908 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
+2025-11-19 19:27:38,915 - app.telegram_bot.utils - WARNING - Receipts directory does not exist for user 7923643903
+2025-11-19 19:27:41,117 - httpx - INFO - HTTP Request: GET https://ctbgmbiojgxiuroeosde.supabase.co/rest/v1/user_profiles?select=%2A&telegram_id=eq.7923643903 "HTTP/2 200 OK"
+2025-11-19 19:27:41,397 - app.telegram_bot.utils - ERROR - Failed to fetch/create profile in Supabase for user 7923643903: type object 'SuiKeyPair' has no attribute 'ed25519'
+2025-11-19 19:27:41,425 - app.telegram_bot.checkin - ERROR - No session found for user 7923643903
+2025-11-19 19:27:41,714 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/editMessageText "HTTP/1.1 200 OK"
+2025-11-19 19:27:48,017 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:27:58,053 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:08,363 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:18,716 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:28,819 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:39,383 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:49,633 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:28:59,662 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:29:10,102 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:29:20,287 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:29:30,449 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:29:40,863 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:29:51,206 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:01,203 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:11,461 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:21,908 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:32,059 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:42,354 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:30:52,434 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:02,682 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:13,155 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:23,409 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:33,650 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:43,844 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:31:54,032 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:04,243 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:14,408 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:24,619 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:34,725 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:45,113 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:32:55,412 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:33:05,755 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:33:15,853 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:33:26,325 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
+2025-11-19 19:33:36,836 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"

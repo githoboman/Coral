@@ -18,14 +18,14 @@ Each agent returns a dict:
 All agents are orchestrated via LangGraph in `base_agent.py`.
 """
 
-from .insights_agent import insights_agent
-from .alerts_agent import alerts_agent
-from .web3_agent import web3_agent
-from .general_agent import general_agent
+from .insights_agent import insights_agent_tool_async
+from .alerts_agent import alerts_agent_tool_async
+from .web3_agent import web3_agent_tool_async
+from .general_agent import general_agent_async
 
 __all__ = [
-    "insights_agent",
-    "alerts_agent",
-    "web3_agent",
-    "general_agent",
+    "insights_agent_tool_async",
+    "alerts_agent_tool_async",
+    "web3_agent_tool_async",
+    "general_agent_async",
 ]

@@ -1,3 +1,4 @@
+# app/services/agents/alerts_agent.py
 import os
 import json
 import re
@@ -572,7 +573,7 @@ Return JSON with 'tasks' array, 'needs_clarification', 'clarification_question'.
             "clarification_question": task["clarification_question"]
         }
 
-class CopilotAgent:
+class ToviraAgent:
     def __init__(self, gemini_api_key: str, supabase_client: Client):
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",

@@ -1,4 +1,6 @@
+# app/schema/user.py
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 class UserUpdate(BaseModel):
     user_id: str
@@ -8,5 +10,9 @@ class UserUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
 
-class UserCheck(BaseModel):
+class UserOnboard(BaseModel):
     user_id: str
+    email: EmailStr
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None

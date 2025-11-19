@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from ai.agent import CopilotAgent  # Import CopilotAgent from ai/agent.py
+from ai.agent import ToviraAgent  # Import ToviraAgent from ai/agent.py
 from supabase import create_client, Client
 import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -90,8 +90,8 @@ logging.getLogger().addFilter(RobustTokenFilter())
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Initialize enhanced CopilotAgent with Supabase
-agent = CopilotAgent(GEMINI_API_KEY, supabase)
+# Initialize enhanced ToviraAgent with Supabase
+agent = ToviraAgent(GEMINI_API_KEY, supabase)
 print("Bot starting with enhanced agent, Supabase integration, and AI attribute generation")
 
 # Helper function to escape MarkdownV2 characters
@@ -607,7 +607,7 @@ async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Error in web3query_command: {e}')
         await update.message.reply_text(f"Sorry, I encountered an error with the Web3 query: {str(e)}")
 
-# Enhanced message handler using CopilotAgent
+# Enhanced message handler using ToviraAgent
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced message handler with better natural language processing."""
     message_type: str = update.message.chat.type

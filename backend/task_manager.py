@@ -14,12 +14,17 @@ import pytz
 
 # Load environment variables
 load_dotenv()
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)  # ensures logs/ exists
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('logs/copilot.log'), logging.StreamHandler()]
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, "copilot.log")),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
