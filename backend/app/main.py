@@ -15,10 +15,14 @@ from telegram.ext import Application
 from app.telegram_bot.telegram_bot import create_telegram_application
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global variable to store the Telegram bot application
 telegram_app = None
+
+# Worker ID to ensure only one worker starts the bot
+WORKER_ID = os.getpid()
 
 
 @asynccontextmanager
@@ -29,22 +33,29 @@ async def lifespan(app: FastAPI):
     """
     global telegram_app
 
-    # Startup: Initialize and start Telegram bot
-    logger.info("🚀 Starting Telegram bot...")
+    # Only start bot in the first worker (prevent multiple bot instances)
+    is_main_worker = os.environ.get('WORKER_MAIN', 'false') == 'true'
+    
+    logger.info(f"🔧 Worker {WORKER_ID} starting (main={is_main_worker})")
 
     telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    if telegram_token:
+    
+    # Start bot only if we have a token and are the main worker
+    if telegram_token and is_main_worker:
         try:
+            logger.info("🚀 Starting Telegram bot...")
+            
             # Create and setup the Telegram bot
             telegram_app = create_telegram_application(telegram_token)
 
-            # Initialize the bot
-            await telegram_app.initialize()
-            await telegram_app.start()
+            # Initialize the bot with timeout
+            await asyncio.wait_for(telegram_app.initialize(), timeout=10.0)
+            await asyncio.wait_for(telegram_app.start(), timeout=10.0)
 
             # Start polling in the background
             asyncio.create_task(telegram_app.updater.start_polling(
-                allowed_updates=["message", "callback_query", "inline_query"]
+                allowed_updates=["message", "callback_query", "inline_query"],
+                drop_pending_updates=True  # Don't process old messages
             ))
 
             logger.info("✅ Telegram bot started successfully")
@@ -53,18 +64,22 @@ async def lifespan(app: FastAPI):
             print("=" * 70)
             print("✅ FastAPI server running")
             print("✅ Telegram bot active")
-            print("✅ Admin code generation")
-            print("✅ User referral codes")
-            print("✅ End-to-end encryption")
             print("=" * 70)
+        except asyncio.TimeoutError:
+            logger.error("❌ Telegram bot initialization timed out")
+            telegram_app = None
         except Exception as e:
-            logger.error(f"❌ Failed to start Telegram bot: {e}")
-            print(f"⚠️ Running without Telegram bot: {e}")
+            logger.error(f"❌ Failed to start Telegram bot: {e}", exc_info=True)
+            telegram_app = None
+            # Don't raise - continue without bot
     else:
-        logger.warning(
-            "⚠️ TELEGRAM_BOT_TOKEN not found - running without Telegram bot")
-        print("⚠️ Running without Telegram bot (no token configured)")
+        if not telegram_token:
+            logger.warning("⚠️ TELEGRAM_BOT_TOKEN not found - running without Telegram bot")
+        else:
+            logger.info(f"⚠️ Worker {WORKER_ID} - bot will run in main worker only")
 
+    logger.info(f"✅ Worker {WORKER_ID} ready to accept requests")
+    
     yield  # Server is running
 
     # Shutdown: Stop the Telegram bot
@@ -118,7 +133,18 @@ async def health_check():
     return {
         "status": "healthy",
         "telegram_bot": telegram_status,
-        "api_version": "1.0.0"
+        "api_version": "1.0.0",
+        "worker_id": WORKER_ID
+    }
+
+
+@app.get("/", summary="Root endpoint")
+async def root():
+    """Root endpoint to verify API is running"""
+    return {
+        "message": "Tovira API is running",
+        "version": "1.0.0",
+        "worker_id": WORKER_ID
     }
 
 
@@ -130,7 +156,7 @@ async def telegram_status():
     if not telegram_app:
         return {
             "status": "not_configured",
-            "message": "Telegram bot token not configured"
+            "message": "Telegram bot token not configured or not running in this worker"
         }
 
     return {

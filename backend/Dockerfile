@@ -39,7 +39,8 @@ LABEL version="2.0.0"
 # Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=10000
+    PORT=10000 \
+    WORKER_MAIN=true
 
 WORKDIR /app
 
@@ -69,12 +70,13 @@ EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
-# Use shell form to allow $PORT expansion at runtime
+# Preload app and reduce workers to avoid multiple bot instances
 CMD gunicorn app.main:app \
-    --workers 4 \
+    --workers 2 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:${PORT:-10000} \
     --timeout 120 \
+    --preload \
     --access-logfile - \
     --error-logfile - \
     --log-level info
