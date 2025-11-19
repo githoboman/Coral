@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install uv the bulletproof way (official installer → always works)
+# Install uv the bulletproof way
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -39,7 +39,7 @@ LABEL version="2.0.0"
 # Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=${PORT:-10000}  # default to 10000 if Render does not inject PORT
 
 WORKDIR /app
 
@@ -52,7 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash tovira
 
-# Copy Python packages + binaries from builder (system-wide install → clean & reliable)
+# Copy Python packages + binaries from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
@@ -63,8 +63,9 @@ COPY --chown=tovira:tovira .env.example .env.example
 # Switch to non-root user
 USER tovira
 
-EXPOSE 8000
+EXPOSE ${PORT}
 
+# Healthcheck using the dynamic port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
@@ -72,7 +73,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD gunicorn app.main:app \
     --workers 4 \
     --worker-class uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:$PORT \
+    --bind 0.0.0.0:${PORT} \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
