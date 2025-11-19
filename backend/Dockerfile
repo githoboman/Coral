@@ -7,23 +7,23 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-# Install build dependencies + Rust
+# Install build dependencies + Rust (for cryptography, tokenizers, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ make libffi-dev libssl-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust (needed for cryptography, tokenizers, etc.)
+# Install Rust
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install uv (bulletproof installer)
+# Install uv (fast pip replacement)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Verify tools
 RUN uv --version && rustc --version
 
-# Copy requirements and install everything into SYSTEM Python
+# Copy and install dependencies
 COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
 
@@ -42,7 +42,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Runtime dependencies
+# Only runtime system dependency we really need
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -51,25 +51,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash tovira
 
-# Copy Python packages + binaries from builder
+# Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy app code
+# Copy application code
 COPY --chown=tovira:tovira app/ ./app/
 COPY --chown=tovira:tovira .env.example .env.example
 
 # Switch to non-root user
 USER tovira
 
-# Expose Render runtime port dynamically
-EXPOSE $PORT
+# Critical fixes for Render:
+# 1. EXPOSE must be a literal port at build time (Render looks for this)
+# 2. Healthcheck must use a real port or shell expansion
+EXPOSE 10000
 
-# Healthcheck using dynamic port
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:$PORT/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:10000/health || exit 1
 
-# Run Gunicorn + Uvicorn workers, binding to dynamic port
+# Gunicorn will still bind to $PORT provided by Render at runtime
 CMD gunicorn app.main:app \
     --workers 4 \
     --worker-class uvicorn.workers.UvicornWorker \
