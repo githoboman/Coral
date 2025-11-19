@@ -39,7 +39,7 @@ LABEL version="2.0.0"
 # Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=${PORT:-10000}  # default to 10000 if Render does not inject PORT
+    PORT=${PORT:-10000} 
 
 WORKDIR /app
 
