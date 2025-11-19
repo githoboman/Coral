@@ -39,11 +39,14 @@ from app.telegram_bot.utils import (
 
 load_dotenv()
 
+LOG_DIR = os.path.join("/tmp", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/copilot_bot.log'),
+        logging.FileHandler(os.path.join(LOG_DIR, "copilot_bot.log")),
         logging.StreamHandler()
     ]
 )
@@ -54,20 +57,26 @@ key_manager = get_key_manager()
 sui = get_sui_client()
 
 # Conversation states
-TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(5)
+TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(
+    5)
 SELECT_TASK, CONFIRM_DELETE, SET_PASSWORD, CONFIRM_PASSWORD = range(5, 9)
-SELECT_METHOD, REFERRAL_CODE_INPUT, ADMIN_CODE_INPUT, EMAIL_VERIFICATION = range(9, 13)
+SELECT_METHOD, REFERRAL_CODE_INPUT, ADMIN_CODE_INPUT, EMAIL_VERIFICATION = range(
+    9, 13)
 
 # Admin user IDs (set in .env)
 ADMIN_IDS = set(os.getenv('ADMIN_TELEGRAM_IDS', '').split(','))
 
 # ============= REGISTRATION SYSTEM INTEGRATION =============
+
+
 class TelegramRegistrationSystem:
     """Registration system adapted for Telegram bot."""
+
     def __init__(self):
         self.sui_client = sui
         self.walrus_client = walrus
         self.key_manager = key_manager
+
     async def display_welcome(self, update: Update):
         """Display welcome message."""
         welcome_msg = (
@@ -113,10 +122,12 @@ class TelegramRegistrationSystem:
             )
             # Store progress_msg for deletion in the next state
             context.user_data['password_prompt_msg'] = progress_msg
-            logger.info(f"Sent password prompt message {progress_msg.message_id} for user {update.effective_user.id}")
+            logger.info(
+                f"Sent password prompt message {progress_msg.message_id} for user {update.effective_user.id}")
             return SET_PASSWORD
         except Exception as e:
-            logger.error(f"Error sending password prompt for user {update.effective_user.id}: {e}")
+            logger.error(
+                f"Error sending password prompt for user {update.effective_user.id}: {e}")
             await update.effective_message.reply_text("⚠️ Error setting up password. Please try again.")
             return ConversationHandler.END
 
@@ -129,7 +140,8 @@ class TelegramRegistrationSystem:
                 text="🔑 Generating encryption keys..."
             )
             await context.bot.send_chat_action(chat_id=telegram_id, action='typing')
-            public_key_str, encrypted_private = self.key_manager.create_user_keys(telegram_id, password)
+            public_key_str, encrypted_private = self.key_manager.create_user_keys(
+                telegram_id, password)
             context.user_data['public_key'] = public_key_str.encode('utf-8')
             context.user_data['has_encryption_keys'] = True
             logger.info(f"Created encryption keys for {telegram_id}")
@@ -143,12 +155,13 @@ class TelegramRegistrationSystem:
             return False
 
     async def encrypt_and_upload_data(self, user_data: Dict[str, Any], public_key: bytes, update: Update) -> Optional[
-        str]:
+            str]:
         """Encrypt user data and upload to Walrus."""
         progress_msg = None
         try:
             progress_msg = await update.effective_chat.send_message("🔐 Encrypting your data...")
-            blob_id = self.walrus_client.store_encrypted_user_data(public_key, user_data)
+            blob_id = self.walrus_client.store_encrypted_user_data(
+                public_key, user_data)
             if blob_id:
                 await progress_msg.edit_text("✅ Data encrypted and stored securely!")
                 await self.safe_delete_message(progress_msg, delay=2)
@@ -167,7 +180,8 @@ class TelegramRegistrationSystem:
     async def select_registration_method(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show registration button and proceed directly to password setup."""
         keyboard = [
-            [InlineKeyboardButton("🆕 Signup with TOVIRA", callback_data='signup_no_code')],
+            [InlineKeyboardButton("🆕 Signup with TOVIRA",
+                                  callback_data='signup_no_code')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -185,32 +199,38 @@ class TelegramRegistrationSystem:
             progress_msg = await update.effective_chat.send_message("⛓️ Creating blockchain profile...")
             if registration_method == 1:  # No referral
                 result = self.sui_client.create_user_profile(blob_id)
-                logger.info(f"create_user_profile result for blob_id {blob_id}: {result}")
+                logger.info(
+                    f"create_user_profile result for blob_id {blob_id}: {result}")
             elif registration_method == 2:  # Admin code
                 admin_code = context.user_data.get('admin_code')
-                result = self.sui_client.create_user_profile_with_admin_code(admin_code, blob_id)
+                result = self.sui_client.create_user_profile_with_admin_code(
+                    admin_code, blob_id)
                 logger.info(
                     f"create_user_profile_with_admin_code result for admin_code {admin_code}, blob_id {blob_id}: {result}")
             elif registration_method == 3:  # User referral
                 referral_code = context.user_data.get('referral_code')
-                result = self.sui_client.create_user_profile_with_referral(referral_code, blob_id)
+                result = self.sui_client.create_user_profile_with_referral(
+                    referral_code, blob_id)
                 logger.info(
                     f"create_user_profile_with_referral result for referral_code {referral_code}, blob_id {blob_id}: {result}")
             else:
-                logger.error(f"Invalid registration_method: {registration_method}")
+                logger.error(
+                    f"Invalid registration_method: {registration_method}")
                 await progress_msg.edit_text("❌ Invalid registration method.")
                 await self.safe_delete_message(progress_msg, delay=3)
                 return None
 
             if not result or not isinstance(result, dict):
-                logger.error(f"Invalid blockchain result for blob_id {blob_id}: {result}")
+                logger.error(
+                    f"Invalid blockchain result for blob_id {blob_id}: {result}")
                 await progress_msg.edit_text(
                     "⚠️ Blockchain profile creation failed. Proceeding without profile ID.")
                 await self.safe_delete_message(progress_msg, delay=3)
                 return None
 
             if not result.get('profile_id'):
-                logger.warning(f"No profile_id in result for blob_id {blob_id}: {result}")
+                logger.warning(
+                    f"No profile_id in result for blob_id {blob_id}: {result}")
                 await progress_msg.edit_text(
                     "⚠️ Profile ID not created. Registration will proceed without it.")
                 await self.safe_delete_message(progress_msg, delay=3)
@@ -220,7 +240,8 @@ class TelegramRegistrationSystem:
             return result
 
         except Exception as e:
-            logger.error(f"Error registering on blockchain for blob_id {blob_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error registering on blockchain for blob_id {blob_id}: {e}", exc_info=True)
             if progress_msg:
                 await progress_msg.edit_text(
                     "⚠️ Blockchain profile creation failed. Proceeding without profile ID.")
@@ -228,8 +249,8 @@ class TelegramRegistrationSystem:
             return None
 
     async def save_registration_receipt(self, user_data: Dict[str, Any],
-                                       registration_result: Dict[str, str],
-                                       blob_id: str) -> str:
+                                        registration_result: Dict[str, str],
+                                        blob_id: str) -> str:
         """Save registration receipt for records."""
         receipt = {
             'username': user_data['username'],
@@ -239,8 +260,8 @@ class TelegramRegistrationSystem:
             'walrus_blob_id': blob_id,
             'registered_at': datetime.now().isoformat(),
             'registration_method': registration_result.get('admin_code_used') or
-                                  registration_result.get('referrer_code') or
-                                  'direct'
+            registration_result.get('referrer_code') or
+            'direct'
         }
         receipts_dir = Path('./registration_receipts')
         receipts_dir.mkdir(exist_ok=True)
@@ -256,16 +277,18 @@ class TelegramRegistrationSystem:
         """Display success message with blockchain profile."""
         profile_id = registration_result.get('profile_id')
         user_data = context.user_data.get('user_data', {})
-        details = self.sui_client.get_user_details(profile_id) if profile_id else {}
-        my_referral_code = details.get('referral_code', 'N/A') if details else 'N/A'
+        details = self.sui_client.get_user_details(
+            profile_id) if profile_id else {}
+        my_referral_code = details.get(
+            'referral_code', 'N/A') if details else 'N/A'
         success_msg = (
             f"🎉 Registration Complete!\n\n"
             f"📋 Your Details:\n"
             f"• Username: {user_data.get('username', 'N/A')}\n"
             f"• Telegram ID: {user_data.get('telegram_id', 'N/A')}\n"
             f"• Profile ID: {profile_id[:16] + '...' if profile_id else 'Not created'}\n"
-            #f"• Referral Code: {my_referral_code}\n"
-            #f"• Encrypted Data: {blob_id[:16]}...\n"
+            # f"• Referral Code: {my_referral_code}\n"
+            # f"• Encrypted Data: {blob_id[:16]}...\n"
             f"• Created At: {user_data.get('created_at', 'N/A')}\n"
             f"• Preferences: {user_data.get('preferences', {})}\n\n"
         )
@@ -281,7 +304,8 @@ class TelegramRegistrationSystem:
             f"Use /help to see all commands!"
         )
         await update.effective_chat.send_message(success_msg)
-        logger.info(f"Registration successful for {context.user_data.get('telegram_id')}")
+        logger.info(
+            f"Registration successful for {context.user_data.get('telegram_id')}")
 
     async def display_success_minimal(self, blob_id: str, receipt_path: str,
                                       context: ContextTypes.DEFAULT_TYPE, update: Update):
@@ -302,7 +326,8 @@ class TelegramRegistrationSystem:
             f"Use /help to see all commands!"
         )
         await update.effective_chat.send_message(success_msg)
-        logger.info(f"Local registration successful for {context.user_data.get('telegram_id')}")
+        logger.info(
+            f"Local registration successful for {context.user_data.get('telegram_id')}")
 
     async def safe_delete_message(self, message, delay: float = 0):
         """Safely delete a message with optional delay, handling common errors."""
@@ -312,27 +337,32 @@ class TelegramRegistrationSystem:
             if delay > 0:
                 await asyncio.sleep(delay)
             await message.delete()
-            logger.info(f"Deleted message {message.message_id} in chat {message.chat.id}")
+            logger.info(
+                f"Deleted message {message.message_id} in chat {message.chat.id}")
         except telegram.error.BadRequest as e:
-            logger.warning(f"Failed to delete message {message.message_id}: {e}")
+            logger.warning(
+                f"Failed to delete message {message.message_id}: {e}")
         except telegram.error.Forbidden as e:
-            logger.error(f"Forbidden to delete message {message.message_id}: {e}")
+            logger.error(
+                f"Forbidden to delete message {message.message_id}: {e}")
         except Exception as e:
-            logger.error(f"Unexpected error deleting message {message.message_id}: {e}")
-
+            logger.error(
+                f"Unexpected error deleting message {message.message_id}: {e}")
 
     async def verify_registration(self, telegram_id: str, password: str, blob_id: str, update: Update) -> bool:
         """Verify registration by attempting to decrypt data."""
         progress_msg = None
         try:
             progress_msg = await update.effective_chat.send_message("🔍 Verifying encryption...")
-            private_key = self.key_manager.get_user_private_key(telegram_id, password)
+            private_key = self.key_manager.get_user_private_key(
+                telegram_id, password)
             if not private_key:
                 await progress_msg.edit_text("❌ Verification failed - no private key")
                 await self.safe_delete_message(progress_msg, delay=2)
                 return False
 
-            decrypted_data = self.walrus_client.retrieve_encrypted_user_data(blob_id, private_key)
+            decrypted_data = self.walrus_client.retrieve_encrypted_user_data(
+                blob_id, private_key)
             if decrypted_data:
                 await progress_msg.edit_text("✅ Verification successful! Your data is secure.")
                 await self.safe_delete_message(progress_msg, delay=2)
@@ -380,7 +410,8 @@ class TelegramRegistrationSystem:
                 await self.safe_delete_message(progress_msg, delay=3)
                 return False
 
-            logger.info(f"Attempting blockchain registration for {telegram_id} with blob_id: {blob_id}")
+            logger.info(
+                f"Attempting blockchain registration for {telegram_id} with blob_id: {blob_id}")
 
             # Blockchain registration
             await progress_msg.edit_text("⛓️ Creating blockchain profile...")
@@ -439,7 +470,8 @@ class TelegramRegistrationSystem:
             return True
 
         except Exception as e:
-            logger.error(f"Registration failed for {telegram_id}: {e}", exc_info=True)
+            logger.error(
+                f"Registration failed for {telegram_id}: {e}", exc_info=True)
             if progress_msg:
                 await progress_msg.edit_text("❌ Registration failed. Please try /start again.")
                 await self.safe_delete_message(progress_msg, delay=5)
@@ -449,6 +481,8 @@ class TelegramRegistrationSystem:
             return False
 
 # ============= START & ONBOARDING =============
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle /start - With waitlist verification
@@ -505,7 +539,8 @@ async def handle_email_verification(update: Update, context: ContextTypes.DEFAUL
             await update.message.reply_text("✅ Access granted! Starting registration...")
             return await proceed_to_registration(update, context, email)
 
-        is_whitelisted = waitlist_manager.is_email_whitelisted(email, whitelist_blob_id)
+        is_whitelisted = waitlist_manager.is_email_whitelisted(
+            email, whitelist_blob_id)
 
         if is_whitelisted:
             await update.message.reply_text("✅ Email verified! Starting registration...")
@@ -528,6 +563,7 @@ async def proceed_to_registration(update: Update, context: ContextTypes.DEFAULT_
     registration_system = TelegramRegistrationSystem()
     await registration_system.display_welcome(update)
     return await registration_system.select_registration_method(update, context)
+
 
 async def security_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /security command - Display security and encryption info."""
@@ -571,6 +607,7 @@ async def security_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(security_info)
 
+
 async def handle_signup_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle signup method selection."""
     query = update.callback_query
@@ -594,6 +631,7 @@ async def handle_signup_choice(update: Update, context: ContextTypes.DEFAULT_TYP
             "🔑 Enter your admin code (ADM-XXXX-XXXX):"
         )
         return ADMIN_CODE_INPUT
+
 
 async def handle_user_referral_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user referral code input and validation."""
@@ -646,6 +684,7 @@ async def handle_user_referral_input(update: Update, context: ContextTypes.DEFAU
         )
         return REFERRAL_CODE_INPUT
 
+
 async def handle_admin_code_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle admin code input and validation."""
     telegram_id = str(update.effective_user.id)
@@ -692,6 +731,7 @@ async def handle_admin_code_input(update: Update, context: ContextTypes.DEFAULT_
         )
         return ADMIN_CODE_INPUT
 
+
 async def handle_password_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password input."""
     telegram_id = str(update.effective_user.id)
@@ -700,9 +740,11 @@ async def handle_password_setup(update: Update, context: ContextTypes.DEFAULT_TY
     # Delete the user's password input
     try:
         await update.message.delete()
-        logger.info(f"Deleted user password input message for user {telegram_id}")
+        logger.info(
+            f"Deleted user password input message for user {telegram_id}")
     except Exception as e:
-        logger.warning(f"Failed to delete user password input for user {telegram_id}: {e}")
+        logger.warning(
+            f"Failed to delete user password input for user {telegram_id}: {e}")
 
     is_valid, error_msg = is_strong_password(password)
     if not is_valid:
@@ -717,8 +759,10 @@ async def handle_password_setup(update: Update, context: ContextTypes.DEFAULT_TY
         "✅ Password accepted!\n\nConfirm password:"
     )
     context.user_data['password_success_msg'] = success_msg
-    logger.info(f"Sent password success message {success_msg.message_id} for user {telegram_id}")
+    logger.info(
+        f"Sent password success message {success_msg.message_id} for user {telegram_id}")
     return CONFIRM_PASSWORD
+
 
 async def safe_delete_message(message, delay: float = 0):
     """Safely delete a message with optional delay, handling common errors."""
@@ -728,13 +772,16 @@ async def safe_delete_message(message, delay: float = 0):
         if delay > 0:
             await asyncio.sleep(delay)
         await message.delete()
-        logger.info(f"Deleted message {message.message_id} in chat {message.chat.id}")
+        logger.info(
+            f"Deleted message {message.message_id} in chat {message.chat.id}")
     except telegram.error.BadRequest as e:
         logger.warning(f"Failed to delete message {message.message_id}: {e}")
     except telegram.error.Forbidden as e:
         logger.error(f"Forbidden to delete message {message.message_id}: {e}")
     except Exception as e:
-        logger.error(f"Unexpected error deleting message {message.message_id}: {e}")
+        logger.error(
+            f"Unexpected error deleting message {message.message_id}: {e}")
+
 
 async def handle_password_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Complete user registration using new registration system."""
@@ -745,16 +792,19 @@ async def handle_password_confirmation(update: Update, context: ContextTypes.DEF
     # Delete the user's password input
     try:
         await update.message.delete()
-        logger.info(f"Deleted user password input message for user {telegram_id}")
+        logger.info(
+            f"Deleted user password input message for user {telegram_id}")
     except Exception as e:
-        logger.warning(f"Failed to delete user password input for user {telegram_id}: {e}")
+        logger.warning(
+            f"Failed to delete user password input for user {telegram_id}: {e}")
 
     # Delete the password prompt message
     progress_msg = context.user_data.get('password_prompt_msg')
     if progress_msg:
         await safe_delete_message(progress_msg, delay=0)
         context.user_data.pop('password_prompt_msg', None)
-        logger.info(f"Deleted password prompt message {progress_msg.message_id} for user {telegram_id}")
+        logger.info(
+            f"Deleted password prompt message {progress_msg.message_id} for user {telegram_id}")
 
     temp_password = context.user_data.get('temp_password')
     if password_confirm != temp_password:
@@ -882,6 +932,8 @@ async def handle_password_confirmation(update: Update, context: ContextTypes.DEF
 #     )
 #     await update.message.reply_text(referral_msg, parse_mode='Markdown')
 # ============= ADMIN COMMANDS =============
+
+
 async def admin_generate_codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin command to generate referral codes."""
     telegram_id = str(update.effective_user.id)
@@ -912,7 +964,8 @@ async def admin_generate_codes(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"Each code can only be used once."
             )
             await update.message.reply_text(msg, parse_mode='Markdown')
-            logger.info(f"Admin {telegram_id} generated code batch: {batch_id}")
+            logger.info(
+                f"Admin {telegram_id} generated code batch: {batch_id}")
         else:
             await update.message.reply_text(
                 "❌ Error generating codes."
@@ -920,6 +973,8 @@ async def admin_generate_codes(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Error generating admin codes: {e}")
         await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
 async def admin_check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin command to check code status."""
     telegram_id = str(update.effective_user.id)
@@ -986,24 +1041,26 @@ async def admin_check_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #         "2. Use /process_upgrade <coin_id>"
 #     )
 # ============= HELP =============
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show all commands."""
     help_text = (
         "🤖 Tovira Bot Commands\n\n"
         "GETTING STARTED:\n"
         "/start - Create account\n"
-        #"/profile - View profile\n"
-        #"/referral - Referral info\n\n"
+        # "/profile - View profile\n"
+        # "/referral - Referral info\n\n"
         "TASKS:\n"
         "/new_task - Create task\n"
-        #"/my_tasks - View tasks\n"
-        #"/complete_task - Mark done\n"
-        #"/delete_task - Delete task\n\n"
+        # "/my_tasks - View tasks\n"
+        # "/complete_task - Mark done\n"
+        # "/delete_task - Delete task\n\n"
         "/portfolio - Check your sui wallet assets (NFTs, kiosk....)"
         "REWARDS:\n"
         "/checkin - Daily +1 point\n"
         "/leaderboard - Check you rank and points!"
-        #"/upgrade - Go premium\n\n"
+        # "/upgrade - Go premium\n\n"
         "🔐 End-to-end encrypted"
     )
     telegram_id = str(update.effective_user.id)
@@ -1014,6 +1071,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/check_code <code> - Check status"
         )
     await update.message.reply_text(help_text)
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel conversation."""
     await update.message.reply_text("❌ Cancelled.")
@@ -1028,29 +1087,37 @@ signup_handler = ConversationHandler(
         SELECT_METHOD: [
             CallbackQueryHandler(handle_signup_choice, pattern='^signup_')
         ],
-        EMAIL_VERIFICATION:[
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email_verification)
+        EMAIL_VERIFICATION: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_email_verification)
         ],
         REFERRAL_CODE_INPUT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_referral_input)
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_user_referral_input)
         ],
         ADMIN_CODE_INPUT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_code_input)
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_admin_code_input)
         ],
         SET_PASSWORD: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_setup)
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_password_setup)
         ],
         CONFIRM_PASSWORD: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_confirmation)
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_password_confirmation)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)]
 )
 
 # ============= ERROR HANDLER =============
+
+
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors."""
-    logger.error(f"Update {update} caused error {context.error}", exc_info=context.error)
+    logger.error(
+        f"Update {update} caused error {context.error}", exc_info=context.error)
     if update and update.effective_message:
         error_msg = handle_error(context.error, "telegram_bot")
         await update.effective_chat.send_message(error_msg)
@@ -1117,14 +1184,17 @@ async def debug_tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
                 # Try to decrypt if possible
                 if encrypted_blob and encrypted_blob != 'none':
-                    user_password = session.get('password') or context.user_data.get('password')
+                    user_password = session.get(
+                        'password') or context.user_data.get('password')
                     if user_password:
                         try:
                             private_key = await get_user_private_key(telegram_id, user_password)
                             if private_key:
-                                decrypted_task = walrus.retrieve_encrypted_task(encrypted_blob, private_key)
+                                decrypted_task = walrus.retrieve_encrypted_task(
+                                    encrypted_blob, private_key)
                                 if decrypted_task:
-                                    task_name = decrypted_task.get('task_name', 'Unknown')
+                                    task_name = decrypted_task.get(
+                                        'task_name', 'Unknown')
                                     debug_info += f"   Decrypted Name: {task_name}\n"
                         except Exception as e:
                             debug_info += f"   Decryption Error: {str(e)[:50]}...\n"
@@ -1147,7 +1217,8 @@ async def debug_tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             # Get public key for encryption
             public_key = key_manager.get_user_public_key(telegram_id)
             if public_key:
-                encrypted_blob_id = walrus.store_encrypted_task(public_key, test_task_data)
+                encrypted_blob_id = walrus.store_encrypted_task(
+                    public_key, test_task_data)
                 debug_info += f"✅ Can encrypt tasks: yes (blob: {encrypted_blob_id[:20]}...)\n"
             else:
                 debug_info += "❌ No public key found\n"
@@ -1196,6 +1267,7 @@ def create_telegram_application(token: str):
     application.add_handler(portfolio_handler)
 
     return application
+
 
 if __name__ == '__main__':
     main()

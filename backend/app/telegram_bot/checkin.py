@@ -16,8 +16,8 @@ from app.telegram_bot.utils import (
 
 load_dotenv()
 
-LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)  # ensures logs/ exists
+LOG_DIR = os.path.join("/tmp", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,

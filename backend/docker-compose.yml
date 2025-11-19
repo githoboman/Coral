@@ -7,18 +7,11 @@ services:
       dockerfile: Dockerfile          # uses your bulletproof prod Dockerfile
     image: tovira-api:latest
     container_name: tovira-api-prod
-    restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
       - .env
     # No volume mounts → immutable, secure, exactly what’s in the image
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     command: >
       gunicorn app.main:app
               --workers 4

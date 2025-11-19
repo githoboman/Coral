@@ -83,10 +83,6 @@ kubernetes/
 k8s/
 deployments/
 
-# Logs
-*.log
-logs/
-
 # Database
 *.db
 *.sqlite
