@@ -16,19 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install uv the bulletproof way
+# Install uv (bulletproof installer)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # Verify tools
 RUN uv --version && rustc --version
 
-# Copy requirements and install everything into the SYSTEM Python
+# Copy requirements and install everything into SYSTEM Python
 COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # -----------------------
-# Stage 2: Runtime (super slim, secure)
+# Stage 2: Runtime
 # -----------------------
 FROM python:3.11-slim
 
@@ -38,12 +38,11 @@ LABEL version="2.0.0"
 
 # Environment
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=${PORT:-10000} 
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Only runtime deps
+# Runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -63,17 +62,18 @@ COPY --chown=tovira:tovira .env.example .env.example
 # Switch to non-root user
 USER tovira
 
-EXPOSE ${PORT}
+# Expose Render runtime port dynamically
+EXPOSE $PORT
 
-# Healthcheck using the dynamic port
+# Healthcheck using dynamic port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+    CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Run with Gunicorn + Uvicorn workers
+# Run Gunicorn + Uvicorn workers, binding to dynamic port
 CMD gunicorn app.main:app \
     --workers 4 \
     --worker-class uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:${PORT} \
+    --bind 0.0.0.0:$PORT \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
