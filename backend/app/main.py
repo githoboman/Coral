@@ -59,13 +59,9 @@ app.include_router(waitlist.router, tags=["waitlist"])
 
 @app.get("/health", summary="Health check")
 async def health_check():
-    """
-    Health check endpoint that includes Telegram bot status
-    """
-    telegram_status = "active" if telegram_app and telegram_app.running else "inactive"
+    """Simple health check - should return immediately"""
     return {
         "status": "healthy",
-        "telegram_bot": telegram_status,
         "api_version": "1.0.0"
     }
 
@@ -89,10 +85,11 @@ async def telegram_status():
 
 
 if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))  # Use Render's PORT env var
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=10000,
+        port=port,  # Use the dynamic port
         reload=settings.ENVIRONMENT == "development",
         log_level="info"
     )
