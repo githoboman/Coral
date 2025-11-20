@@ -1,5 +1,4 @@
 # === Multi-stage Dockerfile for Tovira Backend ===
-# Reliable, fast, works everywhere (including China/restricted networks)
 
 # -----------------------
 # Stage 1: Builder
@@ -40,7 +39,7 @@ LABEL version="2.0.0"
 # Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=10000
 
 WORKDIR /app
 
@@ -61,24 +60,25 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --chown=tovira:tovira app/ ./app/
 COPY --chown=tovira:tovira .env.example .env.example
 
-# 🔑 CRITICAL: Create directories with proper permissions BEFORE switching to non-root user
+# Create directories with proper permissions BEFORE switching to non-root user
 RUN mkdir -p /app/keys /app/logs /app/data && \
     chown -R tovira:tovira /app/keys /app/logs /app/data
 
 # Switch to non-root user
 USER tovira
 
-EXPOSE 8000
+# Expose port 10000 (Render scans for this)
+EXPOSE 10000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
-# Run with Gunicorn + Uvicorn workers
-CMD ["gunicorn", "app.main:app", \
-    "--workers", "4", \
-    "--worker-class", "uvicorn.workers.UvicornWorker", \
-    "--bind", "0.0.0.0:8000", \
-    "--timeout", "120", \
-    "--access-logfile", "-", \
-    "--error-logfile", "-", \
-    "--log-level", "info"]
+# CRITICAL: Use $PORT environment variable (Render sets this dynamically)
+CMD gunicorn app.main:app \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:${PORT:-10000} \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile - \
+    --log-level info
