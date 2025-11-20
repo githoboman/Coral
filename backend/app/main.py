@@ -57,6 +57,15 @@ app.include_router(events.router, prefix="/api", tags=["events"])
 app.include_router(waitlist.router, tags=["waitlist"])
 
 
+@app.get("/", summary="Root endpoint")
+async def root():
+    """Root endpoint for health checks"""
+    return {
+        "message": "Tovira API is running",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+    
 @app.get("/health", summary="Health check")
 async def health_check():
     """Simple health check - should return immediately"""
