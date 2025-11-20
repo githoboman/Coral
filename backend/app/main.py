@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 # Import Telegram bot components
 from telegram.ext import Application
-# from app.telegram_bot.telegram_bot import create_telegram_application
+from app.telegram_bot.telegram_bot import create_telegram_application
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -23,9 +23,61 @@ telegram_app = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("✅ FastAPI starting without Telegram bot")
-    yield
-    logger.info("👋 FastAPI shutting down")
+    """
+    Lifespan context manager to start and stop the Telegram bot
+    alongside the FastAPI application
+    """
+    global telegram_app
+
+    # Startup: Initialize and start Telegram bot
+    logger.info("🚀 Starting Telegram bot...")
+
+    telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if telegram_token:
+        try:
+            # Create and setup the Telegram bot
+            telegram_app = create_telegram_application(telegram_token)
+
+            # Initialize the bot
+            await telegram_app.initialize()
+            await telegram_app.start()
+
+            # Start polling in the background
+            asyncio.create_task(telegram_app.updater.start_polling(
+                allowed_updates=["message", "callback_query", "inline_query"]
+            ))
+
+            logger.info("✅ Telegram bot started successfully")
+            print("=" * 70)
+            print("🔐 TOVIRA BOT - INTEGRATED SYSTEM")
+            print("=" * 70)
+            print("✅ FastAPI server running")
+            print("✅ Telegram bot active")
+            print("✅ Admin code generation")
+            print("✅ User referral codes")
+            print("✅ End-to-end encryption")
+            print("=" * 70)
+        except Exception as e:
+            logger.error(f"❌ Failed to start Telegram bot: {e}")
+            print(f"⚠️ Running without Telegram bot: {e}")
+    else:
+        logger.warning(
+            "⚠️ TELEGRAM_BOT_TOKEN not found - running without Telegram bot")
+        print("⚠️ Running without Telegram bot (no token configured)")
+
+    yield  # Server is running
+
+    # Shutdown: Stop the Telegram bot
+    if telegram_app:
+        logger.info("🛑 Stopping Telegram bot...")
+        try:
+            await telegram_app.updater.stop()
+            await telegram_app.stop()
+            await telegram_app.shutdown()
+            logger.info("✅ Telegram bot stopped successfully")
+        except Exception as e:
+            logger.error(f"❌ Error stopping Telegram bot: {e}")
+
 
 app = FastAPI(
     title="Tovira API",
