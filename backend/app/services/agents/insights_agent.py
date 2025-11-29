@@ -51,37 +51,37 @@ class StructuredInsights:
     token_symbol: str
     token_name: str
     analysis_timestamp: str
-    
+
     # Project Overview
     project_description: str
     key_features: List[str]
-    
+
     # TLDR Section
     tldr_overall: str
     key_takeaways: List[str]
     current_price: str
     price_change_24h: str
-    
+
     # Key Developments
     developments: List[str]
-    
+
     # Technical Analysis
     technical_signals: List[TechnicalSignal]
-    
+
     # Market Dynamics
     market_metrics: List[MarketMetric]
-    
+
     # Positives (Bullish signals)
     positives: List[InsightPoint]
-    
+
     # Risks (Bearish signals)
     risks: List[InsightPoint]
-    
+
     # Community Sentiment
     sentiment_score: float  # 0-100
     sentiment_description: str
     community_insights: List[InsightPoint]
-    
+
     # Data sources used
     data_sources: List[str]
 
@@ -107,7 +107,7 @@ class EnhancedInsightsAgent:
             temperature=0.4,
             google_api_key=settings.GEMINI_API_KEY,
         )
-        
+
         self.web3_agent = Web3Agent()
         self.analysis_cache = {}
         self.cache_ttl = 300
@@ -137,7 +137,7 @@ class EnhancedInsightsAgent:
             raw_data = await self.web3_agent.fetch_token_data(token)
             if not raw_data:
                 return None
-                
+
             return {
                 "price_usd": raw_data.get("price_usd", 0),
                 "liquidity_usd": raw_data.get("liquidity_usd", 0),
@@ -164,21 +164,23 @@ You are a crypto analyst. Provide a concise overview for {token} in Binance AI s
 Return ONLY JSON:
 {{"full_name": "Sui", "description": "Sui is a high-performance Layer 1 blockchain...", "key_features": ["Object-centric data model", "Parallel transaction execution", "Sub-second finality", "Developer-friendly Move language"]}}
 """)
-        
+
         try:
             chain = prompt | self.llm | StrOutputParser()
             response = await asyncio.wait_for(
                 chain.ainvoke({"token": token}),
                 timeout=10.0
             )
-            
+
             data = json.loads(response.strip())
             full_name = data.get("full_name", token)
-            desc = data.get("description", f"{token} is a cryptocurrency token.")
-            features = data.get("key_features", [f"Feature 1 for {token}", f"Feature 2 for {token}"])
-            
+            desc = data.get(
+                "description", f"{token} is a cryptocurrency token.")
+            features = data.get(
+                "key_features", [f"Feature 1 for {token}", f"Feature 2 for {token}"])
+
             return full_name, desc, features
-            
+
         except Exception as e:
             logger.warning(f"Project overview generation failed: {e}")
             return token, f"{token} is a cryptocurrency token on blockchain.", [f"Key feature 1", "Key feature 2", "Key feature 3"]
@@ -186,7 +188,7 @@ Return ONLY JSON:
     async def _analyze_technicals(self, token: str, market_data: Dict) -> List[TechnicalSignal]:
         """Generate technical analysis signals"""
         signals = []
-        
+
         # Price trend analysis
         change_24h = market_data.get("change_24h", 0)
         if abs(change_24h) > 5:  # Adjusted threshold to match example
@@ -199,12 +201,12 @@ Return ONLY JSON:
                 strength=min(5, int(abs(change_24h) / 5)),
                 ref_type=ref_type
             ))
-        
+
         # Volume analysis
         volume = market_data.get("volume_24h", 0)
         liquidity = market_data.get("liquidity_usd", 1)
         volume_ratio = volume / liquidity if liquidity > 0 else 0
-        
+
         if volume_ratio > 0.5:
             signals.append(TechnicalSignal(
                 indicator="Volume/Liquidity Ratio",
@@ -221,11 +223,11 @@ Return ONLY JSON:
                 strength=3,
                 ref_type="chart"
             ))
-        
+
         # Add LLM-enhanced technical analysis
         tech_analysis = await self._get_llm_technical_analysis(token, market_data)
         signals.extend(tech_analysis)
-        
+
         return signals
 
     async def _get_llm_technical_analysis(self, token: str, market_data: Dict) -> List[TechnicalSignal]:
@@ -252,7 +254,7 @@ For each signal:
 
 Return ONLY JSON array: [{{"indicator": "...", "signal": "...", "description": "...", "strength": 3, "ref_type": "chart"}}]
 """)
-        
+
         try:
             chain = prompt | self.llm | StrOutputParser()
             response = await asyncio.wait_for(
@@ -265,10 +267,10 @@ Return ONLY JSON array: [{{"indicator": "...", "signal": "...", "description": "
                 }),
                 timeout=15.0
             )
-            
+
             signals_data = json.loads(response.strip())
             return [TechnicalSignal(**s) for s in signals_data[:2]]
-            
+
         except Exception as e:
             logger.warning(f"LLM technical analysis failed: {e}")
             return []
@@ -305,28 +307,28 @@ Return JSON:
     "risks": [{{"title": "...", "description": "...", "data_points": ["..."], "confidence": "medium", "chart_count": 1}}]
 }}
 """)
-        
+
         try:
             chain = prompt | self.llm | StrOutputParser()
             response = await asyncio.wait_for(
                 chain.ainvoke({"token": token, "context": context}),
                 timeout=20.0
             )
-            
+
             data = json.loads(response.strip())
             positives = [InsightPoint(
-                title=p["title"], description=p["description"], 
+                title=p["title"], description=p["description"],
                 data_points=p["data_points"], confidence=p["confidence"],
                 post_count=p.get("post_count", 0)
             ) for p in data.get("positives", [])]
             risks = [InsightPoint(
-                title=r["title"], description=r["description"], 
+                title=r["title"], description=r["description"],
                 data_points=r["data_points"], confidence=r["confidence"],
                 chart_count=r.get("chart_count", 0)
             ) for r in data.get("risks", [])]
-            
+
             return positives, risks
-            
+
         except Exception as e:
             logger.error(f"Fundamental analysis failed: {e}")
             return [], []
@@ -358,7 +360,7 @@ Return JSON:
     "insights": [{{"title": "...", "description": "...", "data_points": ["..."], "confidence": "medium", "post_count": 2}}]
 }}
 """)
-        
+
         try:
             chain = prompt | self.llm | StrOutputParser()
             response = await asyncio.wait_for(
@@ -370,10 +372,10 @@ Return JSON:
                 }),
                 timeout=15.0
             )
-            
+
             data = json.loads(response.strip())
             insights = [InsightPoint(
-                title=i["title"], description=i["description"], 
+                title=i["title"], description=i["description"],
                 data_points=i["data_points"], confidence=i["confidence"],
                 post_count=i.get("post_count", 0), chart_count=i.get("chart_count", 0)
             ) for i in data.get("insights", [])]
@@ -382,7 +384,7 @@ Return JSON:
                 data.get("description", "Neutral sentiment"),
                 insights
             )
-            
+
         except Exception as e:
             logger.error(f"Sentiment analysis failed: {e}")
             return 50, "Unable to determine sentiment", []
@@ -410,9 +412,9 @@ Output JSON:
 - overall: 1 sentence thesis (20-30 words)
 - takeaways: Exactly 3 strings, each 15-25 words: [Ecosystem/Project Health, Price & Technicals, Market Outlook/Sentiment]
 """)
-        
+
         top_signal = technicals[0].description if technicals else "mixed technical signals"
-        
+
         try:
             chain = prompt | self.llm | StrOutputParser()
             response = await asyncio.wait_for(
@@ -436,7 +438,8 @@ Output JSON:
             }
         except Exception as e:
             logger.error(f"TLDR generation failed: {e}")
-            change_str = "rise" if market_data.get("change_24h", 0) > 0 else "decline"
+            change_str = "rise" if market_data.get(
+                "change_24h", 0) > 0 else "decline"
             return {
                 "overall": f"{token_name} ({token}) is trading at ${market_data.get('price_usd', 0):.4f}, reflecting a {market_data.get('change_24h', 0):+.2f}% {change_str}.",
                 "takeaways": [
@@ -455,27 +458,27 @@ Output JSON:
         token = self._extract_token(query)
         if not token:
             raise ValueError("Could not identify token from query")
-        
+
         # Step 0: Get project overview
         token_name, project_desc, key_features = await self._get_project_overview(token)
-        
+
         # Step 1: Gather market data
         market_data = await self._gather_market_data(token)
         if not market_data:
             raise ValueError(f"Could not fetch market data for {token}")
-        
+
         # Step 2: Parallel analysis
         tasks = [
             self._analyze_technicals(token, market_data),
             self._analyze_fundamentals(token, context),
             self._analyze_sentiment(token, market_data)
         ]
-        
+
         technicals, (positives, risks), (sentiment_score, sentiment_desc, community) = await asyncio.gather(*tasks)
-        
+
         # Step 3: Generate TLDR
         tldr_data = await self._generate_tldr(token, token_name, market_data, technicals)
-        
+
         # Integrate technicals into positives/risks if possible (simulate)
         for sig in technicals:
             if sig.signal == "bullish":
@@ -496,7 +499,7 @@ Output JSON:
                     post_count=0,
                     chart_count=1 if sig.ref_type == "chart" else 0
                 ))
-        
+
         # Step 4: Construct structured output
         insights = StructuredInsights(
             token_symbol=token,
@@ -511,8 +514,10 @@ Output JSON:
             developments=[],  # Could add news integration
             technical_signals=technicals,
             market_metrics=[
-                MarketMetric("24h Volume", f"${market_data['volume_24h']:,.0f}"),
-                MarketMetric("Liquidity", f"${market_data['liquidity_usd']:,.0f}"),
+                MarketMetric(
+                    "24h Volume", f"${market_data['volume_24h']:,.0f}"),
+                MarketMetric(
+                    "Liquidity", f"${market_data['liquidity_usd']:,.0f}"),
                 MarketMetric("Chain", market_data['chain'])
             ],
             positives=positives[:4],  # Limit to 4 for balance
@@ -522,7 +527,7 @@ Output JSON:
             community_insights=community[:2],  # Limit to 2 insights
             data_sources=["Dexscreener", "LLM Analysis"]
         )
-        
+
         return insights
 
     def _extract_token(self, query: str) -> Optional[str]:
@@ -548,7 +553,8 @@ Output JSON:
         sections.append("")  # Spacer
 
         # Project Overview (What is)
-        sections.append(f"**What is {insights.token_name} ({insights.token_symbol})?**")
+        sections.append(
+            f"**What is {insights.token_name} ({insights.token_symbol})?**")
         sections.append(insights.project_description)
         sections.append("")
 
@@ -560,9 +566,12 @@ Output JSON:
 
         # Core Market and Technical Data
         sections.append("**Market Performance**")
-        sections.append(f"💰 **Price:** {insights.current_price}")
-        sections.append(f"📈 **24h Volume:** ${insights.market_metrics[0].value if insights.market_metrics else 'N/A'}")
-        sections.append(f"🏦 **Market Cap (FDV):** ${insights.market_metrics[2].value if len(insights.market_metrics) > 2 and 'FDV' in insights.market_metrics[2].name else 'N/A'}")  # Assuming FDV added to metrics if available
+        sections.append(f" **Price:** {insights.current_price}")
+        sections.append(
+            f"📈 **24h Volume:** ${insights.market_metrics[0].value if insights.market_metrics else 'N/A'}")
+        # Assuming FDV added to metrics if available
+        sections.append(
+            f"🏦 **Market Cap (FDV):** ${insights.market_metrics[2].value if len(insights.market_metrics) > 2 and 'FDV' in insights.market_metrics[2].name else 'N/A'}")
         sections.append("")  # Spacer
 
         # 2. TLDR
@@ -575,45 +584,50 @@ Output JSON:
         # 4. Balanced Analysis
         # Positives
         if insights.positives:
-            sections.append("✅ **Positives**")
+            sections.append(" **Positives**")
             for pos in insights.positives:
                 ref_str = ""
                 if pos.post_count > 0:
                     ref_str += f" [{pos.post_count} post{'s' if pos.post_count > 1 else ''}]"
                 if pos.chart_count > 0:
                     ref_str += f" [{pos.chart_count} chart{'s' if pos.chart_count > 1 else ''}]"
-                sections.append(f"• **{pos.title}:** {pos.description}{ref_str}")
+                sections.append(
+                    f"• **{pos.title}:** {pos.description}{ref_str}")
                 if pos.data_points:
                     sections.append(f"  {' | '.join(pos.data_points)}")
             sections.append("")  # Spacer
 
         # Risks
         if insights.risks:
-            sections.append("⚠️ **Risks**")
+            sections.append("  **Risks**")
             for risk in insights.risks:
                 ref_str = ""
                 if risk.post_count > 0:
                     ref_str += f" [{risk.post_count} post{'s' if risk.post_count > 1 else ''}]"
                 if risk.chart_count > 0:
                     ref_str += f" [{risk.chart_count} chart{'s' if risk.chart_count > 1 else ''}]"
-                sections.append(f"• **{risk.title}:** {risk.description}{ref_str}")
+                sections.append(
+                    f"• **{risk.title}:** {risk.description}{ref_str}")
                 if risk.data_points:
                     sections.append(f"  {' | '.join(risk.data_points)}")
             sections.append("")  # Spacer
 
         # 5. Community Sentiment
         sections.append("💭 **Community Sentiment**")
-        sections.append(f"**Score:** {insights.sentiment_score:.0f}/100 - {insights.sentiment_description}")
+        sections.append(
+            f"**Score:** {insights.sentiment_score:.0f}/100 - {insights.sentiment_description}")
         if insights.community_insights:
             for insight in insights.community_insights:
                 ref_str = f" [{insight.post_count} post{'s' if insight.post_count > 1 else ''}]" if insight.post_count else ""
-                sections.append(f"• **{insight.title}:** {insight.description}{ref_str}")
+                sections.append(
+                    f"• **{insight.title}:** {insight.description}{ref_str}")
                 if insight.data_points:
                     sections.append(f"  {' | '.join(insight.data_points)}")
         sections.append("")  # Spacer
 
         # Disclaimer
-        sections.append("*The information in this report could be inaccurate. Please DYOR; not financial advice.*")
+        sections.append(
+            "*The information in this report could be inaccurate. Please DYOR; not financial advice.*")
 
         return "\n".join(sections)
 
@@ -629,14 +643,14 @@ _enhanced_insights_agent = EnhancedInsightsAgent()
 async def insights_agent_tool_async(query: str, context: str) -> str:
     """Enhanced insights tool with structured output"""
     logger.info(f"Enhanced insights tool invoked: {query[:60]}")
-    
+
     try:
         insights = await _enhanced_insights_agent.analyze_token(query, context)
         # Return markdown format for chat display
         return _enhanced_insights_agent.format_as_markdown(insights)
     except Exception as e:
         logger.exception(f"Insights analysis failed: {e}")
-        return f"⚠️ Unable to analyze token: {str(e)[:100]}"
+        return f"  Unable to analyze token: {str(e)[:100]}"
 
 
 async def get_structured_insights(query: str, context: str = "") -> StructuredInsights:

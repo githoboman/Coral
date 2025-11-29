@@ -1,4 +1,3 @@
-# app/services/agents/base_agent.py
 import re
 import logging
 import json
@@ -36,7 +35,7 @@ class ResearchState(BaseModel):
     technical: Dict[str, Any] = Field(default_factory=dict)
     onchain: Dict[str, Any] = Field(default_factory=dict)
     progress: List[str] = Field(default_factory=list)
-    
+
     # Process tracking
     current_pillar: str = ""
     completed_pillars: List[str] = Field(default_factory=list)
@@ -65,9 +64,7 @@ async def web_search(query: str, num_results: int = 5) -> str:
         JSON string with search results
     """
     try:
-        # Using a simple search API - replace with your preferred search service
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Placeholder - integrate with actual search API
             logger.info(f"Web search: {query}")
             return json.dumps({
                 "query": query,
@@ -96,7 +93,7 @@ async def browse_page(url: str, instructions: str = "") -> str:
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url)
-            content = response.text[:5000]  # Limit content size
+            content = response.text[:5000]
             logger.info(f"Browsed page: {url}")
             return f"Content from {url}:\n{content}\n\nInstructions: {instructions}"
     except Exception as e:
@@ -124,7 +121,6 @@ async def sui_onchain_data(project_name: str, metric: str = "all") -> str:
         base_url = settings.BLOCKVISION_BASE_URL
 
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Fetch project data
             response = await client.get(
                 f"{base_url}/projects/{project_name}/metrics",
                 headers=headers
@@ -145,10 +141,10 @@ async def sui_onchain_data(project_name: str, metric: str = "all") -> str:
 @tool
 async def coingecko_data(token_id: str) -> str:
     """
-    Fetch token data from CoinGecko API.
+    Fetch token data from CoinGecko API (free Demo plan).
 
     Args:
-        token_id: CoinGecko token ID
+        token_id: CoinGecko token ID (e.g., 'sui', 'bitcoin')
 
     Returns:
         JSON string with token data
@@ -156,9 +152,14 @@ async def coingecko_data(token_id: str) -> str:
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             url = f"https://api.coingecko.com/api/v3/coins/{token_id}"
-            params = {"localization": "false",
-                      "tickers": "false", "community_data": "false"}
+            params = {
+                "localization": "false",
+                "tickers": "false",
+                "community_data": "false",
+                "market_data": "true"
+            }
 
+            # Add API key if available (supports Demo plan)
             if settings.COINGECKO_API_KEY:
                 params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
 
@@ -167,20 +168,33 @@ async def coingecko_data(token_id: str) -> str:
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"Fetched CoinGecko data for {token_id}")
+
+                # Extract market data safely
+                market_data = data.get("market_data", {})
                 return json.dumps({
                     "name": data.get("name"),
                     "symbol": data.get("symbol"),
-                    "price_usd": data.get("market_data", {}).get("current_price", {}).get("usd"),
-                    "market_cap": data.get("market_data", {}).get("market_cap", {}).get("usd"),
-                    "volume_24h": data.get("market_data", {}).get("total_volume", {}).get("usd"),
-                    "price_change_24h": data.get("market_data", {}).get("price_change_percentage_24h")
+                    "price_usd": market_data.get("current_price", {}).get("usd"),
+                    "market_cap": market_data.get("market_cap", {}).get("usd"),
+                    "volume_24h": market_data.get("total_volume", {}).get("usd"),
+                    "price_change_24h": market_data.get("price_change_percentage_24h"),
+                    "ath": market_data.get("ath", {}).get("usd"),
+                    "atl": market_data.get("atl", {}).get("usd")
                 }, indent=2)
             else:
-                return json.dumps({"error": f"API error: {response.status_code}"})
+                logger.warning(
+                    f"CoinGecko API returned {response.status_code}")
+                return json.dumps({
+                    "error": f"API error: {response.status_code}",
+                    "note": "Ensure COINGECKO_API_KEY is set in environment"
+                })
 
     except Exception as e:
         logger.error(f"CoinGecko data error: {e}")
-        return json.dumps({"error": str(e)})
+        return json.dumps({
+            "error": str(e),
+            "note": "Make sure to set COINGECKO_API_KEY in your .env file"
+        })
 
 
 # ============================================================================
@@ -201,15 +215,12 @@ class SuiResearchAgent:
         self.tools = [web_search, browse_page,
                       sui_onchain_data, coingecko_data]
         self.tool_node = ToolNode(self.tools)
-
-        # Build the graph
         self.graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow"""
         workflow = StateGraph(ResearchState)
 
-        # Add nodes
         workflow.add_node("parse_query", self._parse_query)
         workflow.add_node("pillar_1_selling_points",
                           self._research_selling_points)
@@ -219,7 +230,6 @@ class SuiResearchAgent:
         workflow.add_node("synthesize", self._synthesize_report)
         workflow.add_node("tools", self.tool_node)
 
-        # Define edges
         workflow.set_entry_point("parse_query")
         workflow.add_edge("parse_query", "pillar_1_selling_points")
         workflow.add_edge("pillar_1_selling_points", "pillar_2_fundamentals")
@@ -230,24 +240,47 @@ class SuiResearchAgent:
 
         return workflow.compile()
 
+    async def _call_llm_with_timeout(self, messages: List, timeout: float = 60.0) -> str:
+        """Call LLM with timeout protection and proper error handling"""
+        try:
+            # Ensure we have at least a SystemMessage and HumanMessage
+            if not messages:
+                messages = [HumanMessage(content="Provide analysis.")]
+            elif len(messages) == 1 and isinstance(messages[0], SystemMessage):
+                # If only system message, add a human message
+                messages.append(HumanMessage(
+                    content="Provide a detailed analysis."))
+
+            response = await asyncio.wait_for(
+                self.llm.ainvoke(messages),
+                timeout=timeout
+            )
+            return response.content
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM call timed out after {timeout}s")
+            return "[Analysis timed out - please try a more specific query]"
+        except Exception as e:
+            logger.error(f"LLM error: {e}")
+            return f"[Error: {str(e)}]"
+
     async def _parse_query(self, state: ResearchState) -> ResearchState:
         """Parse user query and extract project details"""
         logger.info(f"Parsing query: {state.query}")
 
         system_prompt = """You are a Sui blockchain research assistant.
-            Extract the project name and research goal from the user's query.
+Extract the project name and research goal from the user's query.
 
-            CRITICAL: Return ONLY a valid JSON object. No markdown, no backticks, no explanations.
+CRITICAL: Return ONLY a valid JSON object. No markdown, no backticks, no explanations.
 
-            Format:
-            {"project_name": "PROJECT_NAME", "research_goal": "GOAL_DESCRIPTION"}
+Format:
+{"project_name": "PROJECT_NAME", "research_goal": "GOAL_DESCRIPTION"}
 
-            Examples:
-            {"project_name": "SUI", "research_goal": "price trends analysis"}
-            {"project_name": "NAVI", "research_goal": "fundamentals research"}
-            {"project_name": "Cetus", "research_goal": "security investigation"}
+Examples:
+{"project_name": "SUI", "research_goal": "price trends analysis"}
+{"project_name": "NAVI", "research_goal": "fundamentals research"}
+{"project_name": "Cetus", "research_goal": "security investigation"}
 
-            Extract the project name (default to "SUI" if unclear) and the research objective."""
+Extract the project name (default to "SUI" if unclear) and the research objective."""
 
         messages = [
             SystemMessage(content=system_prompt),
@@ -255,51 +288,45 @@ class SuiResearchAgent:
         ]
 
         try:
-            response = await self.llm.ainvoke(messages)
-            content = response.content.strip()
+            content = await self._call_llm_with_timeout(messages, timeout=30.0)
 
-            if not content:
-                raise ValueError("Empty LLM response")
+            if content.startswith("["):
+                raise ValueError("LLM timeout or error")
 
             logger.debug(f"Raw LLM response: {content}")
-
-            # Direct JSON parse only
             parsed = json.loads(content)
 
-            # Validate parsed result
             if not isinstance(parsed, dict):
-                raise ValueError(f"Response is not a JSON object: {type(parsed)}")
-        
+                raise ValueError(f"Invalid response type: {type(parsed)}")
+
             project_name = parsed.get("project_name", "").strip()
             research_goal = parsed.get("research_goal", "").strip()
 
             if not project_name or not research_goal:
-                raise ValueError(f"Missing required fields. Got: {parsed}")
+                raise ValueError(f"Missing fields: {parsed}")
 
             state.project_name = project_name
             state.research_goal = research_goal
             state.progress.append(
-                f"🔍 Researching {state.project_name} for {state.research_goal}"
-            )
+                f"Researching {state.project_name} for {state.research_goal}")
             state.messages.append({
                 "role": "assistant",
                 "content": f"Researching {state.project_name}..."
             })
-            logger.info(f"✅ Successfully parsed: {state.project_name} - {state.research_goal}")
+            logger.info(
+                f"Parsed: {state.project_name} - {state.research_goal}")
             return state
 
         except Exception as e:
-            error_msg = f"Failed to parse query: {str(e)}. Query: {state.query}"
-            logger.error(error_msg)
-        
-            # Set error state
-            state.progress.append("❌ Failed to parse research query")
+            logger.error(f"Parse error: {e}")
+            state.project_name = "SUI"
+            state.research_goal = "general analysis"
+            state.progress.append("Using default parameters")
             state.messages.append({
                 "role": "assistant",
-                "content": "I encountered an error parsing your research request. Please try rephrasing your query."
+                "content": "Proceeding with general SUI analysis..."
             })
-        
-            raise ValueError(error_msg)    
+            return state
 
     async def _research_selling_points(self, state: ResearchState) -> ResearchState:
         """Pillar 1: Research value proposition and selling points"""
@@ -307,343 +334,399 @@ class SuiResearchAgent:
         state.current_pillar = "Selling Points"
 
         system_prompt = f"""Research the value proposition of {state.project_name} on Sui blockchain.
-        
-        Focus on:
-        1. Core product/service and problem solved
-        2. Unique selling proposition (USP)
-        3. Target audience and use cases
-        4. Competitive advantages
-        5. Market positioning
-        
-        Use the available tools to gather information from official sources, documentation, and market analysis.
-        Provide a concise summary with confidence score (0-10).
-        """
+
+Focus on:
+1. Core product/service and problem solved
+2. Unique selling proposition
+3. Target audience and use cases
+4. Competitive advantages
+5. Market positioning
+
+Keep response under 400 words. Use search results provided."""
 
         messages = [SystemMessage(content=system_prompt)]
 
-        # Use tools to gather data
-        search_results = await web_search.ainvoke({
-            "query": f"{state.project_name} Sui blockchain value proposition USP",
-            "num_results": 5
-        })
-
-        messages.append(HumanMessage(
-            content=f"Web search results: {search_results}"))
-
         try:
-            response = await self.llm.ainvoke(messages)
-            state.selling_points = {
-                "summary": response.content,
-                "confidence": 7.5,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            state.completed_pillars.append("selling_points")
+            search_results = await asyncio.wait_for(
+                web_search.ainvoke({
+                    "query": f"{state.project_name} Sui blockchain value proposition",
+                    "num_results": 5
+                }),
+                timeout=20.0
+            )
 
+            if len(search_results) > 8000:
+                search_results = search_results[:8000] + "\n[Truncated]"
+
+            messages.append(HumanMessage(
+                content=f"Search results: {search_results}"))
         except Exception as e:
-            logger.error(f"Selling points research error: {e}")
-            state.selling_points = {"error": str(e)}
+            logger.warning(f"Search failed: {e}")
+            messages.append(HumanMessage(
+                content="Provide analysis based on general knowledge."))
 
+        content = await self._call_llm_with_timeout(messages, timeout=60.0)
+
+        state.selling_points = {
+            "summary": content,
+            "confidence": 7.5,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        state.completed_pillars.append("selling_points")
         return state
 
     async def _research_fundamentals(self, state: ResearchState) -> ResearchState:
-        """Pillar 2: Research fundamentals (team, funding, community)"""
+        """Pillar 2: Research fundamentals"""
         logger.info(f"Researching fundamentals for {state.project_name}")
         state.current_pillar = "Fundamentals"
 
         system_prompt = f"""Research the fundamental strength of {state.project_name}.
-        
-        Analyze:
-        1. Team background and credibility
-        2. Funding rounds and investors
-        3. Community size and engagement
-        4. Tokenomics and token utility
-        5. Roadmap and milestones
-        
-        Provide a structured analysis with risk flags.
-        """
+
+Analyze:
+1. Team background and credibility
+2. Funding rounds and investors
+3. Community size and engagement
+4. Tokenomics and token utility
+5. Roadmap and milestones
+
+Keep response under 400 words. Use funding data provided."""
 
         messages = [SystemMessage(content=system_prompt)]
 
-        # Gather data
-        funding_data = await web_search.ainvoke({
-            "query": f"{state.project_name} funding investors team Sui",
-            "num_results": 5
-        })
-
-        messages.append(HumanMessage(content=f"Funding data: {funding_data}"))
-
         try:
-            response = await self.llm.ainvoke(messages)
-            state.fundamentals = {
-                "analysis": response.content,
-                "risk_score": 6.0,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            state.completed_pillars.append("fundamentals")
+            funding_data = await asyncio.wait_for(
+                web_search.ainvoke({
+                    "query": f"{state.project_name} funding investors team Sui",
+                    "num_results": 5
+                }),
+                timeout=20.0
+            )
 
+            if len(funding_data) > 8000:
+                funding_data = funding_data[:8000] + "\n[Truncated]"
+
+            messages.append(HumanMessage(
+                content=f"Funding data: {funding_data}"))
         except Exception as e:
-            logger.error(f"Fundamentals research error: {e}")
-            state.fundamentals = {"error": str(e)}
+            logger.warning(f"Search failed: {e}")
+            messages.append(HumanMessage(
+                content="Provide analysis based on general knowledge."))
 
+        content = await self._call_llm_with_timeout(messages, timeout=60.0)
+
+        state.fundamentals = {
+            "analysis": content,
+            "risk_score": 6.0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        state.completed_pillars.append("fundamentals")
         return state
 
     async def _research_technical(self, state: ResearchState) -> ResearchState:
-        """Pillar 3: Research technical aspects and security"""
-        logger.info(f"Researching technical aspects for {state.project_name}")
+        """Pillar 3: Research technical aspects"""
+        logger.info(f"Researching technical for {state.project_name}")
         state.current_pillar = "Technical"
 
-        system_prompt = f"""Analyze the technical implementation of {state.project_name} on Sui.
-        
-        Focus on:
-        1. Technical architecture and design
-        2. Smart contract security and audits
-        3. Sui Move implementation quality
-        4. Known vulnerabilities or exploits
-        5. Technical tradeoffs and risks
-        
-        Provide risk matrix and mitigation strategies.
-        """
+        system_prompt = f"""Analyze technical implementation of {state.project_name} on Sui.
+
+Focus on:
+1. Technical architecture
+2. Smart contract security and audits
+3. Sui Move implementation quality
+4. Known vulnerabilities
+5. Technical risks
+
+Keep response under 400 words."""
 
         messages = [SystemMessage(content=system_prompt)]
 
-        # Search for technical data
-        tech_data = await web_search.ainvoke({
-            "query": f"{state.project_name} Sui Move audit security technical",
-            "num_results": 5
-        })
-
-        messages.append(HumanMessage(content=f"Technical data: {tech_data}"))
-
         try:
-            response = await self.llm.ainvoke(messages)
-            state.technical = {
-                "analysis": response.content,
-                "security_score": 7.0,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            state.completed_pillars.append("technical")
+            tech_data = await asyncio.wait_for(
+                web_search.ainvoke({
+                    "query": f"{state.project_name} Sui Move audit security",
+                    "num_results": 5
+                }),
+                timeout=20.0
+            )
 
+            if len(tech_data) > 8000:
+                tech_data = tech_data[:8000] + "\n[Truncated]"
+
+            messages.append(HumanMessage(
+                content=f"Technical data: {tech_data}"))
         except Exception as e:
-            logger.error(f"Technical research error: {e}")
-            state.technical = {"error": str(e)}
+            logger.warning(f"Search failed: {e}")
+            messages.append(HumanMessage(
+                content="Provide analysis based on general knowledge."))
 
+        content = await self._call_llm_with_timeout(messages, timeout=60.0)
+
+        state.technical = {
+            "analysis": content,
+            "security_score": 7.0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        state.completed_pillars.append("technical")
         return state
 
     async def _research_onchain(self, state: ResearchState) -> ResearchState:
-        """Pillar 4: Research on-chain metrics and activity"""
-        logger.info(f"Researching on-chain data for {state.project_name}")
+        """Pillar 4: Research on-chain metrics"""
+        logger.info(f"Researching on-chain for {state.project_name}")
         state.current_pillar = "On-Chain"
 
-        system_prompt = f"""Analyze on-chain metrics for {state.project_name} on Sui.
-        
-        Examine:
-        1. Total Value Locked (TVL)
-        2. Active users and transaction volume
-        3. Token holder distribution
-        4. Liquidity and trading activity
-        5. Growth trends and patterns
-        
-        Provide quantitative analysis with charts/insights.
-        """
+        if state.project_name.upper() in ["SUI", "SUI TOKEN"]:
+            try:
+                cg_data = await asyncio.wait_for(
+                    coingecko_data.ainvoke({"token_id": "sui"}),
+                    timeout=15.0
+                )
+
+                system_prompt = f"""Analyze market metrics for {state.project_name}.
+Examine price, market cap, volume, and trends. Keep under 300 words."""
+
+                messages = [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=f"CoinGecko data: {cg_data}")
+                ]
+
+                content = await self._call_llm_with_timeout(messages, timeout=60.0)
+
+                state.onchain = {
+                    "metrics": content,
+                    "health_score": 8.0,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"On-chain error: {e}")
+                state.onchain = {
+                    "metrics": f"[Unable to fetch on-chain metrics: {str(e)}]",
+                    "health_score": 5.0
+                }
+
+            state.completed_pillars.append("onchain")
+            return state
+
+        system_prompt = f"""Analyze on-chain metrics for {state.project_name}.
+
+Examine:
+1. TVL and liquidity
+2. Active users
+3. Transaction volume
+4. Growth trends
+
+Keep under 400 words."""
 
         messages = [SystemMessage(content=system_prompt)]
 
-        # Fetch on-chain data
-        onchain_metrics = await sui_onchain_data.ainvoke({
-            "project_name": state.project_name,
-            "metric": "all"
-        })
-
-        messages.append(HumanMessage(
-            content=f"On-chain metrics: {onchain_metrics}"))
-
         try:
-            response = await self.llm.ainvoke(messages)
-            state.onchain = {
-                "metrics": response.content,
-                "health_score": 7.5,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            state.completed_pillars.append("onchain")
+            onchain_data_result = await asyncio.wait_for(
+                sui_onchain_data.ainvoke({
+                    "project_name": state.project_name,
+                    "metric": "all"
+                }),
+                timeout=20.0
+            )
 
+            if len(onchain_data_result) > 8000:
+                onchain_data_result = onchain_data_result[:8000] + \
+                    "\n[Truncated]"
+
+            messages.append(HumanMessage(
+                content=f"On-chain data: {onchain_data_result}"))
         except Exception as e:
-            logger.error(f"On-chain research error: {e}")
-            state.onchain = {"error": str(e)}
+            logger.warning(f"On-chain data fetch failed: {e}")
+            messages.append(HumanMessage(
+                content="Provide analysis based on general knowledge."))
 
+        content = await self._call_llm_with_timeout(messages, timeout=60.0)
+
+        state.onchain = {
+            "metrics": content,
+            "health_score": 7.5,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        state.completed_pillars.append("onchain")
         return state
 
     async def _synthesize_report(self, state: ResearchState) -> ResearchState:
         """Synthesize all research into final report"""
-        logger.info(f"Synthesizing final report for {state.project_name}")
+        logger.info(f"Synthesizing report for {state.project_name}")
+
+        # Build compact JSON to avoid token overflow
+        selling_points_text = state.selling_points.get("summary", "No data")[:500]
+        fundamentals_text = state.fundamentals.get("analysis", "No data")[:500]
+        technical_text = state.technical.get("analysis", "No data")[:500]
+        onchain_text = state.onchain.get("metrics", "No data")[:500]
 
         system_prompt = f"""Create a comprehensive research report for {state.project_name} on Sui blockchain.
-        
-        Synthesize findings from all 4 pillars:
-        1. Selling Points: {json.dumps(state.selling_points, indent=2)}
-        2. Fundamentals: {json.dumps(state.fundamentals, indent=2)}
-        3. Technical: {json.dumps(state.technical, indent=2)}
-        4. On-Chain: {json.dumps(state.onchain, indent=2)}
-        
-        Provide:
-        - Executive summary (3-4 sentences)
-        - Key findings by pillar
-        - Risk vs Reward analysis
-        - Final recommendation based on research goal: {state.research_goal}
-        - Overall confidence score (0-10)
-        
-        Format in clear Markdown with sections and bullet points.
-        """
+
+            SELLING POINTS:
+            {selling_points_text}
+
+            FUNDAMENTALS:
+            {fundamentals_text}
+
+            TECHNICAL:
+            {technical_text}
+
+            ON-CHAIN METRICS:
+            {onchain_text}
+
+            Provide:
+            1. Executive Summary (2-3 sentences)
+            2. Key Findings by Pillar (3-4 bullet points)
+            3. Risk vs Reward Analysis (brief)
+            4. Final Recommendation for: {state.research_goal}
+            5. Overall Confidence Score (0-10)
+
+            Format in Markdown. Keep under 600 words."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(
+                content="Generate the research report based on the data above.")
+        ]
 
         try:
-            response = await self.llm.ainvoke([SystemMessage(content=system_prompt)])
-            state.final_report = response.content
+            logger.info("Calling LLM for synthesis...")
+            content = await self._call_llm_with_timeout(messages, timeout=90.0)
+            logger.info(f"LLM synthesis response length: {len(content)}")
 
-            # Calculate overall confidence
-            scores = [
-                state.selling_points.get("confidence", 0),
-                state.fundamentals.get("risk_score", 0),
-                state.technical.get("security_score", 0),
-                state.onchain.get("health_score", 0)
-            ]
-            state.confidence_score = sum(
-                scores) / len(scores) if scores else 0.0
+            # Handle timeout responses
+            if not content or "[Error:" in content or content.startswith("["):
+                logger.error(f"LLM returned error/timeout: {content}")
+                state.final_report = f"## Report Generation Issue\n\n{content}\n\nPlease try again with a different query."
+            else:
+                # CRITICAL FIX: Ensure the report is actually set
+                state.final_report = content
+                logger.info(
+                    f"Successfully set final_report: {len(state.final_report)} chars")
 
+            # Calculate confidence score
+            scores = []
+            if state.selling_points.get("confidence"):
+                scores.append(state.selling_points["confidence"])
+            if state.fundamentals.get("risk_score"):
+                scores.append(state.fundamentals["risk_score"])
+            if state.technical.get("security_score"):
+                scores.append(state.technical["security_score"])
+            if state.onchain.get("health_score"):
+                scores.append(state.onchain["health_score"])
+
+            state.confidence_score = sum(scores) / len(scores) if scores else 5.0
+            logger.info(f"Confidence score: {state.confidence_score}")
+
+            # DEBUGGING: Verify the state before returning
             logger.info(
-                f"Report generated with confidence: {state.confidence_score}")
+                f"Before return - final_report length: {len(state.final_report)}, confidence: {state.confidence_score}")
 
         except Exception as e:
-            logger.error(f"Report synthesis error: {e}")
-            state.final_report = f"Error generating report: {str(e)}"
+            logger.error(f"Synthesis error: {e}", exc_info=True)
+            state.final_report = f"## Error Generating Report\n\n{str(e)}\n\nPlease try again."
             state.confidence_score = 0.0
 
         return state
 
     async def run(self, query: str, user_id: str) -> AsyncGenerator[Dict[str, Any], None]:
         """Run the research agent and stream results"""
-
-        # Initialize state
-        initial_state = ResearchState(
-            query=query,
-            user_id=user_id,
-        )
+        initial_state = ResearchState(query=query, user_id=user_id)
 
         try:
-            logger.info(f"Starting deep research for query: {query}")
+            logger.info(f"Starting research for: {query}")
+            yield {"type": "agent_info", "agent": "Sui Deep Research"}
+            yield {"type": "response", "content": "Starting Deep Research\n\n"}
 
-            # Emit agent info
-            yield {
-                "type": "agent_info",
-                "agent": "Sui Deep Research"
-            }
-
-            yield {
-                "type": "response",
-                "content": "🔍 **Starting Deep Research**\n\n"
-           }
-
-            # Track if we've received any output
             has_output = False
             current_pillar = None
+            final_state = None
 
-            # Stream progress through pillars
             async for event in self.graph.astream(initial_state):
-                logger.info(f"Graph event keys: {list(event.keys())}")
-
-                # Extract state from event
                 for node_name, node_state in event.items():
-                    logger.debug(f"Processing node: {node_name}")
+                    logger.debug(
+                        f"Node: {node_name}, State type: {type(node_state)}")
 
-                    # Handle parse errors
+                    # CRITICAL FIX: Save state properly
+                    # The node_state is a dict, not a ResearchState object
+                    if isinstance(node_state, dict):
+                        final_state = node_state
+                    else:
+                        final_state = node_state
+
                     if node_name == "parse_query":
-                        if hasattr(node_state, 'project_name') and node_state.project_name:
-                            yield {
-                                "type": "response",
-                                "content": f"📊 Analyzing **{node_state.project_name}**\n"
-                            }
-                            yield {
-                                "type": "response",
-                                "content": f"🎯 Goal: {node_state.research_goal}\n\n"
-                            }
+                        if isinstance(node_state, dict):
+                            project_name = node_state.get('project_name')
+                            research_goal = node_state.get('research_goal')
+                        else:
+                            project_name = getattr(
+                                node_state, 'project_name', None)
+                            research_goal = getattr(
+                                node_state, 'research_goal', None)
+
+                        if project_name:
+                            yield {"type": "response", "content": f"Analyzing {project_name}\n"}
+                            yield {"type": "response", "content": f"Goal: {research_goal}\n\n"}
                             has_output = True
 
-                    # Stream pillar progress
-                    if hasattr(node_state, 'current_pillar') and node_state.current_pillar:
-                        if node_state.current_pillar != current_pillar:
-                            current_pillar = node_state.current_pillar
-                            pillar_emoji = {
-                                "Selling Points": "💡",
-                                "Fundamentals": "🏗️",
-                                "Technical": "⚙️",
-                                "On-Chain": "⛓️"
-                            }.get(current_pillar, "🔍")
+                    # Handle pillar updates
+                    if isinstance(node_state, dict):
+                        pillar = node_state.get('current_pillar')
+                    else:
+                        pillar = getattr(node_state, 'current_pillar', None)
 
-                            yield {
-                                "type": "response",
-                                "content": f"---\n\n## {pillar_emoji} {current_pillar}\n\n"
-                            }
-                            has_output = True
-
-                    # Stream final report
-                    if hasattr(node_state, 'final_report') and node_state.final_report:
-                        if not has_output:
-                            yield {
-                                "type": "response",
-                                "content": "📝 **Research Report**\n\n"
-                            }
-
-                        # Stream report in chunks for better UX
-                        report = node_state.final_report
-                        chunk_size = 100  # Characters per chunk
-
-                        for i in range(0, len(report), chunk_size):
-                            chunk = report[i:i + chunk_size]
-                            yield {
-                                "type": "response",
-                                "content": chunk
-                            }
-                            # Small delay for streaming effect
-                            await asyncio.sleep(0.03)
-
+                    if pillar and pillar != current_pillar:
+                        current_pillar = pillar
+                        yield {"type": "response", "content": f"---\n\n**{current_pillar}**\n\n"}
                         has_output = True
 
-                        # Add confidence score
-                        if hasattr(node_state, 'confidence_score'):
-                            yield {
-                                "type": "response",
-                                "content": f"\n\n---\n\n**Confidence Score:** {node_state.confidence_score:.1f}/10\n"
-                            }
+            # After graph completes, extract final report
+            if final_state:
+                # Handle both dict and object formats
+                if isinstance(final_state, dict):
+                    report = final_state.get('final_report', '')
+                    confidence_score = final_state.get('confidence_score', 0.0)
+                else:
+                    report = getattr(final_state, 'final_report', '')
+                    confidence_score = getattr(
+                        final_state, 'confidence_score', 0.0)
 
-            # If no output was generated, something went wrong
+                logger.info(f"Final report length: {len(report) if report else 0}")
+
+                if report and len(report) > 0:
+                    logger.info(f"Streaming final report of length: {len(report)}")
+
+                    # Stream the report in chunks
+                    chunk_size = 100
+                    for i in range(0, len(report), chunk_size):
+                        chunk = report[i:i + chunk_size]
+                        yield {"type": "response", "content": chunk}
+                        await asyncio.sleep(0.03)
+
+                    has_output = True
+
+                    if confidence_score > 0:
+                        yield {
+                            "type": "response",
+                            "content": f"\n\n**Confidence Score**: {confidence_score:.1f}/10\n"
+                        }
+                else:
+                    logger.error(
+                        f"Final state exists but report is empty. State keys: {final_state.keys() if isinstance(final_state, dict) else dir(final_state)}")
+            else:
+                logger.error("No final state captured from graph")
+
             if not has_output:
-                logger.error("Research completed but no output was generated")
-                yield {
-                    "type": "response",
-                    "content": "\n\n⚠️ Research completed but no detailed output was generated. This might be due to:\n"
-                               "- API rate limits\n"
-                               "- Insufficient data availability\n"
-                               "- Network issues\n\n"
-                               "Please try again or rephrase your query."
-                }
+                yield {"type": "response", "content": "Research completed but no output generated. Please try again.\n"}
 
-            # Emit done
             yield {"type": "done"}
 
         except Exception as e:
-            logger.error(f"Research agent error: {e}", exc_info=True)
-            yield {
-                "type": "response",
-                "content": f"\n\n❌ **Research Error**\n\n"
-                f"An error occurred during research: {str(e)}\n\n"
-                f"Please try:\n"
-                f"- Rephrasing your query\n"
-                f"- Being more specific about what you want to research\n"
-                f"- Trying again in a moment\n"
-            }
+            logger.error(f"Research error: {e}", exc_info=True)
+            yield {"type": "response", "content": f"Error during research: {str(e)}\n"}
             yield {"type": "done"}
 
 
 # ============================================================================
-# MAIN FUNCTIONS FOR BACKWARD COMPATIBILITY
+# BACKWARD COMPATIBILITY
 # ============================================================================
 
 async def generate_ai_response_stream(
@@ -651,24 +734,17 @@ async def generate_ai_response_stream(
     context: List[Dict[str, str]],
     user_id: str,
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    """
-    Generate AI response with streaming support.
-    Maintains backward compatibility with existing chat system.
-    """
-
-    # Check if this is a research query (contains keywords)
+    """Generate AI response with streaming support"""
     research_keywords = ["research", "analyze",
                          "evaluate", "investigate", "deep dive", "report on"]
     is_research_query = any(keyword in query.lower()
                             for keyword in research_keywords)
 
     if is_research_query:
-        # Use deep research agent
         agent = SuiResearchAgent()
         async for chunk in agent.run(query, user_id):
             yield chunk
     else:
-        # Use simple chat for general queries
         llm = ChatGoogleGenerativeAI(
             model=settings.LLM_MODEL,
             google_api_key=settings.GEMINI_API_KEY,
@@ -678,9 +754,9 @@ async def generate_ai_response_stream(
 
         messages = [
             SystemMessage(
-                content="You are Tovira, a helpful Sui blockchain assistant. Provide clear, concise answers about Sui blockchain, DeFi, and crypto."),
-            *[HumanMessage(content=msg["content"]) if msg["role"] ==
-              "user" else AIMessage(content=msg["content"]) for msg in context],
+                content="You are Tovira, a helpful Sui blockchain assistant."),
+            *[HumanMessage(content=msg["content"]) if msg["role"] == "user"
+              else AIMessage(content=msg["content"]) for msg in context],
             HumanMessage(content=query)
         ]
 
@@ -689,24 +765,18 @@ async def generate_ai_response_stream(
 
             async for chunk in llm.astream(messages):
                 if hasattr(chunk, 'content') and chunk.content:
-                    yield {
-                        "type": "response",
-                        "content": chunk.content
-                    }
+                    yield {"type": "response", "content": chunk.content}
 
             yield {"type": "done"}
 
         except Exception as e:
             logger.error(f"Chat error: {e}")
-            yield {
-                "type": "response",
-                "content": f"I encountered an error: {str(e)}. Please try again."
-            }
+            yield {"type": "response", "content": f"Error: {str(e)}"}
             yield {"type": "done"}
 
 
 async def generate_chat_name(query: str) -> str:
-    """Generate an intelligent chat name from the first message"""
+    """Generate chat name from first message"""
     try:
         llm = ChatGoogleGenerativeAI(
             model=settings.LLM_MODEL,
@@ -714,20 +784,20 @@ async def generate_chat_name(query: str) -> str:
             temperature=0.3
         )
 
-        prompt = f"""Generate a short, descriptive chat title (max 5 words) for this message:
-        "{query}"
-        
-        Return only the title, nothing else."""
+        prompt = f"""Generate a short chat title (max 5 words) for: "{query}"
+Return only the title."""
 
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        response = await asyncio.wait_for(
+            llm.ainvoke([HumanMessage(content=prompt)]),
+            timeout=10.0
+        )
         name = response.content.strip().strip('"\'')
 
-        # Fallback if generation fails
         if len(name) > 50 or not name:
             name = query[:47] + "..." if len(query) > 47 else query
 
         return name
 
     except Exception as e:
-        logger.error(f"Chat name generation error: {e}")
+        logger.error(f"Name generation error: {e}")
         return query[:47] + "..." if len(query) > 47 else query

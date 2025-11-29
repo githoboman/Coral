@@ -48,6 +48,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Custom handler to filter httpx logs and redact tokens
+
+
 class TokenFilter(logging.Filter):
     def filter(self, record):
         if hasattr(record, 'msg'):
@@ -57,10 +59,11 @@ class TokenFilter(logging.Filter):
                 record.msg = modified_msg
         return True
 
+
 # Hard-disable httpx/httpcore request logging to prevent token leakage
 httpx_loggers = [
     'httpx',
-    'httpx._client', 
+    'httpx._client',
     'httpcore',
     'httpcore.http11',
     'httpcore.connection',
@@ -74,15 +77,19 @@ for logger_name in httpx_loggers:
     httpx_logger.propagate = False  # Prevent propagation to root logger
 
 # Add robust token filter to root logger as backstop
+
+
 class RobustTokenFilter(logging.Filter):
     def filter(self, record):
         if TOKEN and hasattr(record, 'msg') and record.msg:
             # Handle both msg and args for comprehensive redaction
-            message = record.getMessage() if hasattr(record, 'getMessage') else str(record.msg)
+            message = record.getMessage() if hasattr(
+                record, 'getMessage') else str(record.msg)
             if TOKEN in message:
                 record.msg = message.replace(TOKEN, '[REDACTED]')
                 record.args = None
         return True
+
 
 # Apply robust filter to root logger as additional safety
 logging.getLogger().addFilter(RobustTokenFilter())
@@ -95,15 +102,20 @@ agent = ToviraAgent(GEMINI_API_KEY, supabase)
 print("Bot starting with enhanced agent, Supabase integration, and AI attribute generation")
 
 # Helper function to escape MarkdownV2 characters
+
+
 def escape_markdown_v2(text: str) -> str:
     """Escape special characters for MarkdownV2 parsing."""
-    markdown_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    markdown_chars = ['_', '*', '[', ']',
+                      '(', ')', '~', '`', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     escaped_text = text
     for char in markdown_chars:
         escaped_text = escaped_text.replace(char, f'\\{char}')
     return escaped_text
 
 # Enhanced database operations
+
+
 async def create_user_profile(user_id: str, username: str = None, first_name: str = None):
     """Create or update user profile in Supabase."""
     try:
@@ -117,10 +129,12 @@ async def create_user_profile(user_id: str, username: str = None, first_name: st
         }
 
         # Use upsert to handle existing users
-        supabase.table('user_profiles').upsert(user_data, on_conflict='user_id').execute()
+        supabase.table('user_profiles').upsert(
+            user_data, on_conflict='user_id').execute()
         logger.info(f"User profile created/updated for user: {user_id}")
     except Exception as e:
         logger.error(f"Error creating user profile: {e}")
+
 
 async def update_user_activity(user_id: str):
     """Update user's last activity timestamp."""
@@ -132,6 +146,8 @@ async def update_user_activity(user_id: str):
         logger.error(f"Error updating user activity: {e}")
 
 # Scheduler for sending reminders
+
+
 async def send_reminders(app: Application):
     """Check for due reminders and send them to users via Telegram."""
     try:
@@ -151,20 +167,24 @@ async def send_reminders(app: Application):
         for reminder in reminders:
             user_id = reminder['user_id']
             task_id = reminder['task_id']
-            
+
             # Get task details separately
-            task_response = supabase.table('tasks').select('task_name, is_recurring').eq('id', task_id).execute()
+            task_response = supabase.table('tasks').select(
+                'task_name, is_recurring').eq('id', task_id).execute()
             if not task_response.data:
-                logger.warning(f"Task {task_id} not found for reminder {reminder['id']}")
+                logger.warning(
+                    f"Task {task_id} not found for reminder {reminder['id']}")
                 continue
-                
+
             task_name = task_response.data[0]['task_name']
             is_recurring = task_response.data[0]['is_recurring']
             reminder_time = datetime.fromisoformat(reminder['reminder_time'])
 
             # Fetch user's timezone
-            user_response = supabase.table('user_profiles').select('timezone').eq('user_id', user_id).execute()
-            user_timezone = user_response.data[0].get('timezone', 'UTC') if user_response.data else 'UTC'
+            user_response = supabase.table('user_profiles').select(
+                'timezone').eq('user_id', user_id).execute()
+            user_timezone = user_response.data[0].get(
+                'timezone', 'UTC') if user_response.data else 'UTC'
             tz = ZoneInfo(user_timezone)
 
             # Format reminder time in user's timezone
@@ -179,9 +199,11 @@ async def send_reminders(app: Application):
                     text=escaped_message,
                     parse_mode='MarkdownV2'
                 )
-                logger.info(f"Sent reminder for task {task_id} to user {user_id}")
+                logger.info(
+                    f"Sent reminder for task {task_id} to user {user_id}")
             except Exception as e:
-                logger.error(f"Failed to send reminder to user {user_id} for task {task_id}: {e}")
+                logger.error(
+                    f"Failed to send reminder to user {user_id} for task {task_id}: {e}")
                 continue
 
             # Mark reminder as sent
@@ -190,27 +212,33 @@ async def send_reminders(app: Application):
                     .update({'is_sent': True})\
                     .eq('id', reminder['id'])\
                     .execute()
-                logger.info(f"Marked reminder {reminder['id']} as sent for task {task_id}")
+                logger.info(
+                    f"Marked reminder {reminder['id']} as sent for task {task_id}")
             except Exception as e:
-                logger.error(f"Error marking reminder {reminder['id']} as sent: {e}")
+                logger.error(
+                    f"Error marking reminder {reminder['id']} as sent: {e}")
 
             # Handle recurring tasks
             if is_recurring:
                 try:
                     # Fetch current reminder_times from tasks
-                    task_response = supabase.table('tasks').select('reminder_times').eq('id', task_id).eq('user_id', user_id).execute()
+                    task_response = supabase.table('tasks').select('reminder_times').eq(
+                        'id', task_id).eq('user_id', user_id).execute()
                     if not task_response.data:
-                        logger.error(f"Task {task_id} not found for user {user_id}")
+                        logger.error(
+                            f"Task {task_id} not found for user {user_id}")
                         continue
 
-                    current_reminder_times = task_response.data[0].get('reminder_times', [])
+                    current_reminder_times = task_response.data[0].get(
+                        'reminder_times', [])
                     new_reminder_times = []
 
                     # Calculate next occurrence for each reminder time
                     for rt in current_reminder_times:
                         rt_dt = datetime.fromisoformat(rt)
                         # Example: For daily recurrence, add one day
-                        next_time = rt_dt + timedelta(days=1)  # Assuming daily recurrence for simplicity
+                        # Assuming daily recurrence for simplicity
+                        next_time = rt_dt + timedelta(days=1)
                         new_reminder_times.append(next_time.isoformat())
 
                     # Update task with new reminder_times
@@ -232,15 +260,20 @@ async def send_reminders(app: Application):
                             'is_sent': False,
                             'created_at': datetime.now(tz).isoformat()
                         }
-                        supabase.table('task_reminders').insert(reminder_data).execute()
-                    logger.info(f"Updated recurring reminders for task {task_id}")
+                        supabase.table('task_reminders').insert(
+                            reminder_data).execute()
+                    logger.info(
+                        f"Updated recurring reminders for task {task_id}")
                 except Exception as e:
-                    logger.error(f"Error updating recurring reminders for task {task_id}: {e}")
+                    logger.error(
+                        f"Error updating recurring reminders for task {task_id}: {e}")
 
     except Exception as e:
         logger.error(f"Error in send_reminders: {e}")
 
 # Commands
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command with user profile creation."""
     user = update.effective_user
@@ -252,11 +285,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
         "*Welcome to Copilot*\n"
         "I'm your intelligent task management assistant\\! I can help you:\n\n"
-        "✨ Create tasks with natural language\n"
+        " Create tasks with natural language\n"
         "📅 Set smart reminders and due dates\n"
         "🏷️ Auto\\-generate tags and descriptions\n"
-        "🎯 Prioritize your tasks automatically\n"
-        "📊 Track your productivity\n\n"
+        " Prioritize your tasks automatically\n"
+        " Track your productivity\n\n"
         "*Quick Start:*\n"
         "• Type */new\\_task* to create your first task\\!\n"
         "• Use */help* for more commands\\.\n"
@@ -270,6 +303,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f'Error in start_command: {e}')
         await update.message.reply_text("Welcome to Copilot! I'm here to help you manage your tasks efficiently.")
+
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced help command with inline keyboard."""
@@ -292,20 +326,24 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• \"List my pending tasks\"\n"
         "• \"Complete task 123\"\n"
         "• \"Delete task 456\"\n\n"
-        "*🎯 Smart Features:*\n"
+        "* Smart Features:*\n"
         "• Auto\\-generated descriptions and tags\n"
         "• Smart priority detection\n"
         "• Natural date/time parsing\n"
         "• Intelligent clarification \\(max 4 steps\\)\n"
         "• Supabase cloud storage\n\n"
-        "*Just talk naturally \\- I'll understand\\!* 😊"
+        "*Just talk naturally \\- I'll understand\\!* "
     )
 
     keyboard = [
-        [InlineKeyboardButton('📝 Create Task', callback_data='help_create_task')],
-        [InlineKeyboardButton('📋 View Tasks', callback_data='help_view_tasks')],
-        [InlineKeyboardButton('💬 Contact Support', url="https://t.me/YourSupportChannel")],
-        [InlineKeyboardButton('🌐 Join Community', url="https://t.me/YourCommunityChannel")],
+        [InlineKeyboardButton(
+            '📝 Create Task', callback_data='help_create_task')],
+        [InlineKeyboardButton(
+            '📋 View Tasks', callback_data='help_view_tasks')],
+        [InlineKeyboardButton(' Contact Support',
+                              url="https://t.me/YourSupportChannel")],
+        [InlineKeyboardButton(' Join Community',
+                              url="https://t.me/YourCommunityChannel")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -314,6 +352,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f'Error in help_command: {e}')
         await update.message.reply_text("I can help you manage tasks efficiently! Use /start to learn more.")
+
 
 async def set_timezone_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Allow users to set their timezone."""
@@ -337,7 +376,7 @@ async def set_timezone_command(update: Update, context: ContextTypes.DEFAULT_TYP
         try:
             ZoneInfo(timezone)  # Validate timezone
         except Exception:
-            message = f"❌ Invalid timezone: {timezone}. Please use a valid TZ database name (e.g., 'Africa/Lagos')."
+            message = f" Invalid timezone: {timezone}. Please use a valid TZ database name (e.g., 'Africa/Lagos')."
             escaped_message = escape_markdown_v2(message)
             await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
             return
@@ -348,7 +387,7 @@ async def set_timezone_command(update: Update, context: ContextTypes.DEFAULT_TYP
             'last_active': datetime.now().isoformat()
         }).eq('user_id', user_id).execute()
 
-        message = f"✅ Timezone set to *{timezone}*. Your reminders will now use this timezone!"
+        message = f" Timezone set to *{timezone}*. Your reminders will now use this timezone!"
         escaped_message = escape_markdown_v2(message)
         await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
         logger.info(f"User {user_id} set timezone to {timezone}")
@@ -356,6 +395,7 @@ async def set_timezone_command(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f'Error in set_timezone_command: {e}')
         await update.message.reply_text(f"Sorry, I encountered an error setting your timezone: {str(e)}")
+
 
 async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced new task command that uses the agent."""
@@ -390,6 +430,7 @@ async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Error in new_task_command: {e}')
         await update.message.reply_text(f"Sorry, I encountered an error creating your task: {str(e)}")
 
+
 async def tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced tasks command with better UI."""
     user_id = str(update.effective_user.id)
@@ -400,7 +441,8 @@ async def tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = await agent.process_message(user_id, "list my tasks")
 
         # Fetch tasks directly for button creation
-        task_response = supabase.table('tasks').select('*').eq('user_id', user_id).eq('status', 'pending').execute()
+        task_response = supabase.table('tasks').select(
+            '*').eq('user_id', user_id).eq('status', 'pending').execute()
         tasks = task_response.data
 
         keyboard = []
@@ -408,25 +450,32 @@ async def tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Add quick action buttons for first few tasks
             for task in tasks[:3]:  # Show buttons for first 3 tasks
                 task_id = task['id']
-                task_name = task['task_name'][:20] + "..." if len(task['task_name']) > 20 else task['task_name']
+                task_name = task['task_name'][:20] + \
+                    "..." if len(task['task_name']) > 20 else task['task_name']
                 keyboard.append([
-                    InlineKeyboardButton(f"✅ Complete: {task_name}", callback_data=f"complete_{task_id}"),
+                    InlineKeyboardButton(
+                        f" Complete: {task_name}", callback_data=f"complete_{task_id}"),
                 ])
 
             # Add general action buttons
             keyboard.extend([
                 [
-                    InlineKeyboardButton("📊 View All", callback_data="view_all_tasks"),
-                    InlineKeyboardButton("➕ New Task", callback_data="create_new_task")
+                    InlineKeyboardButton(
+                        " View All", callback_data="view_all_tasks"),
+                    InlineKeyboardButton(
+                        "➕ New Task", callback_data="create_new_task")
                 ],
                 [
-                    InlineKeyboardButton("✅ Completed", callback_data="view_completed"),
-                    InlineKeyboardButton("🗑️ Manage", callback_data="manage_tasks")
+                    InlineKeyboardButton(
+                        " Completed", callback_data="view_completed"),
+                    InlineKeyboardButton(
+                        "🗑️ Manage", callback_data="manage_tasks")
                 ]
             ])
         else:
             keyboard = [
-                [InlineKeyboardButton("➕ Create Your First Task", callback_data="create_new_task")]
+                [InlineKeyboardButton(
+                    "➕ Create Your First Task", callback_data="create_new_task")]
             ]
 
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
@@ -437,6 +486,7 @@ async def tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f'Error in tasks_command: {e}')
         await update.message.reply_text(f"Sorry, I encountered an error fetching your tasks: {str(e)}")
+
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced callback handler for inline buttons."""
@@ -464,13 +514,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif callback_data == "view_completed":
             # Get completed tasks
-            task_response = supabase.table('tasks').select('*').eq('user_id', user_id).eq('status', 'completed').execute()
+            task_response = supabase.table('tasks').select(
+                '*').eq('user_id', user_id).eq('status', 'completed').execute()
             tasks = task_response.data
 
             if tasks:
-                message = "*✅ Completed Tasks:*\n\n"
+                message = "* Completed Tasks:*\n\n"
                 for task in tasks[-10:]:  # Show last 10 completed
-                    completed_date = datetime.fromisoformat(task.get('updated_at', task['created_at']).replace('Z', '+00:00'))
+                    completed_date = datetime.fromisoformat(
+                        task.get('updated_at', task['created_at']).replace('Z', '+00:00'))
                     message += f"• {task['task_name']} \\(completed {completed_date.strftime('%m/%d')}\\)\n"
             else:
                 message = "*No completed tasks yet\\.*\nKeep working \\- you got this\\! 💪"
@@ -484,30 +536,31 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Use the specific draft IDs from callback data for better reliability
                 response = await agent.process_message(user_id, f"confirm drafts {draft_ids}")
                 escaped_response = escape_markdown_v2(response)
-                prefix_text = escape_markdown_v2("✅ Tasks Confirmed!\n\n")
+                prefix_text = escape_markdown_v2(" Tasks Confirmed!\n\n")
                 await query.edit_message_text(f"{prefix_text}{escaped_response}", parse_mode='MarkdownV2')
-                
+
             elif callback_data.startswith("hitl_cancel:"):
                 draft_ids = callback_data.split(":", 1)[1]
-                # Use the specific draft IDs from callback data for better reliability  
+                # Use the specific draft IDs from callback data for better reliability
                 response = await agent.process_message(user_id, f"cancel drafts {draft_ids}")
                 escaped_response = escape_markdown_v2(response)
-                prefix_text = escape_markdown_v2("❌ Tasks Cancelled\n\n")
+                prefix_text = escape_markdown_v2(" Tasks Cancelled\n\n")
                 await query.edit_message_text(f"{prefix_text}{escaped_response}", parse_mode='MarkdownV2')
-                
+
             elif callback_data.startswith("hitl_edit:"):
                 parts = callback_data.split(":", 2)
                 draft_id = parts[1]
                 task_num = parts[2]
-                
+
                 # Prompt user for edit instructions
                 message = f"*✏️ Edit Task {task_num}*\n\nPlease reply with your changes for this task\\.\n\n*Example:* \"edit {task_num}: change time to 9 AM\""
                 await query.edit_message_text(message, parse_mode='MarkdownV2')
-                
+
             elif callback_data.startswith("hitl_edit_more:"):
                 draft_ids = callback_data.split(":", 1)[1].split(",")
                 message = "*✏️ More Edit Options*\n\n"
-                for i, draft_id in enumerate(draft_ids, 4):  # Start from 4 since first 3 are already shown
+                # Start from 4 since first 3 are already shown
+                for i, draft_id in enumerate(draft_ids, 4):
                     message += f"• Type \"edit {i}: \\[changes\\]\" for Task {i}\n"
                 message += "\n*Example:* \"edit 4: change priority to high\""
                 await query.edit_message_text(message, parse_mode='MarkdownV2')
@@ -538,6 +591,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f'Error in button_callback: {e}')
         await query.edit_message_text(f"Sorry, I encountered an error: {str(e)}")
 
+
 async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced Web3 query command."""
     user_id = str(update.effective_user.id)
@@ -561,18 +615,20 @@ async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query_text = " ".join(args).lower()
 
         if INFURA_PROJECT_ID:
-            w3 = Web3(Web3.HTTPProvider(f'https://mainnet.infura.io/v3/{INFURA_PROJECT_ID}'))
+            w3 = Web3(Web3.HTTPProvider(
+                f'https://mainnet.infura.io/v3/{INFURA_PROJECT_ID}'))
 
             if "eth balance" in query_text and "0x" in query_text:
                 # Extract address
                 address_match = re.search(r'0x[a-fA-F0-9]{40}', query_text)
                 if address_match:
                     address = address_match.group(0)
-                    balance = w3.eth.get_balance(Web3.to_checksum_address(address))
+                    balance = w3.eth.get_balance(
+                        Web3.to_checksum_address(address))
                     eth_balance = Web3.from_wei(balance, 'ether')
-                    message = f"*ETH Balance:*\n`{address}`\n\n💰 **{eth_balance:.4f} ETH**"
+                    message = f"*ETH Balance:*\n`{address}`\n\n **{eth_balance:.4f} ETH**"
                 else:
-                    message = "❌ Invalid Ethereum address format. Please provide a valid 0x address."
+                    message = " Invalid Ethereum address format. Please provide a valid 0x address."
 
             elif "gas" in query_text:
                 try:
@@ -580,14 +636,14 @@ async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     gas_gwei = Web3.from_wei(gas_price, 'gwei')
                     message = f"⛽ **Current Gas Price:** {gas_gwei:.2f} Gwei"
                 except:
-                    message = "❌ Unable to fetch current gas prices."
+                    message = " Unable to fetch current gas prices."
 
             elif "block" in query_text:
                 try:
                     latest_block = w3.eth.block_number
                     message = f"🔗 **Latest Block Number:** {latest_block:,}"
                 except:
-                    message = "❌ Unable to fetch latest block information."
+                    message = " Unable to fetch latest block information."
 
             else:
                 message = (
@@ -598,7 +654,7 @@ async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "*More features coming soon\\!*"
                 )
         else:
-            message = "❌ Web3 functionality requires Infura configuration."
+            message = " Web3 functionality requires Infura configuration."
 
         escaped_message = escape_markdown_v2(message)
         await update.message.reply_text(escaped_message, parse_mode='MarkdownV2')
@@ -608,6 +664,8 @@ async def web3query_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Sorry, I encountered an error with the Web3 query: {str(e)}")
 
 # Enhanced message handler using ToviraAgent
+
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced message handler with better natural language processing."""
     message_type: str = update.message.chat.type
@@ -618,7 +676,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Update user activity
     await update_user_activity(user_id)
 
-    logger.info(f"User {user.first_name} ({user_id}) in {message_type}: '{text}'")
+    logger.info(
+        f"User {user.first_name} ({user_id}) in {message_type}: '{text}'")
 
     # Handle group messages with bot mention
     if message_type == 'group':
@@ -637,34 +696,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = None
         if '[HITL_BUTTONS:' in response:
             # Extract draft IDs from marker
-            marker_start = response.find('[HITL_BUTTONS:') + len('[HITL_BUTTONS:')
+            marker_start = response.find(
+                '[HITL_BUTTONS:') + len('[HITL_BUTTONS:')
             marker_end = response.find(']', marker_start)
             draft_ids_str = response[marker_start:marker_end]
             draft_ids = draft_ids_str.split(',')
-            
+
             # Remove the marker from response
-            response = response[:response.find('[HITL_BUTTONS:')] + response[response.find(']', marker_start) + 1:]
+            response = response[:response.find(
+                '[HITL_BUTTONS:')] + response[response.find(']', marker_start) + 1:]
             response = response.strip()
-            
+
             # Create HITL buttons
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ Confirm All", callback_data=f"hitl_confirm:{','.join(draft_ids)}"),
-                    InlineKeyboardButton("❌ Cancel All", callback_data=f"hitl_cancel:{','.join(draft_ids)}")
+                    InlineKeyboardButton(
+                        " Confirm All", callback_data=f"hitl_confirm:{','.join(draft_ids)}"),
+                    InlineKeyboardButton(
+                        " Cancel All", callback_data=f"hitl_cancel:{','.join(draft_ids)}")
                 ]
             ]
-            
+
             # Add edit buttons for each draft (up to 3 to avoid too many buttons)
             for i, draft_id in enumerate(draft_ids[:3], 1):
                 keyboard.append([
-                    InlineKeyboardButton(f"✏️ Edit Task {i}", callback_data=f"hitl_edit:{draft_id}:{i}")
+                    InlineKeyboardButton(
+                        f"✏️ Edit Task {i}", callback_data=f"hitl_edit:{draft_id}:{i}")
                 ])
-            
+
             if len(draft_ids) > 3:
                 keyboard.append([
-                    InlineKeyboardButton("✏️ More Edit Options", callback_data=f"hitl_edit_more:{','.join(draft_ids[3:])}")
+                    InlineKeyboardButton(
+                        "✏️ More Edit Options", callback_data=f"hitl_edit_more:{','.join(draft_ids[3:])}")
                 ])
-            
+
             reply_markup = InlineKeyboardMarkup(keyboard)
 
         # Send response
@@ -682,6 +747,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("I encountered an error processing your message. Please try again or use /help for assistance.")
 
 # Error handler
+
+
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced error handler with logging."""
     logger.error(f"Update {update} caused error {context.error}")
@@ -695,6 +762,7 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Failed to send error message to user: {e}")
 
+
 async def start_scheduler(app: Application):
     """Start the APScheduler after the event loop is running."""
     scheduler = AsyncIOScheduler()
@@ -707,7 +775,7 @@ async def start_scheduler(app: Application):
         max_instances=1
     )
     scheduler.start()
-    print("✅ Reminder scheduler started")
+    print(" Reminder scheduler started")
 
 if __name__ == '__main__':
     print('Starting Enhanced Copilot Bot with Supabase integration...')
@@ -725,7 +793,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('web3query', web3query_command))
 
     # Messages
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Callback handler for inline buttons
     app.add_handler(CallbackQueryHandler(button_callback))
@@ -734,10 +803,10 @@ if __name__ == '__main__':
     app.add_error_handler(error)
 
     # Start polling
-    print("🚀 Enhanced Copilot Bot is now running...")
-    print("✅ Supabase integration active")
-    print("✅ AI attribute generation enabled")
-    print("✅ Smart clarification system ready")
+    print(" Enhanced Copilot Bot is now running...")
+    print(" Supabase integration active")
+    print(" AI attribute generation enabled")
+    print(" Smart clarification system ready")
     print("Polling for messages...")
 
     app.run_polling(poll_interval=3)

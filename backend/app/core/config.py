@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from dotenv import load_dotenv
 from functools import lru_cache
 import logging
@@ -51,13 +51,9 @@ class Settings(BaseSettings):
 
     # === Blockchain / Web3 ===
     SUI_NETWORK_RPC: str = Field(
-        default="https://fullnode.mainnet.sui.io:443",
-        description="Sui Network RPC endpoint"
-    )
+        default="https://fullnode.mainnet.sui.io:443", description="Sui Network RPC endpoint")
     SUI_DEVNET_RPC: str = Field(
-        default="https://fullnode.devnet.sui.io:443",
-        description="Sui Devnet RPC"
-    )
+        default="https://fullnode.devnet.sui.io:443", description="Sui Devnet RPC")
     USE_MAINNET: bool = Field(
         default=True, description="Use mainnet instead of devnet")
 
@@ -95,68 +91,79 @@ class Settings(BaseSettings):
         default=1000, ge=100, le=10000, description="Max requests per hour")
 
     # === Circuit Breaker ===
-    CIRCUIT_BREAKER_THRESHOLD: int = Field(
-        default=5, ge=1, le=20, description="Failures before circuit opens")
-    CIRCUIT_BREAKER_TIMEOUT: int = Field(
-        default=120, ge=30, le=600, description="Circuit breaker timeout")
+    CIRCUIT_BREAKER_THRESHOLD: int = Field(default=5, ge=1, le=20)
+    CIRCUIT_BREAKER_TIMEOUT: int = Field(default=120, ge=30, le=600)
 
-    # === Email (optional) ===
-    EMAIL_USER: str | None = Field(default=None, description="SMTP email user")
-    EMAIL_PASSWORD: str | None = Field(
-        default=None, description="SMTP email password")
-    EMAIL_FROM: str = Field(default="noreply@tovira.xyz",
-                            description="From email address")
-    SMTP_HOST: str = Field(default="smtp.gmail.com",
-                           description="SMTP server host")
-    SMTP_PORT: int = Field(default=587, description="SMTP server port")
+    # === Email ===
+    EMAIL_USER: str | None = None
+    EMAIL_PASSWORD: str | None = None
+    EMAIL_FROM: str = Field(default="noreply@tovira.xyz")
+    SMTP_HOST: str = Field(default="smtp.gmail.com")
+    SMTP_PORT: int = Field(default=587)
 
     # === Security ===
     SECRET_KEY: str = Field(
-        default="", description="Secret key for JWT/encryption (min 32 chars)")
+        default="", description="Secret key (min 32 chars for production)")
     ALLOWED_ORIGINS: list[str] = Field(
         default=[
             "http://localhost:5173",
             "https://tovira.xyz",
-            "https://www.tovira.xyz",
-        ],
-        description="CORS allowed origins"
+            "https://www.tovira.xyz"
+        ]
     )
 
     # === Monitoring ===
-    SENTRY_DSN: str = Field(
-        default="", description="Sentry DSN for error tracking")
-    ENABLE_METRICS: bool = Field(
-        default=True, description="Enable Prometheus metrics")
+    SENTRY_DSN: str = Field(default="", description="Sentry DSN")
+    ENABLE_METRICS: bool = Field(default=True)
 
     # === Background Jobs ===
-    CELERY_BROKER_URL: str = Field(
-        default="redis://localhost:6379/1", description="Celery broker URL")
-    CELERY_RESULT_BACKEND: str = Field(
-        default="redis://localhost:6379/2", description="Celery result backend")
+    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
+
+    # === App-specific ===
+    COPILOT_TREASURY_ID: str | None = None
+    COPILOT_REGISTRY_ID: str | None = None
+    COPILOT_PACKAGE_ID: str | None = None
+    TASK_DB_ENCRYPTION_KEY: str | None = None
+    SERVER_MASTER_KEY: str | None = None
+    WAITLIST_SALT: str | None = None
+    WHITELIST_BLOB_ID: str | None = None
+    EMAIL_INDEX_PASSWORD: str | None = None
+    INFURA_PROJECT_ID: str | None = None
+    ADMIN_ID: str | None = None
+    API_KEY_WALLET: str | None = None
+
+    # Add this field if you want to support legacy SUI_RPC_URL
+    # won't be used unless you read it manually
+    SUI_RPC_URL: str | None = Field(default=None, extra="ignore")
 
     class Config:
         env_file = ".env"
-        env_file_encoding = "utf-8"
         case_sensitive = True
 
-    @validator("ENVIRONMENT")
+    # === Validators ===
+
+    @field_validator("ENVIRONMENT")
+    @classmethod
     def validate_environment(cls, v):
         allowed = ["development", "staging", "production"]
         if v not in allowed:
             raise ValueError(f"ENVIRONMENT must be one of {allowed}")
         return v
 
-    @validator("SECRET_KEY")
+    @field_validator("SECRET_KEY")
+    @classmethod
     def validate_secret_key(cls, v, values):
-        env = values.get("ENVIRONMENT", "development")
+        env = values.data.get("ENVIRONMENT", "development")
         if env == "production" and (not v or len(v) < 32):
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters in production")
         return v
 
+    # === Helpers ===
+
     @property
     def sui_rpc_url(self) -> str:
-        """Get the appropriate Sui RPC URL based on network setting."""
         return self.SUI_NETWORK_RPC if self.USE_MAINNET else self.SUI_DEVNET_RPC
 
     @property
@@ -168,7 +175,6 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "development"
 
     def log_settings(self):
-        """Log non-sensitive settings for debugging."""
         logger.info("=== Tovira Configuration ===")
         logger.info(f"Environment: {self.ENVIRONMENT}")
         logger.info(f"Debug Mode: {self.DEBUG}")
@@ -182,7 +188,7 @@ class Settings(BaseSettings):
             f"BlockVision: {'✓ Configured' if self.BLOCKVISION_API_KEY else '✗ Missing'}")
         logger.info(
             f"Sui Network: {'Mainnet' if self.USE_MAINNET else 'Devnet'}")
-        logger.info("==========================")
+        logger.info("==================================")
 
 
 @lru_cache()
@@ -205,7 +211,7 @@ def validate_configuration():
 
     if not settings.TAVILY_API_KEY:
         warnings.append(
-            "⚠️ TAVILY_API_KEY not set - Deep research agent will have limited search capabilities")
+            "TAVILY_API_KEY not set - Deep research agent will have limited search capabilities")
 
     if settings.is_production and (not settings.SECRET_KEY or len(settings.SECRET_KEY) < 32):
         errors.append(
@@ -213,32 +219,28 @@ def validate_configuration():
 
     if not settings.BLOCKVISION_API_KEY:
         warnings.append(
-            "⚠️ BLOCKVISION_API_KEY not set - Sui data integration limited")
+            "BLOCKVISION_API_KEY not set - Sui data integration limited")
 
     if errors:
         error_msg = "Configuration validation failed:\n" + \
-            "\n".join(f"  - {e}" for e in errors)
+            "\n".join(f"- {e}" for e in errors)
         logger.error(error_msg)
         raise ValueError(error_msg)
 
-    # Log warnings
-    for warning in warnings:
-        logger.warning(warning)
+    for w in warnings:
+        logger.warning(w)
 
     settings.log_settings()
     logger.info("✓ Configuration validation passed")
 
 
-# Set Tavily API key as environment variable for LangChain
+# Set Tavily API key for LangChain
 if settings.TAVILY_API_KEY:
     os.environ["TAVILY_API_KEY"] = settings.TAVILY_API_KEY
-
 
 try:
     validate_configuration()
 except ValueError as e:
     if settings.is_production:
         raise
-    else:
-        logger.warning(
-            f"Configuration issues detected (development mode): {e}")
+    logger.warning(f"Configuration issues detected in development: {e}")

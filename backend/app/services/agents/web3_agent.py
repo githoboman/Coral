@@ -989,11 +989,11 @@ Query: "What tokens on Sui?" → {{"type": "ecosystem_overview", "token": null, 
             # Step 2: Specific token
             token = llm_intent.get('token', query)
             if llm_intent.get('type') == 'other_chain':
-                return f"❌ This agent focuses on Sui. For {token} on {llm_intent['chain']}, try a general crypto tool!"
+                return f" This agent focuses on Sui. For {token} on {llm_intent['chain']}, try a general crypto tool!"
 
             comp_data = await asyncio.wait_for(self.get_comprehensive_data(token), timeout=25.0)
             if not comp_data.get("success"):
-                return f"❌ {comp_data.get('message', 'No data found—try another token!')}"
+                return f" {comp_data.get('message', 'No data found—try another token!')}"
 
             token_symbol = comp_data['data'].get('symbol', 'UNKNOWN')
             market_data = comp_data['data']
@@ -1037,10 +1037,10 @@ Query: "What tokens on Sui?" → {{"type": "ecosystem_overview", "token": null, 
             return "⏰ Market data request timed out. Please try again."
         except asyncio.CancelledError:
             logger.warning("Web3 analysis cancelled")
-            return "❌ Request was cancelled."
+            return " Request was cancelled."
         except Exception as e:
             logger.exception(f"Web3 analysis error: {e}")
-            return f"⚠️ Error: {str(e)[:100]}"
+            return f"  Error: {str(e)[:100]}"
 
     def format_summary(self, data: Dict) -> str:
         """Preserved for backward compatibility: Simple text summary"""
@@ -1117,7 +1117,7 @@ async def main():
     print(result)
 
     print()
-    print(f"✅ Analysis complete for {token}")
+    print(f" Analysis complete for {token}")
 
     # Cleanup
     await shutdown_web3_agent()

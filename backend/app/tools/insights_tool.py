@@ -573,7 +573,7 @@ Provide comprehensive synthesis and recommendation.""")
             })
 
             # Build final report
-            report = f"""# 🔬 Sui Research Report: {project}
+            report = f"""#  Sui Research Report: {project}
 
 **Research Goal:** {goal}
 **Date:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
@@ -611,7 +611,7 @@ This analysis used the **4-Pillar Sui Research Framework**:
 
 ## Disclaimer
 
-⚠️ **This is an AI-generated analysis for informational purposes only.**
+  **This is an AI-generated analysis for informational purposes only.**
 
 - Not financial advice
 - Always DYOR (Do Your Own Research)
@@ -665,28 +665,28 @@ async def sui_insights_tool_async(query: str, context: str = "", extra_data: Dic
                 break
 
         if not project_name or len(project_name) < 2:
-            help_text = """# 🔬 Sui Deep Research Agent
+            help_text = """#  Sui Deep Research Agent
 
 I conduct comprehensive 4-pillar analysis of Sui blockchain projects!
 
 ## What I Analyze:
 
-**🎯 Pillar 1: Selling Points**
+** Pillar 1: Selling Points**
 - Value proposition & market fit
 - Sui-specific advantages (Move, parallel execution)
 - Competitive positioning
 
-**💰 Pillar 2: Fundamentals**
+** Pillar 2: Fundamentals**
 - Team & backers (Mysten Labs ties?)
 - Funding & Sui Foundation grants
 - Tokenomics & community
 
-**🔧 Pillar 3: Technical**
+** Pillar 3: Technical**
 - Move smart contract quality
 - Security audits & exploits
 - Architecture & scalability
 
-**📊 Pillar 4: Onchain**
+** Pillar 4: Onchain**
 - TVL trends on Sui
 - User growth & activity
 - Token distribution
@@ -722,7 +722,7 @@ What Sui project would you like me to research?
             goal = "competitive analysis"
 
         # Stream initialization
-        yield f"# 🔍 Initializing Sui Research: {project_name.title()}\n\n"
+        yield f"#  Initializing Sui Research: {project_name.title()}\n\n"
         yield f"**Goal:** {goal}\n"
         yield f"**Framework:** 4-Pillar Analysis\n"
         yield f"**Estimated Time:** 10-15 minutes\n\n"
@@ -732,24 +732,24 @@ What Sui project would you like me to research?
         init_result = await agent.initialize_research(project_name, goal)
 
         if not init_result["success"]:
-            yield f"❌ **Initialization Failed:** {init_result['error']}\n\n"
+            yield f" **Initialization Failed:** {init_result['error']}\n\n"
             yield "Please check the project name and try again."
             return
 
         plan = init_result["plan"]
 
-        yield "## ✅ Research Initialized\n\n"
+        yield "##  Research Initialized\n\n"
 
         if plan.get("red_flags"):
-            yield "⚠️ **Red Flags Detected:**\n"
+            yield "  **Red Flags Detected:**\n"
             for flag in plan["red_flags"][:3]:
                 yield f"- {flag}\n"
             yield "\n"
 
-        yield "## 📊 Executing 4-Pillar Analysis\n\n"
+        yield "##  Executing 4-Pillar Analysis\n\n"
 
         # Execute all pillars concurrently
-        yield "⏳ *Running parallel research across all pillars...*\n\n"
+        yield " *Running parallel research across all pillars...*\n\n"
 
         pillar_tasks = [
             agent.research_pillar_1_selling_points(project_name),
@@ -766,18 +766,18 @@ What Sui project would you like me to research?
             pillar_num = i + 1
             if isinstance(result, Exception):
                 logger.error(f"Pillar {pillar_num} failed: {result}")
-                yield f"❌ Pillar {pillar_num} encountered an error\n"
+                yield f" Pillar {pillar_num} encountered an error\n"
                 processed_results.append(
                     {"success": False, "error": str(result)})
             else:
                 if result.get("success"):
-                    yield f"✅ Pillar {pillar_num}: {result.get('pillar')} - Score {result.get('confidence_score')}/10\n"
+                    yield f" Pillar {pillar_num}: {result.get('pillar')} - Score {result.get('confidence_score')}/10\n"
                 else:
-                    yield f"⚠️ Pillar {pillar_num}: Partial data\n"
+                    yield f"  Pillar {pillar_num}: Partial data\n"
                 processed_results.append(result)
 
         yield "\n---\n\n"
-        yield "## 🧠 Synthesizing Findings...\n\n"
+        yield "##  Synthesizing Findings...\n\n"
 
         # Step 6: Synthesize
         final_report = await agent.synthesize_research(project_name, goal, processed_results)
@@ -786,7 +786,7 @@ What Sui project would you like me to research?
 
     except Exception as e:
         logger.exception(f"Insights tool error: {e}")
-        error_msg = f"""# ❌ Research Error
+        error_msg = f"""#  Research Error
 
 An error occurred during the research process:
 

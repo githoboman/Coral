@@ -89,7 +89,7 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
               <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-xl backdrop-blur-sm">
                 <div className="flex items-start gap-3">
                   <div className="w-5 h-5 mt-0.5 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-yellow-400 text-xs">⚠️</span>
+                    <span className="text-yellow-400 text-xs"> </span>
                   </div>
                   <div>
                     <p className="text-yellow-100 text-sm leading-relaxed">
@@ -103,8 +103,8 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
                 onClick={onSignIn}
                 disabled={loading}
                 className={`cursor-pointer w-full group relative overflow-hidden border border-[#4E4E4E] rounded-full py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${loading
-                    ? 'bg-white/10 cursor-not-allowed opacity-50'
-                    : 'bg-[#191919] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                  ? 'bg-white/10 cursor-not-allowed opacity-50'
+                  : 'bg-[#191919] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
                   } text-white disabled:cursor-not-allowed`}
               >
                 {loading ? (
@@ -129,20 +129,20 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
 
             {message && (
               <div className={`p-4 border rounded-xl backdrop-blur-sm ${message.includes('Error') || message.includes('Failed')
-                  ? 'bg-gradient-to-r from-red-500/10 to-red-600/10 border-red-500/20'
-                  : 'bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20'
+                ? 'bg-gradient-to-r from-red-500/10 to-red-600/10 border-red-500/20'
+                : 'bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20'
                 }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className={`text-sm ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-400'
-                        : 'text-green-400'
+                      ? 'text-red-400'
+                      : 'text-green-400'
                       }`}>
-                      {message.includes('Error') || message.includes('Failed') ? '❌' : '✅'}
+                      {message.includes('Error') || message.includes('Failed') ? '' : ''}
                     </span>
                     <p className={`text-sm ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-100'
-                        : 'text-green-100'
+                      ? 'text-red-100'
+                      : 'text-green-100'
                       }`}>
                       {friendlyMessage}
                     </p>
@@ -150,8 +150,8 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
                   <button
                     onClick={onClearMessage}
                     className={`text-xs font-medium transition-colors duration-200 ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-300 hover:text-red-200'
-                        : 'text-green-300 hover:text-green-200'
+                      ? 'text-red-300 hover:text-red-200'
+                      : 'text-green-300 hover:text-green-200'
                       }`}
                   >
                     Dismiss
@@ -216,7 +216,7 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
 
   // Handle mouse/touch events on handle
   const handleMouseMove = (e: React.MouseEvent) => handleDragMove(e);
-  
+
   const handleTouchStart = (e: React.TouchEvent) => handleDragStart(e);
 
 
@@ -251,7 +251,7 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
   if (!isOpenState) return null;
 
   const friendlyMessage = normalizeMessage(message);
-  
+
   return (
     <div className={`fixed inset-0 z-[300] ${isOpen ? 'visible' : 'invisible'}`}>
       {/* Backdrop */}
@@ -307,7 +307,7 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
               <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-xl backdrop-blur-sm">
                 <div className="flex items-start gap-3">
                   <div className="w-5 h-5 mt-0.5 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-yellow-400 text-xs">⚠️</span>
+                    <span className="text-yellow-400 text-xs"> </span>
                   </div>
                   <div>
                     <p className="text-yellow-100 text-sm leading-relaxed">
@@ -347,20 +347,20 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
 
             {message && (
               <div className={`p-4 border rounded-xl backdrop-blur-sm ${message.includes('Error') || message.includes('Failed')
-                  ? 'bg-gradient-to-r from-red-500/10 to-red-600/10 border-red-500/20'
-                  : 'bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20'
+                ? 'bg-gradient-to-r from-red-500/10 to-red-600/10 border-red-500/20'
+                : 'bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20'
                 }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className={`text-sm ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-400'
-                        : 'text-green-400'
+                      ? 'text-red-400'
+                      : 'text-green-400'
                       }`}>
-                      {message.includes('Error') || message.includes('Failed') ? '❌' : '✅'}
+                      {message.includes('Error') || message.includes('Failed') ? '' : ''}
                     </span>
                     <p className={`text-sm ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-100'
-                        : 'text-green-100'
+                      ? 'text-red-100'
+                      : 'text-green-100'
                       }`}>
                       {friendlyMessage}
                     </p>
@@ -369,8 +369,8 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
                     onClick={onClearMessage}
                     disabled={isDragging}
                     className={`text-xs font-medium transition-colors duration-200 ${message.includes('Error') || message.includes('Failed')
-                        ? 'text-red-300 hover:text-red-200'
-                        : 'text-green-300 hover:text-green-200'
+                      ? 'text-red-300 hover:text-red-200'
+                      : 'text-green-300 hover:text-green-200'
                       }`}
                   >
                     Dismiss

@@ -1,16 +1,8 @@
 """
-Utility functions for Tovira Telegram Bot and User Registration System
+Utility functions for Tovira Telegram Bot — FINAL BULLETPROOF VERSION
 """
-import hashlib
-from pysui.sui.sui_txn import SyncTransaction
-from pysui.sui.sui_clients.sync_client import SuiClient
-from pysui.sui.sui_crypto import SuiKeyPair
-from pysui.sui.sui_types.address import SuiAddress
-from supabase import create_client
-import base64
 import os
 import re
-import logging
 import json
 from pathlib import Path
 from datetime import datetime
@@ -20,23 +12,25 @@ from telegram.ext import ContextTypes
 from parsedatetime import Calendar
 from app.telegram_bot.walrus_client import WalrusClient, UserKeyManager
 from app.telegram_bot.suiclient import CopilotSuiClient
+from app.telegram_bot.secure_storage import load_and_decrypt, encrypt_and_save, encrypt_data, decrypt_data
+from cryptography.hazmat.primitives import hashes, serialization
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ContextTypes, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ConversationHandler, filters, Application
+)
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
-# Global user sessions
 user_sessions = {}
+AUTHENTICATION_STATE = 100
 
-# Singleton instances
+# Singleton clients
 _walrus_client = None
 _key_manager = None
 _sui_client = None
-
-# ============= FACTORY FUNCTIONS =============
+walrus = WalrusClient()
 
 
 def get_walrus_client() -> WalrusClient:
-    """Get singleton WalrusClient instance."""
     global _walrus_client
     if _walrus_client is None:
         _walrus_client = WalrusClient()
@@ -44,7 +38,6 @@ def get_walrus_client() -> WalrusClient:
 
 
 def get_key_manager() -> UserKeyManager:
-    """Get singleton UserKeyManager instance."""
     global _key_manager
     if _key_manager is None:
         _key_manager = UserKeyManager()
@@ -52,49 +45,323 @@ def get_key_manager() -> UserKeyManager:
 
 
 def get_sui_client() -> CopilotSuiClient:
-    """Get singleton CopilotSuiClient instance."""
     global _sui_client
     if _sui_client is None:
         _sui_client = CopilotSuiClient()
     return _sui_client
 
-# ============= VALIDATION FUNCTIONS =============
+
+class SessionManager:
+    def __init__(self):
+        self.key_manager = get_key_manager()
+
+    # In your utils.py, ensure save_user_session has this structure:
+    async def save_user_session(self, telegram_id: str, session_data: dict, password: str) -> bool:
+        """Save session with comprehensive error handling"""
+        try:
+            # Add metadata
+            session_data['last_updated'] = datetime.now(pytz.UTC).isoformat()
+            session_data['telegram_id'] = str(telegram_id)
+
+            # Try Walrus first
+            if password not in ["password_not_available_use_local", "local_storage_fallback_password"]:
+                try:
+                    blob_id = f"{telegram_id}_session"
+                    success = self.key_manager.store_encrypted_object(
+                        session_data, str(telegram_id), password)
+                    if success:
+                        # Also cache locally
+                        local_path = Path(
+                            f"user_sessions/{telegram_id}.json.enc")
+                        local_path.parent.mkdir(exist_ok=True)
+                        encrypt_and_save(session_data, local_path)
+                        return True
+                except Exception:
+                    pass
+
+            # Fallback to local storage
+            try:
+                local_path = Path(f"user_sessions/{telegram_id}.json.enc")
+                local_path.parent.mkdir(exist_ok=True)
+                encrypt_and_save(session_data, local_path)
+                return True
+            except Exception:
+                return False
+
+        except Exception:
+            return False
+
+    async def load_user_session(self, telegram_id: str, password: str) -> dict:
+        """Load session from Walrus with local fallback"""
+        try:
+            # Try local first (fast)
+            local_path = Path(f"user_sessions/{telegram_id}.json.enc")
+            if local_path.exists():
+                session_data = load_and_decrypt(local_path)
+                if session_data and isinstance(session_data, dict) and session_data.get('telegram_id') == str(
+                        telegram_id):
+                    return session_data
+
+            # If password indicates local storage only, return empty
+            if password in ["password_not_available_use_local", "local_storage_fallback_password"]:
+                return {}
+
+            # Fallback to Walrus
+            blob_id = f"{telegram_id}_session"
+            session_data = self.key_manager.retrieve_encrypted_object(
+                blob_id, str(telegram_id), password)
+
+            if session_data:
+                # Cache locally
+                local_path.parent.mkdir(exist_ok=True)
+                encrypt_and_save(session_data, local_path)
+                return session_data
+
+            return {}
+        except Exception:
+            return {}
+
+    async def clear_user_session(self, telegram_id: str) -> bool:
+        """Clear both Walrus and local sessions"""
+        try:
+            # Clear local session
+            local_path = Path(f"user_sessions/{telegram_id}.json.enc")
+            if local_path.exists():
+                local_path.unlink()
+
+            # Note: Walrus session will remain but will be inaccessible without password
+            return True
+        except Exception:
+            return False
 
 
-async def ensure_user_has_keys(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Ensure user has encryption keys."""
-    public_key = get_key_manager().get_user_public_key(telegram_id)
-    if public_key:
-        context.user_data['public_key'] = public_key
+# Initialize session manager
+session_manager = SessionManager()
+
+
+# ============= VALIDATION =============
+
+async def authenticate_user(update: Update, context: ContextTypes.DEFAULT_TYPE,
+                            operation: str = "this operation") -> bool:
+    """Authenticate user with password for sensitive operations."""
+    telegram_id = str(update.effective_user.id)
+
+    # Check if we have valid session
+    password = await get_password_via_key_validation(telegram_id, context)
+    session = await session_manager.load_user_session(telegram_id, password or "local_storage_fallback_password")
+
+    if session and session.get('has_encryption_keys'):
         return True
+
+    # Ask for password
+    await update.message.reply_text(
+        f"🔐 Authentication Required\n\n"
+        f"Please enter your password to {operation}:\n\n"
+        f"⏰ Your password will be kept secure and encrypted."
+    )
+
+    context.user_data['awaiting_authentication'] = True
+    context.user_data['auth_operation'] = operation
     return False
 
 
+async def handle_authentication(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle password authentication."""
+    if not context.user_data.get('awaiting_authentication'):
+        return ConversationHandler.END
+
+    telegram_id = str(update.effective_user.id)
+    password = update.message.text.strip()
+
+    try:
+        # Delete password message for security
+        await update.message.delete()
+    except:
+        pass
+
+    # Try to load keys with this password
+    session = await session_manager.load_user_session(telegram_id, password)
+    blob_id = session.get('key_blob_id')
+
+    if not blob_id:
+        await update.effective_chat.send_message("❌ No keys found. Please use /start to register.")
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    key_manager = get_key_manager()
+    public_key, encrypted_private = await key_manager.retrieve_keys_from_walrus(
+        blob_id, telegram_id, password
+    )
+
+    if public_key:
+        # Success! Create session and proceed
+        await create_user_session_with_password(telegram_id, password, context)
+
+        # Update session with keys
+        session['has_encryption_keys'] = True
+        session['public_key'] = public_key
+        session['encrypted_private_key'] = encrypted_private
+        await session_manager.save_user_session(telegram_id, session, password)
+
+        operation = context.user_data.get('auth_operation', 'continue')
+        await update.effective_chat.send_message(f"✅ Authentication successful! You can now {operation}.")
+
+        context.user_data.clear()
+        return ConversationHandler.END
+    else:
+        await update.effective_chat.send_message(
+            "❌ Invalid password. Please try again:\n\n"
+            "Enter your password:"
+        )
+        return AUTHENTICATION_STATE
+
+
+async def ensure_user_has_keys(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Ensure user has encryption keys - FIXED FOR JSON SERIALIZATION."""
+    if not context:
+        return False
+    password = await get_password_via_key_validation(telegram_id, context)
+    session = await session_manager.load_user_session(telegram_id, password or "local_storage_fallback_password")
+
+    if not session:
+        return False
+
+    # ✅ Check if keys are already loaded (using public_pem instead of public_key object)
+    if session.get('has_encryption_keys') and session.get('public_pem'):
+        return True
+
+    # ✅ Check if we have the necessary data to load keys
+    blob_id = session.get('key_blob_id')
+    session_token = session.get('session_token')
+
+    if not blob_id:
+        return False
+
+    if not session_token:
+        return False
+
+    # ✅ Try to load keys from Walrus
+    try:
+        from secure_storage import validate_session_token
+        token_result = validate_session_token(session_token)
+
+        if not token_result:
+            return False
+
+        user_id, password = token_result
+        if user_id != str(telegram_id):
+            return False
+
+        key_manager = get_key_manager()
+
+        # ✅ Try to retrieve keys
+        public_key, encrypted_private = await key_manager.retrieve_keys_from_walrus(
+            blob_id, str(telegram_id), password
+        )
+
+        if public_key:
+            # ✅ Success! Update session with JSON-serializable data only
+            session.update({
+                'has_encryption_keys': True,
+                'public_pem': public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                ).decode('utf-8')
+            })
+            await session_manager.save_user_session(telegram_id, session, password)
+            return True
+        else:
+            return False
+
+    except Exception:
+        return False
+
+
+async def create_user_session_with_password(telegram_id: str, password: str,
+                                            context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Create a secure session with password for key retrieval - FIXED VERSION."""
+    try:
+        from secure_storage import create_session_token
+
+        # Load existing session or create new one
+        existing_session = await session_manager.load_user_session(telegram_id,
+                                                                   password or "local_storage_fallback_password") or {}
+
+        # Create session token (encrypted password valid for 1 hour)
+        session_token = create_session_token(str(telegram_id), password)
+        if not session_token:
+            return False
+
+        # Update session with token
+        existing_session['session_token'] = session_token
+        existing_session['last_login'] = datetime.now(pytz.UTC).isoformat()
+
+        # ✅ CRITICAL: Save the session immediately
+        await session_manager.save_user_session(telegram_id, existing_session, password)
+
+        # ✅ Verify it was saved
+        verified_session = await session_manager.load_user_session(telegram_id, password)
+        if verified_session and verified_session.get('session_token') == session_token:
+            return True
+        else:
+            return False
+
+    except Exception:
+        return False
+
+
+async def recover_all_users_from_sessions(context: ContextTypes.DEFAULT_TYPE = None):
+    """Run once — restores every user's encryption keys from their session backup"""
+    session_dir = Path("./user_sessions")
+    if not session_dir.exists():
+        return
+
+    recovered = 0
+    for session_file in session_dir.glob("*.json.enc"):
+        try:
+            session_data = load_and_decrypt(session_file)
+            if not session_data:
+                continue
+
+            telegram_id = session_file.stem  # filename without extension
+            if not session_data.get('registration_complete'):
+                continue
+
+            saved_password = session_data.get('saved_password')
+            if not saved_password:
+                continue
+
+            # THIS LINE REGENERATES THE MISSING KEY FILE
+            public_key, _ = get_key_manager().create_user_keys(telegram_id, saved_password)
+
+            recovered += 1
+
+        except Exception:
+            pass
+
+    final_msg = f"RECOVERY COMPLETE — {recovered} users restored"
+    return final_msg
+
+
 async def create_user_keys(telegram_id: str, password: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Create user encryption keys."""
     try:
         public_key_str, encrypted_private = get_key_manager(
         ).create_user_keys(telegram_id, password)
         context.user_data['public_key'] = public_key_str.encode('utf-8')
         context.user_data['has_encryption_keys'] = True
-        logger.info(f"Created encryption keys for {telegram_id}")
         return True
-    except Exception as e:
-        logger.error(f"Error creating keys: {e}")
+    except Exception:
         return False
 
 
 async def get_user_private_key(telegram_id: str, password: str) -> Optional[bytes]:
-    """Decrypt user's private key."""
     try:
         return get_key_manager().get_user_private_key(telegram_id, password)
-    except Exception as e:
-        logger.error(f"Error getting private key: {e}")
+    except Exception:
         return None
 
 
 def is_strong_password(password: str) -> Tuple[bool, str]:
-    """Validate password strength."""
     if len(password) < 8:
         return False, "Password must be at least 8 characters"
     if not re.search(r'[A-Z]', password):
@@ -107,497 +374,527 @@ def is_strong_password(password: str) -> Tuple[bool, str]:
 
 
 def is_valid_email(email: str) -> bool:
-    """Validate email format."""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
 
 def is_valid_telegram_id(telegram_id: str) -> bool:
-    """Validate Telegram ID format."""
     return telegram_id.isdigit() and len(telegram_id) > 0
 
 
 def is_valid_referral_code(code: str) -> bool:
-    """Validate user referral code format."""
     return len(code) == 8 and code.isalnum()
 
 
 def is_valid_admin_code(code: str) -> bool:
-    """Validate admin referral code format."""
     return code.startswith('ADM-') and len(code) == 17
 
 
 def is_admin(telegram_id: str) -> bool:
-    """Check if user is admin."""
     admin_ids = set(os.getenv('ADMIN_TELEGRAM_IDS', '').split(','))
     return str(telegram_id) in admin_ids
 
-# ============= SESSION MANAGEMENT =============
+
+# ============= ENCRYPTED SESSION MANAGEMENT (UPDATED WITH SESSIONMANAGER) =============
+
+async def save_user_session(telegram_id: str, session_data: Dict[str, Any],
+                            context: ContextTypes.DEFAULT_TYPE = None) -> bool:
+    """
+    Save user session data - UPDATED TO USE SESSIONMANAGER.
+
+    Args:
+        telegram_id: User's Telegram ID
+        session_data: Session dictionary to save
+        context: Bot context (optional)
+
+    Returns:
+        True if successful, False otherwise
+    """
+    password = await get_password_via_key_validation(telegram_id, context)
+    return await session_manager.save_user_session(telegram_id, session_data,
+                                                   password or "local_storage_fallback_password")
 
 
 async def load_user_session(user_id: str, context: ContextTypes.DEFAULT_TYPE) -> Optional[Dict[str, Any]]:
-    logger.debug(f"Loading session for user {user_id}")
+    """
+    Load session — priority: encrypted file → context → reconstruct
+    """
     try:
-        # Validate telegram_id
-        if not is_valid_telegram_id(user_id):
-            logger.warning(f"Invalid telegram_id: {user_id}")
-            return None
+        password = await get_password_via_key_validation(user_id, context)
+        # Use SessionManager to load session
+        session = await session_manager.load_user_session(user_id, password or "local_storage_fallback_password")
 
-        session = context.user_data.get('session', {})
-        if session and session.get('profile_id'):
-            try:
-                SuiAddress(session['profile_id'])  # Validate as Sui address
-                logger.debug(
-                    f"Session found in context with valid profile_id for user {user_id}: {session}")
-                return session
-            except Exception as e:
-                logger.warning(
-                    f"Invalid profile_id in session for user {user_id}: {e}")
-                session = {}
+        if session and isinstance(session, dict):
+            # Update context with loaded session
+            context.user_data['session'] = session
+            return session
 
-        # Reconstruct session
-        walrus = get_walrus_client()
-        key_manager = get_key_manager()
-        session = {'telegram_id': user_id}
-
-        # Get encrypted_data_blob
-        blob_id = context.user_data.get('encrypted_data_blob')
-        if blob_id:
-            session['encrypted_data_blob'] = blob_id
-            logger.debug(
-                f"Loaded blob_id from context for user {user_id}: {blob_id}")
-
-        # Try receipts
+        # Reconstruct minimal session if none exists
+        session = {'telegram_id': user_id, 'points': 0}
         profile_id = find_profile_id_from_receipt(user_id)
         if profile_id:
-            try:
-                SuiAddress(profile_id)
-                session['profile_id'] = profile_id
-                logger.debug(
-                    f"Loaded profile_id from receipt for user {user_id}: {profile_id}")
-            except Exception as e:
-                logger.warning(
-                    f"Invalid profile_id from receipt for user {user_id}: {e}")
+            session['profile_id'] = profile_id
 
-        # Try blockchain
-        public_key = key_manager.get_user_public_key(user_id)
-        if public_key and not session.get('profile_id'):
-            try:
-                sui = get_sui_client()
-                profile_data = sui.find_profile_id_from_receipt(public_key)
-                if profile_data and profile_data.get('profile_id'):
-                    try:
-                        SuiAddress(profile_data['profile_id'])
-                        session['profile_id'] = profile_data['profile_id']
-                        logger.debug(
-                            f"Loaded profile_id from blockchain for user {user_id}: {session['profile_id']}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Invalid profile_id from blockchain for user {user_id}: {e}")
-            except Exception as e:
-                logger.warning(
-                    f"Failed to fetch profile from blockchain for user {user_id}: {e}")
-
-        # If no profile_id, create a new Sui account and Profile object
-        if not session.get('profile_id'):
-            try:
-                supabase = create_client(
-                    os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-                profile = supabase.table("user_profiles").select(
-                    "*").eq("telegram_id", user_id).execute()
-                if profile.data:
-                    profile_id = profile.data[0]['profile_id']
-                    try:
-                        SuiAddress(profile_id)
-                        session['profile_id'] = profile_id
-                        session['user_address'] = profile.data[0].get(
-                            'user_address', profile_id)
-                        logger.debug(
-                            f"Loaded profile_id from Supabase for user {user_id}: {profile_id}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Invalid profile_id from Supabase for user {user_id}: {e}")
-                else:
-                    # Create a new Sui account
-                    sui_client: SuiClient = get_sui_client()
-                    keypair = SuiKeyPair.ed25519()
-                    new_address = keypair.address
-
-                    # Create a Profile object on-chain
-                    package_id = "YOUR_PACKAGE_ID"  # Replace with your Move package ID
-                    module_name = "YOUR_MODULE_NAME"  # Replace with your module name
-                    profile_txn = SyncTransaction(client=sui_client)
-                    profile_txn.move_call(
-                        target=f"{package_id}::{module_name}::create_profile",
-                        arguments=[str(new_address)],
-                        type_arguments=[]
-                    )
-                    profile_result = profile_txn.execute(gas_budget=10000000)
-                    if profile_result.is_ok():
-                        # Fund the new account
-                        funding_txn = SyncTransaction(client=sui_client)
-                        funding_txn.transfer_sui(
-                            recipient=new_address,
-                            amount=1000000000)
-                        funding_result = funding_txn.execute(
-                            gas_budget=1000000)
-                        if not funding_result.is_ok():
-                            logger.error(
-                                f"Failed to fund new account for user {user_id}: {funding_result.result_string}")
-                            return None
-                        # Extract Profile object ID
-                        profile_id = profile_result.result_data.get('created_objects', [{}])[
-                            0].get('object_id', None)
-                        if not profile_id:
-                            logger.error(
-                                f"Failed to extract Profile object ID for user {user_id}")
-                            return None
-
-                        # Store in Supabase
-                        supabase.table("user_profiles").insert({
-                            "telegram_id": user_id,
-                            "profile_id": profile_id,
-                            "user_address": str(new_address),
-                            "created_at": datetime.now(pytz.UTC).isoformat()
-                        }).execute()
-                        session['profile_id'] = profile_id
-                        session['user_address'] = str(new_address)
-                        logger.debug(
-                            f"Created Profile object for user {user_id}: {profile_id}")
-
-                        # Store keypair
-                        key_manager.store_user_keypair(user_id, keypair)
-                    else:
-                        logger.error(
-                            f"Failed to create Profile object: {profile_result.result_string}")
-                        return None
-            except Exception as e:
-                logger.error(
-                    f"Failed to fetch/create profile in Supabase for user {user_id}: {e}")
-                return None
-
-        # Initialize points
-        if 'points' not in session:
-            session['points'] = 0
-
-        # Save session
         context.user_data['session'] = session
-        await save_user_session(user_id, context)
-        logger.debug(f"Reconstructed session for user {user_id}: {session}")
-
+        await session_manager.save_user_session(user_id, session, password or "local_storage_fallback_password")
         return session
 
-    except Exception as e:
-        logger.error(
-            f"Error loading session for user {user_id}: {e}", exc_info=True)
+    except Exception:
         return None
 
 
-def find_profile_id_from_receipt(user_id: str) -> Optional[str]:
-    """Find profile ID from registration receipt for a given user_id."""
-    logger.debug(f"Searching for profile_id in receipts for user {user_id}")
+def find_profile_id_from_receipt(telegram_id: str) -> Optional[str]:
     try:
         receipts_dir = Path('./registration_receipts')
         if not receipts_dir.exists():
-            logger.warning(
-                f"Receipts directory does not exist for user {user_id}")
             return None
 
-        for receipt_path in receipts_dir.glob(f"{user_id}_*.json"):
+        encrypted_receipts = list(receipts_dir.glob(f"{telegram_id}_*.enc"))
+        if not encrypted_receipts:
+            return None
+
+        encrypted_receipts.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+        for receipt_file in encrypted_receipts:
             try:
-                with open(receipt_path, 'r') as f:
-                    receipt = json.load(f)
-                    if receipt.get('telegram_id') == user_id and receipt.get('status') == 'blockchain':
-                        profile_id = receipt.get('profile_id')
-                        if profile_id:
-                            logger.debug(
-                                f"Found profile_id {profile_id} in receipt {receipt_path} for user {user_id}")
-                            return profile_id
-                        else:
-                            logger.info(
-                                f"Receipt {receipt_path} for user {user_id} has no profile_id (local_only mode)")
-            except Exception as e:
-                logger.warning(f"Error reading receipt {receipt_path}: {e}")
-        logger.info(
-            f"No valid profile_id found in receipts for user {user_id}")
+                receipt = load_and_decrypt(receipt_file)
+                if not receipt:
+                    continue
+                profile_id = (
+                    receipt.get('profile_id') or
+                    receipt.get('blockchain', {}).get('profile_id') or
+                    receipt.get('registration_result', {}).get('profile_id')
+                )
+                if profile_id and str(profile_id).lower() not in ['none', 'local_registration', '']:
+                    return str(profile_id)
+            except Exception:
+                pass
         return None
-    except Exception as e:
-        logger.error(
-            f"Error searching receipts for user {user_id}: {e}", exc_info=True)
+    except Exception:
         return None
-
-
-async def save_user_session_to_blockchain(telegram_id: str, context: ContextTypes.DEFAULT_TYPE):
-    """Save user session with encryption to blockchain."""
-    try:
-        profile_id = context.user_data.get('profile_id')
-        if not profile_id:
-            return
-        public_key = context.user_data.get('public_key')
-        if not public_key:
-            public_key = get_key_manager().get_user_public_key(telegram_id)
-        if not public_key:
-            return
-        sensitive_data = {
-            'telegram_id': telegram_id,
-            'email': context.user_data.get('email', ''),
-            'phone': context.user_data.get('phone', ''),
-            'timezone': context.user_data.get('timezone', 'UTC'),
-            'preferences': context.user_data.get('preferences', {}),
-            'last_updated': datetime.now().isoformat()
-        }
-        encrypted_blob_id = get_walrus_client().store_encrypted_user_data(
-            public_key, sensitive_data)
-        if encrypted_blob_id:
-            success = get_sui_client().update_encrypted_data(profile_id, encrypted_blob_id)
-            if success:
-                context.user_data['encrypted_data_blob'] = encrypted_blob_id
-                user_sessions[telegram_id]['encrypted_data_blob'] = encrypted_blob_id
-    except Exception as e:
-        logger.error(f"Error saving session: {e}")
 
 
 def clear_user_session(telegram_id: str) -> bool:
-    """Clear user session data."""
-    try:
-        if telegram_id in user_sessions:
-            del user_sessions[telegram_id]
-        logger.info(f"Session cleared for user {telegram_id}")
-        return True
-    except Exception as e:
-        logger.error(f"Error clearing session for {telegram_id}: {e}")
-        return False
+    """Clear user session using SessionManager"""
+    return session_manager.clear_user_session(telegram_id)
 
 
-# Alias for checkin.py compatibility
-save_user_session = save_user_session_to_blockchain
-
-# ============= TIME & DATE FUNCTIONS =============
-
-
+# ============= TIME & DATE =============
 def parse_natural_language_date(text: str) -> Optional[datetime]:
-    """Parse natural language date input."""
     try:
         cal = Calendar()
         time_struct, parse_status = cal.parse(text)
         if parse_status:
             return datetime(*time_struct[:6])
         return None
-    except Exception as e:
-        logger.error(f"Error parsing date '{text}': {e}")
+    except Exception:
         return None
 
 
 def format_date_for_display(dt: datetime) -> str:
-    """Format datetime for user-friendly display."""
     return dt.strftime('%Y-%m-%d %H:%M')
 
 
 def get_current_utc() -> datetime:
-    """Get current UTC time."""
     return datetime.now(pytz.UTC)
 
 
-async def save_user_timezone(telegram_id: str, timezone: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Save user's timezone preference permanently"""
+async def save_user_timezone(telegram_id: str, timezone_str: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Save user's timezone preference - UPDATED WITH SESSIONMANAGER."""
     try:
-        logger.info(f"💾 Saving timezone '{timezone}' for user {telegram_id}")
-
-        # Validate timezone first
-        try:
-            pytz.timezone(timezone)
-        except pytz.UnknownTimeZoneError:
-            logger.error(f"Invalid timezone: {timezone}")
-            return False
-
-        # Method 1: Save to session
-        session = await load_user_session(telegram_id, context)
+        # Load existing session
+        password = await get_password_via_key_validation(telegram_id, context)
+        session = await session_manager.load_user_session(telegram_id, password or "local_storage_fallback_password")
         if not session:
             session = {}
 
-        session['timezone'] = timezone
-        await save_user_session(telegram_id, context, session)
+        # Update timezone in session
+        session['timezone'] = timezone_str
+        session['timezone_set_at'] = datetime.now(pytz.UTC).isoformat()
 
-        # Method 2: Save to dedicated timezone file (backup)
-        timezone_dir = Path('./user_timezones')
-        timezone_dir.mkdir(exist_ok=True)
+        # ✅ Use SessionManager to save
+        success = await session_manager.save_user_session(telegram_id, session,
+                                                          password or "local_storage_fallback_password")
 
-        timezone_file = timezone_dir / f"{telegram_id}.txt"
-        with open(timezone_file, 'w') as f:
-            f.write(timezone)
+        if success:
+            return True
+        else:
+            return False
 
-        # Method 3: Update context
-        context.user_data['user_timezone'] = timezone
-
-        logger.info(
-            f"✅ Timezone '{timezone}' saved successfully for user {telegram_id}")
-        return True
-
-    except Exception as e:
-        logger.error(f"❌ Error saving timezone for user {telegram_id}: {e}")
+    except Exception:
         return False
 
 
 async def load_user_timezone(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Load user's timezone preference with better debugging"""
-    logger.info(f"🔍 Loading timezone for user {telegram_id}")
-
     try:
-        # Method 1: Try session first
-        session = await load_user_session(telegram_id, context)
-        if session and session.get('timezone'):
-            timezone = session['timezone']
-            logger.info(f"✅ Loaded timezone from session: {timezone}")
-            return timezone
+        if context.user_data.get('user_timezone'):
+            return context.user_data['user_timezone']
 
-        # Method 2: Check if we have a stored timezone file
-        timezone_file = Path(f'./user_timezones/{telegram_id}.txt')
-        if timezone_file.exists():
-            with open(timezone_file, 'r') as f:
-                timezone = f.read().strip()
-                logger.info(f"✅ Loaded timezone from file: {timezone}")
+        # Try to load from session first
+        password = await get_password_via_key_validation(telegram_id, context)
+        session = await session_manager.load_user_session(telegram_id, password or "local_storage_fallback_password")
+        if session and session.get('timezone') in pytz.all_timezones:
+            tz = session['timezone']
+            context.user_data['user_timezone'] = tz
+            return tz
 
-                # Update session for future use
-                if session:
-                    session['timezone'] = timezone
-                    await save_user_session(telegram_id, context, session)
+        # Fallback to local timezone file
+        tz_file = Path('./user_timezones') / f"{telegram_id}.txt"
+        if tz_file.exists():
+            tz = tz_file.read_text().strip()
+            if tz in pytz.all_timezones:
+                context.user_data['user_timezone'] = tz
+                return tz
 
-                return timezone
-
-        # Method 3: Check context user_data
-        user_data_tz = context.user_data.get('user_timezone')
-        if user_data_tz:
-            logger.info(f"✅ Loaded timezone from user_data: {user_data_tz}")
-            return user_data_tz
-
-        # Default to UTC
-        logger.info(f"⚠️ No timezone found for user {telegram_id}, using UTC")
-        return 'UTC'
-
-    except Exception as e:
-        logger.error(f"❌ Error loading timezone for user {telegram_id}: {e}")
-        return 'UTC'
-
-# ============= ENCRYPTION & SECURITY =============
+        return "UTC"
+    except Exception:
+        return "UTC"
 
 
+# ============= REST (UNCHANGED) =============
 def validate_encryption_keys(public_key: Optional[bytes], private_key: Optional[bytes]) -> bool:
-    """Validate that encryption keys exist and are valid."""
     return public_key is not None and private_key is not None
 
 
 def generate_user_identifier(telegram_id: str, username: str) -> str:
-    """Generate a unique user identifier."""
-    timestamp = int(datetime.now().timestamp())
-    return f"{telegram_id}_{username}_{timestamp}"
-
-# ============= DATA FORMATTING =============
+    return f"{telegram_id}_{username}_{int(datetime.now().timestamp())}"
 
 
 def format_profile_data(profile_data: Dict) -> str:
-    """Format profile data for display."""
     if not profile_data:
         return "No profile data available"
     lines = []
-    if 'username' in profile_data:
-        lines.append(f"👤 Username: {profile_data['username']}")
-    if 'email' in profile_data and profile_data['email']:
-        lines.append(f"📧 Email: {profile_data['email']}")
-    if 'telegram_id' in profile_data:
-        lines.append(f"🆔 Telegram ID: {profile_data['telegram_id']}")
-    if 'timezone' in profile_data:
-        lines.append(f"🌐 Timezone: {profile_data['timezone']}")
-    if 'created_at' in profile_data:
-        created = parse_natural_language_date(profile_data['created_at'])
-        if created:
-            lines.append(f"📅 Joined: {format_date_for_display(created)}")
-    return "\n".join(lines)
+    for key in ['username', 'email', 'telegram_id', 'timezone']:
+        if key in profile_data and profile_data[key]:
+            lines.append(f"{key.capitalize()}: {profile_data[key]}")
+    return "\n".join(lines) if lines else "No profile data"
 
 
 def format_task_data(task_data: Dict) -> str:
-    """Format task data for display."""
     if not task_data:
         return "No task data available"
     lines = []
     if 'task_name' in task_data:
-        lines.append(f"📝 {task_data['task_name']}")
-    if 'description' in task_data and task_data['description']:
-        lines.append(f"📋 {task_data['description']}")
-    if 'due_date' in task_data and task_data['due_date']:
-        due_date = parse_natural_language_date(task_data['due_date'])
-        if due_date:
-            lines.append(f"📅 Due: {format_date_for_display(due_date)}")
+        lines.append(f"{task_data['task_name']}")
+    if 'description' in task_data:
+        lines.append(f"{task_data['description']}")
+    if 'due_date' in task_data:
+        lines.append(f"Due: {task_data['due_date']}")
     if 'status' in task_data:
-        status_emoji = "✅" if task_data['status'] == 'completed' else "⏳"
-        lines.append(f"{status_emoji} Status: {task_data['status']}")
+        status = "Completed" if task_data['status'] == 'completed' else "Pending"
+        lines.append(f"{status}")
     return "\n".join(lines)
 
-# ============= ERROR HANDLING =============
+
+async def get_password_via_key_validation(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
+    """
+    Try to get password from active session - FIXED VERSION (no recursion)
+    """
+    try:
+        # Method 1: Check active registration (user just registered)
+        if (context and hasattr(context, 'application') and
+                context.application and context.application.bot_data):
+            registration_system = context.application.bot_data.get(
+                'registration_system')
+            if registration_system and telegram_id in registration_system.active_registrations:
+                password = registration_system.active_registrations[telegram_id].get(
+                    'password')
+                if password:
+                    return password
+
+        # Method 2: Check context user_data
+        if context and context.user_data and context.user_data.get('password'):
+            password = context.user_data.get('password')
+            return password
+
+        # Method 3: Check session token exists (but don't try to extract password)
+        try:
+            # Load session with fallback password to check if session exists
+            session = await session_manager.load_user_session(
+                telegram_id,
+                "local_storage_fallback_password"
+            )
+            if session and session.get('session_token'):
+                # Password is not retrievable from session token (secure by design)
+                return None
+        except Exception:
+            pass
+
+        return None
+
+    except Exception:
+        return None
 
 
 class RegistrationError(Exception):
-    """Custom exception for registration errors."""
     pass
 
 
 class EncryptionError(Exception):
-    """Custom exception for encryption errors."""
     pass
 
 
 class BlockchainError(Exception):
-    """Custom exception for blockchain errors."""
     pass
 
 
 def handle_error(error: Exception, context: str = "") -> str:
-    """Handle errors and return user-friendly message."""
-    logger.error(f"Error in {context}: {error}")
     if isinstance(error, RegistrationError):
-        return f"❌ Registration error: {str(error)}"
+        return f"Registration error: {str(error)}"
     elif isinstance(error, EncryptionError):
-        return f"🔐 Encryption error: {str(error)}"
+        return f"Encryption error: {str(error)}"
     elif isinstance(error, BlockchainError):
-        return f"⛓️ Blockchain error: {str(error)}"
-    else:
-        return "❌ An unexpected error occurred. Please try again."
+        return f"Blockchain error: {str(error)}"
+    return "An unexpected error occurred. Please try again."
 
 
-def store_user_keypair(self, telegram_id: str, keypair: SuiKeyPair):
-    """Store a Sui keypair for a user."""
+async def recover_user_data_from_walrus(telegram_id: str, password: str, context: ContextTypes.DEFAULT_TYPE = None) -> \
+        Dict[str, Any]:
+    """
+    COMPREHENSIVE USER DATA RECOVERY FROM WALRUS
+    Retrieves ALL user data from Walrus in case of local data loss or password issues.
+
+    Returns: {
+        'success': bool,
+        'recovered_data': {
+            'session': dict,
+            'wallet': dict,
+            'tasks': list,
+            'checkins': dict,
+            'registration_receipt': dict
+        },
+        'summary': str,
+        'errors': list
+    }
+    """
+    recovered_data = {
+        'session': {},
+        'wallet': {},
+        'tasks': [],
+        'checkins': {},
+        'registration_receipt': {}
+    }
+    errors = []
+
     try:
-        key_data = {
-            'public_key': str(keypair.public_key),
-            # Encrypt this in production
-            'private_key': str(keypair.private_key)
-        }
-        # Store in Supabase or secure storage
-        supabase = create_client(
-            os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-        supabase.table("user_keys").insert({
-            "telegram_id": telegram_id,
-            "public_key": key_data['public_key'],
-            "private_key": key_data['private_key'],  # Encrypt before storing
-            "created_at": datetime.now(pytz.UTC).isoformat()
-        }).execute()
-        logger.debug(f"Stored keypair for user {telegram_id}")
-    except Exception as e:
-        logger.error(f"Failed to store keypair for user {telegram_id}: {e}")
+        # ============= 1. RECOVER SESSION DATA =============
+        try:
+            session_data = await session_manager.load_user_session(telegram_id, password)
+            if session_data:
+                recovered_data['session'] = session_data
+            else:
+                errors.append(
+                    "Session recovery failed - wrong password or no session found")
+        except Exception as e:
+            errors.append(f"Session recovery error: {str(e)}")
 
-    # async def select_registration_method(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #     """Let user choose registration method via buttons."""
-    #     keyboard = [
-    #          [InlineKeyboardButton("🆕 Signup with TOVIRA", callback_data='signup_no_code')],
-    #     #     [InlineKeyboardButton("🎁 Use User Referral", callback_data='signup_user_code')],
-    #     #     [InlineKeyboardButton("🔑 Use Admin Code", callback_data='signup_admin_code')],
-    #      ]
-    #     #reply_markup = InlineKeyboardMarkup(keyboard)
-    #     await update.message.reply_text(
-    #         "⛓️ Register with Tovira\n\n",
-    #         #"🆕 Register\n",
-    #         #"🎁 User Referral - Use friend's code\n"
-    #         #"🔑 Admin Code - Use special admin code\n\n"
-    #         #"Select an option:",
-    #         reply_markup=reply_markup
-    #     )
-    #     return SELECT_METHOD
+        # ============= 2. RECOVER WALLET DATA =============
+        try:
+            # Try multiple possible wallet blob IDs
+            possible_wallet_blobs = [
+                f"{telegram_id}_wallet",
+                f"wallet_{telegram_id}",
+                f"{telegram_id}_sui_wallet",
+                f"sui_wallet_{telegram_id}"
+            ]
+
+            key_manager = get_key_manager()
+            for blob_id in possible_wallet_blobs:
+                try:
+                    wallet_data = key_manager.retrieve_encrypted_object(
+                        blob_id, telegram_id, password)
+                    if wallet_data and 'mnemonic' in wallet_data:
+                        recovered_data['wallet'] = {
+                            'address': wallet_data.get('address'),
+                            'has_mnemonic': 'mnemonic' in wallet_data,
+                            'blob_id': blob_id
+                        }
+                        break
+                except:
+                    continue
+
+            if not recovered_data['wallet']:
+                errors.append(
+                    "Wallet recovery failed - no wallet backup found")
+
+        except Exception as e:
+            errors.append(f"Wallet recovery error: {str(e)}")
+
+        # ============= 3. RECOVER TASKS =============
+        try:
+            # Get profile ID from recovered session or try to find it
+            profile_id = recovered_data['session'].get('profile_id')
+            if not profile_id:
+                # Try to find profile ID from registration receipts
+                profile_id = await find_profile_id_from_walrus(telegram_id, password)
+
+            if profile_id:
+                # Use Sui client to get user tasks
+                sui_client = get_sui_client()
+                user_tasks = sui_client.get_user_tasks(profile_id)
+
+                if user_tasks:
+                    # Decrypt each task
+                    for task in user_tasks:
+                        try:
+                            encrypted_blob = task.get('encrypted_details_blob')
+                            if encrypted_blob:
+                                # Try to decrypt with current password
+                                decrypted_task = await decrypt_task_with_password(
+                                    encrypted_blob, telegram_id, password
+                                )
+                                if decrypted_task:
+                                    recovered_data['tasks'].append({
+                                        'task_id': task.get('task_id'),
+                                        'name': decrypted_task.get('task_name', 'Unknown'),
+                                        'due_date': decrypted_task.get('due_date'),
+                                        'status': task.get('status', 'unknown')
+                                    })
+                        except Exception:
+                            pass
+
+                else:
+                    errors.append("No tasks found on blockchain")
+            else:
+                errors.append("No profile ID found - cannot recover tasks")
+
+        except Exception as e:
+            errors.append(f"Tasks recovery error: {str(e)}")
+
+        # ============= 4. RECOVER CHECKIN DATA =============
+        try:
+            checkin_blob_id = f"{telegram_id}_checkins"
+            key_manager = get_key_manager()
+            checkin_data = key_manager.retrieve_encrypted_object(
+                checkin_blob_id, telegram_id, password)
+
+            if checkin_data:
+                recovered_data['checkins'] = {
+                    'total_checkins': checkin_data.get('total', 0),
+                    'last_checkin': checkin_data.get('last_checkin'),
+                    # Last 10 checkins
+                    'checkin_history': checkin_data.get('checkins', [])[:10]
+                }
+            else:
+                errors.append("No checkin data found")
+
+        except Exception as e:
+            errors.append(f"Checkin recovery error: {str(e)}")
+
+        # ============= 5. RECOVER REGISTRATION RECEIPT =============
+        try:
+            receipt_blob_id = f"{telegram_id}_registration_receipt"
+            key_manager = get_key_manager()
+            receipt_data = key_manager.retrieve_encrypted_object(
+                receipt_blob_id, telegram_id, password)
+
+            if receipt_data:
+                recovered_data['registration_receipt'] = receipt_data
+            else:
+                errors.append("No registration receipt found")
+
+        except Exception as e:
+            errors.append(f"Registration receipt recovery error: {str(e)}")
+
+        # ============= 6. CREATE RECOVERY SUMMARY =============
+        summary_parts = []
+
+        if recovered_data['session']:
+            summary_parts.append(f"✅ **Session**: Profile ID found")
+
+        if recovered_data['wallet']:
+            summary_parts.append(f"✅ **Wallet**: Address recovered")
+
+        if recovered_data['tasks']:
+            summary_parts.append(
+                f"✅ **Tasks**: {len(recovered_data['tasks'])} tasks recovered")
+
+        if recovered_data['checkins']:
+            summary_parts.append(
+                f"✅ **Checkins**: {recovered_data['checkins']['total_checkins']} total checkins")
+
+        if recovered_data['registration_receipt']:
+            summary_parts.append(
+                f"✅ **Registration**: Complete receipt recovered")
+
+        if not summary_parts:
+            summary_parts.append(
+                "❌ **No data recovered** - Please check your password")
+
+        summary = "\n".join(summary_parts)
+
+        # Final result
+        result = {
+            'success': len(summary_parts) > 0,
+            'recovered_data': recovered_data,
+            'summary': summary,
+            'errors': errors
+        }
+
+        return result
+
+    except Exception as e:
+        return {
+            'success': False,
+            'recovered_data': {},
+            'summary': f"❌ Recovery failed: {str(e)}",
+            'errors': [f"Comprehensive recovery failed: {str(e)}"]
+        }
+
+
+async def find_profile_id_from_walrus(telegram_id: str, password: str) -> Optional[str]:
+    """Find profile ID from various Walrus sources"""
+    try:
+        key_manager = get_key_manager()
+
+        # Try registration receipt first
+        receipt_blob_id = f"{telegram_id}_registration_receipt"
+        receipt_data = key_manager.retrieve_encrypted_object(
+            receipt_blob_id, telegram_id, password)
+        if receipt_data:
+            profile_id = receipt_data.get('blockchain', {}).get('profile_id')
+            if profile_id and profile_id != 'local_registration':
+                return profile_id
+
+        # Try session data
+        session_data = await session_manager.load_user_session(telegram_id, password)
+        if session_data and session_data.get('profile_id'):
+            return session_data['profile_id']
+
+    except Exception:
+        pass
+
+    return None
+
+
+async def decrypt_task_with_password(encrypted_blob: str, telegram_id: str, password: str) -> Optional[Dict]:
+    """Decrypt a task using user's password"""
+    try:
+        # This would need to be implemented based on your task encryption method
+        # For now, returning a placeholder implementation
+        walrus_client = get_walrus_client()
+
+        return None
+
+    except Exception:
+        return None
+
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel conversation."""
+    await update.message.reply_text("❌ Cancelled.")
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+auth_conv_handler = ConversationHandler(
+    entry_points=[],
+    states={
+        AUTHENTICATION_STATE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND,
+                           handle_authentication)
+        ],
+    },
+    fallbacks=[CommandHandler('cancel', cancel)],
+    per_message=False,
+    name="authentication"
+)

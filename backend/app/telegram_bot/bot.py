@@ -77,6 +77,6 @@ def setup_telegram_bot(token: str) -> Application:
     # Add error handler
     application.add_error_handler(error_handler)
 
-    logger.info("✅ Telegram bot handlers registered")
+    logger.info("Telegram bot handlers registered")
 
     return application

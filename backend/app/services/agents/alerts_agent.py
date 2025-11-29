@@ -74,7 +74,7 @@ class DatabaseClient:
             return {"data": response.data, "error": None}
         except Exception as e:
             logger.error(f"Database error: {log_safe(str(e))}")
-            return {"data": None, "error": f"❌ Database error: {str(e)}"}
+            return {"data": None, "error": f" Database error: {str(e)}"}
 
 
 # === TASK MANAGER ===
@@ -115,7 +115,7 @@ class TaskManager:
         if not self._ensure_user_exists(user_id, timezone):
             logger.error(
                 f"Failed to ensure user exists for user_id: {user_id}")
-            return {"success": False, "message": "❌ Error setting up user profile"}
+            return {"success": False, "message": " Error setting up user profile"}
 
         tz = ZoneInfo(timezone)
         task_data = {
@@ -137,7 +137,7 @@ class TaskManager:
         if response["error"] or not response["data"]:
             logger.error(
                 f"Failed to create task: {log_safe(response.get('error', 'Unknown error'))}")
-            return {"success": False, "message": response.get("error", "❌ Failed to create task")}
+            return {"success": False, "message": response.get("error", " Failed to create task")}
 
         created_task = response["data"][0]
         logger.info(
@@ -192,7 +192,7 @@ class TaskManager:
         tags_info = f"\n🏷️ Tags: {', '.join(task['tags'])}" if task.get(
             'tags') else ""
 
-        return (f"✅ **Task created!**\n\n"
+        return (f" **Task created!**\n\n"
                 f"📋 **{task['task_name']}**{due_info}{reminder_info}{tags_info}\n\n"
                 f"📝 {task.get('description', 'No description')}")
 
@@ -205,7 +205,7 @@ class TaskManager:
         if response["error"]:
             logger.error(
                 f"Failed to list tasks: {log_safe(response['error'])}")
-            return f"❌ {response['error']}"
+            return f" {response['error']}"
 
         tasks = response["data"]
         if not tasks:
@@ -248,12 +248,12 @@ class TaskManager:
         if response["error"]:
             logger.error(
                 f"Failed to complete task ID: {task_id}: {log_safe(response['error'])}")
-            return f"❌ {response['error']}"
+            return f" {response['error']}"
         if response["data"]:
             logger.info(
                 f"Completed task: {log_safe(response['data'][0]['task_name'])} (ID: {task_id})")
             return f"🎉 Task **{response['data'][0]['task_name']}** completed!"
-        return f"❌ Task ID {task_id} not found"
+        return f" Task ID {task_id} not found"
 
     async def delete_task(self, user_id: str, task_id: str) -> str:
         """Delete a task."""
@@ -263,7 +263,7 @@ class TaskManager:
         )
         if task_response["error"] or not task_response["data"]:
             logger.error(f"Task ID {task_id} not found for deletion")
-            return f"❌ Task ID {task_id} not found"
+            return f" Task ID {task_id} not found"
 
         self.db.execute(
             self.db.supabase.table('tasks').delete().eq(
@@ -392,11 +392,11 @@ task_extractor = TaskExtractor()
 async def alerts_agent_tool_async(query: str, context: str = "") -> str:
     """
     Main tool function called by base_agent for alerts/task management.
-    
+
     Args:
         query: User's natural language query
         context: Conversation context (format: "role: content\\nrole: content")
-    
+
     Returns:
         str: Formatted response for the user
     """
@@ -428,20 +428,20 @@ async def alerts_agent_tool_async(query: str, context: str = "") -> str:
                 r'(?:task\s+|id[:\s]+)(\d+)', query_lower)
             if task_id_match:
                 return await task_manager.complete_task(user_id, task_id_match.group(1), timezone)
-            return "❌ Please specify task ID (e.g., 'complete task 123')"
+            return " Please specify task ID (e.g., 'complete task 123')"
 
         if "delete" in query_lower:
             task_id_match = re.search(
                 r'(?:task\s+|id[:\s]+)(\d+)', query_lower)
             if task_id_match:
                 return await task_manager.delete_task(user_id, task_id_match.group(1))
-            return "❌ Please specify task ID (e.g., 'delete task 123')"
+            return " Please specify task ID (e.g., 'delete task 123')"
 
         # Task creation - extract and create
         extraction_result = await task_extractor.extract_tasks(query, timezone)
 
         if not extraction_result.get("success") or not extraction_result.get("tasks"):
-            return "❌ Could not extract task information. Please try rephrasing your request."
+            return " Could not extract task information. Please try rephrasing your request."
 
         tasks = extraction_result.get("tasks", [])
         results = []
@@ -451,13 +451,13 @@ async def alerts_agent_tool_async(query: str, context: str = "") -> str:
             if result["success"]:
                 results.append(result["message"])
             else:
-                results.append(f"❌ Failed to create task: {result['message']}")
+                results.append(f" Failed to create task: {result['message']}")
 
         return "\n\n".join(results)
 
     except Exception as e:
         logger.exception(f"Error in alerts agent tool: {e}")
-        return f"❌ An error occurred while processing your request: {str(e)}"
+        return f" An error occurred while processing your request: {str(e)}"
 
 
 # === SYNCHRONOUS WRAPPER (if needed) ===

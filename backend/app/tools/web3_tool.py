@@ -33,7 +33,7 @@ class BraveSearchClient:
     ) -> Dict[str, Any]:
         """
         Search with Brave Search API
-        
+
         Args:
             query: Search query
             count: Number of results (max 20)
@@ -364,7 +364,7 @@ I can help you with:
 - "What's the SUI price?"
 - "SUI value in USD"
 
-**📊 Protocol Metrics:**
+** Protocol Metrics:**
 - "Navi TVL"
 - "Cetus total value locked"
 - "Scallop TVL"
@@ -373,11 +373,11 @@ I can help you with:
 - "What's trending on Sui?"
 - "Popular Sui projects"
 
-**🔍 Search:**
+** Search:**
 - "Search for [project] on Sui"
 - "Find Sui DeFi protocols"
 
-**🔬 Deep Research:**
+** Deep Research:**
 - "Analyze [project name]" (requires gas fee)
 
 What would you like to know?

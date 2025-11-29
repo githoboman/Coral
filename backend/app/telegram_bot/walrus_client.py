@@ -16,20 +16,19 @@ Key Privacy Principles:
 - Multi-recipient encryption for support access
 - No single point of failure
 """
+from pathlib import Path
 
 import requests
 import json
-import logging
 from typing import Optional, Dict, Any, List, Tuple
-from datetime import datetime, time
+from datetime import datetime
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
 import base64
 import os
-from pysui.sui.sui_crypto import SuiKeyPair
-logger = logging.getLogger(__name__)
+from app.telegram_bot.secure_storage import encrypt_data, decrypt_data, encrypt_and_save, load_and_decrypt
 
 
 class WalrusClient:
@@ -58,7 +57,6 @@ class WalrusClient:
         self.publisher_url = publisher_url
         self.aggregator_url = aggregator_url
         self.default_epochs = default_epochs
-        logger.info("Secure Walrus client initialized with Python cryptography")
 
     # ==================== KEY MANAGEMENT ====================
 
@@ -221,7 +219,6 @@ class WalrusClient:
             }
 
         except Exception as e:
-            logger.error(f"Error encrypting data: {e}")
             return None
 
     def _decrypt_data_hybrid(self, encrypted_package: Dict[str, str],
@@ -278,7 +275,56 @@ class WalrusClient:
             return data
 
         except Exception as e:
-            logger.error(f"Error decrypting data: {e}")
+            return None
+
+    def store_encrypted_user_data_fixed(self, user_public_key: bytes, sensitive_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Store encrypted user data on Walrus - FIXED PARAMETER ORDER.
+        """
+        try:
+            # Add metadata
+            data_with_metadata = {
+                **sensitive_data,
+                'encrypted_at': datetime.now().isoformat(),
+                'version': 1
+            }
+
+            # ✅ FIX: Call with correct parameter order
+            encrypted_package = self._encrypt_data_hybrid(
+                user_public_key,
+                data_with_metadata
+            )
+
+            if not encrypted_package:
+                return None
+
+            # Convert to bytes for Walrus storage
+            encrypted_bytes = json.dumps(encrypted_package).encode('utf-8')
+
+            # Store on Walrus
+            store_url = f"{self.publisher_url}/v1/blobs?epochs={self.default_epochs}"
+            response = requests.put(
+                store_url,
+                data=encrypted_bytes,
+                headers={'Content-Type': 'application/octet-stream'},
+                timeout=30
+            )
+
+            if response.status_code in (200, 201):
+                result = response.json()
+
+                if 'newlyCreated' in result:
+                    blob_id = result['newlyCreated']['blobObject']['blobId']
+                elif 'alreadyCertified' in result:
+                    blob_id = result['alreadyCertified']['blobId']
+                else:
+                    return None
+
+                return blob_id
+
+            return None
+
+        except Exception as e:
             return None
 
     def _encrypt_data_multi_recipient(self, data: Dict[str, Any],
@@ -333,18 +379,17 @@ class WalrusClient:
             }
 
         except Exception as e:
-            logger.error(f"Error encrypting for multiple recipients: {e}")
             return None
 
     # ==================== SECURE USER DATA MANAGEMENT ====================
 
     def store_encrypted_user_data(self, user_public_key: bytes, sensitive_data: Dict[str, Any]) -> Optional[str]:
         """
-        Store encrypted user data on Walrus.
+        Store encrypted user data on Walrus - FIXED VERSION.
 
         Args:
-            user_public_key: User's RSA public key (PEM format)
-            sensitive_data: Dictionary of private information
+            user_public_key: User's RSA public key (PEM format bytes)
+            sensitive_data: Dictionary of data to encrypt
 
         Returns:
             Walrus blob ID containing encrypted data
@@ -357,14 +402,12 @@ class WalrusClient:
                 'version': 1
             }
 
-            # Encrypt with user's public key
             encrypted_package = self._encrypt_data_hybrid(
                 data_with_metadata,
                 user_public_key
             )
 
             if not encrypted_package:
-                logger.error("Failed to encrypt user data")
                 return None
 
             # Convert to bytes for Walrus storage
@@ -389,112 +432,11 @@ class WalrusClient:
                 else:
                     return None
 
-                logger.info(f"✅ Encrypted user data stored: {blob_id}")
                 return blob_id
 
-            logger.error(
-                f"Failed to store encrypted data: {response.status_code}")
             return None
 
         except Exception as e:
-            logger.error(f"Error storing encrypted user data: {e}")
-            return None
-
-    def store_encrypted_task(self, user_public_key: bytes, task_data: Dict[str, Any]) -> Optional[str]:
-        """
-        Store encrypted task details.
-
-        Args:
-            user_public_key: Task owner's public key (bytes)
-            task_data: Task details to encrypt
-
-        Returns:
-            Walrus blob ID
-        """
-        try:
-            # Add task-specific metadata
-            task_data_with_metadata = {
-                **task_data,
-                'type': 'task',
-                'encrypted_at': datetime.now().isoformat(),
-                'version': 1
-            }
-
-            # Use the main storage method
-            return self.store_encrypted_user_data(user_public_key, task_data_with_metadata)
-
-        except Exception as e:
-            logger.error(f"Error storing encrypted task: {e}")
-            return None
-
-    def store_encrypted_user_data(self, user_public_key: bytes,
-                                  sensitive_data: Dict[str, Any]) -> Optional[str]:
-        """
-        Store encrypted user data on Walrus.
-
-        What gets encrypted (NEVER stored in plaintext):
-        - telegram_id: User's Telegram ID
-        - email: User's email address
-        - phone: Phone number (if any)
-        - preferences: User preferences and settings
-        - history: Detailed interaction history
-
-        Args:
-            user_public_key: User's RSA public key (PEM format)
-            sensitive_data: Dictionary of private information
-
-        Returns:
-            Walrus blob ID containing encrypted data
-        """
-        try:
-            # Add metadata
-            data_with_metadata = {
-                **sensitive_data,
-                'encrypted_at': datetime.now().isoformat(),
-                'version': 1
-            }
-
-            # Encrypt with user's public key
-            encrypted_package = self._encrypt_data_hybrid(
-                data_with_metadata,
-                user_public_key
-            )
-
-            if not encrypted_package:
-                logger.error("Failed to encrypt user data")
-                return None
-
-            # Convert to bytes for Walrus storage
-            encrypted_bytes = json.dumps(encrypted_package).encode('utf-8')
-
-            # Store on Walrus
-            store_url = f"{self.publisher_url}/v1/blobs?epochs={self.default_epochs}"
-            response = requests.put(
-                store_url,
-                data=encrypted_bytes,
-                headers={'Content-Type': 'application/octet-stream'},
-                timeout=30
-            )
-
-            if response.status_code in (200, 201):
-                result = response.json()
-
-                if 'newlyCreated' in result:
-                    blob_id = result['newlyCreated']['blobObject']['blobId']
-                elif 'alreadyCertified' in result:
-                    blob_id = result['alreadyCertified']['blobId']
-                else:
-                    return None
-
-                logger.info(f"✅ Encrypted user data stored: {blob_id}")
-                return blob_id
-
-            logger.error(
-                f"Failed to store encrypted data: {response.status_code}")
-            return None
-
-        except Exception as e:
-            logger.error(f"Error storing encrypted user data: {e}")
             return None
 
     def retrieve_encrypted_user_data(self, blob_id: str,
@@ -515,8 +457,6 @@ class WalrusClient:
             response = requests.get(read_url, timeout=30)
 
             if response.status_code != 200:
-                logger.error(
-                    f"Failed to retrieve blob: {response.status_code}")
                 return None
 
             # Parse encrypted package
@@ -529,57 +469,11 @@ class WalrusClient:
             )
 
             if decrypted_data:
-                logger.info("✅ User data retrieved and decrypted")
                 return decrypted_data
 
             return None
 
         except Exception as e:
-            logger.error(f"Error retrieving encrypted user data: {e}")
-            return None
-
-    def retrieve_encrypted_task(self, blob_id: str, user_private_key: bytes) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve and decrypt task details.
-
-        Args:
-            blob_id: Walrus blob ID
-            user_private_key: Task owner's private key (bytes)
-
-        Returns:
-            Decrypted task data
-        """
-        try:
-            # Retrieve encrypted blob
-            response = requests.get(
-                f"{self.aggregator_url}/v1/{blob_id}",
-                headers={'Accept': 'application/octet-stream'},
-                timeout=30
-            )
-
-            if response.status_code == 200:
-                # Parse encrypted package
-                encrypted_package = json.loads(
-                    response.content.decode('utf-8'))
-
-                # Decrypt using hybrid decryption
-                task_details = self._decrypt_data_hybrid(
-                    encrypted_package, user_private_key)
-
-                if task_details and task_details.get('type') == 'task':
-                    logger.info(
-                        f"✅ Successfully retrieved and decrypted task {blob_id}")
-                    return task_details
-                else:
-                    logger.error("Retrieved data is not a valid task")
-                    return None
-
-            logger.error(
-                f"Failed to retrieve blob {blob_id}: {response.status_code}")
-            return None
-
-        except Exception as e:
-            logger.error(f"Error retrieving task {blob_id}: {e}")
             return None
 
     # ==================== SUPPORT ACCESS ====================
@@ -640,13 +534,11 @@ class WalrusClient:
                 else:
                     return None
 
-                logger.info(f"✅ Support access data stored: {blob_id}")
                 return blob_id
 
             return None
 
         except Exception as e:
-            logger.error(f"Error storing support access data: {e}")
             return None
 
     def retrieve_with_support_access(self, blob_id: str,
@@ -678,7 +570,6 @@ class WalrusClient:
             if 'expires_at' in encrypted_package:
                 expires_at = encrypted_package.get('expires_at')
                 if expires_at and datetime.now().timestamp() * 1000 > expires_at:
-                    logger.warning("Support access expired")
                     return None
 
             # Create single-recipient package for decryption
@@ -692,24 +583,21 @@ class WalrusClient:
             decrypted_data = self._decrypt_data_hybrid(
                 single_package, private_key)
 
-            if decrypted_data:
-                logger.info("✅ Support access data retrieved")
-
             return decrypted_data
 
         except Exception as e:
-            logger.error(f"Error retrieving support access data: {e}")
             return None
 
     # ==================== TASK ENCRYPTION ====================
 
-    def store_encrypted_task(self, user_public_key: bytes,
-                             task_data: Dict[str, Any]) -> Optional[str]:
+    # In your walrus.py, ensure store_encrypted_task has correct parameters:
+
+    def store_encrypted_task(self, user_public_key: bytes, task_data: Dict[str, Any]) -> Optional[str]:
         """
-        Store encrypted task details.
+        Store encrypted task details - CORRECT SIGNATURE.
 
         Args:
-            user_public_key: Task owner's public key
+            user_public_key: User's RSA public key (PEM format)
             task_data: Task details to encrypt
 
         Returns:
@@ -731,23 +619,24 @@ class WalrusClient:
         """
         return self.retrieve_encrypted_user_data(blob_id, user_private_key)
 
-
 # ==================== KEY MANAGEMENT HELPER ====================
 
-class UserKeyManager:
-    """
-    Manages user encryption keys securely.
 
-    Keys are stored encrypted with user's password.
+class UserKeyManager(WalrusClient):  # ✅ Inherit from WalrusClient
+    """
+    Manages user encryption keys securely with Walrus storage.
     """
 
     def __init__(self, storage_path: str = './keys'):
         """
-        Initialize key manager.
+        Initialize key manager with Walrus client.
 
         Args:
             storage_path: Directory to store encrypted keys
         """
+        # ✅ Initialize WalrusClient first to get publisher_url, aggregator_url, etc.
+        super().__init__()
+
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
 
@@ -762,13 +651,11 @@ class UserKeyManager:
         Returns:
             Tuple of (public_key_pem_string, encrypted_private_key_bytes)
         """
-        client = WalrusClient()
-
         # Generate keypair
-        private_key_pem, public_key_pem = client.generate_user_keypair()
+        private_key_pem, public_key_pem = self.generate_user_keypair()
 
         # Encrypt private key with password
-        encrypted_private_key = client.encrypt_private_key(
+        encrypted_private_key = self.encrypt_private_key(
             private_key_pem, password)
 
         # Store encrypted private key
@@ -780,8 +667,6 @@ class UserKeyManager:
         pub_file = os.path.join(self.storage_path, f"{user_id}.pub")
         with open(pub_file, 'wb') as f:
             f.write(public_key_pem)
-
-        logger.info(f"Created keys for user {user_id}")
 
         return public_key_pem.decode('utf-8'), encrypted_private_key
 
@@ -802,6 +687,171 @@ class UserKeyManager:
         with open(pub_file, 'rb') as f:
             return f.read()
 
+    async def create_and_upload_keys(self, telegram_id: str, password: str):
+        if not password or not isinstance(password, str) or password.strip() == "":
+            return None, None
+
+        password = password.strip()
+
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives import serialization
+
+        try:
+            # Generate key pair
+            private_key = rsa.generate_private_key(
+                public_exponent=65537, key_size=4096)
+            public_key = private_key.public_key()
+
+            # Serialize private key with password encryption
+            priv_pem = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.BestAvailableEncryption(
+                    password.encode())
+            )
+
+            # Serialize public key
+            pub_pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+
+            # Prepare data for storage
+            data = {
+                "telegram_id": telegram_id,
+                "encrypted_private_pem": base64.b64encode(priv_pem).decode('utf-8'),
+                "public_pem": pub_pem.decode('utf-8'),
+                "created_at": datetime.now().isoformat(),
+                "version": 2
+            }
+
+            # Store on Walrus
+            blob_id = self.store_encrypted_object(data, telegram_id, password)
+
+            if blob_id:
+                return public_key, blob_id
+            else:
+                return None, None
+
+        except Exception as e:
+            return None, None
+
+    def store_encrypted_object(self, data: Dict[str, Any], user_id: str, password: str, blob_id: str = None) -> \
+            Optional[str]:
+        """
+        Helper: Encrypts any object with user's password and stores on Walrus.
+        Used for key backup, tasks, etc.
+
+        Args:
+            data: Data to encrypt and store
+            user_id: User identifier for encryption
+            password: Password for encryption
+            blob_id: Specific blob ID to use (optional - Walrus will generate if not provided)
+        """
+        try:
+            # Encrypt data using secure_storage
+            encrypted_data_str = encrypt_data(data, user_id, password)
+
+            # Build store URL - include blob_id if provided
+            if blob_id:
+                # Use specific blob_id - ensure it's URL-safe
+                import re
+                safe_blob_id = re.sub(r'[^a-zA-Z0-9_-]', '_', blob_id)
+                store_url = f"{self.publisher_url}/v1/blobs/{safe_blob_id}?epochs={self.default_epochs}"
+            else:
+                # Let Walrus generate blob_id
+                store_url = f"{self.publisher_url}/v1/blobs?epochs={self.default_epochs}"
+
+            response = requests.put(
+                store_url,
+                data=encrypted_data_str.encode(
+                    'utf-8'),  # Convert string to bytes
+                headers={'Content-Type': 'application/octet-stream'},
+                timeout=30
+            )
+
+            if response.status_code in (200, 201):
+                result = response.json()
+                returned_blob_id = (
+                    result.get('newlyCreated', {}).get('blobObject', {}).get('blobId') or
+                    result.get('alreadyCertified', {}).get('blobId') or
+                    blob_id  # Fallback to our provided blob_id
+                )
+                return returned_blob_id
+
+            return None
+
+        except Exception as e:
+            return None
+
+    def retrieve_encrypted_object(self, blob_id: str, user_id: str, password: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve and decrypt an object from Walrus - WITH BETTER ERROR HANDLING.
+        """
+        try:
+            # Ensure blob_id is URL-safe
+            import re
+            safe_blob_id = re.sub(r'[^a-zA-Z0-9_-]', '_', blob_id)
+
+            # Retrieve from Walrus
+            read_url = f"{self.aggregator_url}/v1/blobs/{safe_blob_id}"
+
+            response = requests.get(read_url, timeout=30)
+
+            if response.status_code != 200:
+                return None
+
+            # Get encrypted data as string
+            encrypted_data_str = response.content.decode('utf-8')
+
+            if not encrypted_data_str:
+                return None
+
+            # Decrypt using secure_storage
+            decrypted_data = decrypt_data(
+                encrypted_data_str, user_id, password)
+
+            if decrypted_data:
+                return decrypted_data
+            else:
+                return None
+
+        except requests.exceptions.RequestException as e:
+            return None
+        except Exception as e:
+            return None
+
+    async def retrieve_keys_from_walrus(self, blob_id: str, user_id: str, password: str):
+        """
+        Retrieve user keys from Walrus storage - IMPROVED VERSION.
+        """
+        try:
+            # Retrieve the encrypted data from Walrus
+            data = self.retrieve_encrypted_object(blob_id, user_id, password)
+            if not data:
+                return None, None
+
+            # Handle the data format we stored in create_and_upload_keys
+            if 'encrypted_private_pem' in data and 'public_pem' in data:
+                try:
+                    # Decode the base64 encoded private key
+                    encrypted_private_pem = base64.b64decode(
+                        data['encrypted_private_pem'])
+                    public_pem = data['public_pem'].encode('utf-8')
+
+                    # Reconstruct public key object from PEM
+                    public_key = serialization.load_pem_public_key(public_pem)
+
+                    return public_key, encrypted_private_pem
+
+                except Exception as e:
+                    return None, None
+            else:
+                return None, None
+
+        except Exception as e:
+            return None, None
+
     def get_user_private_key(self, user_id: str, password: str) -> Optional[bytes]:
         """
         Get user's decrypted private key.
@@ -821,23 +871,186 @@ class UserKeyManager:
             encrypted_key = f.read()
 
         try:
-            client = WalrusClient()
-            private_key_pem = client.decrypt_private_key(
-                encrypted_key, password)
+            private_key_pem = self.decrypt_private_key(encrypted_key, password)
             return private_key_pem
         except Exception as e:
-            logger.error(f"Failed to decrypt private key: {e}")
             return None
 
 
+# Add this to your walrus.py
+
+class WalrusRegistrationManager:
+    """
+    Manages registration receipts on Walrus instead of local files.
+    """
+
+    def __init__(self, key_manager: UserKeyManager):
+        self.key_manager = key_manager
+
+    def store_registration_receipt(self, user_data: Dict[str, Any],
+                                   registration_result: Dict[str, str],
+                                   blob_id: str, wallet_info: Dict[str, str],
+                                   password: str) -> Optional[str]:
+        """Store registration receipt on Walrus."""
+        try:
+            receipt = {
+                'user_info': {
+                    'username': user_data['username'],
+                    'telegram_id': user_data['telegram_id'],
+                    'email': user_data.get('email', ''),
+                    'waitlist_verified': True
+                },
+                'blockchain': {
+                    'profile_id': registration_result.get('profile_id'),
+                    'tx_digest': registration_result.get('tx_digest', 'local_registration'),
+                    'wallet_address': wallet_info['address']
+                },
+                'storage': {
+                    'walrus_blob_id': blob_id,
+                    'wallet_blob_id': wallet_info.get('wallet_blob_id'),
+                    'key_blob_id': user_data.get('key_blob_id')
+                },
+                'registration': {
+                    'method': 'direct',
+                    'registered_at': datetime.now().isoformat(),
+                    'registration_source': 'telegram_bot'
+                }
+            }
+
+            # Store on Walrus
+            receipt_blob_id = self.key_manager.store_encrypted_object(
+                receipt,
+                user_data['telegram_id'],
+                password
+            )
+
+            if receipt_blob_id:
+                return receipt_blob_id
+            else:
+                return None
+
+        except Exception as e:
+            return None
+
+    def get_registration_receipt(self, telegram_id: str, password: str, blob_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve registration receipt from Walrus."""
+        try:
+            receipt = self.key_manager.retrieve_encrypted_object(
+                blob_id, telegram_id, password)
+            return receipt
+        except Exception as e:
+            return None
+
+    def find_user_by_email(self, email: str, admin_password: str) -> Optional[Dict[str, Any]]:
+        """
+        Admin function to find user by email.
+        This requires an admin password since we can't scan all receipts without it.
+        """
+        return None
+
+
+class LocalEncryptedEmailIndex:
+    def __init__(self):
+        self.index_password = os.getenv('EMAIL_INDEX_PASSWORD')
+        if not self.index_password:
+            raise ValueError(
+                "EMAIL_INDEX_PASSWORD not found in environment variables")
+
+        self.index_file = Path("config") / "email_index.enc"
+        self.index_file.parent.mkdir(exist_ok=True)
+
+    def add_email_mapping(self, email: str, telegram_id: str) -> bool:
+        """Add email-telegram_id mapping to local encrypted index."""
+        try:
+            # Load existing index
+            index_data = self._load_index()
+
+            # Check if email already exists
+            if email.lower() in index_data.get('mappings', {}):
+                existing_user = index_data['mappings'][email.lower()]
+                return False
+
+            # Add new mapping
+            index_data['mappings'][email.lower()] = telegram_id
+            index_data['last_updated'] = datetime.now().isoformat()
+            index_data['total_emails'] = len(index_data['mappings'])
+
+            # Save updated index
+            success = self._save_index(index_data)
+
+            if success:
+                return True
+            else:
+                return False
+
+        except Exception as e:
+            return False
+
+    def get_telegram_id_by_email(self, email: str) -> Optional[str]:
+        """Get telegram_id by email from local encrypted index."""
+        try:
+            index_data = self._load_index()
+            return index_data.get('mappings', {}).get(email.lower())
+        except Exception as e:
+            return None
+
+    def email_exists(self, email: str) -> bool:
+        """Check if email exists in index."""
+        try:
+            telegram_id = self.get_telegram_id_by_email(email)
+            exists = telegram_id is not None
+
+            return exists
+        except Exception as e:
+            return False
+
+    def get_index_stats(self) -> Dict[str, Any]:
+        """Get statistics about the email index."""
+        try:
+            index_data = self._load_index()
+            return {
+                'total_emails': len(index_data.get('mappings', {})),
+                'created_at': index_data.get('created_at'),
+                'last_updated': index_data.get('last_updated'),
+                'storage': 'local_encrypted_file'
+            }
+        except Exception as e:
+            return {'total_emails': 0, 'error': str(e)}
+
+    def _load_index(self) -> Dict[str, Any]:
+        """Load the encrypted index file."""
+        try:
+            if self.index_file.exists():
+                index_data = load_and_decrypt(str(self.index_file))
+                if index_data:
+                    return index_data
+
+            # Return empty index if file doesn't exist or decryption fails
+            return {
+                'mappings': {},
+                'created_at': datetime.now().isoformat(),
+                'version': 1
+            }
+
+        except Exception as e:
+            return {
+                'mappings': {},
+                'created_at': datetime.now().isoformat(),
+                'version': 1
+            }
+
+    def _save_index(self, index_data: Dict[str, Any]) -> bool:
+        """Save the encrypted index file."""
+        try:
+            encrypt_and_save(index_data, str(self.index_file))
+            return True
+        except Exception as e:
+            return False
+
 # ==================== EXAMPLE USAGE ====================
 
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
 
+if __name__ == "__main__":
     print("=" * 70)
     print("SECURE WALRUS CLIENT WITH PYTHON CRYPTOGRAPHY")
     print("=" * 70)

@@ -583,7 +583,7 @@ _Overview_:
 2025-08-05 00:54:08,347 - telegram.ext.Application - INFO - Application started
 2025-08-05 00:54:16,399 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-05 00:54:16,400 - __main__ - INFO - User (7923643903) in private: 'yo'
-2025-08-05 00:54:17,106 - __main__ - INFO - Bot response: Hey there!  Ready to conquer your to-do list?  Let's get organized!  What task can I help you with today? ✨
+2025-08-05 00:54:17,106 - __main__ - INFO - Bot response: Hey there!  Ready to conquer your to-do list?  Let's get organized!  What task can I help you with today? 
 2025-08-05 00:54:17,549 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
 2025-08-05 00:54:29,547 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-05 00:54:42,692 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
@@ -627,7 +627,7 @@ _Overview_:
 2025-08-05 00:57:06,313 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-05 00:57:09,458 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-05 00:57:09,460 - __main__ - INFO - User (7923643903) in private: 'g'
-2025-08-05 00:57:09,966 - __main__ - INFO - Bot response: Okay, I'm ready to help you manage your tasks!  Let me know what you need.  😊
+2025-08-05 00:57:09,966 - __main__ - INFO - Bot response: Okay, I'm ready to help you manage your tasks!  Let me know what you need.  
 2025-08-05 00:57:10,410 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/sendMessage "HTTP/1.1 200 OK"
 2025-08-05 00:57:22,607 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
 2025-08-05 00:57:35,757 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8040749708:AAG3_J-MPUdTtLWOxPg5ekm-HkPazNJDfP0/getUpdates "HTTP/1.1 200 OK"
@@ -52609,21 +52609,21 @@ telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo faile
 2025-11-18 16:42:34,693 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2025-11-18 16:42:34,704 - telegram.ext.Application - INFO - Application.stop() complete
 2025-11-19 07:32:27,964 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 17:19:52,753 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
-2025-11-19 17:19:52,755 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 17:19:52,753 - app.telegram_bot.suiclient - INFO -   Sui CLI config not found, using custom config from .env
+2025-11-19 17:19:52,755 - app.telegram_bot.suiclient - INFO -  Using custom config with RPC: https://fullnode.testnet.sui.io:443
 2025-11-19 17:19:53,621 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 17:19:54,297 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 17:19:54,551 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 17:19:54,704 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
-2025-11-19 17:19:54,705 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 17:19:54,704 - app.telegram_bot.suiclient - WARNING -   COPILOT_PACKAGE_ID not set in .env
+2025-11-19 17:19:54,705 - app.telegram_bot.suiclient - WARNING -   COPILOT_REGISTRY_ID not set in .env
 2025-11-19 17:19:54,706 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
 2025-11-19 17:19:54,708 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
 2025-11-19 17:19:54,709 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
-2025-11-19 17:19:55,179 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 17:19:55,179 - app.main - INFO -  Starting Telegram bot...
 2025-11-19 17:19:56,478 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
 2025-11-19 17:19:56,482 - apscheduler.scheduler - INFO - Scheduler started
 2025-11-19 17:19:56,485 - telegram.ext.Application - INFO - Application started
-2025-11-19 17:19:56,492 - app.main - INFO - ✅ Telegram bot started successfully
+2025-11-19 17:19:56,492 - app.main - INFO -  Telegram bot started successfully
 2025-11-19 17:19:56,694 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
 2025-11-19 17:20:07,671 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 17:20:18,177 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
@@ -52698,21 +52698,21 @@ telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo faile
 2025-11-19 17:26:53,628 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 17:27:04,208 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 17:27:13,879 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
-2025-11-19 19:27:30,555 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
-2025-11-19 19:27:30,569 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 19:27:30,555 - app.telegram_bot.suiclient - INFO -   Sui CLI config not found, using custom config from .env
+2025-11-19 19:27:30,569 - app.telegram_bot.suiclient - INFO -  Using custom config with RPC: https://fullnode.testnet.sui.io:443
 2025-11-19 19:27:32,283 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 19:27:33,310 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 19:27:33,627 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 19:27:33,864 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
-2025-11-19 19:27:33,865 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 19:27:33,864 - app.telegram_bot.suiclient - WARNING -   COPILOT_PACKAGE_ID not set in .env
+2025-11-19 19:27:33,865 - app.telegram_bot.suiclient - WARNING -   COPILOT_REGISTRY_ID not set in .env
 2025-11-19 19:27:33,869 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
 2025-11-19 19:27:33,873 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
 2025-11-19 19:27:33,877 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
-2025-11-19 19:27:35,187 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 19:27:35,187 - app.main - INFO -  Starting Telegram bot...
 2025-11-19 19:27:36,026 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
 2025-11-19 19:27:36,034 - apscheduler.scheduler - INFO - Scheduler started
 2025-11-19 19:27:36,043 - telegram.ext.Application - INFO - Application started
-2025-11-19 19:27:36,051 - app.main - INFO - ✅ Telegram bot started successfully
+2025-11-19 19:27:36,051 - app.main - INFO -  Telegram bot started successfully
 2025-11-19 19:27:36,521 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
 2025-11-19 19:27:37,552 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 19:27:37,571 - app.telegram_bot.telegram_bot - INFO - /start from 7923643903 (@Salfromearth)
@@ -52763,23 +52763,23 @@ telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo faile
 2025-11-19 19:33:15,853 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 19:33:26,325 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 19:33:36,836 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
-2025-11-19 21:15:43,431 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
-2025-11-19 21:15:43,490 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 21:15:43,431 - app.telegram_bot.suiclient - INFO -   Sui CLI config not found, using custom config from .env
+2025-11-19 21:15:43,490 - app.telegram_bot.suiclient - INFO -  Using custom config with RPC: https://fullnode.testnet.sui.io:443
 2025-11-19 21:15:44,897 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 21:15:46,008 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 21:15:46,301 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 21:15:46,638 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
-2025-11-19 21:15:46,639 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 21:15:46,638 - app.telegram_bot.suiclient - WARNING -   COPILOT_PACKAGE_ID not set in .env
+2025-11-19 21:15:46,639 - app.telegram_bot.suiclient - WARNING -   COPILOT_REGISTRY_ID not set in .env
 2025-11-19 21:15:46,640 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
 2025-11-19 21:15:46,644 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
 2025-11-19 21:15:46,645 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
-2025-11-19 21:15:47,523 - app.main - INFO - 🔧 Worker 8 starting (main=True)
-2025-11-19 21:15:47,524 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 21:15:47,523 - app.main - INFO -  Worker 8 starting (main=True)
+2025-11-19 21:15:47,524 - app.main - INFO -  Starting Telegram bot...
 2025-11-19 21:15:48,958 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
 2025-11-19 21:15:48,970 - apscheduler.scheduler - INFO - Scheduler started
 2025-11-19 21:15:48,981 - telegram.ext.Application - INFO - Application started
-2025-11-19 21:15:49,002 - app.main - INFO - ✅ Telegram bot started successfully
-2025-11-19 21:15:49,005 - app.main - INFO - ✅ Worker 8 ready to accept requests
+2025-11-19 21:15:49,002 - app.main - INFO -  Telegram bot started successfully
+2025-11-19 21:15:49,005 - app.main - INFO -  Worker 8 ready to accept requests
 2025-11-19 21:15:49,270 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
 2025-11-19 21:15:59,935 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 21:16:10,277 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
@@ -52834,16 +52834,16 @@ telegram.error.NetworkError: httpx.ConnectError: [Errno 11001] getaddrinfo faile
 2025-11-19 21:56:48,274 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 21:56:49,442 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
 2025-11-19 21:56:49,801 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
-2025-11-19 21:56:49,812 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
-2025-11-19 21:56:49,816 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 21:56:49,812 - app.telegram_bot.suiclient - INFO -   Sui CLI config not found, using custom config from .env
+2025-11-19 21:56:49,816 - app.telegram_bot.suiclient - INFO -  Using custom config with RPC: https://fullnode.testnet.sui.io:443
 2025-11-19 21:56:53,400 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 21:56:54,320 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 21:56:54,848 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 21:56:55,502 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
-2025-11-19 21:56:55,521 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 21:56:55,502 - app.telegram_bot.suiclient - WARNING -   COPILOT_PACKAGE_ID not set in .env
+2025-11-19 21:56:55,521 - app.telegram_bot.suiclient - WARNING -   COPILOT_REGISTRY_ID not set in .env
 2025-11-19 21:56:55,546 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
 2025-11-19 21:56:55,551 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
-2025-11-19 21:56:55,568 - app.telegram_bot.waitlist - WARNING - ⚠️  Generated new salt - SAVE THIS SECURELY!
+2025-11-19 21:56:55,568 - app.telegram_bot.waitlist - WARNING -    Generated new salt - SAVE THIS SECURELY!
 2025-11-19 21:56:55,584 - app.telegram_bot.waitlist - WARNING -    Add to .env: WAITLIST_SALT=6a3c122b8c5abb6bead34ccd3b3601d975a9af0debd0a44e6f4dded4edfda25d
 2025-11-19 21:56:55,603 - app.telegram_bot.waitlist - INFO - Waitlist manager initialized
 2025-11-19 21:56:56,465 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/sendMessage "HTTP/1.1 200 OK"
@@ -53292,21 +53292,21 @@ telegram.error.Conflict: Conflict: terminated by other getUpdates request; make 
 2025-11-19 22:37:45,803 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 22:37:56,629 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 22:38:07,831 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
-2025-11-19 22:53:07,164 - app.telegram_bot.suiclient - INFO - ⚠️ Sui CLI config not found, using custom config from .env
-2025-11-19 22:53:07,170 - app.telegram_bot.suiclient - INFO - ✅ Using custom config with RPC: https://fullnode.testnet.sui.io:443
+2025-11-19 22:53:07,164 - app.telegram_bot.suiclient - INFO -   Sui CLI config not found, using custom config from .env
+2025-11-19 22:53:07,170 - app.telegram_bot.suiclient - INFO -  Using custom config with RPC: https://fullnode.testnet.sui.io:443
 2025-11-19 22:53:08,429 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 22:53:09,002 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
 2025-11-19 22:53:09,237 - httpx - INFO - HTTP Request: POST https://fullnode.testnet.sui.io "HTTP/2 200 OK"
-2025-11-19 22:53:09,438 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_PACKAGE_ID not set in .env
-2025-11-19 22:53:09,439 - app.telegram_bot.suiclient - WARNING - ⚠️ COPILOT_REGISTRY_ID not set in .env
+2025-11-19 22:53:09,438 - app.telegram_bot.suiclient - WARNING -   COPILOT_PACKAGE_ID not set in .env
+2025-11-19 22:53:09,439 - app.telegram_bot.suiclient - WARNING -   COPILOT_REGISTRY_ID not set in .env
 2025-11-19 22:53:09,441 - app.telegram_bot.suiclient - INFO - 📦 Package ID: None
 2025-11-19 22:53:09,444 - app.telegram_bot.suiclient - INFO - 📋 Registry ID: None
 2025-11-19 22:53:09,448 - app.telegram_bot.walrus_client - INFO - Secure Walrus client initialized with Python cryptography
-2025-11-19 22:53:10,704 - app.main - INFO - 🚀 Starting Telegram bot...
+2025-11-19 22:53:10,704 - app.main - INFO -  Starting Telegram bot...
 2025-11-19 22:53:11,713 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getMe "HTTP/1.1 200 OK"
 2025-11-19 22:53:11,716 - apscheduler.scheduler - INFO - Scheduler started
 2025-11-19 22:53:11,781 - telegram.ext.Application - INFO - Application started
-2025-11-19 22:53:11,782 - app.main - INFO - ✅ Telegram bot started successfully
+2025-11-19 22:53:11,782 - app.main - INFO -  Telegram bot started successfully
 2025-11-19 22:53:12,013 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/deleteWebhook "HTTP/1.1 200 OK"
 2025-11-19 22:53:22,288 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"
 2025-11-19 22:53:32,226 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8410218963:AAHN0HTnngM3pPte8JUewIi09mk1K3qYHsI/getUpdates "HTTP/1.1 200 OK"

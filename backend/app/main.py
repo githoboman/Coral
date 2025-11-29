@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     global telegram_app
 
     # Startup: Initialize and start Telegram bot
-    logger.info("🚀 Starting Telegram bot...")
+    logger.info("Starting Telegram bot...")
 
     telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
     if telegram_token:
@@ -47,36 +47,31 @@ async def lifespan(app: FastAPI):
                 allowed_updates=["message", "callback_query", "inline_query"]
             ))
 
-            logger.info("✅ Telegram bot started successfully")
+            logger.info("Telegram bot started successfully")
             print("=" * 70)
-            print("🔐 TOVIRA BOT - INTEGRATED SYSTEM")
+            print("Application started")
             print("=" * 70)
-            print("✅ FastAPI server running")
-            print("✅ Telegram bot active")
-            print("✅ Admin code generation")
-            print("✅ User referral codes")
-            print("✅ End-to-end encryption")
             print("=" * 70)
         except Exception as e:
-            logger.error(f"❌ Failed to start Telegram bot: {e}")
-            print(f"⚠️ Running without Telegram bot: {e}")
+            logger.error(f"Failed to start Telegram bot: {e}")
+            print(f"  Running without Telegram bot: {e}")
     else:
         logger.warning(
-            "⚠️ TELEGRAM_BOT_TOKEN not found - running without Telegram bot")
-        print("⚠️ Running without Telegram bot (no token configured)")
+            "TELEGRAM_BOT_TOKEN not found - running without Telegram bot")
+        print("Running without Telegram bot (no token configured)")
 
     yield  # Server is running
 
     # Shutdown: Stop the Telegram bot
     if telegram_app:
-        logger.info("🛑 Stopping Telegram bot...")
+        logger.info("Stopping Telegram bot...")
         try:
             await telegram_app.updater.stop()
             await telegram_app.stop()
             await telegram_app.shutdown()
-            logger.info("✅ Telegram bot stopped successfully")
+            logger.info("Telegram bot stopped successfully")
         except Exception as e:
-            logger.error(f"❌ Error stopping Telegram bot: {e}")
+            logger.error(f"Error stopping Telegram bot: {e}")
 
 
 app = FastAPI(
@@ -117,7 +112,8 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs"
     }
-    
+
+
 @app.get("/health", summary="Health check")
 async def health_check():
     """Simple health check - should return immediately"""

@@ -19,7 +19,6 @@ PRIVACY FEATURES:
 import os
 import json
 import hashlib
-import logging
 from typing import List, Dict, Optional, Set
 from datetime import datetime
 from pathlib import Path
@@ -30,8 +29,6 @@ from app.telegram_bot.walrus_client import WalrusClient
 from app.telegram_bot.suiclient import CopilotSuiClient
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class WaitlistManager:
@@ -60,8 +57,6 @@ class WaitlistManager:
         # It's needed to verify emails later
         self.salt = salt or os.getenv('WAITLIST_SALT') or self._generate_salt()
 
-        logger.info("Waitlist manager initialized")
-
     def load_from_csv(self, csv_path: str) -> List[str]:
         """
         Load emails from a CSV file that looks like:
@@ -88,19 +83,15 @@ class WaitlistManager:
                 if line:
                     emails.append(line)
 
-            logger.info(f"✅ Loaded {len(emails)} emails from CSV")
             return emails
 
         except Exception as e:
-            logger.error(f"Error loading CSV: {e}")
             return []
 
     def _generate_salt(self) -> str:
         """Generate cryptographic salt for email hashing."""
         import secrets
         salt = secrets.token_hex(32)
-        logger.warning("⚠️  Generated new salt - SAVE THIS SECURELY!")
-        logger.warning(f"   Add to .env: WAITLIST_SALT={salt}")
         return salt
 
     def _hash_email(self, email: str) -> str:
@@ -139,7 +130,6 @@ class WaitlistManager:
         try:
             from supabase import create_client
 
-            logger.info("Connecting to Supabase...")
             supabase = create_client(supabase_url, supabase_key)
 
             # Fetch all waitlist entries
@@ -147,8 +137,6 @@ class WaitlistManager:
             response = supabase.table('waitlist').select('email').execute()
 
             emails = [record['email'] for record in response.data]
-
-            logger.info(f"✅ Exported {len(emails)} emails from Supabase")
 
             # Save backup
             backup_path = Path('./waitlist_backup.json')
@@ -159,14 +147,9 @@ class WaitlistManager:
                     'emails': emails  # Keep this file SECURE!
                 }, f, indent=2)
 
-            logger.info(f"📁 Backup saved to {backup_path}")
-            logger.warning(
-                "⚠️  Keep this backup file SECURE and DELETE after migration!")
-
             return emails
 
         except Exception as e:
-            logger.error(f"Error exporting from Supabase: {e}")
             return []
 
     def load_from_backup(self, backup_path: str = './waitlist_backup.json') -> List[str]:
@@ -184,12 +167,9 @@ class WaitlistManager:
                 data = json.load(f)
 
             emails = data.get('emails', [])
-            logger.info(f"✅ Loaded {len(emails)} emails from backup")
-
             return emails
 
         except Exception as e:
-            logger.error(f"Error loading backup: {e}")
             return []
 
     # ==================== WHITELIST CREATION ====================
@@ -206,18 +186,14 @@ class WaitlistManager:
         Returns:
             Whitelist data structure
         """
-        logger.info(f"Creating whitelist from {len(emails)} emails...")
-
         # Add admin emails if requested
         if add_admin_emails:
             admin_emails = os.getenv('ADMIN_EMAILS', '').split(',')
             admin_emails = [e.strip() for e in admin_emails if e.strip()]
             emails.extend(admin_emails)
-            logger.info(f"Added {len(admin_emails)} admin emails")
 
         # Remove duplicates
         unique_emails = list(set(emails))
-        logger.info(f"Total unique emails: {len(unique_emails)}")
 
         # Hash all emails
         hashed_emails = [self._hash_email(email) for email in unique_emails]
@@ -232,10 +208,6 @@ class WaitlistManager:
             'description': 'Copilot waitlist - migrated from Supabase'
         }
 
-        logger.info("✅ Whitelist created")
-        logger.info(f"   Total entries: {whitelist['total_count']}")
-        logger.info(f"   Hash algorithm: {whitelist['hash_algorithm']}")
-
         return whitelist
 
     def upload_whitelist_to_walrus(self, whitelist: Dict) -> Optional[str]:
@@ -249,8 +221,6 @@ class WaitlistManager:
             Walrus blob ID
         """
         try:
-            logger.info("Uploading whitelist to Walrus...")
-
             # Convert to JSON bytes
             whitelist_bytes = json.dumps(whitelist).encode('utf-8')
 
@@ -275,18 +245,11 @@ class WaitlistManager:
                 else:
                     return None
 
-                logger.info(f"✅ Whitelist uploaded to Walrus")
-                logger.info(f"   Blob ID: {blob_id}")
-                logger.info(f"   Size: {len(whitelist_bytes)} bytes")
-                logger.info(f"   Storage: 50 epochs")
-
                 return blob_id
 
-            logger.error(f"Failed to upload: {response.status_code}")
             return None
 
         except Exception as e:
-            logger.error(f"Error uploading whitelist: {e}")
             return None
 
     # ==================== ACCESS VERIFICATION ====================
@@ -311,21 +274,14 @@ class WaitlistManager:
             whitelist = self.fetch_whitelist(whitelist_blob_id)
 
             if not whitelist:
-                logger.error("Could not fetch whitelist")
                 return False
 
             # Check if hash is in whitelist
             is_whitelisted = email_hash in whitelist['hashed_emails']
 
-            if is_whitelisted:
-                logger.info(f"✅ Email is whitelisted")
-            else:
-                logger.warning(f"❌ Email is NOT whitelisted")
-
             return is_whitelisted
 
         except Exception as e:
-            logger.error(f"Error checking whitelist: {e}")
             return False
 
     def fetch_whitelist(self, blob_id: str) -> Optional[Dict]:
@@ -351,7 +307,6 @@ class WaitlistManager:
             return None
 
         except Exception as e:
-            logger.error(f"Error fetching whitelist: {e}")
             return None
 
     # ==================== WHITELIST UPDATES ====================
@@ -369,12 +324,9 @@ class WaitlistManager:
             New whitelist blob ID
         """
         try:
-            logger.info(f"Adding {len(new_emails)} new emails to whitelist...")
-
             # Fetch current whitelist
             current_whitelist = self.fetch_whitelist(current_blob_id)
             if not current_whitelist:
-                logger.error("Could not fetch current whitelist")
                 return None
 
             # Get current hashes
@@ -400,17 +352,9 @@ class WaitlistManager:
             # Upload new version
             new_blob_id = self.upload_whitelist_to_walrus(updated_whitelist)
 
-            if new_blob_id:
-                logger.info(f"✅ Whitelist updated")
-                logger.info(f"   Old version: {current_blob_id[:16]}...")
-                logger.info(f"   New version: {new_blob_id[:16]}...")
-                logger.info(f"   Added: {len(new_hashes)} emails")
-                logger.info(f"   Total: {len(combined_hashes)} emails")
-
             return new_blob_id
 
         except Exception as e:
-            logger.error(f"Error updating whitelist: {e}")
             return None
 
     # ==================== COMPLETE MIGRATION ====================
@@ -502,8 +446,6 @@ class WaitlistManager:
 
         with open(f'./migration_records/{filename}', 'w') as f:
             json.dump(record, f, indent=2)
-
-        logger.info(f"Migration record saved: {filename}")
 
 
 # ==================== EXAMPLE USAGE ====================

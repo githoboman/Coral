@@ -32,19 +32,24 @@ logger = logging.getLogger(__name__)
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
 if not supabase_url or not supabase_key:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in the environment or .env file")
+    raise ValueError(
+        "SUPABASE_URL and SUPABASE_KEY must be set in the environment or .env file")
 supabase = create_client(supabase_url, supabase_key)
 
 # Environment variables for email
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 if not EMAIL_USER or not EMAIL_PASSWORD:
-    raise ValueError("EMAIL_USER and EMAIL_PASSWORD must be set in the environment or .env file")
+    raise ValueError(
+        "EMAIL_USER and EMAIL_PASSWORD must be set in the environment or .env file")
 
 # Conversation states
-TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(5)
+TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(
+    5)
 
 # Function to send confirmation email
+
+
 async def send_confirmation_email(email, task_name, task_id, due_date, wallet):
     subject = f"New Task: {task_name}"
     due_date_str = f"Due: {due_date.strftime('%Y-%m-%d %H:%M')}" if due_date else "No due date"
@@ -83,6 +88,8 @@ async def send_confirmation_email(email, task_name, task_id, due_date, wallet):
         return False
 
 # Function to send task reminder (Telegram + Email)
+
+
 async def send_reminder(context: ContextTypes.DEFAULT_TYPE, chat_id, task_name, due_date, user_id):
     # Send Telegram message
     await context.bot.send_message(
@@ -92,7 +99,8 @@ async def send_reminder(context: ContextTypes.DEFAULT_TYPE, chat_id, task_name, 
     logger.info(f"Reminder sent for task '{task_name}' to chat_id {chat_id}")
 
     # Fetch user email from Supabase
-    user_response = supabase.table('users').select('email').eq('user_id', user_id).execute()
+    user_response = supabase.table('users').select(
+        'email').eq('user_id', user_id).execute()
     if user_response.data and len(user_response.data) > 0:
         email = user_response.data[0].get('email')
         if email:
@@ -118,9 +126,11 @@ async def send_reminder(context: ContextTypes.DEFAULT_TYPE, chat_id, task_name, 
                     server.starttls()
                     server.login(EMAIL_USER, EMAIL_PASSWORD)
                     server.send_message(msg)
-                logger.info(f"Email reminder sent to {email} for task '{task_name}'")
+                logger.info(
+                    f"Email reminder sent to {email} for task '{task_name}'")
             except Exception as e:
                 logger.error(f"Failed to send email reminder to {email}: {e}")
+
 
 async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Received /new_task command")
@@ -129,18 +139,22 @@ async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return TASK_DESCRIPTION
 
+
 async def handle_task_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
     task_input = update.message.text.strip()
-    logger.info(f"Received task description: {task_input}, user={update.effective_user.id}")
+    logger.info(
+        f"Received task description: {task_input}, user={update.effective_user.id}")
     cal = Calendar()
     time_struct, parse_status = cal.parse(task_input)
     due_date = datetime(*time_struct[:6]) if parse_status else None
-    task_name = task_input if parse_status else task_input  # Keep full task_input if due date is parsed
+    # Keep full task_input if due date is parsed
+    task_name = task_input if parse_status else task_input
 
     user_id = str(update.effective_user.id)
     try:
         logger.info("Checking if user profile exists")
-        profile_response = supabase.table('user_profiles').select('user_id', 'timezone').eq('user_id', user_id).execute()
+        profile_response = supabase.table('user_profiles').select(
+            'user_id', 'timezone').eq('user_id', user_id).execute()
         if not profile_response.data or len(profile_response.data) == 0:
             logger.info(f"Creating default profile for user {user_id}")
             supabase.table('user_profiles').insert({
@@ -160,18 +174,20 @@ async def handle_task_description(update: Update, context: ContextTypes.DEFAULT_
         if not task_data or not task_data[0].get('task_id'):
             logger.error(f"Failed to create task: {response}")
             await update.message.reply_text(
-                "Error! ❌ Failed to create task. Please try again or check Supabase setup."
+                "Error!  Failed to create task. Please try again or check Supabase setup."
             )
             return ConversationHandler.END
         task_id = task_data[0]['task_id']
-        logger.info(f"Task '{task_name}' created for user {user_id} (id={task_id})")
+        logger.info(
+            f"Task '{task_name}' created for user {user_id} (id={task_id})")
 
         context.user_data['task_id'] = task_id
         context.user_data['task_name'] = task_name
         context.user_data['due_date'] = due_date
 
         # Check if user is premium and has email/wallet
-        user_response = supabase.table('users').select('is_premium, email, wallet').eq('user_id', user_id).execute()
+        user_response = supabase.table('users').select(
+            'is_premium, email, wallet').eq('user_id', user_id).execute()
         is_premium = False
         user_email = None
         user_wallet = None
@@ -180,12 +196,14 @@ async def handle_task_description(update: Update, context: ContextTypes.DEFAULT_
             is_premium = user_data.get('is_premium', False)
             user_email = user_data.get('email')
             user_wallet = user_data.get('wallet')
-        logger.info(f"User {user_id} premium status: {is_premium}, email: {user_email}, wallet: {user_wallet}")
+        logger.info(
+            f"User {user_id} premium status: {is_premium}, email: {user_email}, wallet: {user_wallet}")
 
         if is_premium:
             if user_email and user_wallet:
                 # Check if timezone is set in user profile
-                profile_data = profile_response.data[0] if profile_response.data else {}
+                profile_data = profile_response.data[0] if profile_response.data else {
+                }
                 user_timezone = profile_data.get('timezone')
                 if user_timezone:
                     try:
@@ -199,16 +217,19 @@ async def handle_task_description(update: Update, context: ContextTypes.DEFAULT_
                                     send_reminder,
                                     'date',
                                     run_date=local_due_date,
-                                    args=[context, chat_id, task_name, local_due_date, user_id]
+                                    args=[context, chat_id, task_name,
+                                          local_due_date, user_id]
                                 )
-                                logger.info(f"Reminder scheduled for task '{task_name}' at {local_due_date} in {user_timezone}")
+                                logger.info(
+                                    f"Reminder scheduled for task '{task_name}' at {local_due_date} in {user_timezone}")
                             await update.message.reply_text(
                                 f"Task Created! 🎉\nTask: {task_name}\nDue: {due_date.strftime('%Y-%m-%d %H:%M') if due_date else 'No due date'}\nConfirmation sent to {user_email}. Check your inbox! 📬\nReminder set for your local time! ⏰"
                             )
                             context.user_data.clear()
                             return ConversationHandler.END
                     except pytz.exceptions.UnknownTimeZoneError:
-                        logger.warning(f"Invalid timezone {user_timezone} for user {user_id}, prompting for timezone")
+                        logger.warning(
+                            f"Invalid timezone {user_timezone} for user {user_id}, prompting for timezone")
                 # If no timezone or invalid, prompt for timezone
                 await update.message.reply_text(
                     f"Task Created! 🎉\nTask: {task_name}\nDue: {due_date.strftime('%Y-%m-%d %H:%M') if due_date else 'No due date'}\nPlease enter your time zone (e.g., 'Africa/Lagos', 'America/New_York'). See https://www.iana.org/time-zones for a list."
@@ -243,16 +264,19 @@ async def handle_task_description(update: Update, context: ContextTypes.DEFAULT_
             return TASK_INPUT
 
     except Exception as e:
-        logger.error(f"Supabase error in handle_task_description: {str(e)}", exc_info=True)
+        logger.error(
+            f"Supabase error in handle_task_description: {str(e)}", exc_info=True)
         await update.message.reply_text(
-            f"Error! ❌ Failed to create task: {str(e)}. Please check Supabase setup."
+            f"Error!  Failed to create task: {str(e)}. Please check Supabase setup."
         )
         return ConversationHandler.END
+
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    logger.info(f"Button clicked: data={query.data}, user={query.from_user.id}")
+    logger.info(
+        f"Button clicked: data={query.data}, user={query.from_user.id}")
     if query.data == 'provide_details':
         await query.message.reply_text(
             "Please enter your email address. 📧"
@@ -261,18 +285,19 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return EMAIL_INPUT
     elif query.data == 'skip':
         await query.message.reply_text(
-            "You chose to skip. Task created without email or wallet details. ✅"
+            "You chose to skip. Task created without email or wallet details. "
         )
         await query.message.delete()
         context.user_data.clear()
         return ConversationHandler.END
+
 
 async def handle_email_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     email = update.message.text.strip()
     logger.info(f"Received email: {email}, user={update.effective_user.id}")
     if '@' not in email or '.' not in email:
         await update.message.reply_text(
-            "Invalid email format! ❌ Please try again or use /cancel."
+            "Invalid email format!  Please try again or use /cancel."
         )
         return EMAIL_INPUT
     context.user_data['email'] = email
@@ -281,23 +306,26 @@ async def handle_email_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     return WALLET_INPUT
 
+
 async def handle_wallet_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     wallet = update.message.text.strip()
     logger.info(f"Received wallet: {wallet}, user={update.effective_user.id}")
     if not (wallet.startswith('0x') and len(wallet) == 42 and all(c in '0123456789abcdefABCDEF' for c in wallet[2:])):
         await update.message.reply_text(
-            "Invalid wallet address! ❌ Please enter a valid Ethereum address (e.g., 0x123...). Try again or use /cancel."
+            "Invalid wallet address!  Please enter a valid Ethereum address (e.g., 0x123...). Try again or use /cancel."
         )
         return WALLET_INPUT
     context.user_data['wallet'] = wallet
     await update.message.reply_text(
-        "Wallet received! 💰 Please enter your time zone (e.g., 'Africa/Lagos', 'America/New_York'). See https://www.iana.org/time-zones for a list."
+        "Wallet received!  Please enter your time zone (e.g., 'Africa/Lagos', 'America/New_York'). See https://www.iana.org/time-zones for a list."
     )
     return TIMEZONE_INPUT
 
+
 async def handle_timezone_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     timezone_str = update.message.text.strip()
-    logger.info(f"Received timezone: {timezone_str}, user={update.effective_user.id}")
+    logger.info(
+        f"Received timezone: {timezone_str}, user={update.effective_user.id}")
     try:
         timezone = pytz.timezone(timezone_str)
         context.user_data['timezone'] = timezone_str
@@ -309,7 +337,7 @@ async def handle_timezone_input(update: Update, context: ContextTypes.DEFAULT_TY
         logger.info(f"Timezone {timezone_str} saved for user {user_id}")
     except pytz.exceptions.UnknownTimeZoneError:
         await update.message.reply_text(
-            "Invalid time zone! ❌ Please enter a valid time zone (e.g., 'Africa/Lagos'). Try again or use /cancel."
+            "Invalid time zone!  Please enter a valid time zone (e.g., 'Africa/Lagos'). Try again or use /cancel."
         )
         return TIMEZONE_INPUT
 
@@ -340,29 +368,33 @@ async def handle_timezone_input(update: Update, context: ContextTypes.DEFAULT_TY
                     send_reminder,
                     'date',
                     run_date=local_due_date,
-                    args=[context, chat_id, context.user_data['task_name'], local_due_date, user_id]
+                    args=[context, chat_id, context.user_data['task_name'],
+                          local_due_date, user_id]
                 )
-                logger.info(f"Reminder scheduled for task '{context.user_data['task_name']}' at {local_due_date} in {timezone_str}")
+                logger.info(
+                    f"Reminder scheduled for task '{context.user_data['task_name']}' at {local_due_date} in {timezone_str}")
             await update.message.reply_text(
-                f"Task and details set up! ✅\nConfirmation sent to {context.user_data['email']}.\nCheck your inbox! 📬\nReminder set for your local time! ⏰"
+                f"Task and details set up! \nConfirmation sent to {context.user_data['email']}.\nCheck your inbox! 📬\nReminder set for your local time! ⏰"
             )
             time.sleep(1)
         else:
             await update.message.reply_text(
-                f"Task and details set up! ✅\nHowever, confirmation email failed. ⚠️ Please check your email settings or contact support."
+                f"Task and details set up! \nHowever, confirmation email failed.   Please check your email settings or contact support."
             )
     except Exception as e:
-        logger.error(f"Supabase error in handle_timezone_input: {str(e)}", exc_info=True)
+        logger.error(
+            f"Supabase error in handle_timezone_input: {str(e)}", exc_info=True)
         await update.message.reply_text(
-            f"Error! ❌ Failed to save task details: {str(e)}. Please try again."
+            f"Error!  Failed to save task details: {str(e)}. Please try again."
         )
 
     context.user_data.clear()
     return ConversationHandler.END
 
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Cancel command received, user={update.effective_user.id}")
-    await update.message.reply_text("Cancelled. ❌")
+    await update.message.reply_text("Cancelled. ")
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -372,11 +404,13 @@ task_conv_handler = ConversationHandler(
     states={
         TASK_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_task_description)],
         TASK_INPUT: [
-            CallbackQueryHandler(button_callback, pattern='^provide_details$|^skip$')
+            CallbackQueryHandler(
+                button_callback, pattern='^provide_details$|^skip$')
         ],
         EMAIL_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email_input)],
         WALLET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wallet_input)],
-        TIMEZONE_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_timezone_input)]
+        TIMEZONE_INPUT: [MessageHandler(
+            filters.TEXT & ~filters.COMMAND, handle_timezone_input)]
     },
     fallbacks=[CommandHandler('cancel', cancel)]
 )
