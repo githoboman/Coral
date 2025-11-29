@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ make libffi-dev libssl-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust (needed for cryptography, tokenizers, etc.)
+# Install Rust
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install uv the bulletproof way (official installer → always works)
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -61,8 +61,8 @@ COPY --chown=tovira:tovira app/ ./app/
 COPY --chown=tovira:tovira .env.example .env.example
 
 # Create directories with proper permissions BEFORE switching to non-root user
-RUN mkdir -p /app/keys /app/logs /app/data && \
-    chown -R tovira:tovira /app/keys /app/logs /app/data
+RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets && \
+    chown -R tovira:tovira /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets
 
 # Switch to non-root user
 USER tovira
