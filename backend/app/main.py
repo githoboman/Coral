@@ -21,52 +21,41 @@ logger = logging.getLogger(__name__)
 bot_is_running = False
 
 
-def start_bot_blocking(token: str):
-    """
-    Runs the PTB application using run_polling() inside its own thread.
-    This function NEVER returns until the app stops.
-    """
-    global bot_is_running
-    bot_is_running = True
-
-    app = create_telegram_application(token)
-
-    bot_is_running = False  # Only executes if bot fully stops
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    FastAPI lifespan startup/shutdown manager.
-    Starts the Telegram bot in a separate thread.
-    """
-    global bot_is_running
-
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    bot_task = None
 
     if telegram_token:
-        logger.info("Starting Telegram bot thread...")
+        print("Starting Telegram bot in background...")
 
-        bot_thread = threading.Thread(
-            target=start_bot_blocking,
-            args=(telegram_token,),
-            daemon=True
-        )
-        bot_thread.start()
+        # Create the application
+        bot_app = create_telegram_application(telegram_token)
 
-        logger.info("Telegram bot started in background thread")
-        print("=" * 70)
-        print("Application started with Telegram bot")
-        print("=" * 70)
+        # Initialize (connects to Telegram servers)
+        await bot_app.initialize()
 
-    else:
-        print("TELEGRAM_BOT_TOKEN not set — bot disabled")
+        # Start the updater (starts polling updates in background)
+        await bot_app.updater.start_polling()
 
-    yield  # API is running
+        # Start processing updates
+        await bot_app.start()
 
-    logger.info("FastAPI is shutting down.")
-    # Threaded bot stops only when process stops
+        print("Telegram bot is running!")
 
+        # Keep reference so we can stop it later
+        app.state.telegram_bot = bot_app
+
+    # FastAPI runs here
+    yield
+
+    # Shutdown
+    if telegram_token and hasattr(app.state, "telegram_bot"):
+        print("Stopping Telegram bot...")
+        await app.state.telegram_bot.stop()
+        await app.state.telegram_bot.updater.stop()
+        await app.state.telegram_bot.shutdown()
+        print("Telegram bot stopped.")
 
 app = FastAPI(
     title="Tovira API",

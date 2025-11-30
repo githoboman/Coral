@@ -3309,8 +3309,6 @@ def create_telegram_application(token: str):
         first=10
     )
     
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-    
     return application
 
 
