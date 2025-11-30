@@ -61,8 +61,8 @@ COPY --chown=tovira:tovira app/ ./app/
 COPY --chown=tovira:tovira .env.example .env.example
 
 # Create directories with proper permissions BEFORE switching to non-root user
-RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets && \
-    chown -R tovira:tovira /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets
+RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets /app/otp_storage && \
+    chown -R tovira:tovira /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets /app/otp_storage
 
 # Switch to non-root user
 USER tovira
