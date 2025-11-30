@@ -10,7 +10,7 @@ from app.telegram_bot.utils import authenticate_user
 from app.telegram_bot.encrypted_db import get_user_tasks, update_task_status
 from typing import Dict, Optional
 
-from utils import (
+from app.telegram_bot.utils import (
     get_walrus_client, get_key_manager, get_sui_client,
     is_valid_email,
     ensure_user_has_keys, get_user_private_key,

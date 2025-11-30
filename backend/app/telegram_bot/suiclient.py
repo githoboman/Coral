@@ -1,9 +1,15 @@
+import json
 import os
+import logging
+from datetime import datetime
+import time
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_types.scalars import ObjectID, SuiString, SuiInteger
 from pysui.sui.sui_types import SuiAddress
 from pysui.sui.sui_txn import SyncTransaction
+from pysui.sui.sui_excepts import SuiFileNotFound
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,16 +23,40 @@ class CopilotSuiClient:
     """
 
     def __init__(self):
-        self.config = SuiConfig.default_config()
-        self.config._rpc_url = os.getenv(
-            'SUI_RPC_URL', 'https://fullnode.testnet.sui.io:443')
+        # Try to load default Sui CLI config
+        try:
+            self.config = SuiConfig.default_config()
+            print("Using default Sui CLI config")
+        except SuiFileNotFound:
+            # Fallback when client.yaml is missing
+            print("Sui CLI config not found — using fallback .env config")
+
+            rpc_url = os.getenv(
+                'SUI_RPC_URL',
+                'https://fullnode.testnet.sui.io:443'
+            )
+
+            self.config = SuiConfig.user_config(
+                rpc_url=rpc_url,
+                prv_keys=[]  # read-only mode
+            )
+            print(f"Using custom fallback config (RPC={rpc_url})")
+
+        # Always override RPC URL if environment variable is set
+        if os.getenv('SUI_RPC_URL'):
+            self.config._rpc_url = os.getenv('SUI_RPC_URL')
+            print(f"Overriding RPC URL to {self.config._rpc_url}")
+
+        # Initialize Sui client
         self.client = SyncClient(self.config)
 
+        # Load contract environment variables
         self.package_id = os.getenv('COPILOT_PACKAGE_ID')
         self.registry_id = os.getenv('COPILOT_REGISTRY_ID')
         self.treasury_id = os.getenv('COPILOT_TREASURY_ID')
         self.module_name = "bot"
 
+        # Referral system constants
         self.PREMIUM_PRICE = 1_000_000_000  # 1 SUI
         self.BASIC_REFERRAL_POINTS = 5
         self.PREMIUM_REFERRAL_POINTS = 10

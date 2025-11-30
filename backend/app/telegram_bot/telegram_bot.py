@@ -26,7 +26,7 @@ from app.telegram_bot.leaderboard import leaderboard_handler, refresh_leaderboar
 from app.telegram_bot.task_manager import task_conv_handler, setup_callback_handler, timezone_command, TaskManager, timezone_callback_handler, task_completion_handler
 from app.telegram_bot.portfolio_command import portfolio_handler
 from app.telegram_bot.waitlist import WaitlistManager
-from app.telegram_bot.cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from app.telegram_bot.secure_storage import encrypt_and_save, load_and_decrypt
 from app.telegram_bot.utils import (
     is_strong_password, auth_conv_handler, create_user_session_with_password, is_valid_email, is_valid_telegram_id,
