@@ -3308,8 +3308,10 @@ def create_telegram_application(token: str):
         interval=3600,
         first=10
     )
-
+    
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+    
+    return application
 
 
 if __name__ == '__main__':
