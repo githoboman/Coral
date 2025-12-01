@@ -17,8 +17,30 @@ class CopilotSuiClient:
     """
 
     def __init__(self):
-        self.config = SuiConfig.default_config()
-        self.config._rpc_url = os.getenv('SUI_RPC_URL', 'https://fullnode.testnet.sui.io:443')
+        try:
+            self.config = SuiConfig.default_config()
+            print("Using default Sui CLI config")
+        except SuiFileNotFound:
+            # Fallback when client.yaml is missing
+            print("Sui CLI config not found — using fallback .env config")
+
+            rpc_url = os.getenv(
+                'SUI_RPC_URL',
+                'https://fullnode.testnet.sui.io:443'
+            )
+
+            self.config = SuiConfig.user_config(
+                rpc_url=rpc_url,
+                prv_keys=[]  # read-only mode
+            )
+            print(f"Using custom fallback config (RPC={rpc_url})")
+
+        # Always override RPC URL if environment variable is set
+        if os.getenv('SUI_RPC_URL'):
+            self.config._rpc_url = os.getenv('SUI_RPC_URL')
+            print(f"Overriding RPC URL to {self.config._rpc_url}")
+
+
         self.client = SyncClient(self.config)
 
         self.package_id = os.getenv('COPILOT_PACKAGE_ID')
