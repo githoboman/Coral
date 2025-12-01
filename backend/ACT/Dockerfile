@@ -44,31 +44,37 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash tovira
 
-# Copy installed packages
+# Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy project root directory
+# Copy full project root
 COPY --chown=tovira:tovira . .
 
-# Create needed directories
-RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts \
-    /app/user_checkins /app/user_keys /app/user_sessions \
-    /app/user_wallets /app/otp_storage \
+# Create app-specific directories
+RUN mkdir -p \
+    /app/keys \
+    /app/logs \
+    /app/data \
+    /app/registration_receipts \
+    /app/user_checkins \
+    /app/user_keys \
+    /app/user_sessions \
+    /app/user_wallets \
+    /app/otp_storage \
     && chown -R tovira:tovira /app
 
 # Switch to non-root user
 USER tovira
 
-# Optional healthcheck (skip if not required)
+# Optional healthcheck (non-blocking)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-10000}/health || exit 0
 
-# Launch Telegram bot directly
-CMD ["python", "Telegrambot_change.py"]
+# Run the Telegram bot instead of FastAPI
+CMD ["python", "-u", "Telegrambot_change.py"]
