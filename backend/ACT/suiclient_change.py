@@ -4,6 +4,7 @@ from pysui import SuiConfig, SyncClient
 from pysui.sui.sui_types.scalars import ObjectID, SuiString, SuiInteger
 from pysui.sui.sui_types import SuiAddress
 from pysui.sui.sui_txn import SyncTransaction
+from pysui.sui.sui_excepts import SuiFileNotFound
 from dotenv import load_dotenv
 
 load_dotenv()
