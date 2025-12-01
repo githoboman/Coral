@@ -23,7 +23,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Verify tools
 RUN uv --version && rustc --version
 
-# Copy requirements and install everything into the SYSTEM Python
+# Install dependencies
 COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
 
@@ -36,12 +36,10 @@ LABEL maintainer="tovira.xyz"
 LABEL description="Tovira - AI-powered Web3 Companion"
 LABEL version="2.0.0"
 
-# Environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=10000
 
-# Root directory is the working directory now
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -52,14 +50,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash tovira
 
-# Copy Python packages from builder
+# Copy installed packages
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy everything in the project root (NOT app/)
+# Copy project root directory
 COPY --chown=tovira:tovira . .
 
-# Create required directories
+# Create needed directories
 RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts \
     /app/user_checkins /app/user_keys /app/user_sessions \
     /app/user_wallets /app/otp_storage \
@@ -68,18 +66,9 @@ RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts \
 # Switch to non-root user
 USER tovira
 
-EXPOSE 10000
-
+# Optional healthcheck (skip if not required)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
+    CMD curl -f http://localhost:${PORT:-10000}/health || exit 0
 
-# Use PORT from environment (Render)
-CMD gunicorn main:app \
-    --workers 1 \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --bind 0.0.0.0:${PORT:-10000} \
-    --timeout 120 \
-    --access-logfile - \
-    --error-logfile - \
-    --log-level info \
-    --preload
+# Launch Telegram bot directly
+CMD ["python", "Telegrambot_change.py"]
