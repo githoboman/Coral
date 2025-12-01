@@ -15,20 +15,20 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, filters, Application
 )
 from datetime import datetime
-from app.telegram_bot.rate_limiter import rate_limiter
+from rate_limiter import rate_limiter
 import os
 import pytz
 import re
 from dotenv import load_dotenv
 from typing import Dict, Optional, Any
-from app.telegram_bot.checkin import checkin_handler, checkin_status_handler, check_my_profile_handler
-from app.telegram_bot.leaderboard import leaderboard_handler, refresh_leaderboard_button_handler, quick_checkin_button_handler
-from app.telegram_bot.task_manager import task_conv_handler, setup_callback_handler, timezone_command, TaskManager, timezone_callback_handler, task_completion_handler
-from app.telegram_bot.portfolio_command import portfolio_handler
-from app.telegram_bot.waitlist import WaitlistManager
+from checkin import checkin_handler, checkin_status_handler, check_my_profile_handler
+from leaderboard import leaderboard_handler, refresh_leaderboard_button_handler, quick_checkin_button_handler
+from task_manager import task_conv_handler, setup_callback_handler, timezone_command, TaskManager, timezone_callback_handler, task_completion_handler
+from portfolio_command import portfolio_handler
+from waitlist import WaitlistManager
 from cryptography.hazmat.primitives import hashes, serialization
-from app.telegram_bot.secure_storage import encrypt_and_save, load_and_decrypt
-from app.telegram_bot.utils import (
+from secure_storage import encrypt_and_save, load_and_decrypt
+from utils import (
     is_strong_password, auth_conv_handler, create_user_session_with_password, is_valid_email, is_valid_telegram_id,
     is_valid_referral_code, is_valid_admin_code, is_admin, load_user_session, clear_user_session,
     parse_natural_language_date, format_date_for_display,
@@ -38,11 +38,11 @@ from app.telegram_bot.utils import (
     recover_all_users_from_sessions, create_user_session_with_password,
     session_manager
 )
-from app.telegram_bot.otp_manager import otp_manager
-from app.telegram_bot.encrypted_db import init_db
+from otp_manager import otp_manager
+from encrypted_db import init_db
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
-from app.telegram_bot.walrus_client import WalrusRegistrationManager, LocalEncryptedEmailIndex
+from walrus_client_change import WalrusRegistrationManager, LocalEncryptedEmailIndex
 
 load_dotenv()
 
@@ -51,13 +51,11 @@ key_manager = get_key_manager()
 sui = get_sui_client()
 
 # Conversation states
-TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(
-    5)
+TASK_DESCRIPTION, TASK_INPUT, EMAIL_INPUT, WALLET_INPUT, TIMEZONE_INPUT = range(5)
 
 SELECT_TASK, CONFIRM_DELETE, SET_PASSWORD, CONFIRM_PASSWORD = range(5, 9)
 
-SELECT_METHOD, REFERRAL_CODE_INPUT, ADMIN_CODE_INPUT, EMAIL_VERIFICATION, OTP_VERIFICATION = range(
-    9, 14)
+SELECT_METHOD, REFERRAL_CODE_INPUT, ADMIN_CODE_INPUT, EMAIL_VERIFICATION, OTP_VERIFICATION = range(9, 14)
 
 PASSWORD_RESET_EMAIL, PASSWORD_RESET_OTP, NEW_PASSWORD_SETUP = range(14, 17)
 WALLET_RECOVERY_STATE = 101
@@ -68,8 +66,6 @@ USERNAME_SETUP = 200
 ADMIN_IDS = set(os.getenv('ADMIN_TELEGRAM_IDS', '').split(','))
 
 # ============= REGISTRATION SYSTEM INTEGRATION =============
-
-
 class TelegramRegistrationSystem:
     """Registration system adapted for Telegram bot."""
 
@@ -139,8 +135,7 @@ class TelegramRegistrationSystem:
                 text="🔑 Generating encryption keys..."
             )
             await context.bot.send_chat_action(chat_id=telegram_id, action='typing')
-            public_key_str, encrypted_private = self.key_manager.create_user_keys(
-                telegram_id, password)
+            public_key_str, encrypted_private = self.key_manager.create_user_keys(telegram_id, password)
             context.user_data['public_key'] = public_key_str.encode('utf-8')
             context.user_data['has_encryption_keys'] = True
             await asyncio.sleep(2)
@@ -164,8 +159,7 @@ class TelegramRegistrationSystem:
         progress_msg = None
         try:
             progress_msg = await update.effective_chat.send_message("🔐 Encrypting your data...")
-            blob_id = self.walrus_client.store_encrypted_user_data(
-                public_key, user_data)
+            blob_id = self.walrus_client.store_encrypted_user_data(public_key, user_data)
             if blob_id:
                 await progress_msg.edit_text("✅ Data encrypted and stored securely!")
                 await asyncio.sleep(2)
@@ -195,8 +189,7 @@ class TelegramRegistrationSystem:
     async def select_registration_method(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show registration button and proceed directly to password setup."""
         keyboard = [
-            [InlineKeyboardButton("🆕 Signup with TOVIRA",
-                                  callback_data='signup_no_code')],
+            [InlineKeyboardButton("🆕 Signup with TOVIRA", callback_data='signup_no_code')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -211,7 +204,7 @@ class TelegramRegistrationSystem:
                                 context: ContextTypes.DEFAULT_TYPE) -> Optional[Dict[str, str]]:
         """Create Sui wallet and store IMMORTALLY on Walrus."""
         try:
-            from app.telegram_bot.sui_wallet_manager import SuiWalletManager
+            from sui_wallet_manager import SuiWalletManager
 
             progress_msg = await update.effective_chat.send_message("Creating your secure Sui blockchain wallet...")
 
@@ -240,8 +233,7 @@ class TelegramRegistrationSystem:
                 "version": 1
             }
 
-            wallet_blob_id = key_manager.store_encrypted_object(
-                wallet_data, user_id, password)
+            wallet_blob_id = key_manager.store_encrypted_object(wallet_data, user_id, password)
 
             if not wallet_blob_id:
                 await progress_msg.edit_text("Failed to secure wallet on decentralized storage")
@@ -271,8 +263,7 @@ class TelegramRegistrationSystem:
                 parse_mode='Markdown'
             )
 
-            asyncio.create_task(
-                delete_message_after_delay(mnemonic_msg, 172800))
+            asyncio.create_task(delete_message_after_delay(mnemonic_msg, 172800))
 
             confirm_msg = await update.effective_chat.send_message(
                 "Type **YES** when you have safely saved your 12-word phrase:"
@@ -305,11 +296,9 @@ class TelegramRegistrationSystem:
             progress_msg = await update.effective_chat.send_message(" Registering your profile on Sui blockchain...")
 
             if registration_method == 1:
-                result = self.sui_client.create_user_profile_with_wallet(
-                    blob_id, user_wallet_address)
+                result = self.sui_client.create_user_profile_with_wallet(blob_id, user_wallet_address)
             else:
-                result = self.sui_client.create_user_profile_with_wallet(
-                    blob_id, user_wallet_address)
+                result = self.sui_client.create_user_profile_with_wallet(blob_id, user_wallet_address)
 
             if result and result.get('profile_id'):
                 await progress_msg.edit_text("✅ Blockchain registration successful!")
@@ -466,7 +455,7 @@ class TelegramRegistrationSystem:
                                          context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Alternative session creation when standard method fails"""
         try:
-            from app.telegram_bot.secure_storage import create_session_token
+            from secure_storage import create_session_token
 
             session_token = create_session_token(str(telegram_id), password)
             if not session_token:
@@ -528,8 +517,7 @@ class TelegramRegistrationSystem:
                 "version": 1
             }
 
-            wallet_blob_id = key_manager.store_encrypted_object(
-                wallet_data, telegram_id, password)
+            wallet_blob_id = key_manager.store_encrypted_object(wallet_data, telegram_id, password)
 
             if not wallet_blob_id:
                 await progress_msg.edit_text(
@@ -542,8 +530,7 @@ class TelegramRegistrationSystem:
 
             await progress_msg.edit_text("🔍 Verifying wallet backup...")
 
-            verification_data = key_manager.retrieve_encrypted_object(
-                wallet_blob_id, telegram_id, password)
+            verification_data = key_manager.retrieve_encrypted_object(wallet_blob_id, telegram_id, password)
             if not verification_data or 'mnemonic' not in verification_data:
                 await progress_msg.edit_text(
                     "❌ **CRITICAL: Wallet Backup Verification Failed**\n\n"
@@ -572,8 +559,7 @@ class TelegramRegistrationSystem:
 
             await progress_msg.edit_text("📝 Encrypting your profile on Walrus...")
             walrus_client = get_walrus_client()
-            profile_blob_id = walrus_client.store_encrypted_user_data(
-                public_pem, user_data)
+            profile_blob_id = walrus_client.store_encrypted_user_data(public_pem, user_data)
 
             if not profile_blob_id:
                 await progress_msg.edit_text("❌ Failed to encrypt profile data")
@@ -718,7 +704,6 @@ class TelegramRegistrationSystem:
 
 # ============= SESSION RECOVERY SYSTEM =============
 
-
 async def recover_session_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Main command to recover user session and encryption keys"""
     telegram_id = str(update.effective_user.id)
@@ -771,7 +756,6 @@ async def recover_session_command(update: Update, context: ContextTypes.DEFAULT_
             "Please use `/start` to complete your registration."
         )
         return ConversationHandler.END
-
 
 async def handle_session_recovery(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password input for session recovery"""
@@ -834,7 +818,6 @@ async def handle_session_recovery(update: Update, context: ContextTypes.DEFAULT_
     context.user_data.clear()
     return ConversationHandler.END
 
-
 async def recover_zombie_user(telegram_id: str, password: str, progress_msg) -> Dict[str, Any]:
     """Recover users with wallet files but no session"""
     try:
@@ -848,7 +831,7 @@ async def recover_zombie_user(telegram_id: str, password: str, progress_msg) -> 
             }
 
         try:
-            from app.telegram_bot.secure_storage import load_and_decrypt
+            from secure_storage import load_and_decrypt
             wallet_data = load_and_decrypt(wallet_files[0])
             if not wallet_data:
                 return {
@@ -929,7 +912,6 @@ async def recover_zombie_user(telegram_id: str, password: str, progress_msg) -> 
             'message': f"❌ Recovery error: {str(e)}"
         }
 
-
 async def recover_missing_keys(telegram_id: str, password: str, progress_msg) -> Dict[str, Any]:
     """Recover encryption keys for users with session but missing keys"""
     try:
@@ -959,8 +941,7 @@ async def recover_missing_keys(telegram_id: str, password: str, progress_msg) ->
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
                 ).decode('utf-8')
-                session['keys_recovered_at'] = datetime.now(
-                    pytz.UTC).isoformat()
+                session['keys_recovered_at'] = datetime.now(pytz.UTC).isoformat()
 
                 await session_manager.save_user_session(telegram_id, session, password)
 
@@ -991,8 +972,7 @@ async def recover_missing_keys(telegram_id: str, password: str, progress_msg) ->
                         encoding=serialization.Encoding.PEM,
                         format=serialization.PublicFormat.SubjectPublicKeyInfo
                     ).decode('utf-8')
-                    session['keys_recovered_at'] = datetime.now(
-                        pytz.UTC).isoformat()
+                    session['keys_recovered_at'] = datetime.now(pytz.UTC).isoformat()
 
                     await session_manager.save_user_session(telegram_id, session, password)
 
@@ -1036,7 +1016,6 @@ async def recover_missing_keys(telegram_id: str, password: str, progress_msg) ->
             'success': False,
             'message': f"❌ Key recovery error: {str(e)}"
         }
-
 
 async def recover_generic(telegram_id: str, password: str, progress_msg) -> Dict[str, Any]:
     """Generic recovery for unknown session issues"""
@@ -1084,8 +1063,6 @@ async def recover_generic(telegram_id: str, password: str, progress_msg) -> Dict
         }
 
 # ============= START & ONBOARDING =============
-
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle /start — CORRECTLY SAVES USERNAME FOREVER
@@ -1138,7 +1115,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return EMAIL_VERIFICATION
 
-
 async def handle_email_verification(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle email input — WITH LOCAL ENCRYPTED INDEX"""
     email = update.message.text.strip().lower()
@@ -1171,8 +1147,7 @@ async def handle_email_verification(update: Update, context: ContextTypes.DEFAUL
     if whitelist_blob_id:
         waitlist_manager = WaitlistManager()
         try:
-            is_whitelisted = waitlist_manager.is_email_whitelisted(
-                email, whitelist_blob_id)
+            is_whitelisted = waitlist_manager.is_email_whitelisted(email, whitelist_blob_id)
             if not is_whitelisted:
                 await checking_msg.edit_text("❌ Access Denied: Please wait for referral codes to be released.")
                 await asyncio.sleep(6)
@@ -1186,7 +1161,6 @@ async def handle_email_verification(update: Update, context: ContextTypes.DEFAUL
     await checking_msg.delete()
 
     return await send_otp_for_verification(update, context, email)
-
 
 async def delete_otp_prompt_after_10_minutes(context: ContextTypes.DEFAULT_TYPE, delay: int = 600):
     """
@@ -1209,7 +1183,6 @@ async def delete_otp_prompt_after_10_minutes(context: ContextTypes.DEFAULT_TYPE,
     finally:
         context.user_data.pop('otp_prompt_message', None)
 
-
 async def send_otp_for_verification(update: Update, context: ContextTypes.DEFAULT_TYPE, email: str):
     """Send OTP for email verification — INSTANT RESPONSE, NO BLOCKING"""
     try:
@@ -1230,8 +1203,7 @@ async def send_otp_for_verification(update: Update, context: ContextTypes.DEFAUL
 
             context.user_data['otp_prompt_message'] = sending_msg
 
-            asyncio.create_task(
-                delete_otp_prompt_after_10_minutes(context, delay=600))
+            asyncio.create_task(delete_otp_prompt_after_10_minutes(context, delay=600))
 
             context.user_data['otp_id'] = otp_id
             context.user_data['verified_email'] = email
@@ -1252,7 +1224,6 @@ async def send_otp_for_verification(update: Update, context: ContextTypes.DEFAUL
         error_msg = await update.message.reply_text("Error sending verification code. Please try again.")
         asyncio.create_task(delete_message_after_delay(error_msg, 10))
         return ConversationHandler.END
-
 
 async def handle_otp_verification(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle OTP verification and proceed to username setup."""
@@ -1303,7 +1274,6 @@ async def handle_otp_verification(update: Update, context: ContextTypes.DEFAULT_
             )
             return OTP_VERIFICATION
 
-
 async def ask_for_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ask user to set up their username with PROPER HTML escaping and security"""
     telegram_user = update.effective_user
@@ -1319,8 +1289,7 @@ async def ask_for_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if telegram_username:
         safe_telegram_username = html.escape(telegram_username)
-        message_parts.append(
-            f"<b>Your Telegram username:</b> @{safe_telegram_username}")
+        message_parts.append(f"<b>Your Telegram username:</b> @{safe_telegram_username}")
         message_parts.append("")
 
     message_parts.extend([
@@ -1333,12 +1302,10 @@ async def ask_for_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = []
     if telegram_username:
-        safe_callback_username = re.sub(
-            r'[^a-zA-Z0-9_]', '_', telegram_username)
+        safe_callback_username = re.sub(r'[^a-zA-Z0-9_]', '_', telegram_username)
         safe_callback_username = safe_callback_username[:30]
 
-        safe_display_username = html.escape(
-            telegram_username[:15] + ('...' if len(telegram_username) > 15 else ''))
+        safe_display_username = html.escape(telegram_username[:15] + ('...' if len(telegram_username) > 15 else ''))
 
         message_parts.extend([
             f"💡 <i>Quick setup:</i> Press the button to use @{safe_display_username} or type a custom username:"
@@ -1351,8 +1318,7 @@ async def ask_for_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
         keyboard.append([
-            InlineKeyboardButton("Choose Custom Username",
-                                 callback_data="choose_custom_username")
+            InlineKeyboardButton("Choose Custom Username", callback_data="choose_custom_username")
         ])
     else:
         message_parts.append("Enter your username:")
@@ -1364,7 +1330,6 @@ async def ask_for_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not telegram_username:
         return USERNAME_SETUP
-
 
 async def handle_username_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle username choice with safe callback data processing"""
@@ -1411,7 +1376,6 @@ async def handle_username_choice(update: Update, context: ContextTypes.DEFAULT_T
         )
         return USERNAME_SETUP
 
-
 def sanitize_username_for_storage(raw_username: str) -> str:
     """Sanitize username for safe storage while preserving most characters"""
     if not raw_username:
@@ -1425,7 +1389,6 @@ def sanitize_username_for_storage(raw_username: str) -> str:
         cleaned = cleaned[:30]
 
     return cleaned
-
 
 async def handle_registration_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle custom username input with proper sanitization"""
@@ -1466,7 +1429,6 @@ async def handle_registration_username(update: Update, context: ContextTypes.DEF
 
 # ============= PASSWORD HANDLERS =============
 
-
 async def delete_message_after_delay(message, delay: float = 0):
     """Standalone function to delete a message after delay."""
     if not message:
@@ -1481,7 +1443,6 @@ async def delete_message_after_delay(message, delay: float = 0):
         pass
     except Exception as e:
         pass
-
 
 async def handle_password_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password input."""
@@ -1514,14 +1475,12 @@ async def handle_password_setup(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['password_success_msg'] = success_msg
     return CONFIRM_PASSWORD
 
-
 async def handle_password_confirmation_with_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle both password confirmation and wallet confirmation."""
     if context.user_data.get('awaiting_wallet_confirmation'):
         return await handle_wallet_confirmation(update, context)
     else:
         return await handle_password_confirmation(update, context)
-
 
 async def handle_password_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
@@ -1546,8 +1505,7 @@ async def handle_password_confirmation(update: Update, context: ContextTypes.DEF
 
     context.user_data['registration_password'] = first_password
 
-    registration_system = context.application.bot_data.setdefault(
-        'registration_system', TelegramRegistrationSystem())
+    registration_system = context.application.bot_data.setdefault('registration_system', TelegramRegistrationSystem())
     registration_system.active_registrations[telegram_id] = {
         'password': first_password,
         'username': username,
@@ -1571,7 +1529,6 @@ async def handle_password_confirmation(update: Update, context: ContextTypes.DEF
 
     return CONFIRM_PASSWORD
 
-
 async def handle_wallet_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user confirmation of wallet mnemonic saving with proper validation."""
     raw_text = update.message.text.strip()
@@ -1585,12 +1542,10 @@ async def handle_wallet_confirmation(update: Update, context: ContextTypes.DEFAU
     telegram_id = str(update.effective_user.id)
 
     password = None
-    registration_system = context.application.bot_data.get(
-        'registration_system')
+    registration_system = context.application.bot_data.get('registration_system')
 
     if registration_system and telegram_id in registration_system.active_registrations:
-        password = registration_system.active_registrations[telegram_id].get(
-            'password')
+        password = registration_system.active_registrations[telegram_id].get('password')
 
     if not password:
         password = context.user_data.get('registration_password')
@@ -1690,7 +1645,6 @@ async def handle_wallet_confirmation(update: Update, context: ContextTypes.DEFAU
 
         return CONFIRM_PASSWORD
 
-
 async def handle_verification_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user choice for registration verification."""
     user_response = update.message.text.strip().lower()
@@ -1712,8 +1666,6 @@ async def handle_verification_choice(update: Update, context: ContextTypes.DEFAU
     return ConversationHandler.END
 
 # ============= MESSAGE HANDLER FOR SPECIAL STATES =============
-
-
 async def handle_special_states(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle messages for special registration states."""
     if context.user_data.get('awaiting_wallet_confirmation'):
@@ -1725,14 +1677,11 @@ async def handle_special_states(update: Update, context: ContextTypes.DEFAULT_TY
         return ConversationHandler.END
 
 # ============= PASSWORD RESET (KEEP EXISTING) =============
-
-
 async def forgot_password_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start password reset process with rate limiting"""
     telegram_id = str(update.effective_user.id)
 
-    allowed, error_msg = rate_limiter.check_rate_limit(
-        telegram_id, "password_reset_request")
+    allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "password_reset_request")
     if not allowed:
         await update.message.reply_text(f"❌ {error_msg}")
         return ConversationHandler.END
@@ -1743,14 +1692,12 @@ async def forgot_password_command(update: Update, context: ContextTypes.DEFAULT_
     )
     return PASSWORD_RESET_EMAIL
 
-
 async def handle_password_reset_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password reset email input with rate limiting"""
     email = update.message.text.strip().lower()
     telegram_id = str(update.effective_user.id)
 
-    allowed, error_msg = rate_limiter.check_rate_limit(
-        telegram_id, "password_reset_request")
+    allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "password_reset_request")
     if not allowed:
         await update.message.reply_text(f"❌ {error_msg}")
         return ConversationHandler.END
@@ -1785,8 +1732,7 @@ async def handle_password_reset_email(update: Update, context: ContextTypes.DEFA
             )
             return PASSWORD_RESET_OTP
         else:
-            rate_limiter.check_rate_limit(
-                telegram_id, "password_reset_request")
+            rate_limiter.check_rate_limit(telegram_id, "password_reset_request")
             await sending_msg.edit_text(
                 "❌ Failed to send reset code.\n\n"
                 "Please check your email address and try again later."
@@ -1798,7 +1744,6 @@ async def handle_password_reset_email(update: Update, context: ContextTypes.DEFA
         await update.message.reply_text("❌ Error sending reset code. Please try again.")
         return ConversationHandler.END
 
-
 async def handle_password_reset_otp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password reset OTP verification with rate limiting"""
     otp_code = update.message.text.strip()
@@ -1809,8 +1754,7 @@ async def handle_password_reset_otp(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("❌ Session error. Please start over with /forgot_password")
         return ConversationHandler.END
 
-    allowed, error_msg = rate_limiter.check_rate_limit(
-        telegram_id, "password_reset_otp")
+    allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "password_reset_otp")
     if not allowed:
         await update.message.reply_text(f"❌ {error_msg}")
         return ConversationHandler.END
@@ -1832,8 +1776,7 @@ async def handle_password_reset_otp(update: Update, context: ContextTypes.DEFAUL
         return NEW_PASSWORD_SETUP
     else:
         error_msg = result.get('error', 'Invalid code')
-        attempts_count = rate_limiter.get_attempts_count(
-            telegram_id, "password_reset_otp")
+        attempts_count = rate_limiter.get_attempts_count(telegram_id, "password_reset_otp")
         remaining_attempts = 3 - attempts_count
 
         if 'expired' in error_msg.lower():
@@ -1856,7 +1799,6 @@ async def handle_password_reset_otp(update: Update, context: ContextTypes.DEFAUL
                     "Please use /forgot_password to start over."
                 )
                 return ConversationHandler.END
-
 
 async def handle_new_password_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle new password setup after reset."""
@@ -1920,28 +1862,23 @@ async def handle_new_password_setup(update: Update, context: ContextTypes.DEFAUL
 
     return ConversationHandler.END
 
-
 async def check_email_exists(email: str) -> bool:
     """Check if email exists using encrypted index."""
     try:
         key_manager = get_key_manager()
-        email_index = LocalEncryptedEmailIndex(
-            key_manager, os.getenv('EMAIL_INDEX_PASSWORD'))
+        email_index = LocalEncryptedEmailIndex(key_manager, os.getenv('EMAIL_INDEX_PASSWORD'))
         return email_index.email_exists(email)
     except Exception as e:
         return False
-
 
 async def get_telegram_id_from_email(email: str) -> Optional[str]:
     """Get telegram_id from email using encrypted index."""
     try:
         key_manager = get_key_manager()
-        email_index = LocalEncryptedEmailIndex(
-            key_manager, os.getenv('EMAIL_INDEX_PASSWORD'))
+        email_index = LocalEncryptedEmailIndex(key_manager, os.getenv('EMAIL_INDEX_PASSWORD'))
         return email_index.get_telegram_id_by_email(email)
     except Exception as e:
         return None
-
 
 async def is_email_already_registered(email: str) -> bool:
     try:
@@ -1951,7 +1888,6 @@ async def is_email_already_registered(email: str) -> bool:
     except Exception as e:
         return False
 
-
 async def update_user_password(email: str, new_password: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Update user password - WALRUS COMPATIBLE VERSION."""
     try:
@@ -1959,15 +1895,13 @@ async def update_user_password(email: str, new_password: str, context: ContextTy
         if not telegram_id:
             return False
 
-        private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=4096)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
         public_key = private_key.public_key()
 
         priv_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.BestAvailableEncryption(
-                new_password.encode())
+            encryption_algorithm=serialization.BestAvailableEncryption(new_password.encode())
         )
 
         pub_pem = public_key.public_bytes(
@@ -1985,8 +1919,7 @@ async def update_user_password(email: str, new_password: str, context: ContextTy
         }
 
         key_manager = get_key_manager()
-        new_blob_id = key_manager.store_encrypted_object(
-            key_data, telegram_id, new_password)
+        new_blob_id = key_manager.store_encrypted_object(key_data, telegram_id, new_password)
 
         if not new_blob_id:
             return False
@@ -2011,13 +1944,11 @@ async def update_user_password(email: str, new_password: str, context: ContextTy
     except Exception as e:
         return False
 
-
 async def recover_wallet_from_walrus(self, user_id: str, password: str, blob_id: str) -> Optional[Dict[str, str]]:
     """Recover wallet from Walrus storage."""
     try:
         key_manager = get_key_manager()
-        wallet_data = key_manager.retrieve_encrypted_object(
-            blob_id, user_id, password)
+        wallet_data = key_manager.retrieve_encrypted_object(blob_id, user_id, password)
 
         if not wallet_data:
             return None
@@ -2033,7 +1964,6 @@ async def recover_wallet_from_walrus(self, user_id: str, password: str, blob_id:
 
     except Exception as e:
         return None
-
 
 async def recover_wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command to recover wallet from Walrus backup."""
@@ -2059,7 +1989,6 @@ async def recover_wallet_command(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data['recovery_mode'] = True
     context.user_data['recovery_blob_id'] = session['wallet_blob_id']
     return WALLET_RECOVERY_STATE
-
 
 async def handle_wallet_recovery(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle wallet recovery password."""
@@ -2099,7 +2028,6 @@ async def handle_wallet_recovery(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.clear()
     return ConversationHandler.END
 
-
 async def recover_session_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recover session for users who completed registration but lost session token."""
     telegram_id = str(update.effective_user.id)
@@ -2127,7 +2055,6 @@ async def recover_session_command(update: Update, context: ContextTypes.DEFAULT_
 
     context.user_data['recovering_session'] = True
     return SESSION_RECOVERY_STATE
-
 
 async def handle_session_recovery(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle session recovery password - FIXED VERSION."""
@@ -2159,7 +2086,7 @@ async def handle_session_recovery(update: Update, context: ContextTypes.DEFAULT_
         )
 
         if public_key:
-            from app.telegram_bot.utils import create_user_session_with_password
+            from utils import create_user_session_with_password
             success = await create_user_session_with_password(telegram_id, password, context)
 
             if success:
@@ -2204,8 +2131,6 @@ async def handle_session_recovery(update: Update, context: ContextTypes.DEFAULT_
     return ConversationHandler.END
 
 # ============= UTILITY FUNCTIONS =============
-
-
 async def periodic_otp_cleanup():
     """Clean up expired OTPs every hour"""
     while True:
@@ -2216,8 +2141,6 @@ async def periodic_otp_cleanup():
             await asyncio.sleep(300)
 
 # ============= OTHER COMMANDS (KEEP EXISTING) =============
-
-
 async def security_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /security command - Display security and encryption info."""
     telegram_id = str(update.effective_user.id)
@@ -2232,10 +2155,10 @@ async def security_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = await session_manager.load_user_session(telegram_id, password or "local_storage_fallback_password")
 
     encrypted_blob = (
-        session.get('encrypted_data_blob') or
-        context.user_data.get('encrypted_data_blob') or
-        (session.get('profile_data', {})).get('encrypted_data_blob') or
-        'Not set'
+            session.get('encrypted_data_blob') or
+            context.user_data.get('encrypted_data_blob') or
+            (session.get('profile_data', {})).get('encrypted_data_blob') or
+            'Not set'
     )
     if encrypted_blob == 'Not set' and (profile_id := session.get('profile_id') or context.user_data.get('profile_id')):
         profile_data = sui.get_user_profile(profile_id)
@@ -2262,7 +2185,6 @@ async def security_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Keep your password safe - it cannot be recovered!"
     )
     await update.message.reply_text(security_info)
-
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show all commands."""
@@ -2296,13 +2218,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     await update.message.reply_text(help_text)
 
-
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel conversation."""
     await update.message.reply_text("❌ Cancelled.")
     context.user_data.clear()
     return ConversationHandler.END
-
 
 async def email_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check email index statistics."""
@@ -2323,7 +2243,6 @@ async def email_stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     except Exception as e:
         await update.message.reply_text(f"❌ Error getting stats: {str(e)}")
-
 
 async def check_my_email_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check if current user's email is in index."""
@@ -2357,8 +2276,6 @@ async def check_my_email_command(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 # ============= USERNAME MANAGEMENT =============
-
-
 async def change_username_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command to change username with HTML support"""
     telegram_id = str(update.effective_user.id)
@@ -2391,7 +2308,6 @@ async def change_username_command(update: Update, context: ContextTypes.DEFAULT_
 
     context.user_data['changing_username'] = True
     return USERNAME_SETUP
-
 
 async def handle_username_setup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle new username input with HTML-safe validation"""
@@ -2457,11 +2373,10 @@ async def handle_username_setup(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data.pop('changing_username', None)
     return ConversationHandler.END
 
-
 async def is_username_taken(username: str, current_user_id: str) -> bool:
     """Check if username is already taken by another user"""
     try:
-        from app.telegram_bot.secure_storage import load_and_decrypt
+        from secure_storage import load_and_decrypt
         sessions_dir = Path("user_sessions")
 
         if sessions_dir.exists():
@@ -2484,7 +2399,6 @@ async def is_username_taken(username: str, current_user_id: str) -> bool:
         return False
     except Exception as e:
         return False
-
 
 async def get_user_display_name(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> str:
     """Get the best available display name for a user"""
@@ -2513,8 +2427,6 @@ async def get_user_display_name(telegram_id: str, context: ContextTypes.DEFAULT_
         return f"User#{telegram_id[-4:]}"
 
 # ============= EXPORT WALLET - DUAL MODE WITH RATE LIMITING =============
-
-
 async def export_wallet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start wallet export — user chooses: Password (shows mnemonic) or Mnemonic (shows only address)"""
     telegram_id = str(update.effective_user.id)
@@ -2551,10 +2463,8 @@ async def export_wallet_command(update: Update, context: ContextTypes.DEFAULT_TY
             return ConversationHandler.END
 
     keyboard = [
-        [InlineKeyboardButton(
-            "🔐 Use Password (Shows Mnemonic + Address)", callback_data="export_with_password")],
-        [InlineKeyboardButton(
-            "📝 Use Mnemonic (Shows Only Address)", callback_data="export_with_mnemonic")],
+        [InlineKeyboardButton("🔐 Use Password (Shows Mnemonic + Address)", callback_data="export_with_password")],
+        [InlineKeyboardButton("📝 Use Mnemonic (Shows Only Address)", callback_data="export_with_mnemonic")],
         [InlineKeyboardButton("❌ Cancel", callback_data="export_cancel")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2571,7 +2481,6 @@ async def export_wallet_command(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data['wallet_blob_id'] = wallet_blob_id
     return SELECT_EXPORT_METHOD
 
-
 async def find_wallet_blob_id(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     """Try to find wallet blob ID from various sources"""
     try:
@@ -2586,11 +2495,9 @@ async def find_wallet_blob_id(telegram_id: str, context: ContextTypes.DEFAULT_TY
             key_manager = get_key_manager()
             password = await get_active_password(telegram_id, context)
             if password:
-                receipt_data = key_manager.retrieve_encrypted_object(
-                    receipt_blob_id, telegram_id, password)
+                receipt_data = key_manager.retrieve_encrypted_object(receipt_blob_id, telegram_id, password)
                 if receipt_data and 'storage' in receipt_data:
-                    wallet_blob_id = receipt_data['storage'].get(
-                        'wallet_blob_id')
+                    wallet_blob_id = receipt_data['storage'].get('wallet_blob_id')
                     if wallet_blob_id:
                         session['wallet_blob_id'] = wallet_blob_id
                         await session_manager.save_user_session(telegram_id, session, password)
@@ -2607,8 +2514,7 @@ async def find_wallet_blob_id(telegram_id: str, context: ContextTypes.DEFAULT_TY
 
             for blob_id in possible_blob_ids:
                 try:
-                    wallet_data = key_manager.retrieve_encrypted_object(
-                        blob_id, telegram_id, password)
+                    wallet_data = key_manager.retrieve_encrypted_object(blob_id, telegram_id, password)
                     if wallet_data and 'mnemonic' in wallet_data:
                         session['wallet_blob_id'] = blob_id
                         await session_manager.save_user_session(telegram_id, session, password)
@@ -2616,8 +2522,7 @@ async def find_wallet_blob_id(telegram_id: str, context: ContextTypes.DEFAULT_TY
                 except:
                     continue
 
-        registration_system = context.application.bot_data.get(
-            'registration_system')
+        registration_system = context.application.bot_data.get('registration_system')
         if registration_system and telegram_id in registration_system.active_registrations:
             reg_data = registration_system.active_registrations[telegram_id]
             wallet_blob_id = reg_data.get('wallet_blob_id')
@@ -2632,15 +2537,12 @@ async def find_wallet_blob_id(telegram_id: str, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         return None
 
-
 async def get_active_password(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> Optional[str]:
     """Get password from active session sources"""
     try:
-        registration_system = context.application.bot_data.get(
-            'registration_system')
+        registration_system = context.application.bot_data.get('registration_system')
         if registration_system and telegram_id in registration_system.active_registrations:
-            password = registration_system.active_registrations[telegram_id].get(
-                'password')
+            password = registration_system.active_registrations[telegram_id].get('password')
             if password:
                 return password
 
@@ -2651,7 +2553,6 @@ async def get_active_password(telegram_id: str, context: ContextTypes.DEFAULT_TY
 
     except Exception as e:
         return None
-
 
 async def handle_export_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle button choice"""
@@ -2667,15 +2568,13 @@ async def handle_export_choice(update: Update, context: ContextTypes.DEFAULT_TYP
     telegram_id = str(update.effective_user.id)
 
     if choice == "export_with_password":
-        allowed, error_msg = rate_limiter.check_rate_limit(
-            telegram_id, "export_password")
+        allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "export_password")
         if not allowed:
             await query.edit_message_text(f"❌ {error_msg}")
             return ConversationHandler.END
 
         context.user_data['export_mode'] = 'password'
-        attempts_count = rate_limiter.get_attempts_count(
-            telegram_id, "export_password")
+        attempts_count = rate_limiter.get_attempts_count(telegram_id, "export_password")
 
         await query.edit_message_text(
             "🔐 Export Using Password\n\n"
@@ -2688,15 +2587,13 @@ async def handle_export_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         return EXPORT_PASSWORD
 
     elif choice == "export_with_mnemonic":
-        allowed, error_msg = rate_limiter.check_rate_limit(
-            telegram_id, "export_mnemonic")
+        allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "export_mnemonic")
         if not allowed:
             await query.edit_message_text(f"❌ {error_msg}")
             return ConversationHandler.END
 
         context.user_data['export_mode'] = 'mnemonic'
-        attempts_count = rate_limiter.get_attempts_count(
-            telegram_id, "export_mnemonic")
+        attempts_count = rate_limiter.get_attempts_count(telegram_id, "export_mnemonic")
 
         await query.edit_message_text(
             "📝 Export Using Mnemonic\n\n"
@@ -2706,7 +2603,6 @@ async def handle_export_choice(update: Update, context: ContextTypes.DEFAULT_TYP
             "⚠️ Message auto-deletes in 2 minutes for security."
         )
         return EXPORT_MNEMONIC
-
 
 async def handle_export_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle password input for wallet export WITH RATE LIMITING"""
@@ -2723,19 +2619,16 @@ async def handle_export_password(update: Update, context: ContextTypes.DEFAULT_T
         await update.effective_chat.send_message("❌ Session error. Please start over with /export_wallet")
         return ConversationHandler.END
 
-    allowed, error_msg = rate_limiter.check_rate_limit(
-        telegram_id, "export_password")
+    allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "export_password")
     if not allowed:
         await update.effective_chat.send_message(f"❌ {error_msg}")
         return ConversationHandler.END
 
     key_manager = get_key_manager()
-    wallet_data = key_manager.retrieve_encrypted_object(
-        blob_id, telegram_id, password)
+    wallet_data = key_manager.retrieve_encrypted_object(blob_id, telegram_id, password)
 
     if not wallet_data or 'mnemonic' not in wallet_data:
-        attempts_count = rate_limiter.get_attempts_count(
-            telegram_id, "export_password")
+        attempts_count = rate_limiter.get_attempts_count(telegram_id, "export_password")
         remaining_attempts = 3 - attempts_count
 
         if remaining_attempts > 0:
@@ -2782,7 +2675,6 @@ async def handle_export_password(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.clear()
     return ConversationHandler.END
 
-
 async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle mnemonic input for wallet verification WITH RATE LIMITING"""
     user_input = update.message.text.strip().lower()
@@ -2798,19 +2690,16 @@ async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_T
         await update.effective_chat.send_message("❌ Session error. Please start over with /export_wallet")
         return ConversationHandler.END
 
-    allowed, error_msg = rate_limiter.check_rate_limit(
-        telegram_id, "export_mnemonic")
+    allowed, error_msg = rate_limiter.check_rate_limit(telegram_id, "export_mnemonic")
     if not allowed:
         await update.effective_chat.send_message(f"❌ {error_msg}")
         return ConversationHandler.END
 
     password = None
-    registration_system = context.application.bot_data.get(
-        'registration_system')
+    registration_system = context.application.bot_data.get('registration_system')
 
     if registration_system and telegram_id in registration_system.active_registrations:
-        password = registration_system.active_registrations[telegram_id].get(
-            'password')
+        password = registration_system.active_registrations[telegram_id].get('password')
 
     if not password:
         password = context.user_data.get('registration_password')
@@ -2826,8 +2715,7 @@ async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_T
         return ConversationHandler.END
 
     key_manager = get_key_manager()
-    wallet_data = key_manager.retrieve_encrypted_object(
-        blob_id, telegram_id, password)
+    wallet_data = key_manager.retrieve_encrypted_object(blob_id, telegram_id, password)
 
     if not wallet_data or 'mnemonic' not in wallet_data:
         await update.effective_chat.send_message("❌ Wallet data corrupted. Please use password mode.")
@@ -2837,8 +2725,7 @@ async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_T
     user_mnemonic = ' '.join(user_input.split())
 
     if user_mnemonic != stored_mnemonic:
-        attempts_count = rate_limiter.get_attempts_count(
-            telegram_id, "export_mnemonic")
+        attempts_count = rate_limiter.get_attempts_count(telegram_id, "export_mnemonic")
         remaining_attempts = 3 - attempts_count
 
         if remaining_attempts > 0:
@@ -2859,8 +2746,7 @@ async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_T
     rate_limiter.reset_attempts(telegram_id, "export_mnemonic")
 
     address = wallet_data.get('address', 'Unknown')
-    escaped_address = address.replace('_', '\\_').replace(
-        '*', '\\*').replace('[', '\\[').replace('`', '\\`')
+    escaped_address = address.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
 
     msg_text = (
         "✅ WALLET VERIFIED \\(MNEMONIC MODE\\)\n\n"
@@ -2876,13 +2762,11 @@ async def handle_export_mnemonic(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.clear()
     return ConversationHandler.END
 
-
 async def cancel_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel export conversation - MATCHES YOUR cancel PATTERN"""
     await update.message.reply_text("❌ Wallet export cancelled.")
     context.user_data.clear()
     return ConversationHandler.END
-
 
 async def periodic_rate_limit_cleanup(context: ContextTypes.DEFAULT_TYPE):
     """Clean up expired rate limit entries every hour"""
@@ -2890,7 +2774,6 @@ async def periodic_rate_limit_cleanup(context: ContextTypes.DEFAULT_TYPE):
         rate_limiter.cleanup_expired()
     except Exception as e:
         pass
-
 
 async def recover_wallet_backup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Command to help users recover missing wallet backup"""
@@ -2929,7 +2812,6 @@ async def recover_wallet_backup_command(update: Update, context: ContextTypes.DE
                 "Please complete registration with /start to create a new wallet."
             )
 
-
 async def wallet_debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Debug command to check wallet status"""
     telegram_id = str(update.effective_user.id)
@@ -2953,7 +2835,6 @@ async def wallet_debug_command(update: Update, context: ContextTypes.DEFAULT_TYP
         debug_info += f"💡 **Solution:** The wallet wasn't properly backed up during registration.\n"
 
     await update.message.reply_text(debug_info, parse_mode='Markdown')
-
 
 async def diagnostic_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comprehensive system diagnostic command"""
@@ -3005,8 +2886,7 @@ async def diagnostic_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         diagnostic_text += "\n**📊 BOT DATA:**\n"
 
-        registration_system = context.application.bot_data.get(
-            'registration_system')
+        registration_system = context.application.bot_data.get('registration_system')
         if registration_system:
             active_reg_count = len(registration_system.active_registrations)
             diagnostic_text += f"✅ Active Registrations: {active_reg_count}\n"
@@ -3022,8 +2902,7 @@ async def diagnostic_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         diagnostic_text += "\n**💾 LOCAL STORAGE:**\n"
         for path in storage_paths:
             if os.path.exists(path):
-                file_count = len([f for f in os.listdir(
-                    path) if os.path.isfile(os.path.join(path, f))])
+                file_count = len([f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))])
                 diagnostic_text += f"✅ {path}: {file_count} files\n"
             else:
                 diagnostic_text += f"❌ {path}: MISSING\n"
@@ -3084,28 +2963,21 @@ signup_handler = ConversationHandler(
     ],
     states={
         EMAIL_VERIFICATION: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_email_verification)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_email_verification)
         ],
         OTP_VERIFICATION: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_otp_verification)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_verification)
         ],
         USERNAME_SETUP: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_registration_username),
-            CallbackQueryHandler(handle_username_choice,
-                                 pattern="^use_telegram_username:"),
-            CallbackQueryHandler(handle_username_choice,
-                                 pattern="^choose_custom_username$")
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_registration_username),
+            CallbackQueryHandler(handle_username_choice, pattern="^use_telegram_username:"),
+            CallbackQueryHandler(handle_username_choice, pattern="^choose_custom_username$")
         ],
         SET_PASSWORD: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_password_setup)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_setup)
         ],
         CONFIRM_PASSWORD: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_password_confirmation_with_wallet)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_confirmation_with_wallet)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
@@ -3120,8 +2992,7 @@ session_recovery_conv_handler = ConversationHandler(
     ],
     states={
         SESSION_RECOVERY_STATE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_session_recovery)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_session_recovery)
         ],
     },
     fallbacks=[
@@ -3136,8 +3007,7 @@ username_conv_handler = ConversationHandler(
     entry_points=[CommandHandler("change_username", change_username_command)],
     states={
         USERNAME_SETUP: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_username_setup)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_setup)
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
@@ -3148,10 +3018,8 @@ registration_username_handler = ConversationHandler(
     entry_points=[],
     states={
         USERNAME_SETUP: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_registration_username),
-            CallbackQueryHandler(
-                handle_username_choice, pattern="^(use_telegram_username|choose_custom_username)")
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_registration_username),
+            CallbackQueryHandler(handle_username_choice, pattern="^(use_telegram_username|choose_custom_username)")
         ],
     },
     fallbacks=[],
@@ -3165,16 +3033,13 @@ password_reset_handler = ConversationHandler(
     ],
     states={
         PASSWORD_RESET_EMAIL: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_password_reset_email)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_reset_email)
         ],
         PASSWORD_RESET_OTP: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_password_reset_otp)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_password_reset_otp)
         ],
         NEW_PASSWORD_SETUP: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_new_password_setup)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_new_password_setup)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
@@ -3185,13 +3050,11 @@ session_recovery_handler = ConversationHandler(
     entry_points=[CommandHandler("recover_session", recover_session_command)],
     states={
         SESSION_RECOVERY_STATE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_session_recovery)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_session_recovery)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)]
 )
-
 
 def setup_export_wallet_handler(application):
     """Setup the export wallet conversation handler"""
@@ -3202,12 +3065,10 @@ def setup_export_wallet_handler(application):
                 CallbackQueryHandler(handle_export_choice, pattern="^export_")
             ],
             EXPORT_PASSWORD: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND,
-                               handle_export_password)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_export_password)
             ],
             EXPORT_MNEMONIC: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND,
-                               handle_export_mnemonic)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_export_mnemonic)
             ],
         },
         fallbacks=[
@@ -3220,19 +3081,19 @@ def setup_export_wallet_handler(application):
     application.add_handler(export_conv_handler)
 
 # ============= ERROR HANDLER =============
-
-
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors."""
     if update and update.effective_message:
         error_msg = handle_error(context.error, "telegram_bot")
         await update.effective_chat.send_message(error_msg)
 
-
-
 # ============= MAIN =============
-def create_telegram_application(token: str):
-    '''Create and configure the Telegram bot application'''
+def main():
+    """Start the bot."""
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if not token:
+        print("❌ Set TELEGRAM_BOT_TOKEN in .env")
+        return
     application = Application.builder().token(token).build()
 
     init_db()
@@ -3243,8 +3104,7 @@ def create_telegram_application(token: str):
         entry_points=[],
         states={
             OTP_VERIFICATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND,
-                               handle_otp_verification)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_otp_verification)
             ],
             ConversationHandler.END: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & filters.Regex(r'(?i)^yes$'),
@@ -3257,24 +3117,21 @@ def create_telegram_application(token: str):
     ))
     application.add_handler(password_reset_handler)
     application.add_handler(CommandHandler("recover", lambda update, context:
-                                           asyncio.create_task(recover_all_users_from_sessions(context))))
+    asyncio.create_task(recover_all_users_from_sessions(context))))
 
     application.add_handler(task_conv_handler)
     application.add_handler(setup_callback_handler)
     application.add_handler(task_completion_handler)
     application.add_handler(session_recovery_conv_handler)
     application.add_handler(CommandHandler("timezone", timezone_command))
-    application.add_handler(CommandHandler(
-        "task_history", TaskManager.task_history_command))
-    application.add_handler(CommandHandler(
-        "recover_wallet", recover_wallet_backup_command))
+    application.add_handler(CommandHandler("task_history", TaskManager.task_history_command))
+    application.add_handler(CommandHandler("recover_wallet", recover_wallet_backup_command))
     application.add_handler(
         MessageHandler(filters.Regex(r"^/complete_[a-zA-Z0-9]{10,}$"), TaskManager.complete_dynamic_task))
 
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("security", security_command))
-    application.add_handler(CommandHandler(
-        "recover_wallet", recover_wallet_command))
+    application.add_handler(CommandHandler("recover_wallet", recover_wallet_command))
     application.add_handler(checkin_handler)
     application.add_handler(checkin_status_handler)
     application.add_handler(check_my_profile_handler)
@@ -3290,11 +3147,9 @@ def create_telegram_application(token: str):
     application.add_handler(timezone_callback_handler)
     application.add_handler(CommandHandler("diagnostic", diagnostic_command))
     setup_export_wallet_handler(application)
-    application.add_handler(CommandHandler(
-        "wallet_debug", wallet_debug_command))
+    application.add_handler(CommandHandler("wallet_debug", wallet_debug_command))
     application.add_handler(CommandHandler("email_stats", email_stats_command))
-    application.add_handler(CommandHandler(
-        "check_my_email", check_my_email_command))
+    application.add_handler(CommandHandler("check_my_email", check_my_email_command))
 
     application.job_queue.run_repeating(
         lambda context: asyncio.create_task(periodic_otp_cleanup()),
@@ -3303,14 +3158,12 @@ def create_telegram_application(token: str):
     )
 
     application.job_queue.run_repeating(
-        lambda context: asyncio.create_task(
-            periodic_rate_limit_cleanup(context)),
+        lambda context: asyncio.create_task(periodic_rate_limit_cleanup(context)),
         interval=3600,
         first=10
     )
-    
-    return application
 
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()

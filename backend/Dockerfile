@@ -28,7 +28,7 @@ COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # -----------------------
-# Stage 2: Runtime (super slim, secure)
+# Stage 2: Runtime
 # -----------------------
 FROM python:3.11-slim
 
@@ -41,9 +41,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=10000
 
+# Root directory is the working directory now
 WORKDIR /app
 
-# Only runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
@@ -52,30 +52,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash tovira
 
-# Copy Python packages + binaries from builder (system-wide install → clean & reliable)
+# Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy app code
-COPY --chown=tovira:tovira app/ ./app/
-COPY --chown=tovira:tovira .env.example .env.example
+# Copy everything in the project root (NOT app/)
+COPY --chown=tovira:tovira . .
 
-# Create directories with proper permissions BEFORE switching to non-root user
-RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets /app/otp_storage && \
-    chown -R tovira:tovira /app/keys /app/logs /app/data /app/registration_receipts /app/user_checkins /app/user_keys /app/user_sessions /app/user_wallets /app/otp_storage
+# Create required directories
+RUN mkdir -p /app/keys /app/logs /app/data /app/registration_receipts \
+    /app/user_checkins /app/user_keys /app/user_sessions \
+    /app/user_wallets /app/otp_storage \
+    && chown -R tovira:tovira /app
 
 # Switch to non-root user
 USER tovira
 
-# Expose port 10000 (Render scans for this)
 EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-10000}/health || exit 1
 
-# CRITICAL: Use $PORT environment variable (Render sets this dynamically)
-CMD gunicorn app.main:app \
-    --workers 1 \ 
+# Use PORT from environment (Render)
+CMD gunicorn main:app \
+    --workers 1 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:${PORT:-10000} \
     --timeout 120 \

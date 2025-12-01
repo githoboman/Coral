@@ -10,9 +10,10 @@ from typing import Dict, Optional, Tuple, Any
 import pytz
 from telegram.ext import ContextTypes
 from parsedatetime import Calendar
-from app.telegram_bot.walrus_client import WalrusClient, UserKeyManager
-from app.telegram_bot.suiclient import CopilotSuiClient
-from app.telegram_bot.secure_storage import load_and_decrypt, encrypt_and_save, encrypt_data, decrypt_data
+from walrus_client_change import WalrusClient, UserKeyManager
+from suiclient_change import CopilotSuiClient
+from secure_storage import load_and_decrypt, encrypt_and_save
+from secure_storage import encrypt_data, decrypt_data
 from cryptography.hazmat.primitives import hashes, serialization
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -67,12 +68,10 @@ class SessionManager:
             if password not in ["password_not_available_use_local", "local_storage_fallback_password"]:
                 try:
                     blob_id = f"{telegram_id}_session"
-                    success = self.key_manager.store_encrypted_object(
-                        session_data, str(telegram_id), password)
+                    success = self.key_manager.store_encrypted_object(session_data, str(telegram_id), password)
                     if success:
                         # Also cache locally
-                        local_path = Path(
-                            f"user_sessions/{telegram_id}.json.enc")
+                        local_path = Path(f"user_sessions/{telegram_id}.json.enc")
                         local_path.parent.mkdir(exist_ok=True)
                         encrypt_and_save(session_data, local_path)
                         return True
@@ -108,8 +107,7 @@ class SessionManager:
 
             # Fallback to Walrus
             blob_id = f"{telegram_id}_session"
-            session_data = self.key_manager.retrieve_encrypted_object(
-                blob_id, str(telegram_id), password)
+            session_data = self.key_manager.retrieve_encrypted_object(blob_id, str(telegram_id), password)
 
             if session_data:
                 # Cache locally
@@ -242,7 +240,7 @@ async def ensure_user_has_keys(telegram_id: str, context: ContextTypes.DEFAULT_T
 
     # ✅ Try to load keys from Walrus
     try:
-        from app.telegram_bot.secure_storage import validate_session_token
+        from secure_storage import validate_session_token
         token_result = validate_session_token(session_token)
 
         if not token_result:
@@ -281,7 +279,7 @@ async def create_user_session_with_password(telegram_id: str, password: str,
                                             context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Create a secure session with password for key retrieval - FIXED VERSION."""
     try:
-        from app.telegram_bot.secure_storage import create_session_token
+        from secure_storage import create_session_token
 
         # Load existing session or create new one
         existing_session = await session_manager.load_user_session(telegram_id,
@@ -345,8 +343,7 @@ async def recover_all_users_from_sessions(context: ContextTypes.DEFAULT_TYPE = N
 
 async def create_user_keys(telegram_id: str, password: str, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
-        public_key_str, encrypted_private = get_key_manager(
-        ).create_user_keys(telegram_id, password)
+        public_key_str, encrypted_private = get_key_manager().create_user_keys(telegram_id, password)
         context.user_data['public_key'] = public_key_str.encode('utf-8')
         context.user_data['has_encryption_keys'] = True
         return True
@@ -460,9 +457,9 @@ def find_profile_id_from_receipt(telegram_id: str) -> Optional[str]:
                 if not receipt:
                     continue
                 profile_id = (
-                    receipt.get('profile_id') or
-                    receipt.get('blockchain', {}).get('profile_id') or
-                    receipt.get('registration_result', {}).get('profile_id')
+                        receipt.get('profile_id') or
+                        receipt.get('blockchain', {}).get('profile_id') or
+                        receipt.get('registration_result', {}).get('profile_id')
                 )
                 if profile_id and str(profile_id).lower() not in ['none', 'local_registration', '']:
                     return str(profile_id)
@@ -592,12 +589,10 @@ async def get_password_via_key_validation(telegram_id: str, context: ContextType
     try:
         # Method 1: Check active registration (user just registered)
         if (context and hasattr(context, 'application') and
-                context.application and context.application.bot_data):
-            registration_system = context.application.bot_data.get(
-                'registration_system')
+            context.application and context.application.bot_data):
+            registration_system = context.application.bot_data.get('registration_system')
             if registration_system and telegram_id in registration_system.active_registrations:
-                password = registration_system.active_registrations[telegram_id].get(
-                    'password')
+                password = registration_system.active_registrations[telegram_id].get('password')
                 if password:
                     return password
 
@@ -625,16 +620,13 @@ async def get_password_via_key_validation(telegram_id: str, context: ContextType
         return None
 
 
-class RegistrationError(Exception):
-    pass
+class RegistrationError(Exception): pass
 
 
-class EncryptionError(Exception):
-    pass
+class EncryptionError(Exception): pass
 
 
-class BlockchainError(Exception):
-    pass
+class BlockchainError(Exception): pass
 
 
 def handle_error(error: Exception, context: str = "") -> str:
@@ -648,7 +640,7 @@ def handle_error(error: Exception, context: str = "") -> str:
 
 
 async def recover_user_data_from_walrus(telegram_id: str, password: str, context: ContextTypes.DEFAULT_TYPE = None) -> \
-        Dict[str, Any]:
+Dict[str, Any]:
     """
     COMPREHENSIVE USER DATA RECOVERY FROM WALRUS
     Retrieves ALL user data from Walrus in case of local data loss or password issues.
@@ -682,8 +674,7 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
             if session_data:
                 recovered_data['session'] = session_data
             else:
-                errors.append(
-                    "Session recovery failed - wrong password or no session found")
+                errors.append("Session recovery failed - wrong password or no session found")
         except Exception as e:
             errors.append(f"Session recovery error: {str(e)}")
 
@@ -700,8 +691,7 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
             key_manager = get_key_manager()
             for blob_id in possible_wallet_blobs:
                 try:
-                    wallet_data = key_manager.retrieve_encrypted_object(
-                        blob_id, telegram_id, password)
+                    wallet_data = key_manager.retrieve_encrypted_object(blob_id, telegram_id, password)
                     if wallet_data and 'mnemonic' in wallet_data:
                         recovered_data['wallet'] = {
                             'address': wallet_data.get('address'),
@@ -713,8 +703,7 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
                     continue
 
             if not recovered_data['wallet']:
-                errors.append(
-                    "Wallet recovery failed - no wallet backup found")
+                errors.append("Wallet recovery failed - no wallet backup found")
 
         except Exception as e:
             errors.append(f"Wallet recovery error: {str(e)}")
@@ -764,15 +753,13 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
         try:
             checkin_blob_id = f"{telegram_id}_checkins"
             key_manager = get_key_manager()
-            checkin_data = key_manager.retrieve_encrypted_object(
-                checkin_blob_id, telegram_id, password)
+            checkin_data = key_manager.retrieve_encrypted_object(checkin_blob_id, telegram_id, password)
 
             if checkin_data:
                 recovered_data['checkins'] = {
                     'total_checkins': checkin_data.get('total', 0),
                     'last_checkin': checkin_data.get('last_checkin'),
-                    # Last 10 checkins
-                    'checkin_history': checkin_data.get('checkins', [])[:10]
+                    'checkin_history': checkin_data.get('checkins', [])[:10]  # Last 10 checkins
                 }
             else:
                 errors.append("No checkin data found")
@@ -784,8 +771,7 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
         try:
             receipt_blob_id = f"{telegram_id}_registration_receipt"
             key_manager = get_key_manager()
-            receipt_data = key_manager.retrieve_encrypted_object(
-                receipt_blob_id, telegram_id, password)
+            receipt_data = key_manager.retrieve_encrypted_object(receipt_blob_id, telegram_id, password)
 
             if receipt_data:
                 recovered_data['registration_receipt'] = receipt_data
@@ -805,20 +791,16 @@ async def recover_user_data_from_walrus(telegram_id: str, password: str, context
             summary_parts.append(f"✅ **Wallet**: Address recovered")
 
         if recovered_data['tasks']:
-            summary_parts.append(
-                f"✅ **Tasks**: {len(recovered_data['tasks'])} tasks recovered")
+            summary_parts.append(f"✅ **Tasks**: {len(recovered_data['tasks'])} tasks recovered")
 
         if recovered_data['checkins']:
-            summary_parts.append(
-                f"✅ **Checkins**: {recovered_data['checkins']['total_checkins']} total checkins")
+            summary_parts.append(f"✅ **Checkins**: {recovered_data['checkins']['total_checkins']} total checkins")
 
         if recovered_data['registration_receipt']:
-            summary_parts.append(
-                f"✅ **Registration**: Complete receipt recovered")
+            summary_parts.append(f"✅ **Registration**: Complete receipt recovered")
 
         if not summary_parts:
-            summary_parts.append(
-                "❌ **No data recovered** - Please check your password")
+            summary_parts.append("❌ **No data recovered** - Please check your password")
 
         summary = "\n".join(summary_parts)
 
@@ -848,8 +830,7 @@ async def find_profile_id_from_walrus(telegram_id: str, password: str) -> Option
 
         # Try registration receipt first
         receipt_blob_id = f"{telegram_id}_registration_receipt"
-        receipt_data = key_manager.retrieve_encrypted_object(
-            receipt_blob_id, telegram_id, password)
+        receipt_data = key_manager.retrieve_encrypted_object(receipt_blob_id, telegram_id, password)
         if receipt_data:
             profile_id = receipt_data.get('blockchain', {}).get('profile_id')
             if profile_id and profile_id != 'local_registration':
@@ -878,7 +859,6 @@ async def decrypt_task_with_password(encrypted_blob: str, telegram_id: str, pass
     except Exception:
         return None
 
-
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel conversation."""
     await update.message.reply_text("❌ Cancelled.")
@@ -890,8 +870,7 @@ auth_conv_handler = ConversationHandler(
     entry_points=[],
     states={
         AUTHENTICATION_STATE: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND,
-                           handle_authentication)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_authentication)
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],

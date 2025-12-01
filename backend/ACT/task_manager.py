@@ -6,11 +6,11 @@ import pytz
 from parsedatetime import Calendar
 import re
 import html
-from app.telegram_bot.utils import authenticate_user
-from app.telegram_bot.encrypted_db import get_user_tasks, update_task_status
+from utils import authenticate_user
+from encrypted_db import get_user_tasks, update_task_status
 from typing import Dict, Optional
 
-from app.telegram_bot.utils import (
+from utils import (
     get_walrus_client, get_key_manager, get_sui_client,
     is_valid_email,
     ensure_user_has_keys, get_user_private_key,
@@ -78,7 +78,7 @@ class TaskManager:
     async def can_create_task_today(telegram_id: str, context: ContextTypes.DEFAULT_TYPE) -> tuple:
         """REAL task counting from encrypted DB - SIMPLE VERSION"""
         try:
-            from app.telegram_bot.encrypted_db import get_daily_task_count
+            from encrypted_db import get_daily_task_count
 
             current_count = get_daily_task_count(telegram_id)
             remaining = max(0, DAILY_TASK_LIMIT - current_count)
@@ -1025,7 +1025,7 @@ class TaskManager:
                 return ConversationHandler.END
 
             # SAVE TASK LOCALLY
-            from app.telegram_bot.encrypted_db import save_task_locally
+            from encrypted_db import save_task_locally
             save_task_locally(
                 telegram_id=telegram_id,
                 task_id=task_id,
@@ -1244,7 +1244,7 @@ class TaskManager:
 
         # Add statistics section
         try:
-            from app.telegram_bot.encrypted_db import get_daily_task_count
+            from encrypted_db import get_daily_task_count
             current_count = get_daily_task_count(telegram_id)
             remaining = max(0, DAILY_TASK_LIMIT - current_count)
         except Exception:

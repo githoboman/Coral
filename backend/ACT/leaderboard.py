@@ -3,12 +3,12 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 from pathlib import Path
 import json
-from app.telegram_bot.utils import get_sui_client, load_user_session, get_walrus_client, get_key_manager
+from utils import get_sui_client, load_user_session, get_walrus_client, get_key_manager
 from datetime import datetime
 import pytz
 import os
 import dotenv
-from app.telegram_bot.checkin import checkin_manager
+from checkin import checkin_manager
 
 
 sui_client = get_sui_client()
@@ -22,8 +22,8 @@ async def fetch_all_user_profiles_with_points():
 
     # === STEP 1: Try local encrypted files (fast) ===
     try:
-        from app.telegram_bot.secure_storage import load_and_decrypt
-        from app.telegram_bot.utils import load_user_session
+        from secure_storage import load_and_decrypt
+        from utils import load_user_session
         import asyncio
 
         sessions_dir = Path("user_sessions")
@@ -54,7 +54,7 @@ async def fetch_all_user_profiles_with_points():
                     # Try to get more accurate points from checkin backup
                     checkin_file = Path("user_checkins") / f"{uid}.enc"
                     if checkin_file.exists() and session.get('password'):
-                        from app.telegram_bot.secure_storage import decrypt_data
+                        from secure_storage import decrypt_data
                         blob = checkin_file.read_text()
                         data = decrypt_data(blob, uid, session['password'])
                         if isinstance(data, dict):
@@ -111,7 +111,7 @@ async def fetch_all_user_profiles_with_points():
                 username = "User"
                 try:
                     # Import here to avoid circular imports
-                    from app.telegram_bot.utils import load_user_session
+                    from utils import load_user_session
                     session = await load_user_session(telegram_id, None)  # Pass None for context if needed
                     if session:
                         username_from_session = session.get('username', '')
@@ -366,8 +366,8 @@ async def quick_checkin_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def update_all_user_usernames(context: ContextTypes.DEFAULT_TYPE):
     """Force update usernames for all existing users"""
-    from app.telegram_bot.secure_storage import load_and_decrypt
-    from app.telegram_bot.utils import save_user_session
+    from secure_storage import load_and_decrypt
+    from utils import save_user_session
     import asyncio
 
     sessions_dir = Path("user_sessions")
