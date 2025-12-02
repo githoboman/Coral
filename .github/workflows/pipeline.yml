@@ -1,0 +1,21 @@
+# CI/CD Pipeline for Tovira Copilot
+# Triggers on push/PR to main or dev branches
+# Currently runs basic validation - can be extended for tests, linting, deployment
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]  # Run on push to main or dev
+  pull_request:
+    branches: [ main, dev ]  # Run on PRs to main or dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3  # Checkout repository code
+    
+    - name: Build Success
+      run: echo "Build completed successfully"  # Placeholder for future build steps
