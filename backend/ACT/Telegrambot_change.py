@@ -45,6 +45,8 @@ from cryptography.hazmat.primitives import serialization
 from walrus_client_change import WalrusRegistrationManager, LocalEncryptedEmailIndex
 import logging
 import traceback
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 load_dotenv()
 
@@ -3038,7 +3040,7 @@ signup_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
-    per_message=False
+    per_message=True
 )
 
 session_recovery_conv_handler = ConversationHandler(
@@ -3080,7 +3082,7 @@ registration_username_handler = ConversationHandler(
         ],
     },
     fallbacks=[],
-    per_message=False,
+    per_message=True,
     name="registration_username"
 )
 
@@ -3132,7 +3134,7 @@ def setup_export_wallet_handler(application):
             CommandHandler("cancel", cancel_export),
             CommandHandler("export_wallet", export_wallet_command)
         ],
-        per_message=False
+        per_message=True
     )
 
     application.add_handler(export_conv_handler)
@@ -3144,9 +3146,47 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         error_msg = handle_error(context.error, "telegram_bot")
         await update.effective_chat.send_message(error_msg)
 
+# ============= HEALTH CHECK SERVER FOR RENDER =============
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    """Simple HTTP handler for Render health checks"""
+    
+    def do_GET(self):
+        """Handle GET requests"""
+        if self.path == '/health' or self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {
+                'status': 'healthy',
+                'service': 'Tovira Telegram Bot',
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        """Suppress default logging to avoid cluttering logs"""
+        pass
+
+def start_health_server(port=10000):
+    """Start HTTP health check server in background thread"""
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"✅ Health check server running on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"⚠️ Health server failed to start: {e}")
+
 # ============= MAIN =============
 def main():
     """Start the bot."""
+    # Start health check server for Render deployment
+    port = int(os.getenv('PORT', 10000))
+    health_thread = Thread(target=start_health_server, args=(port,), daemon=True)
+    health_thread.start()
+    
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     if not token:
         print("❌ Set TELEGRAM_BOT_TOKEN in .env")
