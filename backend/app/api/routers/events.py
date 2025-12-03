@@ -96,14 +96,12 @@ async def create_events_bulk(
     Maximum 50 events per request.
     """
     try:
-        # Validate user exists
         user_check = db.table("user_profiles").select(
             "user_id").eq("user_id", bulk_data.user_id).execute()
         if not user_check.data:
             logger.warning(f"User not found: {bulk_data.user_id}")
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Prepare event records
         event_records = []
         for event in bulk_data.events:
             event_record = {
@@ -124,7 +122,6 @@ async def create_events_bulk(
             }
             event_records.append(event_record)
 
-        # Bulk insert
         result = db.table("events").insert(event_records).execute()
 
         if not result.data:
@@ -169,11 +166,9 @@ async def get_events(
     - **offset**: Number of events to skip for pagination
     """
     try:
-        # Build query
         query = db.table("events").select(
             "*", count="exact").eq("user_id", user_id)
 
-        # Apply filters
         if start_date:
             query = query.gte("event_date", start_date.isoformat())
         if end_date:
@@ -184,7 +179,6 @@ async def get_events(
         if is_all_day is not None:
             query = query.eq("is_all_day", is_all_day)
 
-        # Apply pagination and ordering
         query = query.order("event_date", desc=False).range(
             offset, offset + limit - 1)
 
@@ -249,7 +243,6 @@ async def update_event(
     All fields are optional - only provided fields will be updated.
     """
     try:
-        # Verify event exists and belongs to user
         existing_event = db.table("events").select(
             "*").eq("id", event_id).eq("user_id", user_id).execute()
 
@@ -257,7 +250,6 @@ async def update_event(
             logger.warning(f"Event not found: {event_id} for user: {user_id}")
             raise HTTPException(status_code=404, detail="Event not found")
 
-        # Prepare update data (only include fields that were provided)
         update_data = {
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
@@ -317,7 +309,6 @@ async def delete_event(
     Delete an event.
     """
     try:
-        # Verify event exists and belongs to user
         existing_event = db.table("events").select("event_name").eq(
             "id", event_id).eq("user_id", user_id).execute()
 
@@ -327,7 +318,6 @@ async def delete_event(
 
         event_name = existing_event.data[0]["event_name"]
 
-        # Delete event
         result = db.table("events").delete().eq(
             "id", event_id).eq("user_id", user_id).execute()
 

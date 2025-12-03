@@ -17,10 +17,6 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# STATE DEFINITIONS
-# ============================================================================
-
 class ResearchState(BaseModel):
     """State for the research agent workflow"""
     messages: List[Dict[str, Any]] = Field(default_factory=list)
@@ -29,27 +25,20 @@ class ResearchState(BaseModel):
     project_name: str = ""
     research_goal: str = ""
 
-    # Research outputs by pillar
     selling_points: Dict[str, Any] = Field(default_factory=dict)
     fundamentals: Dict[str, Any] = Field(default_factory=dict)
     technical: Dict[str, Any] = Field(default_factory=dict)
     onchain: Dict[str, Any] = Field(default_factory=dict)
     progress: List[str] = Field(default_factory=list)
 
-    # Process tracking
     current_pillar: str = ""
     completed_pillars: List[str] = Field(default_factory=list)
     iteration_count: int = 0
     max_iterations: int = 15
 
-    # Final output
     final_report: str = ""
     confidence_score: float = 0.0
 
-
-# ============================================================================
-# TOOLS FOR WEB3 RESEARCH
-# ============================================================================
 
 @tool
 async def web_search(query: str, num_results: int = 5) -> str:
@@ -159,7 +148,6 @@ async def coingecko_data(token_id: str) -> str:
                 "market_data": "true"
             }
 
-            # Add API key if available (supports Demo plan)
             if settings.COINGECKO_API_KEY:
                 params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
 
@@ -169,7 +157,6 @@ async def coingecko_data(token_id: str) -> str:
                 data = response.json()
                 logger.info(f"Fetched CoinGecko data for {token_id}")
 
-                # Extract market data safely
                 market_data = data.get("market_data", {})
                 return json.dumps({
                     "name": data.get("name"),
@@ -196,10 +183,6 @@ async def coingecko_data(token_id: str) -> str:
             "note": "Make sure to set COINGECKO_API_KEY in your .env file"
         })
 
-
-# ============================================================================
-# AGENT NODES
-# ============================================================================
 
 class SuiResearchAgent:
     """Deep research agent for Sui blockchain projects"""
@@ -243,11 +226,9 @@ class SuiResearchAgent:
     async def _call_llm_with_timeout(self, messages: List, timeout: float = 60.0) -> str:
         """Call LLM with timeout protection and proper error handling"""
         try:
-            # Ensure we have at least a SystemMessage and HumanMessage
             if not messages:
                 messages = [HumanMessage(content="Provide analysis.")]
             elif len(messages) == 1 and isinstance(messages[0], SystemMessage):
-                # If only system message, add a human message
                 messages.append(HumanMessage(
                     content="Provide a detailed analysis."))
 
@@ -552,7 +533,6 @@ Keep under 400 words."""
         """Synthesize all research into final report"""
         logger.info(f"Synthesizing report for {state.project_name}")
 
-        # Build compact JSON to avoid token overflow
         selling_points_text = state.selling_points.get("summary", "No data")[:500]
         fundamentals_text = state.fundamentals.get("analysis", "No data")[:500]
         technical_text = state.technical.get("analysis", "No data")[:500]
@@ -592,17 +572,14 @@ Keep under 400 words."""
             content = await self._call_llm_with_timeout(messages, timeout=90.0)
             logger.info(f"LLM synthesis response length: {len(content)}")
 
-            # Handle timeout responses
             if not content or "[Error:" in content or content.startswith("["):
                 logger.error(f"LLM returned error/timeout: {content}")
                 state.final_report = f"## Report Generation Issue\n\n{content}\n\nPlease try again with a different query."
             else:
-                # CRITICAL FIX: Ensure the report is actually set
                 state.final_report = content
                 logger.info(
                     f"Successfully set final_report: {len(state.final_report)} chars")
 
-            # Calculate confidence score
             scores = []
             if state.selling_points.get("confidence"):
                 scores.append(state.selling_points["confidence"])
@@ -616,7 +593,6 @@ Keep under 400 words."""
             state.confidence_score = sum(scores) / len(scores) if scores else 5.0
             logger.info(f"Confidence score: {state.confidence_score}")
 
-            # DEBUGGING: Verify the state before returning
             logger.info(
                 f"Before return - final_report length: {len(state.final_report)}, confidence: {state.confidence_score}")
 
@@ -645,8 +621,6 @@ Keep under 400 words."""
                     logger.debug(
                         f"Node: {node_name}, State type: {type(node_state)}")
 
-                    # CRITICAL FIX: Save state properly
-                    # The node_state is a dict, not a ResearchState object
                     if isinstance(node_state, dict):
                         final_state = node_state
                     else:
@@ -667,7 +641,6 @@ Keep under 400 words."""
                             yield {"type": "response", "content": f"Goal: {research_goal}\n\n"}
                             has_output = True
 
-                    # Handle pillar updates
                     if isinstance(node_state, dict):
                         pillar = node_state.get('current_pillar')
                     else:
@@ -678,9 +651,7 @@ Keep under 400 words."""
                         yield {"type": "response", "content": f"---\n\n**{current_pillar}**\n\n"}
                         has_output = True
 
-            # After graph completes, extract final report
             if final_state:
-                # Handle both dict and object formats
                 if isinstance(final_state, dict):
                     report = final_state.get('final_report', '')
                     confidence_score = final_state.get('confidence_score', 0.0)
@@ -694,7 +665,6 @@ Keep under 400 words."""
                 if report and len(report) > 0:
                     logger.info(f"Streaming final report of length: {len(report)}")
 
-                    # Stream the report in chunks
                     chunk_size = 100
                     for i in range(0, len(report), chunk_size):
                         chunk = report[i:i + chunk_size]
@@ -724,10 +694,6 @@ Keep under 400 words."""
             yield {"type": "response", "content": f"Error during research: {str(e)}\n"}
             yield {"type": "done"}
 
-
-# ============================================================================
-# BACKWARD COMPATIBILITY
-# ============================================================================
 
 async def generate_ai_response_stream(
     query: str,

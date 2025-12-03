@@ -6,17 +6,16 @@ import { useAuth } from '@/hooks/useAuth';
 type Item = {
   id: number;
   type: 'event' | 'task';
-  dateKey: string;               // YYYY-MM-DD
+  dateKey: string;
   title: string;
-  time?: string;                 // HH:MM for events, optional for tasks
+  time?: string;
   desc?: string;
-  color?: string;                // only for events
-  completed?: boolean;           // only for tasks
-  priority?: string;             // task priority
-  tags?: string[];               // task tags
+  color?: string;
+  completed?: boolean;
+  priority?: string;
+  tags?: string[];
 };
 
-// Separate loading states for better UX
 type LoadingStates = {
   initialLoad: boolean;
   tasksLoading: boolean;
@@ -32,7 +31,6 @@ const Activity = () => {
   const { pubkeyHex } = useAuth();
   const userId = pubkeyHex || "";
 
-  // ────────────────────────────────────── UI states ──────────────────────────────────────
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeView, setActiveView] = useState<'Month' | 'Week' | 'Day' | 'Schedule'>('Month');
   const [activeTab, setActiveTab] = useState<'Calendar' | 'Tasks'>('Calendar');
@@ -53,12 +51,10 @@ const Activity = () => {
     deleting: false,
   });
 
-  // ────────────────────────────────────── Data ──────────────────────────────────────
   const [items, setItems] = useState<Item[]>([]);
 
   const views = ['Month', 'Week', 'Day', 'Schedule'];
 
-  // ────────────────────────────────────── Load data from backend ──────────────────────────────────────
   const loadTasks = useCallback(async () => {
     if (!userId) return;
 
@@ -66,7 +62,6 @@ const Activity = () => {
       setLoadingStates(prev => ({ ...prev, tasksLoading: true }));
       const response = await taskApi.getTasks(userId, { limit: 500 });
 
-      // Convert backend tasks to frontend items
       const taskItems: Item[] = response.tasks.map(task => ({
         id: task.id!,
         type: 'task' as const,
@@ -78,7 +73,6 @@ const Activity = () => {
         tags: task.tags
       }));
 
-      // Update items state - preserve events, replace tasks
       setItems(prev => [
         ...prev.filter(i => i.type === 'event'),
         ...taskItems
@@ -98,7 +92,6 @@ const Activity = () => {
       setLoadingStates(prev => ({ ...prev, eventsLoading: true }));
       const response = await eventApi.getEvents(userId, { limit: 500 });
 
-      // Convert backend events to frontend items
       const eventItems: Item[] = response.events.map(event => ({
         id: event.id!,
         type: 'event' as const,
@@ -110,7 +103,6 @@ const Activity = () => {
         tags: event.tags
       }));
 
-      // Update items state - preserve tasks, replace events
       setItems(prev => [
         ...prev.filter(i => i.type === 'task'),
         ...eventItems
@@ -135,7 +127,6 @@ const Activity = () => {
     loadAllData();
   }, [loadAllData]);
 
-  // ────────────────────────────────────── Helpers ──────────────────────────────────────
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
   const dateToKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const cloneDate = (d: Date) => new Date(d.getTime());
@@ -151,7 +142,6 @@ const Activity = () => {
 
   const todayKey = useMemo(() => dateToKey(new Date()), []);
 
-  // ────────────────────────────────────── Grid data ──────────────────────────────────────
   const monthGrid = useMemo(() => {
     const start = startOfMonth(displayedDate);
     const firstWeekday = start.getDay();
@@ -183,12 +173,10 @@ const Activity = () => {
     });
   }, [items]);
 
-  // ────────────────────────────────────── Item helpers ──────────────────────────────────────
   const itemsForDateKey = (key: string) => items.filter(i => i.dateKey === key);
   const eventsForDateKey = (key: string) => items.filter(i => i.type === 'event' && i.dateKey === key);
   const tasksForDateKey = (key: string) => items.filter(i => i.type === 'task' && i.dateKey === key);
 
-  // ────────────────────────────────────── Navigation ──────────────────────────────────────
   const goPrev = () => {
     const d = cloneDate(displayedDate);
     if (activeView === 'Month' || activeView === 'Schedule') d.setMonth(d.getMonth() - 1);
@@ -205,7 +193,6 @@ const Activity = () => {
   };
   const goToday = () => setDisplayedDate(new Date());
 
-  // ────────────────────────────────────── Modal actions ──────────────────────────────────────
   const openAddModal = (date: Date, mode: 'event' | 'task' = 'event') => {
     setSelectedDateForModal(date);
     setModalMode(mode);
@@ -233,16 +220,14 @@ const Activity = () => {
       setLoadingStates(prev => ({ ...prev, creating: true }));
       setError(null);
 
-      // Create a date at noon in local timezone to avoid timezone shifting
       const localDate = new Date(
         selectedDateForModal.getFullYear(),
         selectedDateForModal.getMonth(),
         selectedDateForModal.getDate(),
-        12, 0, 0, 0 // Set to noon to avoid timezone issues
+        12, 0, 0, 0 // Has been set to noon to avoid timezone issues
       );
 
       if (modalMode === 'event') {
-        // Create event via API
         const eventData: Event = {
           user_id: userId,
           event_name: title,
@@ -255,11 +240,10 @@ const Activity = () => {
 
         const createdEvent = await eventApi.createEvent(eventData);
 
-        // Add to local state - use the original selected date key
         const newItem: Item = {
           id: createdEvent.id!,
           type: 'event',
-          dateKey: dateToKey(selectedDateForModal), // Use original date to ensure correct day
+          dateKey: dateToKey(selectedDateForModal),
           title: createdEvent.event_name,
           time: createdEvent.event_time,
           desc: createdEvent.description,
@@ -268,7 +252,6 @@ const Activity = () => {
         };
         setItems(prev => [...prev, newItem]);
       } else {
-        // Create task via API
         const taskData: Task = {
           user_id: userId,
           task_name: title,
@@ -280,11 +263,10 @@ const Activity = () => {
 
         const createdTask = await taskApi.createTask(taskData);
 
-        // Add to local state - use the original selected date key
         const newItem: Item = {
           id: createdTask.id!,
           type: 'task',
-          dateKey: dateToKey(selectedDateForModal), // Use original date to ensure correct day
+          dateKey: dateToKey(selectedDateForModal),
           title: createdTask.task_name,
           desc: createdTask.description,
           completed: false,
@@ -345,7 +327,6 @@ const Activity = () => {
         await eventApi.deleteEvent(id, userId);
       }
 
-      // Remove from local state
       setItems(prev => prev.filter(i => i.id !== id));
       closeModal();
     } catch (err) {
@@ -356,7 +337,6 @@ const Activity = () => {
     }
   };
 
-  // ────────────────────────────────────── Formatting ──────────────────────────────────────
   const fmtMonthYear = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const fmtShortDay = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short' });
   const fmtDayNumber = (d: Date) => d.getDate();
@@ -366,10 +346,8 @@ const Activity = () => {
   };
   const fmtHour = (h: number) => `${pad(h)}:00`;
 
-  // ────────────────────────────────────── Effects ──────────────────────────────────────
   useEffect(() => setIsDropdownOpen(false), [activeView]);
 
-  // Show loading spinner only on initial load
   if (!userId || loadingStates.initialLoad) {
     return (
       <div className="h-dvh w-full flex justify-center items-center">
@@ -381,7 +359,6 @@ const Activity = () => {
     );
   }
 
-  // Check if any operation is in progress
   const isAnyOperationInProgress = loadingStates.creating || loadingStates.updating || loadingStates.deleting;
 
   return (
@@ -396,7 +373,7 @@ const Activity = () => {
         </div>
       )}
 
-      {/* Small loading indicator for background operations */}
+      {/* Loading indicator for background operations */}
       {isAnyOperationInProgress && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-blue-500/90 backdrop-blur text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -449,11 +426,9 @@ const Activity = () => {
         </div>
       </div>
 
-      {/* ───────────────────── Main content ───────────────────── */}
       <div className="flex-1">
         {activeTab === 'Calendar' && (
           <>
-            {/* Range header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold">
                 {activeView === 'Month' && fmtMonthYear(displayedDate)}
@@ -462,7 +437,6 @@ const Activity = () => {
                 {activeView === 'Schedule' && `Schedule – ${fmtMonthYear(displayedDate)}`}
               </h3>
 
-              {/* Prev / Today / Next */}
               <div className="flex items-center space-x-2">
                 <button onClick={goPrev} className="cursor-pointer p-2 rounded-md hover:bg-white/5 text-gray-500" title="Previous"><ChevronLeft /></button>
                 <button onClick={goToday} className="cursor-pointer px-3 py-1 rounded-md bg-white/5 text-sm" title="Today">Today</button>
@@ -470,8 +444,6 @@ const Activity = () => {
               </div>
             </div>
 
-            {/* Calendar views - keeping the same rendering logic as before */}
-            {/* ─────── Month ─────── */}
             {activeView === 'Month' && (
               <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
                 <div className="grid grid-cols-7 gap-1 mb-2 text-center">
@@ -497,7 +469,6 @@ const Activity = () => {
                         <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{cell.getDate()}</div>
 
                         <div className="mt-1 space-y-0.5 overflow-hidden">
-                          {/* Events */}
                           {evs.slice(0, 2).map(ev => (
                             <div
                               key={ev.id}
@@ -508,7 +479,6 @@ const Activity = () => {
                               {ev.title}
                             </div>
                           ))}
-                          {/* Tasks */}
                           {tsks.slice(0, 2).map(t => (
                             <div
                               key={t.id}
@@ -528,12 +498,10 @@ const Activity = () => {
               </div>
             )}
 
-            {/* ─────── Week ─────── */}
             {activeView === 'Week' && (
               <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden">
-                {/* Header */}
                 <div className="grid grid-cols-8 gap-0 border-b border-gray-200/30">
-                  <div className="p-2 text-xs text-gray-500" /> {/* empty corner */}
+                  <div className="p-2 text-xs text-gray-500" />
                   {weekDays.map(d => (
                     <div key={dateToKey(d)} className="p-2 text-center">
                       <div className="text-xs text-gray-500">{fmtShortDay(d)}</div>
@@ -542,16 +510,13 @@ const Activity = () => {
                   ))}
                 </div>
 
-                {/* 24-hour rows */}
-                <div className="relative h-[1400px]"> {/* fixed height → all 24 h visible */}
+                <div className="relative h-[1400px]">
                   {HOURS.map(h => (
                     <div key={h} className="grid grid-cols-8 gap-0 border-b border-gray-200/20" style={{ height: '58px' }}>
-                      {/* Hour label */}
                       <div className="flex items-center justify-end pr-2 text-xs text-gray-500">
                         {fmtHour(h)}
                       </div>
 
-                      {/* Day columns */}
                       {weekDays.map(d => {
                         const key = dateToKey(d);
                         const dayEvs = eventsForDateKey(key).filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'));
@@ -563,7 +528,6 @@ const Activity = () => {
                             className="relative border-l border-gray-200/20 hover:bg-white/5 cursor-pointer"
                             onClick={() => openAddModal(d)}
                           >
-                            {/* All-day area (top of column) */}
                             {h === 0 && (
                               <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
                                 {eventsForDateKey(key).filter(e => !e.time).map(ev => (
@@ -588,7 +552,6 @@ const Activity = () => {
                               </div>
                             )}
 
-                            {/* Timed events */}
                             {dayEvs.map(ev => (
                               <div
                                 key={ev.id}
@@ -607,7 +570,6 @@ const Activity = () => {
               </div>
             )}
 
-            {/* ─────── Day ─────── */}
             {activeView === 'Day' && (
               <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden">
                 <div className="p-4 border-b border-gray-200/30">
@@ -622,7 +584,6 @@ const Activity = () => {
                         className="flex-1 relative hover:bg-white/5 cursor-pointer"
                         onClick={() => openAddModal(displayedDate)}
                       >
-                        {/* All-day (top) */}
                         {h === 0 && (
                           <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
                             {eventsForDateKey(dayKey).filter(e => !e.time).map(ev => (
@@ -647,7 +608,6 @@ const Activity = () => {
                           </div>
                         )}
 
-                        {/* Timed events */}
                         {eventsForDateKey(dayKey)
                           .filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'))
                           .map(ev => (
@@ -666,7 +626,6 @@ const Activity = () => {
               </div>
             )}
 
-            {/* ─────── Schedule ─────── */}
             {activeView === 'Schedule' && (
               <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
                 <ul className="space-y-3">
@@ -702,7 +661,6 @@ const Activity = () => {
           </>
         )}
 
-        {/* ─────── Tasks Tab ─────── */}
         {activeTab === 'Tasks' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -752,7 +710,6 @@ const Activity = () => {
         )}
       </div>
 
-      {/* ───────────────────── Modal (with priority and tags fields for tasks) ───────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
           <div className="bg-[#2B2B2B] rounded-[20px] shadow-lg p-6 w-full max-w-md relative">
@@ -760,7 +717,6 @@ const Activity = () => {
               <X />
             </button>
 
-            {/* ───── Add modal: Always show toggle when adding ───── */}
             {!selectedItem && selectedDateForModal && (
               <>
                 <h3 className="text-lg font-semibold mb-3">Add New</h3>
@@ -768,7 +724,6 @@ const Activity = () => {
                   {selectedDateForModal.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
 
-                {/* Toggle: Event vs Task */}
                 <div className="flex mb-4 border border-white/20 rounded-full overflow-hidden">
                   {(['event', 'task'] as const).map((m) => (
                     <button
@@ -836,7 +791,6 @@ const Activity = () => {
               </>
             )}
 
-            {/* ───── View modal (unchanged) ───── */}
             {selectedItem && (
               <>
                 <h3 className="text-lg font-semibold mb-2">

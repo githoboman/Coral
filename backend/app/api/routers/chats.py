@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 @router.post("/chat/stream", summary="Submit chat message with streaming")
 async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Depends(get_supabase_client)):
     try:
-        # --- Basic validation ---
         if not message_data.query.strip():
             logger.warning("Empty chat message received")
             raise HTTPException(
@@ -24,14 +23,12 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
 
         chat_id = message_data.chat_id
 
-        # --- Create new chat if necessary ---
         if not chat_id:
             if not message_data.user_id:
                 logger.warning("No user_id provided for new chat")
                 raise HTTPException(
                     status_code=400, detail="User ID required for new chat")
 
-            # Generate intelligent chat name from first message
             chat_name = await generate_chat_name(message_data.query)
 
             chat_data = {
@@ -49,7 +46,6 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
             logger.info(
                 f"Created new chat session: {chat_id} with name: {chat_name}")
 
-        # --- Store user message ---
         user_message = {
             "chat_id": chat_id,
             "query": message_data.query,
@@ -63,7 +59,6 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
             raise HTTPException(
                 status_code=500, detail="Failed to store chat message")
 
-        # --- Fetch context (last 5 messages) ---
         context_result = (
             db.table("chat_messages")
             .select("sender, query")
@@ -78,12 +73,10 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
             for m in reversed(context_result.data or [])
         ]
 
-        # --- Stream AI response ---
         async def event_generator():
             full_response = ""
             chunk_count = 0
 
-            # Send chat_id first
             yield f"data: {json.dumps({'type': 'chat_id', 'chat_id': chat_id})}\n\n"
 
             logger.info(f"Starting stream for query: {message_data.query}")
@@ -117,14 +110,12 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
                             f"Done event received. Total chunks: {chunk_count}, Response length: {len(full_response)}")
                         break
 
-                # Verify we got content
                 if not full_response:
                     logger.error(
                         "Stream completed but no response content was generated!")
                     error_msg = "  No response was generated. This might be a configuration issue. Please contact support."
                     yield f"data: {json.dumps({'type': 'response', 'content': error_msg})}\n\n"
 
-                # Only store AI response if we have content
                 if full_response:
                     ai_message = {
                         "chat_id": chat_id,
@@ -140,11 +131,9 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
                     logger.warning(
                         "Skipping AI message storage - no content generated")
 
-                # Update chat timestamp
                 db.table("chats").update({"last_updated": datetime.utcnow().isoformat()}).eq(
                     "chat_id", chat_id).execute()
 
-                # Always send done at the very end
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
                 logger.info(
                     f"Stream completed successfully. Total chunks: {chunk_count}")
@@ -163,13 +152,10 @@ async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Dep
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Keep the original non-streaming endpoint for backwards compatibility
-
 
 @router.post("/chat", summary="Submit chat message")
 async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(get_supabase_client)):
     try:
-        # --- Basic validation ---
         if not message_data.query.strip():
             logger.warning("Empty chat message received")
             raise HTTPException(
@@ -177,14 +163,12 @@ async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(ge
 
         chat_id = message_data.chat_id
 
-        # --- Create new chat if necessary ---
         if not chat_id:
             if not message_data.user_id:
                 logger.warning("No user_id provided for new chat")
                 raise HTTPException(
                     status_code=400, detail="User ID required for new chat")
 
-            # Generate intelligent chat name from first message
             chat_name = await generate_chat_name(message_data.query)
 
             chat_data = {
@@ -202,7 +186,6 @@ async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(ge
             logger.info(
                 f"Created new chat session: {chat_id} with name: {chat_name}")
 
-        # --- Store user message ---
         user_message = {
             "chat_id": chat_id,
             "query": message_data.query,
@@ -231,7 +214,6 @@ async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(ge
             for m in reversed(context_result.data or [])
         ]
 
-        # --- Generate AI response (non-streaming) ---
         full_response = ""
         async for chunk in generate_ai_response_stream(
             message_data.query,
@@ -243,7 +225,6 @@ async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(ge
 
         ai_response_text = full_response
 
-        # --- Store AI response ---
         ai_message = {
             "chat_id": chat_id,
             "query": ai_response_text,
@@ -257,7 +238,6 @@ async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(ge
             raise HTTPException(
                 status_code=500, detail="Failed to store AI response")
 
-        # --- Update chat timestamp ---
         db.table("chats").update({"last_updated": datetime.utcnow().isoformat()}).eq(
             "chat_id", chat_id).execute()
 

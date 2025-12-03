@@ -44,7 +44,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
     try {
-      // Fetch user details
       const response = await fetch(
         `${apiBaseUrl}/api/fetch-user?user_id=${encodeURIComponent(auth.pubkeyHex)}`,
         {
@@ -105,8 +104,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const data = await response.json();
       console.log('User profile created:', data.message);
-
-      // Show onboarding after creating profile
       setIsOnboarded(false);
       setIsOnboardingOpen(true);
     } catch (error: any) {
@@ -201,7 +198,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         />
       )}
 
-      {/* Onboarding Modal */}
       <OnboardingModal
         isOpen={isOnboardingOpen && auth.isAuthenticated && !isOnboarded}
         loading={onboardingLoading}

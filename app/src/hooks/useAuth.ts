@@ -114,7 +114,7 @@ export function useAuth() {
           ? 'localhost'
           : window.location.hostname,
       authenticatorSelection: {
-        authenticatorAttachment: undefined, // allow both
+        authenticatorAttachment: undefined,
         residentKey: 'preferred',
         userVerification: 'required',
       },
@@ -309,7 +309,6 @@ export function useAuth() {
         }));
       }
     } else {
-      // Try to recover first, then create if needed
       const recovered = await recoverPasskey();
       if (!recovered) {
         await createNewPasskey();
@@ -342,6 +341,6 @@ export function useAuth() {
     signIn,
     signOut,
     clearMessage,
-    setAuthState, // Added to allow updating auth state
+    setAuthState,
   };
 }

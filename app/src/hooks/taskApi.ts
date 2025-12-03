@@ -1,4 +1,3 @@
-// services/taskApi.ts
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export interface Task {
@@ -6,12 +5,12 @@ export interface Task {
   user_id: string;
   task_name: string;
   description?: string;
-  due_date?: string; // ISO format
+  due_date?: string; // Must be in ISO format
   priority: 'low' | 'medium' | 'high';
   status?: 'pending' | 'completed' | 'cancelled' | 'in_progress';
   tags?: string[];
   is_recurring?: boolean;
-  reminder_times?: string[]; // ISO format array
+  reminder_times?: string[]; // Also in ISO format array
   created_at?: string;
   updated_at?: string;
   completion_date?: string;
@@ -47,9 +46,6 @@ class TaskApiClient {
     this.baseUrl = `${apiBaseUrl}/api`;
   }
 
-  /**
-   * Create a new task
-   */
   async createTask(task: Task): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks`, {
       method: 'POST',
@@ -67,9 +63,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Create multiple tasks at once
-   */
   async createTasksBulk(userId: string, tasks: Omit<Task, 'user_id'>[]): Promise<Task[]> {
     const response = await fetch(`${this.baseUrl}/tasks/bulk`, {
       method: 'POST',
@@ -90,17 +83,14 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Get all tasks for a user with optional filters
-   */
   async getTasks(
     userId: string,
     filters?: {
       status?: 'pending' | 'completed' | 'cancelled' | 'in_progress';
       priority?: 'low' | 'medium' | 'high';
-      start_date?: string; // ISO format
-      end_date?: string; // ISO format
-      tags?: string; // Comma-separated
+      start_date?: string;
+      end_date?: string;
+      tags?: string;
       limit?: number;
       offset?: number;
     }
@@ -130,9 +120,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Get a specific task by ID
-   */
   async getTask(taskId: number, userId: string): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'GET',
@@ -149,9 +136,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Update a task
-   */
   async updateTask(taskId: number, userId: string, updates: Partial<Task>): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'PATCH',
@@ -169,9 +153,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Delete a task
-   */
   async deleteTask(taskId: number, userId: string): Promise<{ message: string; task_id: number; task_name: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'DELETE',
@@ -188,9 +169,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Mark a task as completed
-   */
   async completeTask(taskId: number, userId: string): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/complete?user_id=${userId}`, {
       method: 'POST',
@@ -207,9 +185,6 @@ class TaskApiClient {
     return response.json();
   }
 
-  /**
-   * Get task statistics for a user
-   */
   async getTaskStats(userId: string): Promise<TaskStats> {
     const response = await fetch(`${this.baseUrl}/tasks/stats/${userId}`, {
       method: 'GET',
@@ -232,7 +207,7 @@ export interface Event {
   user_id: string;
   event_name: string;
   description?: string;
-  event_date: string; // ISO format
+  event_date: string;
   event_time?: string; // HH:MM format
   color?: 'bg-blue-500' | 'bg-red-500' | 'bg-green-500' | 'bg-purple-500' | 'bg-yellow-500' | 'bg-pink-500' | 'bg-indigo-500' | 'bg-orange-500';
   location?: string;
@@ -240,7 +215,7 @@ export interface Event {
   tags?: string[];
   attendees?: string[];
   is_recurring?: boolean;
-  reminder_times?: string[]; // ISO format array
+  reminder_times?: string[]; 
   created_at?: string;
   updated_at?: string;
 }
@@ -267,9 +242,6 @@ class EventApiClient {
     this.baseUrl = `${apiBaseUrl}/api`;
   }
 
-  /**
-   * Create a new event
-   */
   async createEvent(event: Event): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events`, {
       method: 'POST',
@@ -287,9 +259,6 @@ class EventApiClient {
     return response.json();
   }
 
-  /**
-   * Create multiple events at once
-   */
   async createEventsBulk(userId: string, events: Omit<Event, 'user_id'>[]): Promise<Event[]> {
     const response = await fetch(`${this.baseUrl}/events/bulk`, {
       method: 'POST',
@@ -309,16 +278,13 @@ class EventApiClient {
 
     return response.json();
   }
-
-  /**
-   * Get all events for a user with optional filters
-   */
+  
   async getEvents(
     userId: string,
     filters?: {
-      start_date?: string; // ISO format
-      end_date?: string; // ISO format
-      tags?: string; // Comma-separated
+      start_date?: string;
+      end_date?: string;
+      tags?: string;
       is_all_day?: boolean;
       limit?: number;
       offset?: number;
@@ -349,9 +315,6 @@ class EventApiClient {
     return response.json();
   }
 
-  /**
-   * Get a specific event by ID
-   */
   async getEvent(eventId: number, userId: string): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'GET',
@@ -368,9 +331,6 @@ class EventApiClient {
     return response.json();
   }
 
-  /**
-   * Update an event
-   */
   async updateEvent(eventId: number, userId: string, updates: Partial<Event>): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'PATCH',
@@ -388,9 +348,6 @@ class EventApiClient {
     return response.json();
   }
 
-  /**
-   * Delete an event
-   */
   async deleteEvent(eventId: number, userId: string): Promise<{ message: string; event_id: number; event_name: string }> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'DELETE',
@@ -407,9 +364,6 @@ class EventApiClient {
     return response.json();
   }
 
-  /**
-   * Get event statistics for a user
-   */
   async getEventStats(userId: string): Promise<EventStats> {
     const response = await fetch(`${this.baseUrl}/events/stats/${userId}`, {
       method: 'GET',
@@ -427,6 +381,5 @@ class EventApiClient {
   }
 }
 
-// Export singleton instances
 export const taskApi = new TaskApiClient();
 export const eventApi = new EventApiClient();

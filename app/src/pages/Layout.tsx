@@ -11,7 +11,6 @@ import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Sidebar } from '@/components/app/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 
-// === Debounce Utility ===
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
   return (...args: any[]) => {
@@ -69,7 +68,6 @@ export default function AppLayout() {
   };
   const toggleSettings = () => setIsSettingsOpen((prev) => !prev);
 
-  // === Fetch SUI Price from CoinGecko ===
   const fetchSuiPriceUSD = useCallback(async (): Promise<number> => {
     try {
       const controller = new AbortController();
@@ -86,7 +84,6 @@ export default function AppLayout() {
     }
   }, []);
 
-  // === Fetch Wallet Balance ===
   const fetchBalance = useCallback(async () => {
     if (!address) {
       setWalletBalanceUSD('0.00');
@@ -122,14 +119,12 @@ export default function AppLayout() {
     }
   }, [address, lastFetched, suiClient, fetchSuiPriceUSD]);
 
-  // Stable debounced fetcher
   const debouncedFetchBalance = useMemo(() => debounce(fetchBalance, 500), [fetchBalance]);
 
-  // === useEffect hook to trigger fetch ===
   useEffect(() => {
     if (address) {
       debouncedFetchBalance();
-      const interval = setInterval(fetchBalance, 60_000); // refresh every 60s
+      const interval = setInterval(fetchBalance, 60_000);
       return () => clearInterval(interval);
     } else {
       setWalletBalanceUSD('0.00');
@@ -187,7 +182,6 @@ export default function AppLayout() {
                   transition={{ duration: 0.3 }}
                   className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] w-80 h-full flex flex-col items-center relative p-6 mb-6"
                 >
-                  {/* Header */}
                   <div className="flex justify-between items-center w-full mb-4">
                     <button onClick={toggleSettings} className="p-2 rounded-lg hover:bg-white/10">
                       <SettingsIcon size={20} className="text-white/60" />
@@ -198,7 +192,6 @@ export default function AppLayout() {
                     </button>
                   </div>
 
-                  {/* Balance */}
                   <div className="flex flex-col items-center justify-center text-center w-full">
                     <span className="text-[2.3rem] font-semibold">
                       {balanceLoading ? 'Loading...' : `$${walletBalanceUSD}`}
@@ -211,7 +204,6 @@ export default function AppLayout() {
                     )}
                   </div>
 
-                  {/* Address Info */}
                   <div className="flex items-center gap-3 w-full my-6">
                     <div className="w-12 h-12 bg-gradient-to-r from-[#00FF88] to-[#00CC6A] rounded-xl flex items-center justify-center">
                       <span className="text-black font-bold text-sm">👤</span>
@@ -234,7 +226,6 @@ export default function AppLayout() {
                     </button>
                   </div>
 
-                  {/* Top Up Card */}
                   <div className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 h-fit hover:border-white/20 hover:bg-white/10 transition-all duration-500 overflow-hidden">
                     <div className="flex justify-between items-center gap-3">
                       <div>
@@ -247,7 +238,6 @@ export default function AppLayout() {
                     </div>
                   </div>
 
-                  {/* Tabs */}
                   <div className="w-full mt-6">
                     <div className="flex justify-between border-b border-white/10 mb-4">
                       {(['Tokens', 'Collectibles', 'Activity'] as const).map((tab) => (
@@ -270,7 +260,6 @@ export default function AppLayout() {
                     </div>
                   </div>
 
-                  {/* Settings Overlay */}
                   {isSettingsOpen && (
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
                       <div className="flex flex-col items-center gap-4">

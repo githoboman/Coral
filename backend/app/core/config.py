@@ -15,17 +15,14 @@ class Settings(BaseSettings):
     Application settings with validation and defaults.
     """
 
-    # === Environment ===
     ENVIRONMENT: str = Field(
         default="development", description="Environment: development, staging, production")
     DEBUG: bool = Field(default=False, description="Debug mode")
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
 
-    # === Core Database ===
     SUPABASE_URL: str = Field(..., description="Supabase project URL")
     SUPABASE_KEY: str = Field(..., description="Supabase anon/service key")
 
-    # === AI & Agents ===
     GEMINI_API_KEY: str = Field(..., description="Google Gemini API key")
     TAVILY_API_KEY: str = Field(
         default="", description="Tavily API key for web search")
@@ -39,7 +36,6 @@ class Settings(BaseSettings):
     AGENT_TIMEOUT: int = Field(
         default=30, ge=5, le=120, description="Agent timeout in seconds")
 
-    # === Telegram Bot ===
     TELEGRAM_BOT_TOKEN: str = Field(
         default="", description="Telegram bot token")
     BOT_USERNAME: str | None = Field(
@@ -49,7 +45,6 @@ class Settings(BaseSettings):
     TELEGRAM_USE_WEBHOOK: bool = Field(
         default=False, description="Use webhook instead of polling")
 
-    # === Blockchain / Web3 ===
     SUI_NETWORK_RPC: str = Field(
         default="https://fullnode.mainnet.sui.io:443", description="Sui Network RPC endpoint")
     SUI_DEVNET_RPC: str = Field(
@@ -57,7 +52,6 @@ class Settings(BaseSettings):
     USE_MAINNET: bool = Field(
         default=True, description="Use mainnet instead of devnet")
 
-    # === External APIs ===
     COINGECKO_API_KEY: str = Field(
         default="", description="CoinGecko API key (optional)")
     DEFILLAMA_API_URL: str = Field(
@@ -65,7 +59,6 @@ class Settings(BaseSettings):
     DEXSCREENER_API_URL: str = Field(
         default="https://api.dexscreener.com/latest/dex", description="DexScreener API")
 
-    # === BlockVision Integration ===
     BLOCKVISION_API_KEY: str = Field(
         default="", description="BlockVision API key for Sui data")
     BLOCKVISION_BASE_URL: str = Field(
@@ -73,7 +66,6 @@ class Settings(BaseSettings):
         description="Base URL for BlockVision Sui API"
     )
 
-    # === Redis / Caching ===
     REDIS_URL: str = Field(default="redis://localhost:6379/0",
                            description="Redis connection URL")
     REDIS_PASSWORD: str = Field(default="", description="Redis password")
@@ -82,7 +74,6 @@ class Settings(BaseSettings):
     CACHE_TTL: int = Field(default=300, ge=10, le=3600,
                            description="Cache TTL in seconds")
 
-    # === Rate Limiting ===
     RATE_LIMIT_ENABLED: bool = Field(
         default=True, description="Enable rate limiting")
     MAX_REQUESTS_PER_MINUTE: int = Field(
@@ -90,18 +81,15 @@ class Settings(BaseSettings):
     MAX_REQUESTS_PER_HOUR: int = Field(
         default=1000, ge=100, le=10000, description="Max requests per hour")
 
-    # === Circuit Breaker ===
     CIRCUIT_BREAKER_THRESHOLD: int = Field(default=5, ge=1, le=20)
     CIRCUIT_BREAKER_TIMEOUT: int = Field(default=120, ge=30, le=600)
 
-    # === Email ===
     EMAIL_USER: str | None = None
     EMAIL_PASSWORD: str | None = None
     EMAIL_FROM: str = Field(default="noreply@tovira.xyz")
     SMTP_HOST: str = Field(default="smtp.gmail.com")
     SMTP_PORT: int = Field(default=587)
 
-    # === Security ===
     SECRET_KEY: str = Field(
         default="", description="Secret key (min 32 chars for production)")
     ALLOWED_ORIGINS: list[str] = Field(
@@ -112,15 +100,12 @@ class Settings(BaseSettings):
         ]
     )
 
-    # === Monitoring ===
     SENTRY_DSN: str = Field(default="", description="Sentry DSN")
     ENABLE_METRICS: bool = Field(default=True)
 
-    # === Background Jobs ===
     CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
 
-    # === App-specific ===
     COPILOT_TREASURY_ID: str | None = None
     COPILOT_REGISTRY_ID: str | None = None
     COPILOT_PACKAGE_ID: str | None = None
@@ -133,15 +118,11 @@ class Settings(BaseSettings):
     ADMIN_ID: str | None = None
     API_KEY_WALLET: str | None = None
 
-    # Add this field if you want to support legacy SUI_RPC_URL
-    # won't be used unless you read it manually
     SUI_RPC_URL: str | None = Field(default=None, extra="ignore")
 
     class Config:
         env_file = ".env"
         case_sensitive = True
-
-    # === Validators ===
 
     @field_validator("ENVIRONMENT")
     @classmethod
@@ -159,8 +140,6 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SECRET_KEY must be at least 32 characters in production")
         return v
-
-    # === Helpers ===
 
     @property
     def sui_rpc_url(self) -> str:
@@ -234,7 +213,6 @@ def validate_configuration():
     logger.info("✓ Configuration validation passed")
 
 
-# Set Tavily API key for LangChain
 if settings.TAVILY_API_KEY:
     os.environ["TAVILY_API_KEY"] = settings.TAVILY_API_KEY
 

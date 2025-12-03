@@ -36,7 +36,6 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
   return (
     <div className="fixed inset-0 bg-[#161010] z-[300] backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="w-full max-w-md bg-[#0C1419]/45 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center gap-3 mb-4">
             <div className="w-35 h-35 bg-gradient-to-r from-transparent to-[#00103] backdrop-blur-md rounded-xl flex items-center justify-center">

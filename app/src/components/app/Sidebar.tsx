@@ -34,7 +34,6 @@ export function Sidebar({ navItems }: SidebarProps) {
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       className="h-full bg-gradient-to-b from-[#fdfdfd]/10 to-[#010103]/90 backdrop-blur-xl rounded-[30px] border border-white/10 flex flex-col"
     >
-      {/* Logo/Brand */}
       <div className={`p-6 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
         {!isCollapsed && (
           <div className="flex items-center gap-3">
@@ -60,7 +59,6 @@ export function Sidebar({ navItems }: SidebarProps) {
         </button>
       </div>
 
-      {/* Search Through Chat section */}
       <div className={`px-4 ${isCollapsed ? 'hidden' : ''}`}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={18} />
@@ -101,7 +99,6 @@ export function Sidebar({ navItems }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Footer */}
       <div className={`p-4 ${isCollapsed ? 'hidden' : ''}`}>
         <div className="mt-4 pt-4">
           <p className="text-white/30 text-xs text-center">

@@ -1,4 +1,3 @@
-// frontend/src/app/dashboard/Dashboard.tsx
 import { useAuth } from '@/hooks/useAuth';
 import { Send, Trash2, Plus, MoreVertical, Brain, Fuel } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
@@ -119,7 +118,6 @@ const Dashboard = () => {
     fetchChatHistory();
   }, [currentChatId]);
 
-  // === SEND MESSAGE WITH STREAMING ===
   const handleSendMessage = async (query: string) => {
     if (!query.trim()) return;
 
@@ -245,7 +243,6 @@ const Dashboard = () => {
     }
   };
 
-  // === CHAT EDIT/DELETE ===
   const handleEditName = (chat: Chat) => {
     setEditingChatId(chat.chat_id);
     setChatName(chat.name);
@@ -335,7 +332,6 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col justify-between min-h-[100dvh] w-full max-w-4xl mx-auto">
       <div>
-        {/* Header */}
         <div className="sticky top-0 py-4 w-full flex items-center gap-3 mb-2 z-[100]">
           <Dropdown
             triggerLabel={currentChatId ? chats.find(c => c.chat_id === currentChatId)?.name || 'Untitled' : 'Select Chat'}
@@ -360,7 +356,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Messages */}
         <div className="w-full p-4 sm:px-6 lg:px-8 h-full flex flex-col">
           <AnimatePresence>
             {messages.length === 0 && !currentChatId && !isLoading && (
@@ -415,7 +410,6 @@ const Dashboard = () => {
               </motion.div>
             ))}
 
-            {/* Streaming Response */}
             {streamingText && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start mb-4">
                 <div className="w-full p-4">

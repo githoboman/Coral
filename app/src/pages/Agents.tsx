@@ -29,9 +29,6 @@ interface Category {
   agents: Agent[];
 }
 
-/* -------------------------------------------------
-   Tovira Agents – Only 2 live, rest coming soon
-   ------------------------------------------------- */
 const categories: Category[] = [
   {
     name: 'Research & Insights',
@@ -153,7 +150,6 @@ const Agents = () => {
 
   return (
     <div className="flex flex-col h-full w-full max-w-6xl mx-auto px-4 pb-6">
-      {/* Header */}
       <div className="sticky top-0 pt-6">
         <h2 className="text-3xl font-bold mb-2">Agents</h2>
         </div>
@@ -163,7 +159,6 @@ const Agents = () => {
         </p>
       </div>
 
-      {/* ==== YOUR FILTER BUTTONS (unchanged) ==== */}
       <div className="flex flex-wrap gap-2 mb-8">
         <button
           onClick={() => setSelectedCategory(null)}
@@ -203,7 +198,6 @@ const Agents = () => {
                     agent.status === 'coming-soon' ? 'opacity-75' : ''
                   }`}
                 >
-                  {/* Icon + CTA (top-right) */}
                   <div className="flex justify-between items-start w-full mb-4">
                     <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
                       <Icon className="w-7 h-7 text-white" />
@@ -221,11 +215,9 @@ const Agents = () => {
                     </button>
                   </div>
 
-                  {/* Title & Description */}
                   <h4 className="text-lg font-bold mb-2">{agent.name}</h4>
                   <p className="text-sm text-white/70 flex-grow">{agent.description}</p>
 
-                  {/* Coming Soon Label */}
                   {agent.status === 'coming-soon' && (
                     <span className="mt-3 text-xs text-yellow-400 font-medium">
                       Coming Soon

@@ -24,7 +24,6 @@ async def fetch_user(user_id: str, db: Client = Depends(get_supabase_client)):
         if result.data:
             logger.info(f"User found: {user_id}")
             user_data = result.data[0]
-            # Check if user is onboarded (has email)
             is_onboarded = bool(user_data.get("email"))
             return {
                 "exists": True,
@@ -53,7 +52,6 @@ async def onboard_user(onboard_data: UserOnboard, db: Client = Depends(get_supab
             raise HTTPException(
                 status_code=400, detail="Email cannot be empty")
 
-        # Check if email exists in waitlist
         waitlist_result = db.table("waitlist_emails").select(
             "email").eq("email", onboard_data.email).execute()
 
@@ -65,7 +63,6 @@ async def onboard_user(onboard_data: UserOnboard, db: Client = Depends(get_supab
                 detail="Email not found in waitlist. Please join our waitlist first."
             )
 
-        # Check if email is already used by another account
         existing_user = db.table("user_profiles").select(
             "user_id").eq("email", onboard_data.email).execute()
 
@@ -76,14 +73,12 @@ async def onboard_user(onboard_data: UserOnboard, db: Client = Depends(get_supab
                 detail="An account with this email already exists."
             )
 
-        # Update user profile with email and other optional data
         update_data = {
             "user_id": onboard_data.user_id,
             "email": onboard_data.email,
             "last_active": datetime.utcnow().isoformat(),
         }
 
-        # Add optional fields if provided
         if onboard_data.username:
             update_data["username"] = onboard_data.username
         if onboard_data.first_name:
@@ -121,7 +116,6 @@ async def update_user(user_data: UserUpdate, db: Client = Depends(get_supabase_c
             raise HTTPException(
                 status_code=400, detail="User ID cannot be empty")
 
-        # Build profile record for initial user creation (without email)
         profile_record = {
             "user_id": user_data.user_id,
             "wallet_address": user_data.wallet_address,
@@ -134,7 +128,6 @@ async def update_user(user_data: UserUpdate, db: Client = Depends(get_supabase_c
             "last_active": datetime.utcnow().isoformat(),
         }
 
-        # Upsert into user_profiles
         result = db.table("user_profiles").upsert(
             profile_record,
             on_conflict="user_id"

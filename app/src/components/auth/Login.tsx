@@ -1,4 +1,3 @@
-// src/components/auth/Login.tsx
 import React, { useState, useEffect, useRef } from 'react';
 
 interface LoginModalProps {
@@ -55,16 +54,13 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-[#161010] backdrop-blur-sm"
       />
 
-      {/* Modal */}
       <div className="relative w-full max-w-md bg-[#0C1419]/15 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
         <div className="relative z-0 p-6 sm:p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
+         <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center gap-3 mb-6">
               <div className="w-15 h-15 bg-gradient-to-r from-transparent to-[#00103] backdrop-blur-md rounded-xl flex items-center justify-center">
                 <img
@@ -83,7 +79,6 @@ export function LoginModal({ isOpen, loading, message, onSignIn, onClearMessage,
             </p>
           </div>
 
-          {/* Content */}
           <div className="space-y-6">
             {!isSupported ? (
               <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-xl backdrop-blur-sm">
@@ -196,7 +191,6 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
     document.body.style.cursor = 'grabbing';
   };
 
-  // Handle drag move
   const handleDragMove = (e: React.TouchEvent | React.MouseEvent) => {
     if (!isDragging) return;
 
@@ -204,7 +198,6 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - startY;
 
-    // Only allow dragging downward
     if (deltaY > 0) {
       setCurrentY(deltaY);
       if (drawerRef.current) {
@@ -214,13 +207,10 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
   };
 
 
-  // Handle mouse/touch events on handle
   const handleMouseMove = (e: React.MouseEvent) => handleDragMove(e);
 
   const handleTouchStart = (e: React.TouchEvent) => handleDragStart(e);
 
-
-  // Prevent body scroll during drag
   useEffect(() => {
     const handlePreventScroll = (e: TouchEvent) => {
       if (isDragging) {
@@ -237,12 +227,10 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
     };
   }, [isDragging]);
 
-  // Prevent dragging when content is being scrolled
   const handleContentTouchMove = (e: React.TouchEvent) => {
     if (!isDragging && drawerRef.current) {
       const scrollTop = drawerRef.current.scrollTop;
       if (scrollTop === 0) {
-        // Only allow drag if at top of content
         handleTouchStart(e);
       }
     }
@@ -254,20 +242,17 @@ export function LoginDrawer({ isOpen, loading, message, onSignIn, onClearMessage
 
   return (
     <div className={`fixed inset-0 z-[300] ${isOpen ? 'visible' : 'invisible'}`}>
-      {/* Backdrop */}
       <div
         className={`fixed inset-0 bg-[#000000]/95 transition-opacity duration-300 backdrop-blur-sm ${isOpen ? 'opacity-100' : 'opacity-0'
           }`}
       />
 
-      {/* Drawer */}
       <div
         ref={drawerRef}
         className={`fixed bottom-0 left-0 right-0 bg-[#0C1419]/25 backdrop-blur-xl border-t border-white/10 rounded-t-[20px] shadow-2xl max-h-[90vh] overflow-y-auto ${isDragging ? 'transition-none' : 'transition-all duration-300 ease-out'
           }`}
         style={{ transform: isDragging ? `translateY(${currentY}px)` : 'translateY(0px)' }}
       >
-        {/* Drag Handle */}
         <div
           ref={handleRef}
           className={`flex justify-center py-4 touch-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'

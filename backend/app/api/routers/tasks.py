@@ -35,14 +35,12 @@ async def create_task(
     - **reminder_times**: Optional list of reminder timestamps
     """
     try:
-        # Validate user exists
         user_check = db.table("user_profiles").select(
             "user_id").eq("user_id", task_data.user_id).execute()
         if not user_check.data:
             logger.warning(f"User not found: {task_data.user_id}")
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Prepare task record
         task_record = {
             "user_id": task_data.user_id,
             "task_name": task_data.task_name,
@@ -57,7 +55,6 @@ async def create_task(
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
-        # Insert task
         result = db.table("tasks").insert(task_record).execute()
 
         if not result.data:
@@ -88,14 +85,12 @@ async def create_tasks_bulk(
     Create multiple tasks at once for a user.
     """
     try:
-        # Validate user exists
         user_check = db.table("user_profiles").select(
             "user_id").eq("user_id", bulk_data.user_id).execute()
         if not user_check.data:
             logger.warning(f"User not found: {bulk_data.user_id}")
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Prepare task records
         task_records = []
         for task in bulk_data.tasks:
             task_record = {
@@ -113,7 +108,6 @@ async def create_tasks_bulk(
             }
             task_records.append(task_record)
 
-        # Bulk insert
         result = db.table("tasks").insert(task_records).execute()
 
         if not result.data:
@@ -161,11 +155,9 @@ async def get_tasks(
     - **offset**: Number of tasks to skip for pagination
     """
     try:
-        # Build query
         query = db.table("tasks").select(
             "*", count="exact").eq("user_id", user_id)
 
-        # Apply filters
         if status:
             query = query.eq("status", status)
         if priority:
@@ -178,7 +170,6 @@ async def get_tasks(
             tag_list = [tag.strip() for tag in tags.split(",")]
             query = query.contains("tags", tag_list)
 
-        # Apply pagination and ordering
         query = query.order("due_date", desc=False, nullsfirst=False).range(
             offset, offset + limit - 1)
 
@@ -242,7 +233,6 @@ async def update_task(
     Update a task's details.
     """
     try:
-        # Verify task exists and belongs to user
         existing_task = db.table("tasks").select(
             "*").eq("id", task_id).eq("user_id", user_id).execute()
 
@@ -250,7 +240,6 @@ async def update_task(
             logger.warning(f"Task not found: {task_id} for user: {user_id}")
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Prepare update data (only include fields that were provided)
         update_data = {
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
@@ -266,7 +255,6 @@ async def update_task(
             update_data["priority"] = task_data.priority
         if task_data.status is not None:
             update_data["status"] = task_data.status
-            # If marking as completed, set completion date
             if task_data.status == "completed":
                 update_data["completion_date"] = datetime.now(
                     timezone.utc).isoformat()
@@ -278,7 +266,6 @@ async def update_task(
             update_data["reminder_times"] = [rt.isoformat()
                                              for rt in task_data.reminder_times]
 
-        # Update task
         result = db.table("tasks").update(update_data).eq(
             "id", task_id).eq("user_id", user_id).execute()
 
@@ -309,7 +296,6 @@ async def delete_task(
     Delete a task.
     """
     try:
-        # Verify task exists and belongs to user
         existing_task = db.table("tasks").select("task_name").eq(
             "id", task_id).eq("user_id", user_id).execute()
 
@@ -319,7 +305,6 @@ async def delete_task(
 
         task_name = existing_task.data[0]["task_name"]
 
-        # Delete task
         result = db.table("tasks").delete().eq(
             "id", task_id).eq("user_id", user_id).execute()
 
@@ -350,7 +335,6 @@ async def complete_task(
     Mark a task as completed.
     """
     try:
-        # Verify task exists and belongs to user
         existing_task = db.table("tasks").select(
             "*").eq("id", task_id).eq("user_id", user_id).execute()
 
@@ -358,7 +342,6 @@ async def complete_task(
             logger.warning(f"Task not found: {task_id} for user: {user_id}")
             raise HTTPException(status_code=404, detail="Task not found")
 
-        # Update task status
         update_data = {
             "status": "completed",
             "completion_date": datetime.now(timezone.utc).isoformat(),
@@ -394,7 +377,6 @@ async def get_task_stats(
     Get task statistics for a user.
     """
     try:
-        # Get all tasks
         all_tasks = db.table("tasks").select(
             "status, priority, due_date, completion_date").eq("user_id", user_id).execute()
 
