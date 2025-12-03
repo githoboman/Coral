@@ -10,7 +10,6 @@ import os
 import threading
 from dotenv import load_dotenv
 
-from app.telegram_bot.telegram_bot import create_telegram_application
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -21,7 +20,6 @@ app = FastAPI(
     title="Tovira API",
     description="API for waitlist, chat, user profiles, tasks, events and Telegram bot integration.",
     version="1.0.0",
-    lifespan=lifespan
 )
 
 app.add_middleware(
