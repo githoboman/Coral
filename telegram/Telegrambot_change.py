@@ -43,8 +43,34 @@ from encrypted_db import init_db
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from walrus_client_change import WalrusRegistrationManager, LocalEncryptedEmailIndex
+import logging
+import traceback
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 load_dotenv()
+
+# Configure logging for registration errors
+os.makedirs('logs', exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/registration_errors.log'),
+        logging.StreamHandler()
+    ]
+)
+
+# Create separate logger for registration system
+registration_logger = logging.getLogger('TelegramRegistration')
+registration_logger.setLevel(logging.DEBUG)
+
+# Add file handler specifically for registration
+reg_handler = logging.FileHandler('logs/registration_errors.log')
+reg_handler.setLevel(logging.ERROR)
+reg_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s')
+reg_handler.setFormatter(reg_formatter)
+registration_logger.addHandler(reg_handler)
 
 walrus = get_walrus_client()
 key_manager = get_key_manager()
@@ -123,6 +149,10 @@ class TelegramRegistrationSystem:
             context.user_data['password_prompt_msg'] = progress_msg
             return SET_PASSWORD
         except Exception as e:
+            registration_logger.error(
+                f"Password setup failed: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             await update.effective_message.reply_text("⚠️ Error setting up password. Please try again.")
             return ConversationHandler.END
 
@@ -145,13 +175,17 @@ class TelegramRegistrationSystem:
                 pass
             return True
         except Exception as e:
+            registration_logger.error(
+                f"Key generation failed for user {telegram_id}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             if progress_msg:
                 await progress_msg.edit_text("⚠️ Failed to generate encryption keys.")
                 await asyncio.sleep(3)
                 try:
                     await progress_msg.delete()
-                except:
-                    pass
+                except Exception as msg_error:
+                    registration_logger.error(f"Failed to delete message: {str(msg_error)}")
             return False
 
     async def encrypt_and_upload_data(self, user_data: Dict[str, Any], public_key: bytes, update: Update) -> Optional[str]:
@@ -177,13 +211,17 @@ class TelegramRegistrationSystem:
                     pass
                 return None
         except Exception as e:
+            registration_logger.error(
+                f"Data encryption/upload failed: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             if progress_msg:
                 await progress_msg.edit_text("❌ Error encrypting data.")
                 await asyncio.sleep(3)
                 try:
                     await progress_msg.delete()
-                except:
-                    pass
+                except Exception as msg_error:
+                    registration_logger.error(f"Failed to delete message: {str(msg_error)}")
             return None
 
     async def select_registration_method(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -280,12 +318,16 @@ class TelegramRegistrationSystem:
             return wallet_info
 
         except Exception as e:
+            registration_logger.error(
+                f"Wallet creation failed for user {user_id}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             try:
                 await progress_msg.edit_text("Wallet creation failed. Please try again.")
                 await asyncio.sleep(3)
                 await progress_msg.delete()
-            except:
-                pass
+            except Exception as msg_error:
+                registration_logger.error(f"Failed to send error message: {str(msg_error)}")
             return None
 
     async def register_on_blockchain_with_wallet(self, blob_id: str, user_wallet_address: str,
@@ -322,13 +364,17 @@ class TelegramRegistrationSystem:
                 }
 
         except Exception as e:
+            registration_logger.error(
+                f"Blockchain registration failed for wallet {user_wallet_address}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             if progress_msg:
                 await progress_msg.edit_text("⚠️ Blockchain registration failed. Continuing with local registration...")
                 await asyncio.sleep(3)
                 try:
                     await progress_msg.delete()
-                except:
-                    pass
+                except Exception as msg_error:
+                    registration_logger.error(f"Failed to delete message: {str(msg_error)}")
             return {
                 'profile_id': None,
                 'tx_digest': 'local_registration',
@@ -442,13 +488,17 @@ class TelegramRegistrationSystem:
             return True
 
         except Exception as e:
+            registration_logger.error(
+                f"Full registration flow failed for user {telegram_id}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             if progress_msg:
                 await progress_msg.edit_text("❌ Registration failed. Please try again.")
                 await asyncio.sleep(3)
                 try:
                     await progress_msg.delete()
-                except:
-                    pass
+                except Exception as msg_error:
+                    registration_logger.error(f"Failed to delete message: {str(msg_error)}")
             return False
 
     async def create_session_alternative(self, telegram_id: str, password: str,
@@ -477,6 +527,10 @@ class TelegramRegistrationSystem:
                 return False
 
         except Exception as e:
+            registration_logger.error(
+                f"Alternative session creation failed for user {telegram_id}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             return False
 
     async def complete_registration(self, telegram_id: str, password: str,
@@ -672,13 +726,18 @@ class TelegramRegistrationSystem:
             return True
 
         except Exception as e:
+            # Log the full error with traceback
+            registration_logger.error(
+                f"Registration failed for user {telegram_id}: {str(e)}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             if progress_msg:
                 try:
                     await progress_msg.edit_text("❌ Registration failed. Please try /start again.")
                     await asyncio.sleep(5)
                     await progress_msg.delete()
-                except:
-                    pass
+                except Exception as msg_error:
+                    registration_logger.error(f"Failed to edit error message: {str(msg_error)}")
             return False
 
     async def display_success_summary(self, registration_result: Dict[str, str],
@@ -2981,7 +3040,7 @@ signup_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
-    per_message=False
+    per_message=True
 )
 
 session_recovery_conv_handler = ConversationHandler(
@@ -3023,7 +3082,7 @@ registration_username_handler = ConversationHandler(
         ],
     },
     fallbacks=[],
-    per_message=False,
+    per_message=True,
     name="registration_username"
 )
 
@@ -3075,7 +3134,7 @@ def setup_export_wallet_handler(application):
             CommandHandler("cancel", cancel_export),
             CommandHandler("export_wallet", export_wallet_command)
         ],
-        per_message=False
+        per_message=True
     )
 
     application.add_handler(export_conv_handler)
@@ -3087,9 +3146,47 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         error_msg = handle_error(context.error, "telegram_bot")
         await update.effective_chat.send_message(error_msg)
 
+# ============= HEALTH CHECK SERVER FOR RENDER =============
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    """Simple HTTP handler for Render health checks"""
+    
+    def do_GET(self):
+        """Handle GET requests"""
+        if self.path == '/health' or self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {
+                'status': 'healthy',
+                'service': 'Tovira Telegram Bot',
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        """Suppress default logging to avoid cluttering logs"""
+        pass
+
+def start_health_server(port=10000):
+    """Start HTTP health check server in background thread"""
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"✅ Health check server running on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"⚠️ Health server failed to start: {e}")
+
 # ============= MAIN =============
 def main():
     """Start the bot."""
+    # Start health check server for Render deployment
+    port = int(os.getenv('PORT', 10000))
+    health_thread = Thread(target=start_health_server, args=(port,), daemon=True)
+    health_thread.start()
+    
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     if not token:
         print("❌ Set TELEGRAM_BOT_TOKEN in .env")
