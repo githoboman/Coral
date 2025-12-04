@@ -24,7 +24,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 RUN uv --version && rustc --version
 
 # Install dependencies
-COPY requirements.txt .
+COPY telegram/requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # -----------------------
@@ -53,8 +53,8 @@ RUN useradd -m -u 1000 -s /bin/bash tovira
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy full project root
-COPY --chown=tovira:tovira . .
+# Copy telegram folder contents
+COPY --chown=tovira:tovira telegram/ .
 
 # Create app-specific directories
 RUN mkdir -p \
