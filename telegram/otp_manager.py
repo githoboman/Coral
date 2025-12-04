@@ -24,7 +24,8 @@ class OTPManager:
 
     def generate_otp(self, length: int = 6) -> str:
         """Generate a numeric OTP"""
-        return 123456
+        # TODO: Remove this hardcoded OTP for production
+        # return 123456
         return ''.join(secrets.choice('0123456789') for _ in range(length))
 
     def save_otp(self, email: str, otp: str, purpose: str, telegram_id: str = None) -> str:
@@ -92,8 +93,10 @@ class OTPManager:
     async def send_otp_email(self, email: str, otp: str, purpose: str) -> bool:
         """Send OTP email using Hostinger SMTP"""
         if not all([self.sender_email, self.sender_password]):
+            print(f"❌ Email config missing - EMAIL_USER: {bool(self.sender_email)}, EMAIL_PASSWORD: {bool(self.sender_password)}")
             return False
 
+        print(f"📧 Attempting to send OTP to {email} via {self.smtp_server}:{self.smtp_port}")
         try:
             if purpose == 'registration':
                 subject = "Tovira App - Email Verification Code"
@@ -183,25 +186,39 @@ class OTPManager:
 
                     # Connect to Hostinger SMTP server
                     with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
+                        print(f"🔐 Logging in to SMTP as {self.sender_email}...")
                         server.login(self.sender_email, self.sender_password)
+                        print(f"📤 Sending email to {email}...")
                         server.send_message(msg)
+                        print(f"✅ Email sent successfully to {email}")
 
                     return True
 
-                except smtplib.SMTPAuthenticationError:
+                except smtplib.SMTPAuthenticationError as e:
+                    print(f"❌ SMTP Authentication failed: {str(e)}")
                     return False
-                except smtplib.SMTPException:
+                except smtplib.SMTPException as e:
+                    print(f"❌ SMTP Exception: {str(e)}")
                     return False
-                except Exception:
+                except Exception as e:
+                    print(f"❌ Unexpected error sending email: {str(e)}")
                     return False
 
             # Run in thread pool
             loop = asyncio.get_event_loop()
             success = await loop.run_in_executor(None, send_sync)
 
+            if success:
+                print(f"✅ Email delivery confirmed for {email}")
+            else:
+                print(f"❌ Email delivery failed for {email}")
+            
             return success
 
-        except Exception:
+        except Exception as e:
+            print(f"❌ Email sending exception: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             return False
 
     def cleanup_expired_otps(self):
