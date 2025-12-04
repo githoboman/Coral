@@ -1014,6 +1014,5 @@ portfolio_handler = ConversationHandler(
         CommandHandler('cancel', cancel_portfolio),
         CommandHandler('portfolio', portfolio_command)
     ],
-    allow_reentry=True,
-    per_message=False
+    allow_reentry=True
 )

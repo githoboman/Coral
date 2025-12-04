@@ -3148,7 +3148,7 @@ registration_username_handler = ConversationHandler(
         ],
     },
     fallbacks=[],
-    per_message=True,
+    per_message=False,
     name="registration_username"
 )
 
@@ -3200,7 +3200,7 @@ def setup_export_wallet_handler(application):
             CommandHandler("cancel", cancel_export),
             CommandHandler("export_wallet", export_wallet_command)
         ],
-        per_message=True
+        per_message=False
     )
 
     application.add_handler(export_conv_handler)

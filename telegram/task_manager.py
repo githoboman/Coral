@@ -1864,7 +1864,8 @@ task_conv_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
-    allow_reentry=True
+    allow_reentry=True,
+    per_message=False
 )
 
 setup_callback_handler = CallbackQueryHandler(
