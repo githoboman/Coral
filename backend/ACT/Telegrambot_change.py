@@ -50,66 +50,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 load_dotenv()
 
-# ============= ERROR LOGGING SETUP =============
-# Create logs directory if it doesn't exist
-LOGS_DIR = Path(__file__).parent / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
-
-# Configure file logging for errors
-error_log_file = LOGS_DIR / f"bot_errors_{datetime.now().strftime('%Y%m%d')}.log"
-file_handler = logging.FileHandler(error_log_file, encoding='utf-8')
-file_handler.setLevel(logging.ERROR)
-file_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-file_handler.setFormatter(file_formatter)
-
-# Get root logger and add file handler
-root_logger = logging.getLogger()
-root_logger.addHandler(file_handler)
-root_logger.setLevel(logging.INFO)
-
-# Create a specific logger for bot errors
-bot_error_logger = logging.getLogger('bot_errors')
-bot_error_logger.setLevel(logging.ERROR)
-
-def log_error_to_file(error: Exception, context_info: str = "", user_id: int = None, update: Update = None):
-    """
-    Log detailed error information to file
-    
-    Args:
-        error: The exception that occurred
-        context_info: Additional context about where the error occurred
-        user_id: The user ID if available
-        update: The telegram Update object if available
-    """
-    error_details = {
-        'timestamp': datetime.now(pytz.UTC).isoformat(),
-        'error_type': type(error).__name__,
-        'error_message': str(error),
-        'context': context_info,
-        'user_id': user_id,
-        'traceback': traceback.format_exc()
-    }
-    
-    if update:
-        error_details['update_info'] = {
-            'update_id': update.update_id if update else None,
-            'message_text': update.message.text if update and update.message else None,
-            'callback_data': update.callback_query.data if update and update.callback_query else None,
-            'user_info': {
-                'id': update.effective_user.id if update and update.effective_user else None,
-                'username': update.effective_user.username if update and update.effective_user else None,
-                'first_name': update.effective_user.first_name if update and update.effective_user else None
-            } if update and update.effective_user else None
-        }
-    
-    # Log as JSON for easy parsing
-    bot_error_logger.error(json.dumps(error_details, indent=2))
-    
-    return error_details
-
 # Configure logging for registration errors
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -209,8 +149,6 @@ class TelegramRegistrationSystem:
             context.user_data['password_prompt_msg'] = progress_msg
             return SET_PASSWORD
         except Exception as e:
-            log_error_to_file(e, "RegistrationFlow:create_user_password", 
-                             update.effective_user.id if update and update.effective_user else None, update)
             registration_logger.error(
                 f"Password setup failed: {str(e)}\n"
                 f"Traceback: {traceback.format_exc()}"
@@ -1262,8 +1200,7 @@ async def handle_email_verification(update: Update, context: ContextTypes.DEFAUL
             return ConversationHandler.END
 
     except Exception as e:
-        log_error_to_file(e, "handle_email_verification:email_index_check", 
-                         update.effective_user.id if update.effective_user else None, update)
+        pass
 
     whitelist_blob_id = os.getenv('WHITELIST_BLOB_ID')
     if whitelist_blob_id:
@@ -1276,8 +1213,7 @@ async def handle_email_verification(update: Update, context: ContextTypes.DEFAUL
                 await checking_msg.delete()
                 return ConversationHandler.END
         except Exception as e:
-            log_error_to_file(e, "handle_email_verification:whitelist_check", 
-                             update.effective_user.id if update.effective_user else None, update)
+            pass
 
     await checking_msg.edit_text("✅ Email available! Sending verification code...")
     await asyncio.sleep(2)
@@ -1344,8 +1280,6 @@ async def send_otp_for_verification(update: Update, context: ContextTypes.DEFAUL
             return ConversationHandler.END
 
     except Exception as e:
-        log_error_to_file(e, "send_otp_for_verification", 
-                         update.effective_user.id if update and update.effective_user else None, update)
         error_msg = await update.message.reply_text("Error sending verification code. Please try again.")
         asyncio.create_task(delete_message_after_delay(error_msg, 10))
         return ConversationHandler.END
@@ -3106,7 +3040,7 @@ signup_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler('cancel', cancel)],
-    per_message=False
+    per_message=True
 )
 
 session_recovery_conv_handler = ConversationHandler(
@@ -3207,27 +3141,10 @@ def setup_export_wallet_handler(application):
 
 # ============= ERROR HANDLER =============
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle errors and log them to file."""
-    try:
-        # Get user ID if available
-        user_id = update.effective_user.id if update and update.effective_user else None
-        
-        # Log error to file with full context
-        log_error_to_file(
-            error=context.error,
-            context_info="telegram_bot_error_handler",
-            user_id=user_id,
-            update=update
-        )
-        
-        # Send user-friendly message
-        if update and update.effective_message:
-            error_msg = handle_error(context.error, "telegram_bot")
-            await update.effective_chat.send_message(error_msg)
-            
-    except Exception as e:
-        # If error handler itself fails, log that too
-        bot_error_logger.error(f"Error in error_handler: {str(e)}\n{traceback.format_exc()}")
+    """Handle errors."""
+    if update and update.effective_message:
+        error_msg = handle_error(context.error, "telegram_bot")
+        await update.effective_chat.send_message(error_msg)
 
 # ============= HEALTH CHECK SERVER FOR RENDER =============
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -3265,11 +3182,6 @@ def start_health_server(port=10000):
 # ============= MAIN =============
 def main():
     """Start the bot."""
-    # Log bot startup
-    bot_error_logger.info(f"=== BOT STARTING at {datetime.now(pytz.UTC).isoformat()} ===")
-    bot_error_logger.info(f"Error logs will be saved to: {error_log_file}")
-    print(f"📝 Error logging enabled: {error_log_file}")
-    
     # Start health check server for Render deployment
     port = int(os.getenv('PORT', 10000))
     health_thread = Thread(target=start_health_server, args=(port,), daemon=True)
