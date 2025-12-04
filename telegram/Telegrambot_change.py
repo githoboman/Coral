@@ -1231,10 +1231,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(welcome_back)
             return ConversationHandler.END
 
-    await update.message.reply_text(
-        "📧 Please enter your email address to verify waitlist access:"
-    )
-    return EMAIL_VERIFICATION
+    # TEMPORARILY DISABLED: Email verification
+    # await update.message.reply_text(
+    #     "📧 Please enter your email address to verify waitlist access:"
+    # )
+    # return EMAIL_VERIFICATION
+    
+    # Skip email verification for now - go straight to username setup
+    context.user_data['verified_email'] = 'temp@placeholder.com'
+    context.user_data['telegram_username'] = update.effective_user.username
+    context.user_data['first_name'] = update.effective_user.first_name
+    
+    await ask_for_username(update, context)
+    return USERNAME_SETUP
 
 async def handle_email_verification(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle email input — WITH LOCAL ENCRYPTED INDEX"""
