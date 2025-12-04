@@ -1333,12 +1333,23 @@ async def send_otp_for_verification(update: Update, context: ContextTypes.DEFAUL
             return OTP_VERIFICATION
 
         else:
+            # Log the email sending failure with context
+            error_context = f"Email sending failed for {email} during registration"
+            registration_logger.error(
+                f"{error_context}\n"
+                f"User ID: {telegram_id}\n"
+                f"OTP ID: {otp_id}\n"
+                f"Email: {email}\n"
+                f"Check Render environment variables: EMAIL_USER, EMAIL_PASSWORD, SMTP_SERVER, SMTP_PORT"
+            )
+            
             await sending_msg.edit_text(
-                "Failed to send verification email.\n\n"
+                "❌ Failed to send verification email.\n\n"
                 "Please check:\n"
                 "• Your email address is correct\n"
                 "• Check your spam folder\n"
-                "• Try again in a few minutes"
+                "• Try again in a few minutes\n\n"
+                "If this persists, contact support."
             )
             asyncio.create_task(delete_message_after_delay(sending_msg, 10))
             return ConversationHandler.END

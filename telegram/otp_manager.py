@@ -19,8 +19,17 @@ class OTPManager:
         # Hostinger email configuration
         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.hostinger.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', '465'))
+        self.use_tls = os.getenv('SMTP_USE_TLS', 'false').lower() == 'true'
         self.sender_email = os.getenv('EMAIL_USER')
         self.sender_password = os.getenv('EMAIL_PASSWORD')
+        
+        # Log configuration on initialization
+        print(f"📧 OTPManager initialized:")
+        print(f"   SMTP Server: {self.smtp_server}")
+        print(f"   SMTP Port: {self.smtp_port}")
+        print(f"   Use TLS (587): {self.use_tls}")
+        print(f"   Sender Email: {self.sender_email}")
+        print(f"   Password Set: {'✅' if self.sender_password else '❌'}")
 
     def generate_otp(self, length: int = 6) -> str:
         """Generate a numeric OTP"""
@@ -184,24 +193,50 @@ class OTPManager:
                     # Create SSL context
                     context = ssl.create_default_context()
 
-                    # Connect to Hostinger SMTP server
-                    with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
-                        print(f"🔐 Logging in to SMTP as {self.sender_email}...")
-                        server.login(self.sender_email, self.sender_password)
-                        print(f"📤 Sending email to {email}...")
-                        server.send_message(msg)
-                        print(f"✅ Email sent successfully to {email}")
+                    print(f"🔌 Connecting to {self.smtp_server}:{self.smtp_port} (TLS={self.use_tls})...")
+                    
+                    if self.use_tls or self.smtp_port == 587:
+                        # Use STARTTLS (port 587) - less likely to be blocked
+                        with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as server:
+                            print(f"✅ Connected to SMTP server")
+                            server.starttls(context=context)
+                            print(f"🔐 Logging in to SMTP as {self.sender_email}...")
+                            server.login(self.sender_email, self.sender_password)
+                            print(f"✅ Authentication successful")
+                            print(f"📤 Sending email to {email}...")
+                            server.send_message(msg)
+                            print(f"✅ Email sent successfully to {email}")
+                    else:
+                        # Use SSL (port 465)
+                        with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=30) as server:
+                            print(f"✅ Connected to SMTP server")
+                            print(f"🔐 Logging in to SMTP as {self.sender_email}...")
+                            server.login(self.sender_email, self.sender_password)
+                            print(f"✅ Authentication successful")
+                            print(f"📤 Sending email to {email}...")
+                            server.send_message(msg)
+                            print(f"✅ Email sent successfully to {email}")
 
                     return True
 
                 except smtplib.SMTPAuthenticationError as e:
                     print(f"❌ SMTP Authentication failed: {str(e)}")
+                    print(f"   Check: EMAIL_USER={self.sender_email}")
+                    print(f"   Password length: {len(self.sender_password) if self.sender_password else 0} chars")
                     return False
                 except smtplib.SMTPException as e:
                     print(f"❌ SMTP Exception: {str(e)}")
+                    print(f"   This might be a network/firewall issue on Render")
+                    return False
+                except OSError as e:
+                    print(f"❌ Network/Connection Error: {str(e)}")
+                    print(f"   Render might be blocking port {self.smtp_port}")
+                    print(f"   Try using port 587 with STARTTLS instead")
                     return False
                 except Exception as e:
                     print(f"❌ Unexpected error sending email: {str(e)}")
+                    import traceback
+                    print(traceback.format_exc())
                     return False
 
             # Run in thread pool
