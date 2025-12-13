@@ -22,7 +22,7 @@ class GeminiLLMFactory:
     """Factory for creating Gemini LLM instances"""
 
     @staticmethod
-    async def get_llm(temperature: float = 0.7, model: str = "gemini-1.5-flash"):
+    async def get_llm(temperature: float = 0.7, model: str = settings.LLM_MODEL):
         """Get Gemini LLM instance"""
         return ChatGoogleGenerativeAI(
             model=model,

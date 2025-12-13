@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routers import users, account, chats, waitlist, tasks, events
+from app.api.routers import users, account, chats, waitlist, tasks, events, zklogin, analytics
 from app.core.config import settings
 import uvicorn
 import asyncio
@@ -40,7 +40,9 @@ app.include_router(account.router, prefix="/api", tags=["account"])
 app.include_router(chats.router, prefix="/api", tags=["chats"])
 app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 app.include_router(events.router, prefix="/api", tags=["events"])
+app.include_router(zklogin.router, prefix="/api/zklogin", tags=["zklogin"])
 app.include_router(waitlist.router, tags=["waitlist"])
+app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 
 
 @app.get("/", summary="Root endpoint")

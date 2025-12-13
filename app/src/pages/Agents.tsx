@@ -13,8 +13,6 @@ import {
   Leaf,
 } from 'lucide-react';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 interface Agent {
   id: string;
   name: string;
@@ -144,15 +142,28 @@ const categories: Category[] = [
 const Agents = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const filteredCategories = selectedCategory
-    ? categories.filter((c) => c.name === selectedCategory)
-    : categories;
+  // Flatten all live agents into a single array
+  const allLiveAgents = categories.flatMap(category =>
+    category.agents
+      .filter(agent => agent.status === 'live')
+      .map(agent => ({ ...agent, category: category.name }))
+  );
+
+  // Filter by selected category if one is chosen
+  const filteredAgents = selectedCategory
+    ? allLiveAgents.filter(agent => agent.category === selectedCategory)
+    : allLiveAgents;
+
+  // Get categories that have at least one live agent
+  const liveCategories = categories.filter(category =>
+    category.agents.some(agent => agent.status === 'live')
+  );
 
   return (
     <div className="flex flex-col h-full w-full max-w-6xl mx-auto px-4 pb-6">
       <div className="sticky top-0 pt-6">
         <h2 className="text-3xl font-bold mb-2">Agents</h2>
-        </div>
+      </div>
       <div className="mb-8">
         <p className="text-white/80 text-lg">
           Real-time alerts, AI insights, and on-chain automation on Sui.
@@ -162,74 +173,57 @@ const Agents = () => {
       <div className="flex flex-wrap gap-2 mb-8">
         <button
           onClick={() => setSelectedCategory(null)}
-          className={`px-5 py-2.5 rounded-full font-medium transition-all ${
-            !selectedCategory
-              ? 'bg-white/20 text-white shadow-lg'
-              : 'bg-white/5 text-white/70 hover:bg-white/10'
-          }`}
+          className={`px-5 py-2.5 rounded-full font-medium transition-all ${!selectedCategory
+            ? 'bg-white/20 text-white shadow-lg'
+            : 'bg-white/5 text-white/70 hover:bg-white/10'
+            }`}
         >
           All
         </button>
-        {categories.map((cat) => (
+        {liveCategories.map((cat) => (
           <button
             key={cat.name}
             onClick={() => setSelectedCategory(cat.name)}
-            className={`px-5 py-2.5 rounded-full font-medium transition-all ${
-              selectedCategory === cat.name
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'bg-white/5 text-white/70 hover:bg-white/10'
-            }`}
+            className={`px-5 py-2.5 rounded-full font-medium transition-all ${selectedCategory === cat.name
+              ? 'bg-white/20 text-white shadow-lg'
+              : 'bg-white/5 text-white/70 hover:bg-white/10'
+              }`}
           >
             {cat.name}
           </button>
         ))}
       </div>
 
-      {/* Agent Cards */}
-      {filteredCategories.map((category) => (
-        <section key={category.name} className="mb-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {category.agents.map((agent) => {
-              const Icon = agent.Icon;
-              return (
-                <div
-                  key={agent.id}
-                  className={`bg-white/10 p-4 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col ${
-                    agent.status === 'coming-soon' ? 'opacity-75' : ''
-                  }`}
-                >
-                  <div className="flex justify-between items-start w-full mb-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
-                      <Icon className="w-7 h-7 text-white" />
-                    </div>
-
-                    <button
-                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        agent.status === 'live'
-                          ? 'bg-white/10 text-white hover:bg-white/20'
-                          : 'bg-white/5 text-white/40 cursor-not-allowed'
-                      }`}
-                      disabled={agent.status === 'coming-soon'}
-                    >
-                      {agent.status === 'live' ? '+ Chat' : 'Soon'}
-                    </button>
-                  </div>
-
-                  <h4 className="text-lg font-bold mb-2">{agent.name}</h4>
-                  <p className="text-sm text-white/70 flex-grow">{agent.description}</p>
-
-                  {agent.status === 'coming-soon' && (
-                    <span className="mt-3 text-xs text-yellow-400 font-medium">
-                      Coming Soon
-                    </span>
-                  )}
+      {/* Agent Cards - All in one grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredAgents.map((agent) => {
+          const Icon = agent.Icon;
+          return (
+            <div
+              key={agent.id}
+              className="bg-white/10 p-4 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col"
+            >
+              <div className="flex justify-between items-start w-full mb-4">
+                <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                  <Icon className="w-7 h-7 text-white" />
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
+
+                <button onClick={() => {
+                  window.location.href = `/?agent=${agent.id}`;
+                }}
+                  className="cursor-pointer px-4 py-2 rounded-full text-sm font-medium transition-all bg-white/10 text-white hover:bg-white/20"
+                >
+                  + Chat
+                </button>
+              </div>
+
+              <h4 className="text-lg font-bold mb-2">{agent.name}</h4>
+              <p className="text-sm text-white/70 flex-grow">{agent.description}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div >
   );
 }
 

@@ -44,32 +44,49 @@ async def get_account(user_id: str, db: Client = Depends(get_supabase_client)):
             raise HTTPException(
                 status_code=400, detail="User ID cannot be empty")
 
-        # Get user profile
+        # Get user profile - only select columns that definitely exist
         result = db.table("user_profiles").select(
-            "*").eq("user_id", user_id).execute()
+            "user_id, wallet_address, email, username, first_name, last_name, is_premium, created_at"
+        ).eq("user_id", user_id).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
 
         user = result.data[0]
-        xp = user.get("xp", 0)
+        
+        # Try to get xp and level, but default to 0 and 1 if columns don't exist
+        try:
+            xp_result = db.table("user_profiles").select("xp, level, points, referral_points").eq("user_id", user_id).execute()
+            if xp_result.data:
+                xp = xp_result.data[0].get("xp", 0)
+                stored_level = xp_result.data[0].get("level", 1)
+                points = xp_result.data[0].get("points", 0)
+                referral_points = xp_result.data[0].get("referral_points", 0)
+            else:
+                xp = 0
+                stored_level = 1
+                points = 0
+                referral_points = 0
+        except Exception:
+            # If xp/level columns don't exist, use defaults
+            xp = 0
+            stored_level = 1
+            points = 0
+            referral_points = 0
 
         # Calculate level and progress
         level, current_level_xp, next_level_xp = calculate_level_from_xp(xp)
 
-        # Update level if it changed
-        if user.get("level", 1) != level:
-            db.table("user_profiles").update(
-                {"level": level}).eq("user_id", user_id).execute()
-            user["level"] = level
-
-        # Get user's rank
-        rank_query = db.rpc(
-            'get_user_rank',
-            {'target_user_id': user_id}
-        ).execute()
-
-        rank = rank_query.data if rank_query.data else None
+        # Try to get user's rank (may fail if function doesn't exist)
+        rank = None
+        try:
+            rank_query = db.rpc(
+                'get_user_rank',
+                {'target_user_id': user_id}
+            ).execute()
+            rank = rank_query.data if rank_query.data else None
+        except Exception:
+            pass  # Rank feature not available
 
         return {
             "user_id": user["user_id"],
@@ -82,8 +99,8 @@ async def get_account(user_id: str, db: Client = Depends(get_supabase_client)):
             "level": level,
             "current_level_xp": current_level_xp,
             "next_level_xp": next_level_xp,
-            "points": user.get("points", 0),
-            "referral_points": user.get("referral_points", 0),
+            "points": points,
+            "referral_points": referral_points,
             "rank": rank,
             "is_premium": user.get("is_premium", False),
             "created_at": user.get("created_at")
@@ -99,10 +116,16 @@ async def get_account(user_id: str, db: Client = Depends(get_supabase_client)):
 @router.get("/leaderboard", summary="Get top 100 users")
 async def get_leaderboard(db: Client = Depends(get_supabase_client)):
     try:
-        # Get top 100 users ordered by XP, then level, then points
-        result = db.table("user_profiles").select(
-            "user_id, wallet_address, username, email, xp, level, points, referral_points"
-        ).order("xp", desc=True).order("level", desc=True).order("points", desc=True).limit(100).execute()
+        # Try to get users with xp/level columns
+        try:
+            result = db.table("user_profiles").select(
+                "user_id, wallet_address, username, email, xp, level, points, referral_points"
+            ).order("xp", desc=True).order("level", desc=True).order("points", desc=True).limit(100).execute()
+        except Exception:
+            # If xp/level columns don't exist, just get basic user info
+            result = db.table("user_profiles").select(
+                "user_id, wallet_address, username, email"
+            ).limit(100).execute()
 
         if not result.data:
             return {"leaderboard": []}

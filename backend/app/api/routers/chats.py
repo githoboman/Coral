@@ -1,356 +1,201 @@
-# app/api/routes/chats.py
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from app.schemas.chat import ChatMessage, ChatUpdate, ChatListResponse, ChatMessageResponse, ChatResponseWithId
-from app.db.session import get_supabase_client
-from app.services.agents.base_agent import generate_ai_response_stream, generate_chat_name
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Body
+from fastapi.responses import StreamingResponse, JSONResponse
 from supabase import Client
+from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
 import json
 
+from app.db.session import get_supabase_client
+from app.schemas.chat import ChatMessage
+from app.schemas.agent import AgentType, IntentType, RouterResponse
+
+# Services
+from app.services.vector_store import VectorStoreService
+from app.services.agents.base_agent import ToviraAgent      # Main Agent
+from app.services.agents.router_agent import RouterAgent    # Router
+from app.services.agents.research_agent import ResearchAgentSimple # Research
+from app.services.agents.task_agent import TaskAgent        # Task
+from app.services.agents.alerts_agent import alerts_agent_tool_async  # Alert
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# --- Dependencies ---
+_router_agent = None
+_research_agent = None
+_task_agent = None
+_alert_agent = None
+_main_agent = None
 
-@router.post("/chat/stream", summary="Submit chat message with streaming")
-async def submit_chat_message_stream(message_data: ChatMessage, db: Client = Depends(get_supabase_client)):
+def get_services(db: Client = Depends(get_supabase_client)):
+    global _router_agent, _research_agent, _task_agent, _alert_agent, _main_agent
+    
+    if not _router_agent:
+        _router_agent = RouterAgent()
+    if not _research_agent:
+        _research_agent = ResearchAgentSimple()
+    if not _task_agent:
+        _task_agent = TaskAgent()
+    if not _alert_agent:
+        _alert_agent = alerts_agent_tool_async  # Function-based agent
+    if not _main_agent:
+        vector_store = VectorStoreService(db)
+        _main_agent = ToviraAgent(vector_store)
+        
+    return {
+        "router": _router_agent,
+        "research": _research_agent,
+        "task": _task_agent,
+        "alert": _alert_agent,
+        "main": _main_agent,
+        "db": db
+    }
+
+# --- Endpoints ---
+
+@router.post("/chat/router", response_model=RouterResponse)
+async def check_intent_and_fee(
+    message: ChatMessage,
+    services: Dict = Depends(get_services)
+):
+    """
+    Step 1: Determine Intent, Agent, and Fee.
+    Frontend calls this first. If fee > 0, prompts user to sign tx.
+    """
     try:
-        if not message_data.query.strip():
-            logger.warning("Empty chat message received")
-            raise HTTPException(
-                status_code=400, detail="Chat message cannot be empty")
+        # Validate query is not empty
+        if not message.query or not message.query.strip():
+            logger.warning(f"Empty query received from user {message.user_id}")
+            return RouterResponse(
+                intent=IntentType.CHAT,
+                target_agent=AgentType.MAIN,
+                requires_fee=False,
+                estimated_cost=0.0,
+                reason="Empty query received"
+            )
+        
+        current_agent = AgentType(message.agent_id) if message.agent_id else AgentType.MAIN
+        response = await services["router"].route_request(message.query, current_agent)
+        logger.info(f"Router response: {response.model_dump()}")
+        return response
+    except Exception as e:
+        logger.error(f"Router error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
-        chat_id = message_data.chat_id
+@router.post("/chat/execute")
+async def execute_agent(
+    message: ChatMessage,
+    background_tasks: BackgroundTasks,
+    services: Dict = Depends(get_services)
+):
+    """
+    Step 2: Execute the logic (after fee payment or if free).
+    Streams text + steps.
+    """
+    user_id = message.user_id
+    query = message.query
+    chat_id = message.chat_id
+    agent_type = AgentType(message.agent_id) if message.agent_id else AgentType.MAIN
+    
+    # 1. Ensure Chat ID
+    db = services["db"]
+    if not chat_id:
+        # Create chat logic (simplified for brevity, usually same as before)
+        chat_data = {"user_id": user_id, "name": query[:40]}
+        res = db.table("chats").insert(chat_data).execute()
+        chat_id = res.data[0]["chat_id"]
 
-        if not chat_id:
-            if not message_data.user_id:
-                logger.warning("No user_id provided for new chat")
-                raise HTTPException(
-                    status_code=400, detail="User ID required for new chat")
+    # 2. Store User Query
+    db.table("chat_messages").insert({
+        "chat_id": chat_id, "user_id": user_id, "query": query, "sender": "user"
+    }).execute()
 
-            chat_name = await generate_chat_name(message_data.query)
-
-            chat_data = {
-                "user_id": message_data.user_id,
-                "name": chat_name,
-                "created_at": datetime.utcnow().isoformat(),
-                "last_updated": datetime.utcnow().isoformat(),
-            }
-            chat_result = db.table("chats").insert(chat_data).execute()
-            if not chat_result.data:
-                logger.error("Failed to create new chat session")
-                raise HTTPException(
-                    status_code=500, detail="Failed to create chat session")
-            chat_id = chat_result.data[0]["chat_id"]
-            logger.info(
-                f"Created new chat session: {chat_id} with name: {chat_name}")
-
-        user_message = {
-            "chat_id": chat_id,
-            "query": message_data.query,
-            "user_id": message_data.user_id,
-            "sender": "user",
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        result = db.table("chat_messages").insert(user_message).execute()
-        if not result.data:
-            logger.error("Failed to insert chat message into Supabase")
-            raise HTTPException(
-                status_code=500, detail="Failed to store chat message")
-
-        context_result = (
-            db.table("chat_messages")
-            .select("sender, query")
-            .eq("chat_id", chat_id)
-            .order("timestamp", desc=True)
-            .limit(5)
-            .execute()
-        )
-        context_messages = [
-            {"role": "assistant" if m["sender"] ==
-                "ai" else "user", "content": m["query"]}
-            for m in reversed(context_result.data or [])
-        ]
-
-        async def event_generator():
-            full_response = ""
-            chunk_count = 0
-
-            yield f"data: {json.dumps({'type': 'chat_id', 'chat_id': chat_id})}\n\n"
-
-            logger.info(f"Starting stream for query: {message_data.query}")
-            logger.info(
-                f"Is research query: {any(kw in message_data.query.lower() for kw in ['research', 'analyze', 'evaluate', 'investigate'])}")
-
-            try:
-                async for chunk in generate_ai_response_stream(
-                    message_data.query,
-                    context_messages,
-                    message_data.user_id,
-                ):
-                    chunk_count += 1
-                    logger.debug(
-                        f"Stream chunk #{chunk_count}: {chunk.get('type', 'unknown')}")
-
-                    if chunk["type"] == "response":
-                        content = chunk["content"]
-                        full_response += content
-                        logger.debug(
-                            f"Response chunk length: {len(content)}, Total: {len(full_response)}")
+    async def event_generator():
+        # Yield Chat ID
+        yield f"data: {json.dumps({'type': 'chat_id', 'chat_id': chat_id})}\n\n"
+        
+        # Select Agent
+        if agent_type == AgentType.RESEARCH:
+            # Special Handling for Research (Wait for stream events)
+            agent = services["research"]
+            inputs = {"messages": [("user", query)], "user_id": user_id}
+            
+            # Note: ResearchAgentSimple returns final messages, 
+            # ideally we reimplement astream_events like main agent
+            # For now, let's assume it supports astream_events or we just yield final.
+            # To support "Steps", use astream_events on the graph.
+            
+            async for event in agent.graph.astream_events(inputs, version="v1"):
+                kind = event["event"]
+                name = event["name"]
+                
+                # Detect Tool Usage as "Steps"
+                if kind == "on_tool_start":
+                    yield f"data: {json.dumps({'type': 'step_start', 'step': f'Running {name}'})}\n\n"
+                
+                elif kind == "on_tool_end":
+                    yield f"data: {json.dumps({'type': 'step_complete', 'step': f'Finished {name}'})}\n\n"
+                    
+                elif kind == "on_chat_model_stream":
+                    content = event["data"]["chunk"].content
+                    if content:
                         yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
 
-                    elif chunk["type"] == "agent_info":
-                        logger.info(
-                            f"Agent info: {chunk.get('agent', 'Unknown')}")
-                        yield f"data: {json.dumps({'type': 'agent_info', 'agent': chunk['agent'], 'cached': chunk.get('cached', False)})}\n\n"
-
-                    elif chunk["type"] == "done":
-                        logger.info(
-                            f"Done event received. Total chunks: {chunk_count}, Response length: {len(full_response)}")
-                        break
-
-                if not full_response:
-                    logger.error(
-                        "Stream completed but no response content was generated!")
-                    error_msg = "  No response was generated. This might be a configuration issue. Please contact support."
-                    yield f"data: {json.dumps({'type': 'response', 'content': error_msg})}\n\n"
-
-                if full_response:
-                    ai_message = {
-                        "chat_id": chat_id,
-                        "query": full_response,
-                        "user_id": message_data.user_id,
-                        "sender": "ai",
-                        "timestamp": datetime.utcnow().isoformat(),
-                    }
-                    db.table("chat_messages").insert(ai_message).execute()
-                    logger.info(
-                        f"Stored AI response: {len(full_response)} chars")
-                else:
-                    logger.warning(
-                        "Skipping AI message storage - no content generated")
-
-                db.table("chats").update({"last_updated": datetime.utcnow().isoformat()}).eq(
-                    "chat_id", chat_id).execute()
-
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
-                logger.info(
-                    f"Stream completed successfully. Total chunks: {chunk_count}")
-
+        elif agent_type == AgentType.ALERT or agent_type == AgentType.TASK:
+            # Alert/Task Agent - handles task/reminder/event creation
+            # Both route to the same alerts_agent since they handle the same functionality
+            alert_func = services["alert"]
+            context = f"user_id:{user_id}\ntimezone:Africa/Lagos"
+            
+            try:
+                response = await alert_func(query, context)
+                yield f"data: {json.dumps({'type': 'response', 'content': response})}\n\n"
             except Exception as e:
-                logger.error(f"Error in event_generator: {e}", exc_info=True)
-                yield f"data: {json.dumps({'type': 'response', 'content': f'Error: {str(e)}'})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                logger.error(f"Alert/Task agent error: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'content': f'Error creating task/alert: {str(e)}'})}\n\n"
+        
 
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
+        else: # Main Agent
+            agent = services["main"]
+            inputs = {"messages": [("user", query)], "user_id": user_id}
+            async for event in agent.graph.astream_events(inputs, version="v1"):
+                kind = event["event"]
+                if kind == "on_chat_model_stream":
+                    content = event["data"]["chunk"].content
+                    if content:
+                        yield f"data: {json.dumps({'type': 'response', 'content': content})}\n\n"
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing chat message: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
-
-@router.post("/chat", summary="Submit chat message")
-async def submit_chat_message(message_data: ChatMessage, db: Client = Depends(get_supabase_client)):
-    try:
-        if not message_data.query.strip():
-            logger.warning("Empty chat message received")
-            raise HTTPException(
-                status_code=400, detail="Chat message cannot be empty")
-
-        chat_id = message_data.chat_id
-
-        if not chat_id:
-            if not message_data.user_id:
-                logger.warning("No user_id provided for new chat")
-                raise HTTPException(
-                    status_code=400, detail="User ID required for new chat")
-
-            chat_name = await generate_chat_name(message_data.query)
-
-            chat_data = {
-                "user_id": message_data.user_id,
-                "name": chat_name,
-                "created_at": datetime.utcnow().isoformat(),
-                "last_updated": datetime.utcnow().isoformat(),
-            }
-            chat_result = db.table("chats").insert(chat_data).execute()
-            if not chat_result.data:
-                logger.error("Failed to create new chat session")
-                raise HTTPException(
-                    status_code=500, detail="Failed to create chat session")
-            chat_id = chat_result.data[0]["chat_id"]
-            logger.info(
-                f"Created new chat session: {chat_id} with name: {chat_name}")
-
-        user_message = {
-            "chat_id": chat_id,
-            "query": message_data.query,
-            "user_id": message_data.user_id,
-            "sender": "user",
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        result = db.table("chat_messages").insert(user_message).execute()
-        if not result.data:
-            logger.error("Failed to insert chat message into Supabase")
-            raise HTTPException(
-                status_code=500, detail="Failed to store chat message")
-
-        # --- Fetch context (last 5 messages) ---
-        context_result = (
-            db.table("chat_messages")
-            .select("sender, query")
-            .eq("chat_id", chat_id)
-            .order("timestamp", desc=True)
-            .limit(5)
-            .execute()
-        )
-        context_messages = [
-            {"role": "assistant" if m["sender"] ==
-                "ai" else "user", "content": m["query"]}
-            for m in reversed(context_result.data or [])
-        ]
-
-        full_response = ""
-        async for chunk in generate_ai_response_stream(
-            message_data.query,
-            context_messages,
-            message_data.user_id,
-        ):
-            if chunk["type"] == "response":
-                full_response += chunk["content"]
-
-        ai_response_text = full_response
-
-        ai_message = {
-            "chat_id": chat_id,
-            "query": ai_response_text,
-            "user_id": message_data.user_id,
-            "sender": "ai",
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        ai_result = db.table("chat_messages").insert(ai_message).execute()
-        if not ai_result.data:
-            logger.error("Failed to insert AI response into Supabase")
-            raise HTTPException(
-                status_code=500, detail="Failed to store AI response")
-
-        db.table("chats").update({"last_updated": datetime.utcnow().isoformat()}).eq(
-            "chat_id", chat_id).execute()
-
-        logger.info(
-            f"Chat message processed successfully for chat_id: {chat_id}")
-        return {"response": ai_response_text, "chat_id": chat_id}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing chat message: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-@router.get("/chat/{chat_id}", summary="Get chat history")
+@router.get("/chats")
+async def get_chats(user_id: str, db: Client = Depends(get_supabase_client)):
+    """List all chats for a user"""
+    res = db.table("chats").select("*").eq("user_id", user_id).order("last_updated", desc=True).execute()
+    return {"chats": res.data}
+
+
+@router.get("/chat/{chat_id}")
 async def get_chat_history(chat_id: str, db: Client = Depends(get_supabase_client)):
-    try:
-        chat_check = db.table("chats").select(
-            "chat_id").eq("chat_id", chat_id).execute()
-        if not chat_check.data:
-            logger.warning(f"Chat not found: {chat_id}")
-            raise HTTPException(
-                status_code=404, detail="Chat session not found")
-        result = db.table("chat_messages").select(
-            "*").eq("chat_id", chat_id).order("timestamp", desc=False).execute()
-        if not result.data:
-            logger.info(f"No messages found for chat_id: {chat_id}")
-            return {"messages": [], "chat_id": chat_id}
-        logger.info(
-            f"Retrieved {len(result.data)} messages for chat_id: {chat_id}")
-        return {"messages": result.data, "chat_id": chat_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving chat history: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
+    """Get message history for a chat"""
+    # 1. Get Chat
+    chat_res = db.table("chats").select("*").eq("chat_id", chat_id).execute()
+    if not chat_res.data:
+        raise HTTPException(status_code=404, detail="Chat not found")
+        
+    # 2. Get Messages
+    msg_res = db.table("chat_messages").select("*").eq("chat_id", chat_id).order("timestamp", desc=False).execute()
+    
+    return {
+        "chat": chat_res.data[0],
+        "messages": msg_res.data
+    }
 
-
-@router.get("/chats", summary="Get user chats")
-async def get_user_chats(user_id: str, db: Client = Depends(get_supabase_client)):
-    try:
-        result = db.table("chats").select("chat_id, name, created_at, last_updated").eq(
-            "user_id", user_id).order("last_updated", desc=True).execute()
-        if not result.data:
-            logger.info(f"No chats found for user_id: {user_id}")
-            return {"chats": []}
-        logger.info(
-            f"Retrieved {len(result.data)} chats for user_id: {user_id}")
-        return {"chats": result.data}
-    except Exception as e:
-        logger.error(f"Error retrieving chats: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.patch("/chat/{chat_id}", summary="Update chat name")
-async def update_chat_name(chat_id: str, chat_update: ChatUpdate, db: Client = Depends(get_supabase_client)):
-    try:
-        if not chat_update.name.strip():
-            logger.warning("Empty chat name received")
-            raise HTTPException(
-                status_code=400, detail="Chat name cannot be empty")
-        chat_check = db.table("chats").select(
-            "chat_id").eq("chat_id", chat_id).execute()
-        if not chat_check.data:
-            logger.warning(f"Chat not found: {chat_id}")
-            raise HTTPException(
-                status_code=404, detail="Chat session not found")
-        update_data = {
-            "name": chat_update.name,
-            "last_updated": datetime.utcnow().isoformat()
-        }
-        result = db.table("chats").update(
-            update_data).eq("chat_id", chat_id).execute()
-        if not result.data:
-            logger.error(f"Failed to update chat name for chat_id: {chat_id}")
-            raise HTTPException(
-                status_code=500, detail="Failed to update chat name")
-        logger.info(f"Chat name updated for chat_id: {chat_id}")
-        return {"message": "Chat name updated successfully", "chat_id": chat_id, "name": chat_update.name}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating chat name: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.delete("/chat/{chat_id}", summary="Delete chat and its messages")
+@router.delete("/chat/{chat_id}")
 async def delete_chat(chat_id: str, db: Client = Depends(get_supabase_client)):
-    try:
-        chat_check = db.table("chats").select(
-            "chat_id").eq("chat_id", chat_id).execute()
-        if not chat_check.data:
-            logger.warning(f"Chat not found: {chat_id}")
-            raise HTTPException(
-                status_code=404, detail="Chat session not found")
-        messages_result = db.table("chat_messages").delete().eq(
-            "chat_id", chat_id).execute()
-        chat_result = db.table("chats").delete().eq(
-            "chat_id", chat_id).execute()
-        if not chat_result.data:
-            logger.error(f"Failed to delete chat for chat_id: {chat_id}")
-            raise HTTPException(
-                status_code=500, detail="Failed to delete chat")
-        logger.info(
-            f"Chat deleted for chat_id: {chat_id}, deleted {len(messages_result.data or [])} messages")
-        return {"message": "Chat deleted successfully", "chat_id": chat_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting chat: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Internal server error: {str(e)}")
+    db.table("chats").delete().eq("chat_id", chat_id).execute()
+    return {"status": "ok"}
+

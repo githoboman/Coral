@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Home, Bell, User, Users, PanelLeftClose, PanelRightClose, MessageSquare } from 'lucide-react';
+import { Search, Home, Bell, User, Users, PanelLeftClose, PanelRightClose, MessageSquare, Activity } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
@@ -19,6 +19,7 @@ const iconMap = {
   users: Users,
   messageSquare: MessageSquare,
   bell: Bell,
+  activity: Activity,
 };
 
 export function Sidebar({ navItems }: SidebarProps) {
@@ -79,16 +80,14 @@ export function Sidebar({ navItems }: SidebarProps) {
               <li key={item.name}>
                 <Link
                   to={item.to}
-                  className={`group flex items-center px-3 py-3 rounded-xl transition-all duration-200 gap-3 ${isCollapsed && "justify-center"} ${
-                    item.active
-                      ? 'bg-gradient-to-r from-[#ffffff]/5 to-[#fdfdfd]/5 border border-[#ffffff]/10 text-white shadow-lg'
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={`group flex items-center px-3 py-3 rounded-xl transition-all duration-200 gap-3 ${isCollapsed && "justify-center"} ${item.active
+                    ? 'bg-gradient-to-r from-[#ffffff]/5 to-[#fdfdfd]/5 border border-[#ffffff]/10 text-white shadow-lg'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   <Icon
-                    className={`flex-shrink-0 ${
-                      item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'
-                    } transition-colors duration-200`}
+                    className={`flex-shrink-0 ${item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'
+                      } transition-colors duration-200`}
                     size={20}
                   />
                   {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}

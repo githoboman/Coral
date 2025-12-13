@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Mail, User, UserCircle } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -57,8 +58,8 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
         <div className="p-6 space-y-4">
           {message && (
             <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${message.includes('successfully') || message.includes('Welcome')
-                ? 'bg-green-50 text-green-800'
-                : 'bg-red-50 text-red-800'
+              ? 'bg-green-50 text-green-800'
+              : 'bg-red-50 text-red-800'
               }`}>
               <span className="flex-1">{message}</span>
               <button
@@ -97,7 +98,7 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
           >
             {loading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></div>
+                <LoadingSpinner size="sm" />
                 <span className="text-sm">Checking Email...</span>
               </div>
             ) : (

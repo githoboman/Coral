@@ -9,6 +9,7 @@ class ChatMessage(BaseModel):
                        description="User message")
     user_id: str = Field(..., description="User wallet address")
     chat_id: Optional[str] = Field(None, description="Chat session ID")
+    agent_id: Optional[str] = Field(None, description="Target Agent ID")
     
 
 class ChatUpdate(BaseModel):

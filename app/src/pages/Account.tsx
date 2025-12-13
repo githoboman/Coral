@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Users, TrendingUp, Award } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trophy, Star, Users, Award } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface UserAccount {
   user_id: string;
@@ -33,26 +34,18 @@ interface LeaderboardEntry {
 
 const Account = () => {
   const auth = useAuth();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'Account' | 'Leaderboard'>('Account');
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const views = ['Account', 'Leaderboard'];
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
   useEffect(() => {
     if (auth.isAuthenticated && auth.pubkeyHex) {
       fetchAccountData();
-    }
-  }, [auth.isAuthenticated, auth.pubkeyHex]);
-
-  useEffect(() => {
-    if (activeView === 'Leaderboard') {
       fetchLeaderboard();
     }
-  }, [activeView]);
+  }, [auth.isAuthenticated, auth.pubkeyHex]);
 
   const fetchAccountData = async () => {
     if (!auth.pubkeyHex) return;
@@ -108,13 +101,10 @@ const Account = () => {
     return 'bg-gradient-to-r from-blue-500 to-blue-700';
   };
 
-  if (loading && activeView === 'Account') {
+  if (loading) {
     return (
       <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading account...</p>
-        </div>
+        <LoadingSpinner size="lg" text="Loading account..." />
       </div>
     );
   }
@@ -122,41 +112,20 @@ const Account = () => {
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="sticky top-0 pt-6 z-10 flex w-full gap-6 items-center mb-8 bg-transparent">
-        <div className="relative">
-          <button
-            onClick={() => setIsDropdownOpen(s => !s)}
-            className="cursor-pointer flex items-center px-4 py-2 bg-[#2D2D2D] border border-white/10 rounded-full text-sm font-medium hover:bg-white/10 transition-colors"
-          >
-            {activeView}
-            <svg className={`ml-2 w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {isDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 bg-[#2D2D2D] backdrop-blur rounded-md shadow-lg border border-gray-200/50 w-40 z-20">
-              {views.map(v => (
-                <button
-                  key={v}
-                  onClick={() => { setActiveView(v as any); setIsDropdownOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-white/10 rounded-md transition-colors"
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">My Account</h1>
       </div>
 
-      {activeView === 'Account' && userAccount && (
+      {userAccount && (
         <div className="space-y-8">
           {/* Account Info */}
-          <div className="bg-[#2D2D2D] border border-white/10 rounded-2xl p-6">
-            <div className="flex justify-between items-start w-full mb-6">
+          <div className="bg-[#151515] border border-white/10 rounded-[30px] p-8 relative overflow-hidden group">
+            {/* Background Gradient */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/10 to-purple-500/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
+
+            <div className="flex justify-between items-start w-full mb-6 relative z-10">
               <div className="flex items-start gap-6">
-                <div className="rounded-full h-24 w-24 overflow-hidden flex items-center justify-center bg-gwhite/50 flex-shrink-0">
+                <div className="rounded-2xl h-24 w-24 overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/10 shadow-xl group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
                   <img
                     src="/assets/images/pfp.png"
                     alt="User"
@@ -165,16 +134,20 @@ const Account = () => {
                 </div>
 
                 <div className="flex flex-col justify-center gap-2">
-                  <h2 className="text-2xl font-bold">
-                    {userAccount.username || userAccount.first_name || 'Anonymous'}
+                  <h2 className="text-3xl font-bold tracking-tight text-white/90">
+                    {userAccount.username || userAccount.email?.split('@')[0] || 'Anonymous'}
                   </h2>
-                  <p className="text-gray-400 text-sm">{truncateAddress(userAccount.wallet_address)}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors">
+                      <span className="font-mono text-sm text-white/40">{truncateAddress(userAccount.wallet_address)}</span>
+                    </div>
+                  </div>
                   {userAccount.email && (
-                    <p className="text-gray-400 text-sm">{userAccount.email}</p>
+                    <p className="text-white/40 text-sm hidden">{userAccount.email}</p>
                   )}
                   {userAccount.is_premium && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs font-bold rounded-full w-fit">
-                      <Star className="w-3 h-3" /> PREMIUM
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-yellow-400/20 to-yellow-600/20 text-yellow-400 border border-yellow-500/20 text-xs font-bold rounded-full w-fit mt-2">
+                      <Star className="w-3 h-3fill-yellow-400" /> PREMIUM MEMBER
                     </span>
                   )}
                 </div>
@@ -182,123 +155,121 @@ const Account = () => {
 
               <div className="flex flex-col items-end">
                 {userAccount.rank && (
-                  <div className={`${getRankBadgeColor(userAccount.rank)} text-white px-4 py-2 rounded-full flex items-center gap-2 font-bold`}>
+                  <div className={`${getRankBadgeColor(userAccount.rank)} text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-blue-900/20`}>
                     <Trophy className="w-5 h-5" />
-                    #{userAccount.rank}
+                    Rank #{userAccount.rank}
                   </div>
                 )}
               </div>
             </div>
 
+            <div className="h-px bg-white/5 my-6" />
+
             {/* Progress Section */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Award className="w-5 h-5 text-blue-400" />
-                  <p className="text-lg font-semibold">Level {userAccount.level}</p>
+                  <p className="text-lg font-bold">Level {userAccount.level}</p>
                 </div>
-                <p className="text-sm text-gray-400">
-                  {userAccount.xp - userAccount.current_level_xp} / {userAccount.next_level_xp - userAccount.current_level_xp} XP
+                <p className="text-sm font-mono text-white/40">
+                  <span className="text-white/80">{userAccount.xp - userAccount.current_level_xp}</span> / {userAccount.next_level_xp - userAccount.current_level_xp} XP
                 </p>
               </div>
 
-              <div className="relative w-full h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div className="relative w-full h-2 bg-white/5 rounded-full overflow-hidden">
                 <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500 rounded-full"
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                   style={{ width: `${getProgressPercentage()}%` }}
                 />
               </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="bg-black/30 rounded-lg p-4 text-center border border-white/5">
-                <p className="text-gray-400 text-sm mb-1">Total XP</p>
-                <p className="text-2xl font-bold text-blue-400">{userAccount.xp.toLocaleString()}</p>
+            <div className="grid grid-cols-3 gap-4 mt-8">
+              <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
+                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Total XP</p>
+                <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-blue-400 transition-colors">{userAccount.xp.toLocaleString()}</p>
               </div>
-              <div className="bg-black/30 rounded-lg p-4 text-center border border-white/5">
-                <p className="text-gray-400 text-sm mb-1">Points</p>
-                <p className="text-2xl font-bold text-green-400">{userAccount.points.toLocaleString()}</p>
+              <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
+                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Points</p>
+                <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-green-400 transition-colors">{userAccount.points.toLocaleString()}</p>
               </div>
-              <div className="bg-black/30 rounded-lg p-4 text-center border border-white/5">
-                <p className="text-gray-400 text-sm mb-1">Referrals</p>
-                <p className="text-2xl font-bold text-purple-400">{userAccount.referral_points.toLocaleString()}</p>
+              <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
+                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Referrals</p>
+                <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-purple-400 transition-colors">{userAccount.referral_points.toLocaleString()}</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {activeView === 'Leaderboard' && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 mb-6">
-            <TrendingUp className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl font-bold">Top 100 Players</h2>
-          </div>
+      <div className="pt-8 space-y-4">
+        <div className="flex items-center gap-3 mb-6 px-2">
+          <h2 className="text-2xl font-bold">Top 100 Accounts</h2>
+        </div>
 
-          <div className="bg-[#2D2D2D] border border-white/10 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-black/30 border-b border-white/10">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">Rank</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">User</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">Level</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">XP</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">Points</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">Referrals</th>
+        <div className="bg-[#151515] border border-white/10 rounded-[30px] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-white/5 border-b border-white/5">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Rank</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Level</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Total XP</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Points</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Referrals</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-white/80">
+                {leaderboard.map((entry) => (
+                  <tr
+                    key={entry.user_id}
+                    className={`hover:bg-white/5 transition-colors ${entry.user_id === auth.pubkeyHex ? 'bg-teal-500/10' : ''}`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${getRankBadgeColor(entry.rank)} text-white font-bold text-sm shadow-lg`}>
+                        {entry.rank}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-bold text-white">
+                          {entry.username || entry.email?.split('@')[0] || 'Anonymous'}
+                        </p>
+                        <p className="text-xs text-white/40 font-mono">{truncateAddress(entry.wallet_address)}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1">
+                        <Award className="w-4 h-4 text-blue-400" />
+                        <span className="font-bold">{entry.level}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-white font-mono font-medium">{entry.xp.toLocaleString()}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-green-400 font-mono font-medium">{entry.points.toLocaleString()}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-purple-400 font-mono font-medium">{entry.referral_points.toLocaleString()}</span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {leaderboard.map((entry) => (
-                    <tr
-                      key={entry.user_id}
-                      className={`hover:bg-white/5 transition-colors ${entry.user_id === auth.pubkeyHex ? 'bg-blue-500/10' : ''
-                        }`}
-                    >
-                      <td className="px-4 py-3">
-                        <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${getRankBadgeColor(entry.rank)} text-white font-bold text-sm`}>
-                          {entry.rank}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium">
-                            {entry.username || entry.email?.split('@')[0] || 'Anonymous'}
-                          </p>
-                          <p className="text-xs text-gray-400">{truncateAddress(entry.wallet_address)}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Award className="w-4 h-4 text-blue-400" />
-                          <span className="font-semibold">{entry.level}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-blue-400 font-mono">{entry.xp.toLocaleString()}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-green-400 font-mono">{entry.points.toLocaleString()}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-purple-400 font-mono">{entry.referral_points.toLocaleString()}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {leaderboard.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No leaderboard data yet</p>
-              </div>
-            )}
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {leaderboard.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No leaderboard data yet</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

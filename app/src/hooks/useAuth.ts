@@ -67,24 +67,28 @@ export function useAuth() {
     isSupported: false,
   });
 
+  // Sync with Redux store
+  const dispatch = (window as any).__REDUX_DISPATCH__;
+
   useEffect(() => {
     const supported = isPasskeySupported() && isSecureContext();
 
-    setAuthState((prev) => ({ ...prev, isSupported: supported }));
+    const newState = { ...authState, isSupported: supported };
+    setAuthState(newState);
+
+    // Sync to Redux if available
+    if (dispatch) {
+      dispatch({ type: 'auth/setSupported', payload: supported });
+    }
 
     if (!supported) {
-      if (!isSecureContext()) {
-        setAuthState((prev) => ({
-          ...prev,
-          message:
-            'Passkeys require HTTPS. Please use a secure connection or localhost for development.',
-        }));
-      } else {
-        setAuthState((prev) => ({
-          ...prev,
-          message:
-            'Your browser does not support passkeys. Please use a modern browser.',
-        }));
+      const message = !isSecureContext()
+        ? 'Passkeys require HTTPS. Please use a secure connection or localhost for development.'
+        : 'Your browser does not support passkeys. Please use a modern browser.';
+
+      setAuthState((prev) => ({ ...prev, message }));
+      if (dispatch) {
+        dispatch({ type: 'auth/setMessage', payload: message });
       }
       return;
     }
@@ -93,12 +97,20 @@ export function useAuth() {
     const storedPk = localStorage.getItem(STORAGE_PUBKEY);
 
     if (storedAddr && storedPk) {
-      setAuthState((prev) => ({
-        ...prev,
+      const authData = {
         isAuthenticated: true,
         address: storedAddr,
         pubkeyHex: storedPk,
-      }));
+      };
+      setAuthState((prev) => ({ ...prev, ...authData }));
+
+      // Sync to Redux if available
+      if (dispatch) {
+        dispatch({
+          type: 'auth/setAuth',
+          payload: { address: storedAddr, pubkeyHex: storedPk }
+        });
+      }
     }
   }, []);
 
@@ -336,11 +348,67 @@ export function useAuth() {
     }));
   };
 
+  const signTransaction = async (transactionBytes: Uint8Array): Promise<{ signature: string; publicKey: Uint8Array } | null> => {
+    if (!authState.isSupported || !authState.pubkeyHex) {
+      console.error('Cannot sign: passkey not available');
+      return null;
+    }
+
+    try {
+      const provider = createProvider();
+      const pkBytes = hexToBytes(authState.pubkeyHex);
+      const keypair = new PasskeyKeypair(pkBytes, provider);
+
+      const { signature } = await keypair.signTransaction(transactionBytes);
+      const publicKey = keypair.getPublicKey().toRawBytes();
+
+      return {
+        signature: signature.toString(),
+        publicKey
+      };
+    } catch (e: any) {
+      console.error('Error signing transaction:', e);
+
+      let errorMessage = 'Failed to sign transaction';
+      if (e?.message?.includes('NotAllowedError')) {
+        errorMessage = 'Transaction signing was cancelled.';
+      } else if (e?.message) {
+        errorMessage = `Error: ${e.message}`;
+      }
+
+      setAuthState((prev) => ({
+        ...prev,
+        message: errorMessage,
+      }));
+
+      return null;
+    }
+  };
+
+  const getKeypair = (): PasskeyKeypair | null => {
+    if (!authState.isSupported || !authState.pubkeyHex) {
+      return null;
+    }
+
+    try {
+      const provider = createProvider();
+      const pkBytes = hexToBytes(authState.pubkeyHex);
+      return new PasskeyKeypair(pkBytes, provider);
+    } catch (e) {
+      console.error('Error getting keypair:', e);
+      return null;
+    }
+  };
+
   return {
     ...authState,
     signIn,
     signOut,
     clearMessage,
     setAuthState,
+    createNewPasskey,
+    recoverPasskey,
+    signTransaction,
+    getKeypair,
   };
 }
