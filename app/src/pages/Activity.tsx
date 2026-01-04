@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, FileCheck, X } from "lucide-react"
 import { Task, Event } from '@/hooks/taskApi'
-import { useAuth } from '@/hooks/useAuth';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchTasks, createTask as createReduxTask, updateTaskStatus, removeTask } from '@/store/slices/tasksSlice';
 import { fetchEvents, createEvent as createReduxEvent, removeEvent } from '@/store/slices/eventsSlice';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type Item = {
   id: number;
@@ -32,8 +33,8 @@ type LoadingStates = {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const Activity = () => {
-  const { pubkeyHex } = useAuth();
-  const userId = pubkeyHex || "";
+  const currentAccount = useCurrentAccount();
+  const userId = currentAccount?.address || "";
 
   // Redux state
   const dispatch = useAppDispatch();
@@ -68,6 +69,9 @@ const Activity = () => {
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'priority' | 'date' | 'status'>('none');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'alpha'>('date');
+
+  // Debounce search query (300ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Phase 3: Bulk actions state
   const [bulkSelectMode, setBulkSelectMode] = useState(false);
@@ -132,12 +136,12 @@ const Activity = () => {
     return Array.from(tagSet).sort();
   }, [items]);
 
-  // Phase 2: Filtered items based on search and filters
+  // Phase 2: Filtered items based on search and filters (using debounced search)
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      // Search filter
-      if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !item.desc?.toLowerCase().includes(searchQuery.toLowerCase())) {
+      // Search filter (using debounced value)
+      if (debouncedSearchQuery && !item.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) &&
+        !item.desc?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) {
         return false;
       }
 
@@ -157,7 +161,7 @@ const Activity = () => {
 
       return true;
     });
-  }, [items, searchQuery, priorityFilter, statusFilter, tagFilter]);
+  }, [items, debouncedSearchQuery, priorityFilter, statusFilter, tagFilter]);
 
   const views = ['Month', 'Week', 'Day', 'Schedule'];
 
@@ -220,8 +224,9 @@ const Activity = () => {
     });
   }, [items]);
 
-  const eventsForDateKey = (key: string) => items.filter(i => i.type === 'event' && i.dateKey === key);
-  const tasksForDateKey = (key: string) => items.filter(i => i.type === 'task' && i.dateKey === key);
+  // Memoize filter functions
+  const eventsForDateKey = useCallback((key: string) => items.filter(i => i.type === 'event' && i.dateKey === key), [items]);
+  const tasksForDateKey = useCallback((key: string) => items.filter(i => i.type === 'task' && i.dateKey === key), [items]);
 
   const goPrev = () => {
     const d = cloneDate(displayedDate);
@@ -596,10 +601,10 @@ const Activity = () => {
               onChange={(e) => setPriorityFilter(e.target.value)}
               className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
             >
-              <option value="all">All Priorities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Priorities</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="high">High</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="medium">Medium</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="low">Low</option>
             </select>
 
             {/* Status Filter */}
@@ -608,9 +613,9 @@ const Activity = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Status</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="pending">Pending</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="completed">Completed</option>
             </select>
 
             {/* Tag Filter */}
@@ -619,9 +624,9 @@ const Activity = () => {
               onChange={(e) => setTagFilter(e.target.value)}
               className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
             >
-              <option value="all">All Tags</option>
+              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Tags</option>
               {allTags.map(tag => (
-                <option key={tag} value={tag}>{tag}</option>
+                <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} key={tag} value={tag}>{tag}</option>
               ))}
             </select>
           </div>
@@ -894,8 +899,8 @@ const Activity = () => {
                     setSelectedTaskIds(new Set());
                   }}
                   className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${bulkSelectMode
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
                     }`}
                 >
                   {bulkSelectMode ? 'Cancel' : 'Select'}
@@ -906,10 +911,10 @@ const Activity = () => {
                   onChange={(e) => setGroupBy(e.target.value as any)}
                   className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
                 >
-                  <option value="none">No Grouping</option>
-                  <option value="priority">Group by Priority</option>
-                  <option value="status">Group by Status</option>
-                  <option value="date">Group by Date</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="none">No Grouping</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Group by Priority</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="status">Group by Status</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Group by Date</option>
                 </select>
 
                 <select
@@ -917,9 +922,9 @@ const Activity = () => {
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
                 >
-                  <option value="date">Sort by Date</option>
-                  <option value="priority">Sort by Priority</option>
-                  <option value="alpha">Sort Alphabetically</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Sort by Date</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Sort by Priority</option>
+                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="alpha">Sort Alphabetically</option>
                 </select>
               </div>
             </div>
@@ -1011,8 +1016,8 @@ const Activity = () => {
                           </span>
                           {t.priority && (
                             <span className={`text-xs px-2 py-0.5 rounded-full ${t.priority === 'high' ? 'bg-white/20 text-white' :
-                                t.priority === 'medium' ? 'bg-white/15 text-white/80' :
-                                  'bg-white/10 text-white/60'
+                              t.priority === 'medium' ? 'bg-white/15 text-white/80' :
+                                'bg-white/10 text-white/60'
                               }`}>
                               {t.priority}
                             </span>
@@ -1105,10 +1110,10 @@ const Activity = () => {
                           className="w-fit px-3 py-2 bg-white/10 rounded-md cursor-pointer border border-white/20 text-white bg-[#2D2D2D] focus:ring-0 focus:outline-none"
                         />
                         <select name="color" className="w-full px-3 py-2 bg-[#2D2D2D] rounded-md cursor-pointer border border-white/20 text-white focus:ring-0 focus:outline-none">
-                          <option value="bg-blue-500">Blue</option>
-                          <option value="bg-red-500">Red</option>
-                          <option value="bg-green-500">Green</option>
-                          <option value="bg-purple-500">Purple</option>
+                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-blue-500">Blue</option>
+                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-red-500">Red</option>
+                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-green-500">Green</option>
+                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-purple-500">Purple</option>
                         </select>
                       </>
                     )}

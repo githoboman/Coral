@@ -1,30 +1,32 @@
 import React, { useState } from 'react';
-import { X, Mail, User, UserCircle } from 'lucide-react';
+import { X, Mail } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface OnboardingProps {
   isOpen: boolean;
   loading: boolean;
   message: string | null;
+  initialEmail?: string | null;
   onSubmit: (email: string, additionalData?: { username?: string; firstName?: string; lastName?: string }) => void;
   onClearMessage: () => void;
 }
 
-export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMessage }: OnboardingProps) {
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+export function OnboardingModal({ isOpen, loading, message, initialEmail, onSubmit, onClearMessage }: OnboardingProps) {
+  const [email, setEmail] = useState(initialEmail || '');
+  const isEmailFromOAuth = !!initialEmail;
+
+  // Update email state when initialEmail changes
+  React.useEffect(() => {
+    if (initialEmail) {
+      setEmail(initialEmail);
+    }
+  }, [initialEmail]);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
     if (email.trim()) {
-      onSubmit(email.trim(), {
-        username: username.trim() || undefined,
-        firstName: firstName.trim() || undefined,
-        lastName: lastName.trim() || undefined,
-      });
+      onSubmit(email.trim());
     }
   };
 
@@ -48,10 +50,10 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
             </div>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-[#00FF88] bg-clip-text text-transparent mb-2">
-            Onboarding
+            Complete Your Profile
           </h2>
           <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
-            Enter the email you used to join our waitlist
+            Enter your email to verify your waitlist status
           </p>
         </div>
 
@@ -78,14 +80,18 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => !isEmailFromOAuth && setEmail(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="your@email.com"
                 required
-                disabled={loading}
-                className=" text-lg focus:outline-none focus:ring-0 focus:border-transparent disabled:bg-white/10 disabled:text-white/50"
+                disabled={loading || isEmailFromOAuth}
+                readOnly={isEmailFromOAuth}
+                className={`text-lg focus:outline-none focus:ring-0 focus:border-transparent disabled:bg-white/10 disabled:text-white/50 ${isEmailFromOAuth ? 'cursor-not-allowed opacity-75' : ''}`}
               />
             </div>
+            {isEmailFromOAuth && (
+              <p className="text-xs text-white/40 mt-2 ml-4">Email from your Google account</p>
+            )}
           </div>
 
           <button
@@ -99,10 +105,10 @@ export function OnboardingModal({ isOpen, loading, message, onSubmit, onClearMes
             {loading ? (
               <div className="flex items-center gap-2">
                 <LoadingSpinner size="sm" />
-                <span className="text-sm">Checking Email...</span>
+                <span className="text-sm">Verifying waitlist status...</span>
               </div>
             ) : (
-              <p>Verify Email</p>
+              <p>Verify Waitlist Status</p>
             )}
           </button>
         </div>

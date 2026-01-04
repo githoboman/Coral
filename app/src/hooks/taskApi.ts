@@ -1,4 +1,4 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export interface Task {
   id?: number;
@@ -215,7 +215,7 @@ export interface Event {
   tags?: string[];
   attendees?: string[];
   is_recurring?: boolean;
-  reminder_times?: string[]; 
+  reminder_times?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -278,7 +278,7 @@ class EventApiClient {
 
     return response.json();
   }
-  
+
   async getEvents(
     userId: string,
     filters?: {

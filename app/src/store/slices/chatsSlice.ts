@@ -1,13 +1,23 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { getCacheTimestamp, isCacheValid } from '../utils/cacheUtils';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export interface Chat {
   chat_id: string;
   name: string;
   created_at: string;
   last_updated: string;
+}
+
+
+export interface Artifact {
+  id: string;
+  type: 'code' | 'markdown' | 'html' | 'svg' | 'react';
+  title: string;
+  content: string;
+  language?: string;
+  isOpen?: boolean;
 }
 
 export interface Message {
@@ -19,8 +29,12 @@ export interface Message {
   isThinking?: boolean;
   isStreaming?: boolean;
   agentType?: string;
+  agentId?: string;
   originalQuery?: string;
   gasFee?: string;
+  variations?: string[];
+  currentVariationIndex?: number;
+  artifacts?: Artifact[];
 }
 
 interface ChatsState {
@@ -30,6 +44,7 @@ interface ChatsState {
   loading: boolean;
   error: string | null;
   lastFetch: number | null;
+  activeArtifact: Artifact | null;
 }
 
 const initialState: ChatsState = {
@@ -39,9 +54,10 @@ const initialState: ChatsState = {
   loading: false,
   error: null,
   lastFetch: null,
+  activeArtifact: null,
 };
 
-// Async thunks
+// Async thunks - Using Mock Data
 export const fetchChats = createAsyncThunk(
   'chats/fetchChats',
   async (userId: string, { getState, rejectWithValue }) => {
@@ -53,10 +69,16 @@ export const fetchChats = createAsyncThunk(
         return { chats: state.chats.chats, fromCache: true };
       }
 
-      const res = await fetch(`${apiBaseUrl}/api/chats?user_id=${userId}`);
-      if (!res.ok) throw new Error('Failed to fetch chats');
-      const data = await res.json();
-      return { chats: data.chats, fromCache: false };
+      // Fetch from real API
+      const response = await fetch(`${apiBaseUrl}/api/chats/${userId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch chats');
+      }
+
+      const chats = await response.json();
+
+      return { chats, fromCache: false };
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -74,19 +96,26 @@ export const fetchChatHistory = createAsyncThunk(
         return { chatId, messages: state.chats.messages[chatId], fromCache: true };
       }
 
-      const res = await fetch(`${apiBaseUrl}/api/chat/${chatId}`);
-      if (!res.ok) throw new Error('Failed to fetch chat history');
-      const data = await res.json();
+      // Fetch from real API
+      const response = await fetch(`${apiBaseUrl}/api/chats/${chatId}/messages`);
 
-      const formatted: Message[] = data.messages.map((msg: any, i: number) => ({
-        id: i + 1,
-        text: msg.query,
+      if (!response.ok) {
+        throw new Error('Failed to fetch chat messages');
+      }
+
+      const data = await response.json();
+
+      // Transform backend data to frontend Message format
+      const messages: Message[] = data.map((msg: any) => ({
+        id: msg.message_id || Date.now(),
+        text: msg.query || msg.response || '',
         sender: msg.sender as 'user' | 'ai',
         timestamp: new Date(msg.timestamp).toLocaleTimeString(),
-        chat_id: msg.chat_id,
+        chat_id: chatId,
+        agentType: msg.agent_type,
       }));
 
-      return { chatId, messages: formatted, fromCache: false };
+      return { chatId, messages, fromCache: false };
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -109,6 +138,15 @@ const chatsSlice = createSlice({
       const index = state.chats.findIndex(c => c.chat_id === action.payload.chatId);
       if (index !== -1) {
         state.chats[index] = { ...state.chats[index], ...action.payload.updates };
+      } else {
+        // Add new chat if it doesn't exist
+        const newChat: Chat = {
+          chat_id: action.payload.chatId,
+          name: action.payload.updates.name || 'New Chat',
+          created_at: action.payload.updates.created_at || new Date().toISOString(),
+          last_updated: action.payload.updates.last_updated || new Date().toISOString(),
+        };
+        state.chats.unshift(newChat);
       }
     },
     deleteChat: (state, action: PayloadAction<string>) => {
@@ -136,6 +174,9 @@ const chatsSlice = createSlice({
     },
     invalidateCache: (state) => {
       state.lastFetch = null;
+    },
+    setActiveArtifact: (state, action: PayloadAction<Artifact | null>) => {
+      state.activeArtifact = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -182,6 +223,8 @@ export const {
   addMessage,
   clearMessages,
   invalidateCache,
+  setActiveArtifact,
 } = chatsSlice.actions;
 
 export default chatsSlice.reducer;
+

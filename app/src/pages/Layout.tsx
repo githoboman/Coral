@@ -9,8 +9,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
+import { useDisconnectWallet } from '@mysten/dapp-kit';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Sidebar } from '@/components/app/Sidebar';
+import { BottomNav } from '@/components/app/BottomNav';
+import { MobileTopBar } from '@/components/app/MobileTopBar';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -41,7 +44,8 @@ interface NavItem {
 
 export default function AppLayout() {
   const location = useLocation();
-  const { address, signOut, createNewPasskey, getKeypair } = useAuth();
+  const { address, createNewPasskey, getKeypair } = useAuth();
+  const { mutate: disconnect } = useDisconnectWallet();
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
@@ -279,7 +283,7 @@ export default function AppLayout() {
 
       // Build transaction
       const tx = new Transaction();
-      
+
       if (selectedSendToken.symbol === 'SUI') {
         // For SUI, use splitCoins and transferObjects
         const [coin] = tx.splitCoins(tx.gas, [amountInSmallestUnit]);
@@ -319,14 +323,14 @@ export default function AppLayout() {
 
       if (result.effects?.status?.status === 'success') {
         toast.success(`Sent ${sendAmount} ${selectedSendToken.symbol} successfully!`, { theme: 'dark' });
-        
+
         // Reset form
         setSendRecipient('');
         setSendAmount('');
-        
+
         // Refresh balance
         fetchBalance();
-        
+
         // Close modal after a short delay
         setTimeout(() => {
           setActiveWalletModal(null);
@@ -369,10 +373,10 @@ export default function AppLayout() {
     try {
       // TODO: Integrate with actual DEX (Cetus, Turbos, etc.)
       // For now, this is a placeholder that shows the flow
-      
-      toast.info('Swap functionality coming soon! Will integrate with Cetus DEX.', { 
+
+      toast.info('Swap functionality coming soon! Will integrate with Cetus DEX.', {
         theme: 'dark',
-        autoClose: 3000 
+        autoClose: 3000
       });
 
       // Simulated delay
@@ -411,7 +415,6 @@ export default function AppLayout() {
 
   const navItems: NavItem[] = [
     { name: 'Chats', to: '/', icon: 'messageSquare', active: location.pathname === '/c' || location.pathname === '/app' },
-    { name: 'Agents', to: '/agents', icon: 'users', active: location.pathname === '/agents' },
     { name: 'Analytics', to: '/onchain', icon: 'activity', active: location.pathname === '/onchain' },
     { name: 'Activity', to: '/activity', icon: 'bell', active: location.pathname === '/activity' },
     { name: 'Account', to: '/account', icon: 'profile', active: location.pathname === '/account' },
@@ -423,16 +426,19 @@ export default function AppLayout() {
 
       <AuthProvider>
         <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-          <div className="sticky top-0 p-4">
-            <Sidebar navItems={navItems} onSignOut={signOut} />
+          {/* Sidebar - Hidden on mobile, visible on desktop */}
+          <div className="sticky top-0 p-4 hidden md:flex">
+            <Sidebar navItems={navItems} onSignOut={() => disconnect()} />
           </div>
 
-          <div className="h-fit flex-1">
+          {/* Main Content - Add bottom padding on mobile for bottom nav */}
+          <div className="h-fit flex-1 pb-20 md:pb-0">
+            <MobileTopBar balance={walletBalanceUSD} onWalletClick={() => setIsWalletCollapsed(false)} />
             <Outlet />
           </div>
 
           {/* Wallet Section */}
-          <div className="sticky top-0 p-4">
+          <div className={`sticky top-0 p-0 md:p-4 ${!isWalletCollapsed ? 'fixed inset-0 z-[60] flex justify-end bg-[#18181B] md:bg-transparent md:backdrop-blur-none md:block' : 'hidden md:block'}`}>
             <AnimatePresence mode="wait">
               {isWalletCollapsed ? (
                 <motion.button
@@ -456,15 +462,15 @@ export default function AppLayout() {
                   animate={{ opacity: 1, right: 0 }}
                   exit={{ opacity: 0, right: -100 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] w-80 h-full flex flex-col items-center relative p-6 mb-6 overflow-hidden"
+                  className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
                 >
                   <div className="flex justify-between items-center w-full mb-8">
                     <button onClick={toggleSettings} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <SettingsIcon size={20} className="text-white" />
                     </button>
                     <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
-                       <span className="font-bold text-white">Main Account</span>
-                       <ChevronDown size={16} className="text-white/60" />
+                      <span className="font-bold text-white">Main Account</span>
+                      <ChevronDown size={16} className="text-white/60" />
                     </div>
                     <button onClick={toggleWallet} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
                       <X size={20} className="text-white" />
@@ -475,255 +481,255 @@ export default function AppLayout() {
                     <span className="text-[2.5rem] font-bold text-white tracking-tight">
                       {`$${walletBalanceUSD}`}
                     </span>
-                    <button 
-                       onClick={() => address && copyToClipboard(address, 'address')}
-                       className="flex items-center gap-1 text-white/60 hover:text-white transition-colors mt-1"
+                    <button
+                      onClick={() => address && copyToClipboard(address, 'address')}
+                      className="flex items-center gap-1 text-white/60 hover:text-white transition-colors mt-1"
                     >
-                       <span className="text-sm">Addresses</span>
-                       <ChevronRight size={14} />
+                      <span className="text-sm">Addresses</span>
+                      <ChevronRight size={14} />
                     </button>
                     {copiedField === 'address' && <span className="text-xs text-green-400 absolute mt-16">Address Copied!</span>}
                   </div>
 
                   {/* Actions Row */}
                   <div className="flex items-center justify-center gap-6 w-full mb-8">
-                     <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('deposit')}>
-                        <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                           <Plus size={24} className="text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-white/80">Deposit</span>
-                     </div>
-                     <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('swap')}>
-                        <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                           <RefreshCcw size={20} className="text-white/60 group-hover:text-white transition-colors" />
-                        </div>
-                        <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Swap</span>
-                     </div>
-                     <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('send')}>
-                        <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                           <ArrowUp size={24} className="text-white/60 group-hover:text-white transition-colors" />
-                        </div>
-                        <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Send</span>
-                     </div>
+                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('deposit')}>
+                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                        <Plus size={24} className="text-white" />
+                      </div>
+                      <span className="text-xs font-medium text-white/80">Deposit</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('swap')}>
+                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                        <RefreshCcw size={20} className="text-white/60 group-hover:text-white transition-colors" />
+                      </div>
+                      <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Swap</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('send')}>
+                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                        <ArrowUp size={24} className="text-white/60 group-hover:text-white transition-colors" />
+                      </div>
+                      <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Send</span>
+                    </div>
                   </div>
 
                   {/* Wallet Action Modals */}
                   <AnimatePresence>
                     {activeWalletModal && (
                       <div className="absolute inset-0 z-50 bg-[#18181B] flex flex-col items-center p-6 animate-in fade-in zoom-in duration-200">
-                         {/* Shared Header */}
-                         <div className="w-full flex items-center mb-6">
-                            <button 
-                               onClick={(e) => { e.stopPropagation(); setActiveWalletModal(null); }}
-                               className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors"
+                        {/* Shared Header */}
+                        <div className="w-full flex items-center mb-6">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setActiveWalletModal(null); }}
+                            className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors"
+                          >
+                            <ChevronRight size={24} className="text-white rotate-180" />
+                          </button>
+                          <span className="text-lg font-bold text-white ml-2 capitalize">{activeWalletModal === 'deposit' ? 'Your Sui Address' : activeWalletModal}</span>
+                        </div>
+
+                        {/* CONTENT: DEPOSIT */}
+                        {activeWalletModal === 'deposit' && (
+                          <>
+                            <div className="flex-1 flex flex-col items-center justify-center w-full -mt-10">
+                              <div className="bg-white p-4 rounded-[24px] mb-8 relative">
+                                <img
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address || ''}`}
+                                  alt="Wallet QR"
+                                  className="w-48 h-48"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                                    <img src="https://cryptologos.cc/logos/sui-sui-logo.png?v=029" alt="Sui" className="w-6 h-6 object-contain" />
+                                  </div>
+                                </div>
+                              </div>
+                              <h3 className="text-xl font-bold text-white mb-2">Your Sui Address</h3>
+                              <p className="text-[#A1A1AA] text-sm text-center max-w-[260px] leading-relaxed">
+                                Use this address to receive tokens and collectibles on <span className="text-white font-medium">Sui Network</span>.
+                              </p>
+                            </div>
+                            <div className="mt-auto w-full space-y-3">
+                              <button
+                                onClick={() => address && copyToClipboard(address, 'modal-addr')}
+                                className="w-full h-14 bg-[#27272A] rounded-xl flex items-center justify-between px-4 hover:bg-[#3F3F46] transition-colors active:scale-[0.98]"
+                              >
+                                <span className="font-mono text-white/90 truncate mr-4 text-[15px]">
+                                  {address ? `${address.slice(0, 20)}...${address.slice(-4)}` : ''}
+                                </span>
+                                {copiedField === 'modal-addr' ? <Check size={18} className="text-[#00FF88]" /> : <Copy size={18} className="text-[#A1A1AA]" />}
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (navigator.share && address) {
+                                    try { await navigator.share({ title: 'My Sui Address', text: address }); } catch (err) { }
+                                  } else { setActiveWalletModal(null); }
+                                }}
+                                className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center"
+                              >
+                                Share
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {/* CONTENT: SEND */}
+                        {activeWalletModal === 'send' && (
+                          <div className="w-full h-full flex flex-col">
+                            <div className="space-y-4 flex-1">
+                              <div>
+                                <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Recipient Address</label>
+                                <div className="flex items-center gap-2 bg-[#27272A] rounded-xl px-4 py-3 border border-white/5 focus-within:border-[#00FF88]/50 transition-colors">
+                                  <input
+                                    placeholder="0x..."
+                                    value={sendRecipient}
+                                    onChange={(e) => setSendRecipient(e.target.value)}
+                                    className="bg-transparent w-full text-white placeholder-white/20 outline-none font-mono text-sm"
+                                  />
+                                  <button className="p-1 hover:bg-white/10 rounded-md"><Users size={16} className="text-white/40" /></button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Asset & Amount</label>
+                                <div className="bg-[#27272A] rounded-xl p-4 border border-white/5 space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <input
+                                      placeholder="0.00"
+                                      type="number"
+                                      value={sendAmount}
+                                      onChange={(e) => setSendAmount(e.target.value)}
+                                      className="bg-transparent w-full text-3xl font-bold text-white placeholder-white/20 outline-none"
+                                    />
+                                    <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
+                                      <div className="w-5 h-5 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{selectedSendToken?.icon || 'S'}</div>
+                                      <span className="font-bold text-white text-sm">{selectedSendToken?.symbol || 'SUI'}</span>
+                                      <ChevronDown size={14} className="text-white/60" />
+                                    </button>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-white/40">Balance: {selectedSendToken?.balance?.toFixed(4) || '0.00'} {selectedSendToken?.symbol || 'SUI'}</span>
+                                    <button
+                                      onClick={() => selectedSendToken && setSendAmount(selectedSendToken.balance.toString())}
+                                      className="text-[#00FF88] font-bold hover:underline"
+                                    >
+                                      MAX
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={handleSend}
+                              disabled={isSending || !sendRecipient || !sendAmount}
+                              className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                               <ChevronRight size={24} className="text-white rotate-180" />
+                              {isSending ? (
+                                <>
+                                  <RefreshCcw size={18} className="animate-spin" />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <Send size={18} />
+                                  Send Tokens
+                                </>
+                              )}
                             </button>
-                            <span className="text-lg font-bold text-white ml-2 capitalize">{activeWalletModal === 'deposit' ? 'Your Sui Address' : activeWalletModal}</span>
-                         </div>
+                          </div>
+                        )}
 
-                         {/* CONTENT: DEPOSIT */}
-                         {activeWalletModal === 'deposit' && (
-                            <>
-                               <div className="flex-1 flex flex-col items-center justify-center w-full -mt-10">
-                                  <div className="bg-white p-4 rounded-[24px] mb-8 relative">
-                                     <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address || ''}`}
-                                        alt="Wallet QR"
-                                        className="w-48 h-48"
-                                     />
-                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                                           <img src="https://cryptologos.cc/logos/sui-sui-logo.png?v=029" alt="Sui" className="w-6 h-6 object-contain" /> 
-                                        </div>
-                                     </div>
-                                  </div>
-                                  <h3 className="text-xl font-bold text-white mb-2">Your Sui Address</h3>
-                                  <p className="text-[#A1A1AA] text-sm text-center max-w-[260px] leading-relaxed">
-                                     Use this address to receive tokens and collectibles on <span className="text-white font-medium">Sui Network</span>.
-                                  </p>
-                               </div>
-                               <div className="mt-auto w-full space-y-3">
-                                   <button
-                                     onClick={() => address && copyToClipboard(address, 'modal-addr')}
-                                     className="w-full h-14 bg-[#27272A] rounded-xl flex items-center justify-between px-4 hover:bg-[#3F3F46] transition-colors active:scale-[0.98]"
-                                  >
-                                     <span className="font-mono text-white/90 truncate mr-4 text-[15px]">
-                                        {address ? `${address.slice(0, 20)}...${address.slice(-4)}` : ''}
-                                     </span>
-                                     {copiedField === 'modal-addr' ? <Check size={18} className="text-[#00FF88]" /> : <Copy size={18} className="text-[#A1A1AA]" />}
+                        {/* CONTENT: SWAP */}
+                        {activeWalletModal === 'swap' && (
+                          <div className="w-full h-full flex flex-col relative">
+                            <div className="space-y-2 flex-1 pt-4">
+                              {/* From Token */}
+                              <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 relative z-10">
+                                <div className="flex justify-between mb-2">
+                                  <span className="text-xs font-bold text-white/40 uppercase">You Pay</span>
+                                  <span className="text-xs text-white/40">Balance: {swapFromToken?.balance?.toFixed(4) || '0.00'}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <input
+                                    placeholder="0"
+                                    value={swapFromAmount}
+                                    onChange={(e) => setSwapFromAmount(e.target.value)}
+                                    type="number"
+                                    className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
+                                  />
+                                  <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
+                                    <div className="w-6 h-6 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{swapFromToken?.icon || 'S'}</div>
+                                    <span className="font-bold text-white">{swapFromToken?.symbol || 'SUI'}</span>
+                                    <ChevronDown size={14} className="text-white/60" />
                                   </button>
-                                  <button
-                                     onClick={async () => {
-                                        if (navigator.share && address) {
-                                           try { await navigator.share({ title: 'My Sui Address', text: address }); } catch (err) {}
-                                        } else { setActiveWalletModal(null); }
-                                     }}
-                                     className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center"
-                                  >
-                                     Share
+                                </div>
+                                <div className="mt-2 text-xs text-white/40">≈ ${swapFromAmount && !isNaN(parseFloat(swapFromAmount)) ? (parseFloat(swapFromAmount) * (swapFromToken?.price || 0)).toFixed(2) : '0.00'}</div>
+                              </div>
+
+                              {/* Swap Arrow */}
+                              <div className="flex justify-center -my-3 relative z-20">
+                                <button
+                                  onClick={() => {
+                                    const temp = swapFromToken;
+                                    setSwapFromToken(swapToToken);
+                                    setSwapToToken(temp);
+                                    setSwapFromAmount('');
+                                    setSwapToAmount('');
+                                  }}
+                                  className="w-10 h-10 bg-[#18181B] border-4 border-[#18181B] rounded-xl flex items-center justify-center shadow-lg group"
+                                >
+                                  <div className="w-full h-full bg-[#3F3F46] rounded-lg flex items-center justify-center group-hover:bg-[#00FF88] transition-colors">
+                                    <ArrowUp size={18} className="text-white group-hover:text-black transition-colors rotate-180" />
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* To Token */}
+                              <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 pt-6 z-0">
+                                <div className="flex justify-between mb-2">
+                                  <span className="text-xs font-bold text-white/40 uppercase">You Receive</span>
+                                  <span className="text-xs text-white/40">Balance: {swapToToken?.balance?.toFixed(4) || '0.00'}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <input
+                                    placeholder="0"
+                                    value={swapToAmount}
+                                    readOnly
+                                    className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
+                                  />
+                                  <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
+                                    <div className="w-6 h-6 bg-[#27AE60] rounded-full flex items-center justify-center text-[10px] font-bold">{swapToToken?.icon || 'U'}</div>
+                                    <span className="font-bold text-white">{swapToToken?.symbol || 'USDC'}</span>
+                                    <ChevronDown size={14} className="text-white/60" />
                                   </button>
-                               </div>
-                            </>
-                         )}
-
-                         {/* CONTENT: SEND */}
-                         {activeWalletModal === 'send' && (
-                            <div className="w-full h-full flex flex-col">
-                               <div className="space-y-4 flex-1">
-                                  <div>
-                                     <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Recipient Address</label>
-                                     <div className="flex items-center gap-2 bg-[#27272A] rounded-xl px-4 py-3 border border-white/5 focus-within:border-[#00FF88]/50 transition-colors">
-                                        <input 
-                                           placeholder="0x..." 
-                                           value={sendRecipient}
-                                           onChange={(e) => setSendRecipient(e.target.value)}
-                                           className="bg-transparent w-full text-white placeholder-white/20 outline-none font-mono text-sm"
-                                        />
-                                        <button className="p-1 hover:bg-white/10 rounded-md"><Users size={16} className="text-white/40" /></button>
-                                     </div>
-                                  </div>
-
-                                  <div>
-                                     <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Asset & Amount</label>
-                                     <div className="bg-[#27272A] rounded-xl p-4 border border-white/5 space-y-4">
-                                         <div className="flex items-center justify-between">
-                                            <input 
-                                               placeholder="0.00" 
-                                               type="number"
-                                               value={sendAmount}
-                                               onChange={(e) => setSendAmount(e.target.value)}
-                                               className="bg-transparent w-full text-3xl font-bold text-white placeholder-white/20 outline-none"
-                                            />
-                                            <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                               <div className="w-5 h-5 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{selectedSendToken?.icon || 'S'}</div>
-                                               <span className="font-bold text-white text-sm">{selectedSendToken?.symbol || 'SUI'}</span>
-                                               <ChevronDown size={14} className="text-white/60" />
-                                            </button>
-                                         </div>
-                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="text-white/40">Balance: {selectedSendToken?.balance?.toFixed(4) || '0.00'} {selectedSendToken?.symbol || 'SUI'}</span>
-                                            <button 
-                                               onClick={() => selectedSendToken && setSendAmount(selectedSendToken.balance.toString())}
-                                               className="text-[#00FF88] font-bold hover:underline"
-                                            >
-                                               MAX
-                                            </button>
-                                         </div>
-                                     </div>
-                                  </div>
-                               </div>
-
-                               <button 
-                                  onClick={handleSend}
-                                  disabled={isSending || !sendRecipient || !sendAmount}
-                                  className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                               >
-                                  {isSending ? (
-                                     <>
-                                        <RefreshCcw size={18} className="animate-spin" />
-                                        Sending...
-                                     </>
-                                  ) : (
-                                     <>
-                                        <Send size={18} />
-                                        Send Tokens
-                                     </>
-                                  )}
-                               </button>
+                                </div>
+                                <div className="mt-2 text-xs text-white/40">≈ ${swapToAmount && !isNaN(parseFloat(swapToAmount)) ? (parseFloat(swapToAmount) * (swapToToken?.price || 0)).toFixed(2) : '0.00'}</div>
+                              </div>
                             </div>
-                         )}
 
-                         {/* CONTENT: SWAP */}
-                         {activeWalletModal === 'swap' && (
-                            <div className="w-full h-full flex flex-col relative">
-                               <div className="space-y-2 flex-1 pt-4">
-                                  {/* From Token */}
-                                  <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 relative z-10">
-                                      <div className="flex justify-between mb-2">
-                                         <span className="text-xs font-bold text-white/40 uppercase">You Pay</span>
-                                         <span className="text-xs text-white/40">Balance: {swapFromToken?.balance?.toFixed(4) || '0.00'}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                         <input 
-                                            placeholder="0" 
-                                            value={swapFromAmount}
-                                            onChange={(e) => setSwapFromAmount(e.target.value)}
-                                            type="number"
-                                            className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2" 
-                                         />
-                                         <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                            <div className="w-6 h-6 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{swapFromToken?.icon || 'S'}</div>
-                                            <span className="font-bold text-white">{swapFromToken?.symbol || 'SUI'}</span>
-                                            <ChevronDown size={14} className="text-white/60" />
-                                         </button>
-                                      </div>
-                                      <div className="mt-2 text-xs text-white/40">≈ ${swapFromAmount && !isNaN(parseFloat(swapFromAmount)) ? (parseFloat(swapFromAmount) * (swapFromToken?.price || 0)).toFixed(2) : '0.00'}</div>
-                                  </div>
-
-                                  {/* Swap Arrow */}
-                                  <div className="flex justify-center -my-3 relative z-20">
-                                     <button 
-                                        onClick={() => {
-                                           const temp = swapFromToken;
-                                           setSwapFromToken(swapToToken);
-                                           setSwapToToken(temp);
-                                           setSwapFromAmount('');
-                                           setSwapToAmount('');
-                                        }}
-                                        className="w-10 h-10 bg-[#18181B] border-4 border-[#18181B] rounded-xl flex items-center justify-center shadow-lg group"
-                                     >
-                                         <div className="w-full h-full bg-[#3F3F46] rounded-lg flex items-center justify-center group-hover:bg-[#00FF88] transition-colors">
-                                             <ArrowUp size={18} className="text-white group-hover:text-black transition-colors rotate-180" />
-                                         </div>
-                                     </button>
-                                  </div>
-
-                                  {/* To Token */}
-                                  <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 pt-6 z-0">
-                                      <div className="flex justify-between mb-2">
-                                         <span className="text-xs font-bold text-white/40 uppercase">You Receive</span>
-                                         <span className="text-xs text-white/40">Balance: {swapToToken?.balance?.toFixed(4) || '0.00'}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                         <input 
-                                            placeholder="0" 
-                                            value={swapToAmount}
-                                            readOnly 
-                                            className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2" 
-                                         />
-                                         <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                            <div className="w-6 h-6 bg-[#27AE60] rounded-full flex items-center justify-center text-[10px] font-bold">{swapToToken?.icon || 'U'}</div>
-                                            <span className="font-bold text-white">{swapToToken?.symbol || 'USDC'}</span>
-                                            <ChevronDown size={14} className="text-white/60" />
-                                         </button>
-                                      </div>
-                                      <div className="mt-2 text-xs text-white/40">≈ ${swapToAmount && !isNaN(parseFloat(swapToAmount)) ? (parseFloat(swapToAmount) * (swapToToken?.price || 0)).toFixed(2) : '0.00'}</div>
-                                  </div>
-                               </div>
-
-                               {/* Rate Info */}
-                               <div className="bg-white/5 rounded-xl p-3 mb-4 flex justify-between items-center text-xs">
-                                  <span className="text-white/40">Rate</span>
-                                  <span className="text-white/80 font-mono">1 {swapFromToken?.symbol || 'SUI'} ≈ {swapRate.toFixed(2)} {swapToToken?.symbol || 'USDC'}</span>
-                               </div>
-
-                               <button 
-                                  onClick={handleSwap}
-                                  disabled={isSwapping || !swapFromAmount || parseFloat(swapFromAmount) <= 0}
-                                  className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                               >
-                                  {isSwapping ? (
-                                     <>
-                                        <RefreshCcw size={18} className="animate-spin" />
-                                        Swapping...
-                                     </>
-                                  ) : (
-                                     'Review Swap'
-                                  )}
-                               </button>
+                            {/* Rate Info */}
+                            <div className="bg-white/5 rounded-xl p-3 mb-4 flex justify-between items-center text-xs">
+                              <span className="text-white/40">Rate</span>
+                              <span className="text-white/80 font-mono">1 {swapFromToken?.symbol || 'SUI'} ≈ {swapRate.toFixed(2)} {swapToToken?.symbol || 'USDC'}</span>
                             </div>
-                         )}
+
+                            <button
+                              onClick={handleSwap}
+                              disabled={isSwapping || !swapFromAmount || parseFloat(swapFromAmount) <= 0}
+                              className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSwapping ? (
+                                <>
+                                  <RefreshCcw size={18} className="animate-spin" />
+                                  Swapping...
+                                </>
+                              ) : (
+                                'Review Swap'
+                              )}
+                            </button>
+                          </div>
+                        )}
 
                       </div>
                     )}
@@ -957,7 +963,7 @@ export default function AppLayout() {
 
                           <div className="p-4 border-t border-white/5 mt-auto">
                             <button
-                              onClick={signOut}
+                              onClick={() => disconnect()}
                               className="w-full py-3 rounded-xl bg-white/5 hover:bg-red-500/10 text-white/60 hover:text-red-400 font-bold transition-colors"
                             >
                               Log Out
@@ -972,6 +978,9 @@ export default function AppLayout() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Bottom Navigation - Only visible on mobile */}
+        <BottomNav navItems={navItems} />
       </AuthProvider>
     </div>
   );

@@ -1,0 +1,468 @@
+// src/routes/tasks.ts
+import { Router, Request, Response, NextFunction } from 'express';
+import { getSupabaseClient } from '../config/supabase';
+import { validate, taskCreateSchema, taskUpdateSchema, taskBulkCreateSchema } from '../utils/validation';
+import { Task, TaskCreateRequest, TaskUpdateRequest, TaskBulkCreateRequest, TaskListResponse } from '../types';
+
+const router = Router();
+
+/**
+ * POST /api/tasks
+ * Create a new task
+ */
+router.post('/tasks', validate(taskCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskData = req.body as TaskCreateRequest;
+    const supabase = getSupabaseClient();
+
+    // Validate user exists
+    const { data: userData, error: userError } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('user_id', taskData.user_id)
+      .single();
+
+    if (userError && userError.code !== 'PGRST116') {
+      throw userError;
+    }
+
+    if (!userData) {
+      console.warn(`User not found: ${taskData.user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'User not found' });
+    }
+
+    const taskRecord = {
+      user_id: taskData.user_id,
+      task_name: taskData.task_name,
+      description: taskData.description || null,
+      due_date: taskData.due_date || null,
+      priority: taskData.priority || 'medium',
+      status: 'pending',
+      tags: taskData.tags || [],
+      is_recurring: taskData.is_recurring || false,
+      reminder_times: taskData.reminder_times || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert(taskRecord)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create task:', error);
+      return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to create task' });
+    }
+
+    console.log(`Task created: ${data.id} for user: ${taskData.user_id}`);
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Error in create task:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/tasks/bulk
+ * Create multiple tasks at once
+ */
+router.post('/tasks/bulk', validate(taskBulkCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const bulkData = req.body as TaskBulkCreateRequest;
+    const supabase = getSupabaseClient();
+
+    // Validate user exists
+    const { data: userData, error: userError } = await supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('user_id', bulkData.user_id)
+      .single();
+
+    if (userError && userError.code !== 'PGRST116') {
+      throw userError;
+    }
+
+    if (!userData) {
+      console.warn(`User not found: ${bulkData.user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'User not found' });
+    }
+
+    const taskRecords = bulkData.tasks.map(task => ({
+      user_id: bulkData.user_id,
+      task_name: task.task_name,
+      description: task.description || null,
+      due_date: task.due_date || null,
+      priority: task.priority || 'medium',
+      status: 'pending',
+      tags: task.tags || [],
+      is_recurring: task.is_recurring || false,
+      reminder_times: task.reminder_times || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert(taskRecords)
+      .select();
+
+    if (error) {
+      console.error('Failed to create tasks:', error);
+      return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to create tasks' });
+    }
+
+    console.log(`Created ${data.length} tasks for user: ${bulkData.user_id}`);
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Error in bulk create tasks:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/tasks
+ * Get user's tasks with optional filters
+ */
+router.get('/tasks', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { user_id, status, priority, start_date, end_date, tags, limit = '100', offset = '0' } = req.query;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from('tasks')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user_id);
+
+    // Apply filters
+    if (status && typeof status === 'string') {
+      query = query.eq('status', status);
+    }
+    if (priority && typeof priority === 'string') {
+      query = query.eq('priority', priority);
+    }
+    if (start_date && typeof start_date === 'string') {
+      query = query.gte('due_date', start_date);
+    }
+    if (end_date && typeof end_date === 'string') {
+      query = query.lte('due_date', end_date);
+    }
+    if (tags && typeof tags === 'string') {
+      const tagList = tags.split(',').map(t => t.trim());
+      query = query.contains('tags', tagList);
+    }
+
+    const limitNum = parseInt(limit as string, 10);
+    const offsetNum = parseInt(offset as string, 10);
+
+    query = query
+      .order('due_date', { ascending: true, nullsFirst: false })
+      .range(offsetNum, offsetNum + limitNum - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Error retrieving tasks:', error);
+      throw error;
+    }
+
+    console.log(`Retrieved ${data?.length || 0} tasks for user: ${user_id}`);
+
+    const response: TaskListResponse = {
+      tasks: data || [],
+      total: count || 0,
+      limit: limitNum,
+      offset: offsetNum,
+    };
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Error in get tasks:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/tasks/:task_id
+ * Get a specific task by ID
+ */
+router.get('/tasks/:task_id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    if (!data) {
+      console.warn(`Task not found: ${task_id} for user: ${user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    console.log(`Retrieved task: ${task_id} for user: ${user_id}`);
+    return res.json(data);
+  } catch (error) {
+    console.error('Error in get task:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/tasks/:task_id
+ * Update a task
+ */
+router.patch('/tasks/:task_id', validate(taskUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id } = req.query;
+    const updateData = req.body as TaskUpdateRequest;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Check if task exists
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (!existingTask) {
+      console.warn(`Task not found: ${task_id} for user: ${user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    const updates: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only include fields that are provided
+    if (updateData.task_name !== undefined) updates.task_name = updateData.task_name;
+    if (updateData.description !== undefined) updates.description = updateData.description;
+    if (updateData.due_date !== undefined) updates.due_date = updateData.due_date;
+    if (updateData.priority !== undefined) updates.priority = updateData.priority;
+    if (updateData.status !== undefined) {
+      updates.status = updateData.status;
+      if (updateData.status === 'completed') {
+        updates.completion_date = new Date().toISOString();
+      }
+    }
+    if (updateData.tags !== undefined) updates.tags = updateData.tags;
+    if (updateData.is_recurring !== undefined) updates.is_recurring = updateData.is_recurring;
+    if (updateData.reminder_times !== undefined) updates.reminder_times = updateData.reminder_times;
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Failed to update task: ${task_id}`, error);
+      return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to update task' });
+    }
+
+    console.log(`Updated task: ${task_id} for user: ${user_id}`);
+    return res.json(data);
+  } catch (error) {
+    console.error('Error in update task:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/tasks/:task_id
+ * Delete a task
+ */
+router.delete('/tasks/:task_id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Check if task exists and get name
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('task_name')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (!existingTask) {
+      console.warn(`Task not found: ${task_id} for user: ${user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', task_id)
+      .eq('user_id', user_id);
+
+    if (error) {
+      console.error(`Failed to delete task: ${task_id}`, error);
+      throw error;
+    }
+
+    console.log(`Deleted task: ${task_id} (${existingTask.task_name}) for user: ${user_id}`);
+    return res.json({
+      message: 'Task deleted successfully',
+      task_id: parseInt(task_id, 10),
+      task_name: existingTask.task_name,
+    });
+  } catch (error) {
+    console.error('Error in delete task:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/tasks/:task_id/complete
+ * Mark a task as completed
+ */
+router.post('/tasks/:task_id/complete', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Check if task exists
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (!existingTask) {
+      console.warn(`Task not found: ${task_id} for user: ${user_id}`);
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .update({
+        status: 'completed',
+        completion_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Failed to complete task: ${task_id}`, error);
+      return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to complete task' });
+    }
+
+    console.log(`Completed task: ${task_id} for user: ${user_id}`);
+    return res.json(data);
+  } catch (error) {
+    console.error('Error in complete task:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/tasks/stats/:user_id
+ * Get task statistics for a user
+ */
+router.get('/tasks/stats/:user_id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { user_id } = req.params;
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('status, priority, due_date, completion_date')
+      .eq('user_id', user_id);
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      return res.json({
+        total_tasks: 0,
+        pending_tasks: 0,
+        completed_tasks: 0,
+        cancelled_tasks: 0,
+        in_progress_tasks: 0,
+        overdue_tasks: 0,
+        high_priority_tasks: 0,
+        medium_priority_tasks: 0,
+        low_priority_tasks: 0,
+      });
+    }
+
+    const now = new Date();
+    const stats = {
+      total_tasks: data.length,
+      pending_tasks: data.filter(t => t.status === 'pending').length,
+      completed_tasks: data.filter(t => t.status === 'completed').length,
+      cancelled_tasks: data.filter(t => t.status === 'cancelled').length,
+      in_progress_tasks: data.filter(t => t.status === 'in_progress').length,
+      overdue_tasks: data.filter(t =>
+        t.status === 'pending' && t.due_date && new Date(t.due_date) < now
+      ).length,
+      high_priority_tasks: data.filter(t => t.priority === 'high' && t.status !== 'completed').length,
+      medium_priority_tasks: data.filter(t => t.priority === 'medium' && t.status !== 'completed').length,
+      low_priority_tasks: data.filter(t => t.priority === 'low' && t.status !== 'completed').length,
+    };
+
+    console.log(`Retrieved task stats for user: ${user_id}`);
+    return res.json(stats);
+  } catch (error) {
+    console.error('Error in get task stats:', error);
+    next(error);
+  }
+});
+
+export default router;

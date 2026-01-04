@@ -1,34 +1,33 @@
 import { Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
-import { AppLayout, Dashboard, Agents, Activity, Account, OnchainAnalysis } from '@/pages/';
-import OAuthCallback from '@/pages/OAuthCallback';
+import { AppLayout, Dashboard, Activity, Account, OnchainAnalysis } from '@/pages/';
+import { TelegramProvider } from '@/components/TelegramProvider';
 
 function App() {
 
   return (
-    <div>
-      <Routes>
-        {/* OAuth callback route (outside AppLayout) */}
-        <Route path="/auth/callback" element={<OAuthCallback />} />
+    <TelegramProvider>
+      <div>
+        <Routes>
+          <Route
+            element={
+              <AppLayout />
+            }
+          >
 
-        <Route
-          element={
-            <AppLayout />
-          }
-        >
-          <Route path="/agents" element={<Agents />} />
-          <Route path="/onchain" element={<OnchainAnalysis />} />
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/" element={<Dashboard />}>
-            <Route path="/:chatId" element={<Dashboard />} />
+            <Route path="/onchain" element={<OnchainAnalysis />} />
+            <Route path="/activity" element={<Activity />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/" element={<Dashboard />}>
+              <Route path="/:chatId" element={<Dashboard />} />
+            </Route>
           </Route>
-        </Route>
-      </Routes>
+        </Routes>
 
-      <ToastContainer />
-    </div>
+        <ToastContainer />
+      </div>
+    </TelegramProvider>
   );
 }
 

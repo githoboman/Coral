@@ -5,16 +5,38 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import App from './App.tsx';
 import './global.css';
+import './styles/chat.css';
 
 import "highlight.js/styles/github-dark.css";
 
+import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
+import { getFullnodeUrl } from '@mysten/sui/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RegisterEnokiWallets } from './components/auth/RegisterEnokiWallets';
+
+// Configure Sui network
+const network = (import.meta.env.VITE_SUI_NETWORK || 'testnet') as 'testnet' | 'mainnet';
+const { networkConfig } = createNetworkConfig({
+  testnet: { url: getFullnodeUrl('testnet') },
+  mainnet: { url: getFullnodeUrl('mainnet') },
+});
+
+// Create React Query client
+const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </Provider>
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider networks={networkConfig} defaultNetwork={network}>
+        <RegisterEnokiWallets />
+        <WalletProvider autoConnect>
+          <Provider store={store}>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </Provider>
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );
