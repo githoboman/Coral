@@ -54,7 +54,13 @@ export default function AppLayout() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState<'favorites' | 'passkeys' | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<'favorites' | 'passkeys' | 'privatekey' | 'recovery' | null>(null);
+
+  // Key export states
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
+  const [exportedPrivateKey, setExportedPrivateKey] = useState<string | null>(null);
+  const [keyExportLoading, setKeyExportLoading] = useState(false);
 
   const [activeWalletModal, setActiveWalletModal] = useState<'deposit' | 'send' | 'swap' | null>(null);
   const [activeTab, setActiveTab] = useState<'Tokens' | 'Collectibles' | 'Activity'>('Tokens');
@@ -101,6 +107,56 @@ export default function AppLayout() {
     setIsSettingsOpen(false);
   };
   const toggleSettings = () => setIsSettingsOpen((prev) => !prev);
+
+  // Helper function to export private key
+  const handleExportPrivateKey = async () => {
+    if (!passkeyAddress) {
+      toast.error('Only passkey accounts can export private keys. dApp Kit wallets are managed by your wallet extension.', { theme: 'dark' });
+      return;
+    }
+
+    setKeyExportLoading(true);
+    try {
+      const keypair = getKeypair();
+      if (!keypair) {
+        throw new Error('Unable to access keypair');
+      }
+
+      // Get the private key from the keypair
+      const publicKey = keypair.getPublicKey();
+      const privateKeyBytes = keypair.export().privateKey;
+
+      // Convert to hex string for display
+      const privateKeyHex = '0x' + Array.from(privateKeyBytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      setExportedPrivateKey(privateKeyHex);
+      setActiveSubmenu('privatekey');
+      setShowPrivateKey(false); // Start with blurred
+    } catch (error: any) {
+      console.error('Error exporting private key:', error);
+      toast.error('Failed to export private key: ' + (error.message || 'Unknown error'), { theme: 'dark' });
+    } finally {
+      setKeyExportLoading(false);
+    }
+  };
+
+  // Helper function to download private key as file
+  const downloadPrivateKey = () => {
+    if (!exportedPrivateKey) return;
+
+    const blob = new Blob([exportedPrivateKey], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sui-private-key-${address?.slice(0, 8)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Private key downloaded', { theme: 'dark' });
+  };
 
   // Debug logging for address
   useEffect(() => {
@@ -871,6 +927,149 @@ export default function AppLayout() {
                         </>
                       )}
 
+                      {/* Private Key Export Submenu */}
+                      {activeSubmenu === 'privatekey' && (
+                        <>
+                          <div className="flex items-center p-4 border-b border-white/5">
+                            <button onClick={() => { setActiveSubmenu(null); setExportedPrivateKey(null); setShowPrivateKey(false); }} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
+                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
+                              </div>
+                            </button>
+                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Private Key</h2>
+                          </div>
+                          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                            {/* Security Warning */}
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-red-400 text-xs font-bold">!</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-red-400 font-bold text-sm mb-1">Security Warning</p>
+                                  <p className="text-red-300/80 text-xs leading-relaxed">
+                                    Never share your private key with anyone. Anyone with access to your private key can control your wallet and steal your funds.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Private Key Display */}
+                            {exportedPrivateKey && (
+                              <div className="bg-[#2D2D2D] rounded-xl p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-white/40 uppercase">Your Private Key</span>
+                                  <button
+                                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                                    className="text-xs text-[#00FF88] hover:text-[#00CC6A] font-medium"
+                                  >
+                                    {showPrivateKey ? 'Hide' : 'Click to Reveal'}
+                                  </button>
+                                </div>
+                                <div
+                                  className={`bg-black/40 rounded-lg p-3 font-mono text-xs break-all transition-all ${showPrivateKey ? 'blur-none' : 'blur-md select-none'
+                                    }`}
+                                  onClick={() => !showPrivateKey && setShowPrivateKey(true)}
+                                >
+                                  {exportedPrivateKey}
+                                </div>
+
+                                {/* Action Buttons */}
+                                {showPrivateKey && (
+                                  <div className="flex gap-2 pt-2">
+                                    <button
+                                      onClick={() => {
+                                        copyToClipboard(exportedPrivateKey, 'private-key');
+                                        toast.success('Private key copied to clipboard', { theme: 'dark' });
+                                      }}
+                                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                    >
+                                      {copiedField === 'private-key' ? <Check size={16} className="text-[#00FF88]" /> : <Copy size={16} />}
+                                      Copy
+                                    </button>
+                                    <button
+                                      onClick={downloadPrivateKey}
+                                      className="flex-1 py-2.5 bg-[#00FF88] hover:bg-[#00CC6A] text-black rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                                    >
+                                      <ArrowUp size={16} className="rotate-180" />
+                                      Download
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Info Box */}
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-blue-400 text-xs font-bold">i</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-blue-400 font-bold text-sm mb-1">What is a Private Key?</p>
+                                  <p className="text-blue-300/80 text-xs leading-relaxed">
+                                    Your private key is like a master password that gives complete control over your wallet. Store it securely offline and never enter it on untrusted websites.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Recovery Phrase Submenu */}
+                      {activeSubmenu === 'recovery' && (
+                        <>
+                          <div className="flex items-center p-4 border-b border-white/5">
+                            <button onClick={() => setActiveSubmenu(null)} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
+                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
+                              </div>
+                            </button>
+                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Recovery Phrase</h2>
+                          </div>
+                          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                            {/* Info Box */}
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-yellow-400 text-xs font-bold">!</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-yellow-400 font-bold text-sm mb-1">Passkey Authentication</p>
+                                  <p className="text-yellow-300/80 text-xs leading-relaxed">
+                                    {passkeyAddress
+                                      ? "Passkey-based wallets don't use traditional recovery phrases. Your passkey is stored securely by your device and can be synced across your devices using your platform's sync service (iCloud Keychain, Google Password Manager, etc.)."
+                                      : "Recovery phrases are managed by your connected wallet extension. Please check your wallet extension settings to view or backup your recovery phrase."
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {passkeyAddress && (
+                              <div className="bg-[#2D2D2D] rounded-xl p-4">
+                                <h3 className="font-bold text-sm mb-2">Backup Options</h3>
+                                <ul className="space-y-2 text-xs text-white/60">
+                                  <li className="flex items-start gap-2">
+                                    <span className="text-[#00FF88] mt-0.5">•</span>
+                                    <span>Enable passkey sync on your device to backup across your devices</span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="text-[#00FF88] mt-0.5">•</span>
+                                    <span>Export your private key (above) and store it securely offline</span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="text-[#00FF88] mt-0.5">•</span>
+                                    <span>Create multiple passkeys on different devices for redundancy</span>
+                                  </li>
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+
                       {!activeSubmenu && (
                         <>
                           {/* Header */}
@@ -900,16 +1099,20 @@ export default function AppLayout() {
                             <div>
                               <h3 className="text-white/40 text-sm font-medium mb-2 pl-1">Security</h3>
                               <div className="bg-[#2D2D2D] rounded-2xl overflow-hidden divide-y divide-white/5">
-                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={() => toast.info('Sui Private Key viewing is not supported with Passkey accounts.', { theme: "dark" })}>
+                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={handleExportPrivateKey}>
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
                                       <Key className="w-4 h-4 text-white/60" />
                                     </div>
                                     <span className="font-medium text-sm">Sui Private Key</span>
                                   </div>
-                                  <ChevronRight className="w-4 h-4 text-white/40" />
+                                  {keyExportLoading ? (
+                                    <RefreshCcw className="w-4 h-4 text-white/40 animate-spin" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-white/40" />
+                                  )}
                                 </div>
-                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={() => toast.info('Recovery Phrase viewing is not supported with Passkey accounts.', { theme: "dark" })}>
+                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={() => setActiveSubmenu('recovery')}>
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
                                       <Key className="w-4 h-4 text-white/60" />
