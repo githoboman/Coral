@@ -1,9 +1,9 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import {
-  Copy, Check, LogOut, MessageSquare, Users, User, Bell,
+  Copy, Check, MessageSquare, Users, User, Bell,
   Settings as SettingsIcon, Wallet,
-  Plus, X, Home, Activity, Minus, ChevronRight, Heart, Key, Fingerprint, Mail, Twitter as TwitterIcon, Hexagon, Send,
-  RefreshCcw, ArrowUp, ChevronDown,
+  Plus, X, Home, Activity, ChevronRight, Send,
+  RefreshCcw, ArrowUp, ChevronDown, Heart, Key, Fingerprint, Mail, Twitter as TwitterIcon,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,8 +56,6 @@ export default function AppLayout() {
   const [activeTab, setActiveTab] = useState<'Tokens' | 'Collectibles' | 'Activity'>('Tokens');
 
   const [walletBalanceUSD, setWalletBalanceUSD] = useState<string>('0.00');
-  const [balanceLoading, setBalanceLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [lastFetched, setLastFetched] = useState<number | null>(null);
 
@@ -78,7 +76,7 @@ export default function AppLayout() {
   const [swapFromAmount, setSwapFromAmount] = useState('');
   const [swapToAmount, setSwapToAmount] = useState('');
   const [isSwapping, setIsSwapping] = useState(false);
-  const [swapRate, setSwapRate] = useState<number>(1.85); // Mock rate for now
+  const swapRate = 1.85; // Mock rate for now
 
   const suiClient = useMemo(() => new SuiClient({
     url: getFullnodeUrl('mainnet'),
@@ -94,7 +92,6 @@ export default function AppLayout() {
     }
   };
 
-  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   const toggleWallet = () => {
     setIsWalletCollapsed((prev) => !prev);
     setIsSettingsOpen(false);
@@ -120,17 +117,12 @@ export default function AppLayout() {
   const fetchBalance = useCallback(async () => {
     if (!address) {
       setWalletBalanceUSD('0.00');
-      setError(null);
       setLastFetched(null);
-      setBalanceLoading(false);
       return;
     }
 
     const now = Date.now();
     if (lastFetched && now - lastFetched < 30_000) return;
-
-    setBalanceLoading(true);
-    setError(null);
 
     try {
 
@@ -192,14 +184,10 @@ export default function AppLayout() {
       setActivity(txs.data);
 
       setLastFetched(now);
-      setError(null);
     } catch (err: any) {
       console.error('Balance fetch failed:', err);
-      setError('Failed to fetch wallet balance.');
       setWalletBalanceUSD('0.00');
       setLastFetched(null);
-    } finally {
-      setBalanceLoading(false);
     }
   }, [address, lastFetched, suiClient, fetchSuiPriceUSD]);
 
@@ -212,9 +200,7 @@ export default function AppLayout() {
       return () => clearInterval(interval);
     } else {
       setWalletBalanceUSD('0.00');
-      setError(null);
       setLastFetched(null);
-      setBalanceLoading(false);
     }
   }, [address, debouncedFetchBalance, fetchBalance]);
 

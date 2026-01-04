@@ -1,5 +1,4 @@
 import { Wallet } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface MobileTopBarProps {
   balance: string;
