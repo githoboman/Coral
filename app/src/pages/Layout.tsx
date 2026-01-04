@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { useDisconnectWallet } from '@mysten/dapp-kit';
+import { useDisconnectWallet, useCurrentAccount } from '@mysten/dapp-kit';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Sidebar } from '@/components/app/Sidebar';
 import { BottomNav } from '@/components/app/BottomNav';
@@ -44,8 +44,12 @@ interface NavItem {
 
 export default function AppLayout() {
   const location = useLocation();
-  const { address, createNewPasskey, getKeypair } = useAuth();
+  const { address: passkeyAddress, createNewPasskey, getKeypair } = useAuth();
+  const currentAccount = useCurrentAccount();
   const { mutate: disconnect } = useDisconnectWallet();
+
+  // Use address from either passkey or dApp Kit wallet
+  const address = passkeyAddress || currentAccount?.address || null;
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
@@ -97,6 +101,15 @@ export default function AppLayout() {
     setIsSettingsOpen(false);
   };
   const toggleSettings = () => setIsSettingsOpen((prev) => !prev);
+
+  // Debug logging for address
+  useEffect(() => {
+    console.log('[Layout] Address updated:', {
+      passkeyAddress,
+      dappKitAddress: currentAccount?.address,
+      finalAddress: address,
+    });
+  }, [passkeyAddress, currentAccount?.address, address]);
 
   const fetchSuiPriceUSD = useCallback(async (): Promise<number> => {
     try {
@@ -259,11 +272,6 @@ export default function AppLayout() {
     setIsSending(true);
 
     try {
-      const keypair = getKeypair();
-      if (!keypair) {
-        throw new Error('Wallet not connected');
-      }
-
       // Convert amount to smallest unit
       const amountInSmallestUnit = Math.floor(amount * Math.pow(10, selectedSendToken.decimals));
 
@@ -293,19 +301,37 @@ export default function AppLayout() {
 
       tx.setSender(address);
 
-      // Build and sign transaction
-      const txBytes = await tx.build({ client: suiClient });
-      const { signature } = await keypair.signTransaction(txBytes);
+      // Check if using passkey or dApp Kit wallet
+      const keypair = getKeypair();
+      let result;
 
-      // Execute transaction
-      const result = await suiClient.executeTransactionBlock({
-        transactionBlock: txBytes,
-        signature,
-        options: {
-          showEffects: true,
-          showObjectChanges: true,
-        },
-      });
+      if (keypair) {
+        // Passkey-based signing
+        const txBytes = await tx.build({ client: suiClient });
+        const { signature } = await keypair.signTransaction(txBytes);
+
+        result = await suiClient.executeTransactionBlock({
+          transactionBlock: txBytes,
+          signature,
+          options: {
+            showEffects: true,
+            showObjectChanges: true,
+          },
+        });
+      } else if (currentAccount) {
+        // dApp Kit wallet signing - wallet handles signing and execution
+        toast.info('Please approve the transaction in your wallet', { theme: 'dark' });
+
+        // For dApp Kit, we need to use the wallet's signAndExecuteTransaction
+        // This is typically done through a hook, but we'll use the wallet directly
+        const { signAndExecuteTransaction } = await import('@mysten/dapp-kit');
+
+        // Note: This requires the wallet context, which we'll handle differently
+        // For now, show a message that dApp Kit transaction support is coming
+        throw new Error('Transaction signing with connected wallets is being implemented. Please use passkey authentication for now.');
+      } else {
+        throw new Error('No wallet connected');
+      }
 
       if (result.effects?.status?.status === 'success') {
         toast.success(`Sent ${sendAmount} ${selectedSendToken.symbol} successfully!`, { theme: 'dark' });
