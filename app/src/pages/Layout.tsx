@@ -3,8 +3,8 @@ import {
   Copy, Check, MessageSquare, Users, User, Bell,
   Settings as SettingsIcon, Wallet,
   Plus, X, Home, Activity, ChevronRight, Send,
-  RefreshCcw, ArrowUp, ChevronDown, Heart, LogOut,
-  Key, Fingerprint, Mail, Twitter, Gamepad2, Globe, Shield,
+  RefreshCcw, ArrowUp, ChevronDown,
+  Key, Fingerprint, Mail, Twitter, Gamepad2,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
