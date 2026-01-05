@@ -533,7 +533,7 @@ const Activity = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="bg-white/5 rounded-lg p-4 border border-white/10">
               <div className="text-2xl font-bold text-white">{stats.totalTasks}</div>
               <div className="text-xs text-white/60 mt-1">Total Tasks</div>
@@ -585,7 +585,7 @@ const Activity = () => {
       {/* Phase 2: Filter Panel */}
       {activeTab === 'Tasks' && (
         <div className="mb-6 bg-white/5 backdrop-blur-sm rounded-[20px] border border-white/10 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {/* Search */}
             <input
               type="text"
@@ -667,10 +667,10 @@ const Activity = () => {
             </div>
 
             {activeView === 'Month' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-2 sm:p-4">
                 <div className="grid grid-cols-7 gap-1 mb-2 text-center">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-sm font-medium text-gray-500 py-2">{d}</div>
+                    <div key={d} className="text-xs sm:text-sm font-medium text-gray-500 py-2">{d}</div>
                   ))}
                 </div>
 
@@ -686,11 +686,12 @@ const Activity = () => {
                       <div
                         key={idx}
                         onClick={() => openAddModal(cell)}
-                        className={`relative rounded-lg p-2 h-24 border border-gray-200/50 transition-colors cursor-pointer ${isToday ? 'bg-blue-50/50 border-blue-200/50' : ''} ${isCurrent ? 'hover:bg-white/5' : 'bg-gray-50/50 text-gray-400'}`}
+                        className={`relative rounded-lg p-1 sm:p-2 h-14 sm:h-24 border border-gray-200/50 transition-colors cursor-pointer ${isToday ? 'bg-blue-50/50 border-blue-200/50' : ''} ${isCurrent ? 'hover:bg-white/5' : 'bg-gray-50/50 text-gray-400'}`}
                       >
-                        <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{cell.getDate()}</div>
+                        <div className={`text-xs sm:text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{cell.getDate()}</div>
 
-                        <div className="mt-1 space-y-0.5 overflow-hidden">
+                        {/* Desktop View: Text details */}
+                        <div className="mt-1 space-y-0.5 overflow-hidden hidden sm:block">
                           {evs.slice(0, 2).map(ev => (
                             <div
                               key={ev.id}
@@ -713,6 +714,16 @@ const Activity = () => {
                           ))}
                           {(evs.length + tsks.length > 4) && <div className="text-xs text-gray-500">+{evs.length + tsks.length - 4} more</div>}
                         </div>
+
+                        {/* Mobile View: Dots */}
+                        <div className="mt-1 flex flex-wrap gap-1 sm:hidden justify-center">
+                          {evs.map(ev => (
+                            <div key={ev.id} className={`w-1.5 h-1.5 rounded-full ${ev.color}`} />
+                          ))}
+                          {tsks.map(t => (
+                            <div key={t.id} className={`w-1.5 h-1.5 rounded-full ${t.completed ? 'bg-gray-400' : 'bg-gray-300'}`} />
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
@@ -721,8 +732,8 @@ const Activity = () => {
             )}
 
             {activeView === 'Week' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden">
-                <div className="grid grid-cols-8 gap-0 border-b border-gray-200/30">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden overflow-x-auto">
+                <div className="grid grid-cols-8 gap-0 border-b border-gray-200/30 min-w-[600px]">
                   <div className="p-2 text-xs text-gray-500" />
                   {weekDays.map(d => (
                     <div key={dateToKey(d)} className="p-2 text-center">
@@ -734,7 +745,7 @@ const Activity = () => {
 
                 <div className="relative h-[1400px]">
                   {HOURS.map(h => (
-                    <div key={h} className="grid grid-cols-8 gap-0 border-b border-gray-200/20" style={{ height: '58px' }}>
+                    <div key={h} className="grid grid-cols-8 gap-0 border-b border-gray-200/20 min-w-[600px]" style={{ height: '58px' }}>
                       <div className="flex items-center justify-end pr-2 text-xs text-gray-500">
                         {fmtHour(h)}
                       </div>
@@ -884,14 +895,14 @@ const Activity = () => {
 
         {activeTab === 'Tasks' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
               <h3 className="text-lg font-semibold flex items-center">
                 <span className="mr-2">Tasks</span>
                 <span className="text-sm text-white/60">({filteredItems.filter(i => i.type === 'task').length})</span>
               </h3>
 
               {/* Group By and Sort By Controls */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {/* Phase 3: Bulk Select Toggle */}
                 <button
                   onClick={() => {
