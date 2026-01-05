@@ -3,18 +3,17 @@ import {
   Copy, Check, MessageSquare, Users, User, Bell,
   Settings as SettingsIcon, Wallet,
   Plus, X, Home, Activity, ChevronRight, Send,
-  RefreshCcw, ArrowUp, ChevronDown, Heart, Key, Fingerprint, Mail, Twitter as TwitterIcon,
+  RefreshCcw, ArrowUp, ChevronDown, Heart, LogOut,
+  Key, Fingerprint, Mail, Twitter, Gamepad2, Globe, Shield,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { useDisconnectWallet, useCurrentAccount } from '@mysten/dapp-kit';
-import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Sidebar } from '@/components/app/Sidebar';
 import { BottomNav } from '@/components/app/BottomNav';
 import { MobileTopBar } from '@/components/app/MobileTopBar';
-import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -44,23 +43,16 @@ interface NavItem {
 
 export default function AppLayout() {
   const location = useLocation();
-  const { address: passkeyAddress, createNewPasskey, getKeypair } = useAuth();
   const currentAccount = useCurrentAccount();
   const { mutate: disconnect } = useDisconnectWallet();
 
-  // Use address from either passkey or dApp Kit wallet
-  const address = passkeyAddress || currentAccount?.address || null;
+  // Use address from dApp Kit wallet
+  const address = currentAccount?.address || null;
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState<'favorites' | 'passkeys' | 'privatekey' | 'recovery' | null>(null);
-
-  // Key export states
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
-  const [exportedPrivateKey, setExportedPrivateKey] = useState<string | null>(null);
-  const [keyExportLoading, setKeyExportLoading] = useState(false);
+  const [activeSubmenu, setActiveSubmenu] = useState<'favorites' | null>(null);
 
   const [activeWalletModal, setActiveWalletModal] = useState<'deposit' | 'send' | 'swap' | null>(null);
   const [activeTab, setActiveTab] = useState<'Tokens' | 'Collectibles' | 'Activity'>('Tokens');
@@ -107,65 +99,6 @@ export default function AppLayout() {
     setIsSettingsOpen(false);
   };
   const toggleSettings = () => setIsSettingsOpen((prev) => !prev);
-
-  // Helper function to export private key
-  const handleExportPrivateKey = async () => {
-    if (!passkeyAddress) {
-      toast.error('Only passkey accounts can export private keys. dApp Kit wallets are managed by your wallet extension.', { theme: 'dark' });
-      return;
-    }
-
-    setKeyExportLoading(true);
-    try {
-      const keypair = getKeypair();
-      if (!keypair) {
-        throw new Error('Unable to access keypair');
-      }
-
-      // Get the private key from the keypair
-      const publicKey = keypair.getPublicKey();
-      const privateKeyBytes = keypair.export().privateKey;
-
-      // Convert to hex string for display
-      const privateKeyHex = '0x' + Array.from(privateKeyBytes)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-
-      setExportedPrivateKey(privateKeyHex);
-      setActiveSubmenu('privatekey');
-      setShowPrivateKey(false); // Start with blurred
-    } catch (error: any) {
-      console.error('Error exporting private key:', error);
-      toast.error('Failed to export private key: ' + (error.message || 'Unknown error'), { theme: 'dark' });
-    } finally {
-      setKeyExportLoading(false);
-    }
-  };
-
-  // Helper function to download private key as file
-  const downloadPrivateKey = () => {
-    if (!exportedPrivateKey) return;
-
-    const blob = new Blob([exportedPrivateKey], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sui-private-key-${address?.slice(0, 8)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Private key downloaded', { theme: 'dark' });
-  };
-
-  // Debug logging for address
-  useEffect(() => {
-    console.log('[Layout] Address updated:', {
-      passkeyAddress,
-      dappKitAddress: currentAccount?.address,
-      finalAddress: address,
-    });
-  }, [passkeyAddress, currentAccount?.address, address]);
 
   const fetchSuiPriceUSD = useCallback(async (): Promise<number> => {
     try {
@@ -357,55 +290,10 @@ export default function AppLayout() {
 
       tx.setSender(address);
 
-      // Check if using passkey or dApp Kit wallet
-      const keypair = getKeypair();
-      let result;
-
-      if (keypair) {
-        // Passkey-based signing
-        const txBytes = await tx.build({ client: suiClient });
-        const { signature } = await keypair.signTransaction(txBytes);
-
-        result = await suiClient.executeTransactionBlock({
-          transactionBlock: txBytes,
-          signature,
-          options: {
-            showEffects: true,
-            showObjectChanges: true,
-          },
-        });
-      } else if (currentAccount) {
-        // dApp Kit wallet signing - wallet handles signing and execution
-        toast.info('Please approve the transaction in your wallet', { theme: 'dark' });
-
-        // For dApp Kit, we need to use the wallet's signAndExecuteTransaction
-        // This is typically done through a hook, but we'll use the wallet directly
-        const { signAndExecuteTransaction } = await import('@mysten/dapp-kit');
-
-        // Note: This requires the wallet context, which we'll handle differently
-        // For now, show a message that dApp Kit transaction support is coming
-        throw new Error('Transaction signing with connected wallets is being implemented. Please use passkey authentication for now.');
-      } else {
-        throw new Error('No wallet connected');
-      }
-
-      if (result.effects?.status?.status === 'success') {
-        toast.success(`Sent ${sendAmount} ${selectedSendToken.symbol} successfully!`, { theme: 'dark' });
-
-        // Reset form
-        setSendRecipient('');
-        setSendAmount('');
-
-        // Refresh balance
-        fetchBalance();
-
-        // Close modal after a short delay
-        setTimeout(() => {
-          setActiveWalletModal(null);
-        }, 1500);
-      } else {
-        throw new Error('Transaction failed');
-      }
+      // Transaction signing with Enoki wallet
+      // Note: This requires using the useSignAndExecuteTransaction hook
+      // For now, show a message that transaction support is coming
+      throw new Error('Transaction signing is being implemented. This feature will be available soon.');
     } catch (error: any) {
       console.error('Send error:', error);
       toast.error(error.message || 'Failed to send transaction', { theme: 'dark' });
@@ -492,711 +380,621 @@ export default function AppLayout() {
     <div className="w-full relative bg-white/5 backdrop-blur-sm transition-all duration-500 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-red-500 to-green-600 opacity-3 blur-xl -z-10" />
 
-      <AuthProvider>
-        <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-          {/* Sidebar - Hidden on mobile, visible on desktop */}
-          <div className="sticky top-0 p-4 hidden md:flex">
-            <Sidebar navItems={navItems} onSignOut={() => disconnect()} />
-          </div>
+      <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
+        {/* Sidebar - Hidden on mobile, visible on desktop */}
+        <div className="sticky top-0 p-4 hidden md:flex">
+          <Sidebar navItems={navItems} onSignOut={() => disconnect()} />
+        </div>
 
-          {/* Main Content - Add bottom padding on mobile for bottom nav */}
-          <div className="h-fit flex-1 pb-20 md:pb-0">
-            <MobileTopBar balance={walletBalanceUSD} onWalletClick={() => setIsWalletCollapsed(false)} />
-            <Outlet />
-          </div>
+        {/* Main Content - Add bottom padding on mobile for bottom nav */}
+        <div className="h-fit flex-1 pb-20 md:pb-0">
+          <MobileTopBar balance={walletBalanceUSD} onWalletClick={() => setIsWalletCollapsed(false)} />
+          <Outlet />
+        </div>
 
-          {/* Wallet Section */}
-          <div className={`sticky top-0 p-0 md:p-4 ${!isWalletCollapsed ? 'fixed inset-0 z-[60] flex justify-end bg-[#18181B] md:bg-transparent md:backdrop-blur-none md:block' : 'hidden md:block'}`}>
-            <AnimatePresence mode="wait">
-              {isWalletCollapsed ? (
-                <motion.button
-                  key="collapsed"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  onClick={toggleWallet}
-                  className="fixed top-0 right-0 cursor-pointer z-[100] m-4 h-fit p-4 bg-[#2D2D2D] backdrop-blur-xl border border-white/10 rounded-[30px] flex items-center gap-2 text-white/60 hover:text-white transition-colors"
-                >
-                  <Wallet size={20} className="cursor-pointer" />
-                  <span className="cursor-pointer text-sm font-medium">
+        {/* Wallet Section */}
+        <div className={`sticky top-0 p-0 md:p-4 ${!isWalletCollapsed ? 'fixed inset-0 z-[60] flex justify-end bg-[#18181B] md:bg-transparent md:backdrop-blur-none md:block' : 'hidden md:block'}`}>
+          <AnimatePresence mode="wait">
+            {isWalletCollapsed ? (
+              <motion.button
+                key="collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                onClick={toggleWallet}
+                className="fixed top-0 right-0 cursor-pointer z-[100] m-4 h-fit p-4 bg-[#2D2D2D] backdrop-blur-xl border border-white/10 rounded-[30px] flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+              >
+                <Wallet size={20} className="cursor-pointer" />
+                <span className="cursor-pointer text-sm font-medium">
+                  {`$${walletBalanceUSD}`}
+                </span>
+              </motion.button>
+            ) : (
+              <motion.div
+                key="expanded"
+                initial={{ opacity: 0, right: -100 }}
+                animate={{ opacity: 1, right: 0 }}
+                exit={{ opacity: 0, right: -100 }}
+                transition={{ duration: 0.3 }}
+                className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
+              >
+                <div className="flex justify-between items-center w-full mb-8">
+                  <button onClick={toggleSettings} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <SettingsIcon size={20} className="text-white" />
+                  </button>
+                  <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
+                    <span className="font-bold text-white">Main Account</span>
+                    <ChevronDown size={16} className="text-white/60" />
+                  </div>
+                  <button onClick={toggleWallet} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <X size={20} className="text-white" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col items-center justify-center text-center w-full mb-8">
+                  <span className="text-[2.5rem] font-bold text-white tracking-tight">
                     {`$${walletBalanceUSD}`}
                   </span>
-                </motion.button>
-              ) : (
-                <motion.div
-                  key="expanded"
-                  initial={{ opacity: 0, right: -100 }}
-                  animate={{ opacity: 1, right: 0 }}
-                  exit={{ opacity: 0, right: -100 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
-                >
-                  <div className="flex justify-between items-center w-full mb-8">
-                    <button onClick={toggleSettings} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
-                      <SettingsIcon size={20} className="text-white" />
-                    </button>
-                    <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
-                      <span className="font-bold text-white">Main Account</span>
-                      <ChevronDown size={16} className="text-white/60" />
+                  <button
+                    onClick={() => address && copyToClipboard(address, 'address')}
+                    className="flex items-center gap-1 text-white/60 hover:text-white transition-colors mt-1"
+                  >
+                    <span className="text-sm">Addresses</span>
+                    <ChevronRight size={14} />
+                  </button>
+                  {copiedField === 'address' && <span className="text-xs text-green-400 absolute mt-16">Address Copied!</span>}
+                </div>
+
+                {/* Actions Row */}
+                <div className="flex items-center justify-center gap-6 w-full mb-8">
+                  <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('deposit')}>
+                    <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                      <Plus size={24} className="text-white" />
                     </div>
-                    <button onClick={toggleWallet} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
-                      <X size={20} className="text-white" />
-                    </button>
+                    <span className="text-xs font-medium text-white/80">Deposit</span>
                   </div>
-
-                  <div className="flex flex-col items-center justify-center text-center w-full mb-8">
-                    <span className="text-[2.5rem] font-bold text-white tracking-tight">
-                      {`$${walletBalanceUSD}`}
-                    </span>
-                    <button
-                      onClick={() => address && copyToClipboard(address, 'address')}
-                      className="flex items-center gap-1 text-white/60 hover:text-white transition-colors mt-1"
-                    >
-                      <span className="text-sm">Addresses</span>
-                      <ChevronRight size={14} />
-                    </button>
-                    {copiedField === 'address' && <span className="text-xs text-green-400 absolute mt-16">Address Copied!</span>}
+                  <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('swap')}>
+                    <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                      <RefreshCcw size={20} className="text-white/60 group-hover:text-white transition-colors" />
+                    </div>
+                    <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Swap</span>
                   </div>
-
-                  {/* Actions Row */}
-                  <div className="flex items-center justify-center gap-6 w-full mb-8">
-                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('deposit')}>
-                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                        <Plus size={24} className="text-white" />
-                      </div>
-                      <span className="text-xs font-medium text-white/80">Deposit</span>
+                  <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('send')}>
+                    <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
+                      <ArrowUp size={24} className="text-white/60 group-hover:text-white transition-colors" />
                     </div>
-                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('swap')}>
-                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                        <RefreshCcw size={20} className="text-white/60 group-hover:text-white transition-colors" />
-                      </div>
-                      <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Swap</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setActiveWalletModal('send')}>
-                      <div className="w-14 h-14 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5">
-                        <ArrowUp size={24} className="text-white/60 group-hover:text-white transition-colors" />
-                      </div>
-                      <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Send</span>
-                    </div>
+                    <span className="text-xs font-medium text-white/40 group-hover:text-white/80 transition-colors">Send</span>
                   </div>
+                </div>
 
-                  {/* Wallet Action Modals */}
-                  <AnimatePresence>
-                    {activeWalletModal && (
-                      <div className="absolute inset-0 z-50 bg-[#18181B] flex flex-col items-center p-6 animate-in fade-in zoom-in duration-200">
-                        {/* Shared Header */}
-                        <div className="w-full flex items-center mb-6">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setActiveWalletModal(null); }}
-                            className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors"
-                          >
-                            <ChevronRight size={24} className="text-white rotate-180" />
-                          </button>
-                          <span className="text-lg font-bold text-white ml-2 capitalize">{activeWalletModal === 'deposit' ? 'Your Sui Address' : activeWalletModal}</span>
-                        </div>
+                {/* Wallet Action Modals */}
+                <AnimatePresence>
+                  {activeWalletModal && (
+                    <div className="absolute inset-0 z-50 bg-[#18181B] flex flex-col items-center p-6 animate-in fade-in zoom-in duration-200">
+                      {/* Shared Header */}
+                      <div className="w-full flex items-center mb-6">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setActiveWalletModal(null); }}
+                          className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors"
+                        >
+                          <ChevronRight size={24} className="text-white rotate-180" />
+                        </button>
+                        <span className="text-lg font-bold text-white ml-2 capitalize">{activeWalletModal === 'deposit' ? 'Your Sui Address' : activeWalletModal}</span>
+                      </div>
 
-                        {/* CONTENT: DEPOSIT */}
-                        {activeWalletModal === 'deposit' && (
-                          <>
-                            <div className="flex-1 flex flex-col items-center justify-center w-full -mt-10">
-                              <div className="bg-white p-4 rounded-[24px] mb-8 relative">
-                                <img
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address || ''}`}
-                                  alt="Wallet QR"
-                                  className="w-48 h-48"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
-                                    <img src="https://cryptologos.cc/logos/sui-sui-logo.png?v=029" alt="Sui" className="w-6 h-6 object-contain" />
-                                  </div>
-                                </div>
-                              </div>
-                              <h3 className="text-xl font-bold text-white mb-2">Your Sui Address</h3>
-                              <p className="text-[#A1A1AA] text-sm text-center max-w-[260px] leading-relaxed">
-                                Use this address to receive tokens and collectibles on <span className="text-white font-medium">Sui Network</span>.
-                              </p>
-                            </div>
-                            <div className="mt-auto w-full space-y-3">
-                              <button
-                                onClick={() => address && copyToClipboard(address, 'modal-addr')}
-                                className="w-full h-14 bg-[#27272A] rounded-xl flex items-center justify-between px-4 hover:bg-[#3F3F46] transition-colors active:scale-[0.98]"
-                              >
-                                <span className="font-mono text-white/90 truncate mr-4 text-[15px]">
-                                  {address ? `${address.slice(0, 20)}...${address.slice(-4)}` : ''}
-                                </span>
-                                {copiedField === 'modal-addr' ? <Check size={18} className="text-[#00FF88]" /> : <Copy size={18} className="text-[#A1A1AA]" />}
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (navigator.share && address) {
-                                    try { await navigator.share({ title: 'My Sui Address', text: address }); } catch (err) { }
-                                  } else { setActiveWalletModal(null); }
-                                }}
-                                className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center"
-                              >
-                                Share
-                              </button>
-                            </div>
-                          </>
-                        )}
-
-                        {/* CONTENT: SEND */}
-                        {activeWalletModal === 'send' && (
-                          <div className="w-full h-full flex flex-col">
-                            <div className="space-y-4 flex-1">
-                              <div>
-                                <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Recipient Address</label>
-                                <div className="flex items-center gap-2 bg-[#27272A] rounded-xl px-4 py-3 border border-white/5 focus-within:border-[#00FF88]/50 transition-colors">
-                                  <input
-                                    placeholder="0x..."
-                                    value={sendRecipient}
-                                    onChange={(e) => setSendRecipient(e.target.value)}
-                                    className="bg-transparent w-full text-white placeholder-white/20 outline-none font-mono text-sm"
-                                  />
-                                  <button className="p-1 hover:bg-white/10 rounded-md"><Users size={16} className="text-white/40" /></button>
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Asset & Amount</label>
-                                <div className="bg-[#27272A] rounded-xl p-4 border border-white/5 space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <input
-                                      placeholder="0.00"
-                                      type="number"
-                                      value={sendAmount}
-                                      onChange={(e) => setSendAmount(e.target.value)}
-                                      className="bg-transparent w-full text-3xl font-bold text-white placeholder-white/20 outline-none"
-                                    />
-                                    <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                      <div className="w-5 h-5 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{selectedSendToken?.icon || 'S'}</div>
-                                      <span className="font-bold text-white text-sm">{selectedSendToken?.symbol || 'SUI'}</span>
-                                      <ChevronDown size={14} className="text-white/60" />
-                                    </button>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="text-white/40">Balance: {selectedSendToken?.balance?.toFixed(4) || '0.00'} {selectedSendToken?.symbol || 'SUI'}</span>
-                                    <button
-                                      onClick={() => selectedSendToken && setSendAmount(selectedSendToken.balance.toString())}
-                                      className="text-[#00FF88] font-bold hover:underline"
-                                    >
-                                      MAX
-                                    </button>
-                                  </div>
+                      {/* CONTENT: DEPOSIT */}
+                      {activeWalletModal === 'deposit' && (
+                        <>
+                          <div className="flex-1 flex flex-col items-center justify-center w-full -mt-10">
+                            <div className="bg-white p-4 rounded-[24px] mb-8 relative">
+                              <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address || ''}`}
+                                alt="Wallet QR"
+                                className="w-48 h-48"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md">
+                                  <img src="https://cryptologos.cc/logos/sui-sui-logo.png?v=029" alt="Sui" className="w-6 h-6 object-contain" />
                                 </div>
                               </div>
                             </div>
-
+                            <h3 className="text-xl font-bold text-white mb-2">Your Sui Address</h3>
+                            <p className="text-[#A1A1AA] text-sm text-center max-w-[260px] leading-relaxed">
+                              Use this address to receive tokens and collectibles on <span className="text-white font-medium">Sui Network</span>.
+                            </p>
+                          </div>
+                          <div className="mt-auto w-full space-y-3">
                             <button
-                              onClick={handleSend}
-                              disabled={isSending || !sendRecipient || !sendAmount}
-                              className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => address && copyToClipboard(address, 'modal-addr')}
+                              className="w-full h-14 bg-[#27272A] rounded-xl flex items-center justify-between px-4 hover:bg-[#3F3F46] transition-colors active:scale-[0.98]"
                             >
-                              {isSending ? (
-                                <>
-                                  <RefreshCcw size={18} className="animate-spin" />
-                                  Sending...
-                                </>
-                              ) : (
-                                <>
-                                  <Send size={18} />
-                                  Send Tokens
-                                </>
-                              )}
+                              <span className="font-mono text-white/90 truncate mr-4 text-[15px]">
+                                {address ? `${address.slice(0, 20)}...${address.slice(-4)}` : ''}
+                              </span>
+                              {copiedField === 'modal-addr' ? <Check size={18} className="text-[#00FF88]" /> : <Copy size={18} className="text-[#A1A1AA]" />}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (navigator.share && address) {
+                                  try { await navigator.share({ title: 'My Sui Address', text: address }); } catch (err) { }
+                                } else { setActiveWalletModal(null); }
+                              }}
+                              className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center"
+                            >
+                              Share
                             </button>
                           </div>
-                        )}
+                        </>
+                      )}
 
-                        {/* CONTENT: SWAP */}
-                        {activeWalletModal === 'swap' && (
-                          <div className="w-full h-full flex flex-col relative">
-                            <div className="space-y-2 flex-1 pt-4">
-                              {/* From Token */}
-                              <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 relative z-10">
-                                <div className="flex justify-between mb-2">
-                                  <span className="text-xs font-bold text-white/40 uppercase">You Pay</span>
-                                  <span className="text-xs text-white/40">Balance: {swapFromToken?.balance?.toFixed(4) || '0.00'}</span>
-                                </div>
+                      {/* CONTENT: SEND */}
+                      {activeWalletModal === 'send' && (
+                        <div className="w-full h-full flex flex-col">
+                          <div className="space-y-4 flex-1">
+                            <div>
+                              <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Recipient Address</label>
+                              <div className="flex items-center gap-2 bg-[#27272A] rounded-xl px-4 py-3 border border-white/5 focus-within:border-[#00FF88]/50 transition-colors">
+                                <input
+                                  placeholder="0x..."
+                                  value={sendRecipient}
+                                  onChange={(e) => setSendRecipient(e.target.value)}
+                                  className="bg-transparent w-full text-white placeholder-white/20 outline-none font-mono text-sm"
+                                />
+                                <button className="p-1 hover:bg-white/10 rounded-md"><Users size={16} className="text-white/40" /></button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-white/40 uppercase ml-1 mb-1.5 block">Asset & Amount</label>
+                              <div className="bg-[#27272A] rounded-xl p-4 border border-white/5 space-y-4">
                                 <div className="flex items-center justify-between">
                                   <input
-                                    placeholder="0"
-                                    value={swapFromAmount}
-                                    onChange={(e) => setSwapFromAmount(e.target.value)}
+                                    placeholder="0.00"
                                     type="number"
-                                    className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
+                                    value={sendAmount}
+                                    onChange={(e) => setSendAmount(e.target.value)}
+                                    className="bg-transparent w-full text-3xl font-bold text-white placeholder-white/20 outline-none"
                                   />
                                   <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                    <div className="w-6 h-6 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{swapFromToken?.icon || 'S'}</div>
-                                    <span className="font-bold text-white">{swapFromToken?.symbol || 'SUI'}</span>
+                                    <div className="w-5 h-5 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{selectedSendToken?.icon || 'S'}</div>
+                                    <span className="font-bold text-white text-sm">{selectedSendToken?.symbol || 'SUI'}</span>
                                     <ChevronDown size={14} className="text-white/60" />
                                   </button>
                                 </div>
-                                <div className="mt-2 text-xs text-white/40">≈ ${swapFromAmount && !isNaN(parseFloat(swapFromAmount)) ? (parseFloat(swapFromAmount) * (swapFromToken?.price || 0)).toFixed(2) : '0.00'}</div>
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-white/40">Balance: {selectedSendToken?.balance?.toFixed(4) || '0.00'} {selectedSendToken?.symbol || 'SUI'}</span>
+                                  <button
+                                    onClick={() => selectedSendToken && setSendAmount(selectedSendToken.balance.toString())}
+                                    className="text-[#00FF88] font-bold hover:underline"
+                                  >
+                                    MAX
+                                  </button>
+                                </div>
                               </div>
+                            </div>
+                          </div>
 
-                              {/* Swap Arrow */}
-                              <div className="flex justify-center -my-3 relative z-20">
-                                <button
-                                  onClick={() => {
-                                    const temp = swapFromToken;
-                                    setSwapFromToken(swapToToken);
-                                    setSwapToToken(temp);
-                                    setSwapFromAmount('');
-                                    setSwapToAmount('');
-                                  }}
-                                  className="w-10 h-10 bg-[#18181B] border-4 border-[#18181B] rounded-xl flex items-center justify-center shadow-lg group"
-                                >
-                                  <div className="w-full h-full bg-[#3F3F46] rounded-lg flex items-center justify-center group-hover:bg-[#00FF88] transition-colors">
-                                    <ArrowUp size={18} className="text-white group-hover:text-black transition-colors rotate-180" />
-                                  </div>
+                          <button
+                            onClick={handleSend}
+                            disabled={isSending || !sendRecipient || !sendAmount}
+                            className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] mt-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSending ? (
+                              <>
+                                <RefreshCcw size={18} className="animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Send size={18} />
+                                Send Tokens
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* CONTENT: SWAP */}
+                      {activeWalletModal === 'swap' && (
+                        <div className="w-full h-full flex flex-col relative">
+                          <div className="space-y-2 flex-1 pt-4">
+                            {/* From Token */}
+                            <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 relative z-10">
+                              <div className="flex justify-between mb-2">
+                                <span className="text-xs font-bold text-white/40 uppercase">You Pay</span>
+                                <span className="text-xs text-white/40">Balance: {swapFromToken?.balance?.toFixed(4) || '0.00'}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <input
+                                  placeholder="0"
+                                  value={swapFromAmount}
+                                  onChange={(e) => setSwapFromAmount(e.target.value)}
+                                  type="number"
+                                  className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
+                                />
+                                <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
+                                  <div className="w-6 h-6 bg-[#2D9CDB] rounded-full flex items-center justify-center text-[10px] font-bold">{swapFromToken?.icon || 'S'}</div>
+                                  <span className="font-bold text-white">{swapFromToken?.symbol || 'SUI'}</span>
+                                  <ChevronDown size={14} className="text-white/60" />
                                 </button>
                               </div>
-
-                              {/* To Token */}
-                              <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 pt-6 z-0">
-                                <div className="flex justify-between mb-2">
-                                  <span className="text-xs font-bold text-white/40 uppercase">You Receive</span>
-                                  <span className="text-xs text-white/40">Balance: {swapToToken?.balance?.toFixed(4) || '0.00'}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <input
-                                    placeholder="0"
-                                    value={swapToAmount}
-                                    readOnly
-                                    className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
-                                  />
-                                  <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
-                                    <div className="w-6 h-6 bg-[#27AE60] rounded-full flex items-center justify-center text-[10px] font-bold">{swapToToken?.icon || 'U'}</div>
-                                    <span className="font-bold text-white">{swapToToken?.symbol || 'USDC'}</span>
-                                    <ChevronDown size={14} className="text-white/60" />
-                                  </button>
-                                </div>
-                                <div className="mt-2 text-xs text-white/40">≈ ${swapToAmount && !isNaN(parseFloat(swapToAmount)) ? (parseFloat(swapToAmount) * (swapToToken?.price || 0)).toFixed(2) : '0.00'}</div>
-                              </div>
+                              <div className="mt-2 text-xs text-white/40">≈ ${swapFromAmount && !isNaN(parseFloat(swapFromAmount)) ? (parseFloat(swapFromAmount) * (swapFromToken?.price || 0)).toFixed(2) : '0.00'}</div>
                             </div>
 
-                            {/* Rate Info */}
-                            <div className="bg-white/5 rounded-xl p-3 mb-4 flex justify-between items-center text-xs">
-                              <span className="text-white/40">Rate</span>
-                              <span className="text-white/80 font-mono">1 {swapFromToken?.symbol || 'SUI'} ≈ {swapRate.toFixed(2)} {swapToToken?.symbol || 'USDC'}</span>
+                            {/* Swap Arrow */}
+                            <div className="flex justify-center -my-3 relative z-20">
+                              <button
+                                onClick={() => {
+                                  const temp = swapFromToken;
+                                  setSwapFromToken(swapToToken);
+                                  setSwapToToken(temp);
+                                  setSwapFromAmount('');
+                                  setSwapToAmount('');
+                                }}
+                                className="w-10 h-10 bg-[#18181B] border-4 border-[#18181B] rounded-xl flex items-center justify-center shadow-lg group"
+                              >
+                                <div className="w-full h-full bg-[#3F3F46] rounded-lg flex items-center justify-center group-hover:bg-[#00FF88] transition-colors">
+                                  <ArrowUp size={18} className="text-white group-hover:text-black transition-colors rotate-180" />
+                                </div>
+                              </button>
                             </div>
 
-                            <button
-                              onClick={handleSwap}
-                              disabled={isSwapping || !swapFromAmount || parseFloat(swapFromAmount) <= 0}
-                              className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isSwapping ? (
-                                <>
-                                  <RefreshCcw size={18} className="animate-spin" />
-                                  Swapping...
-                                </>
-                              ) : (
-                                'Review Swap'
-                              )}
-                            </button>
-                          </div>
-                        )}
-
-                      </div>
-                    )}
-                  </AnimatePresence>
-
-                  <div className="w-full">
-                    <div className="flex justify-between border-b border-white/10 mb-4">
-                      {(['Tokens', 'Collectibles', 'Activity'] as const).map((tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`px-4 py-2 text-sm font-medium ${activeTab === tab
-                            ? 'text-[#00FF88] border-b-2 border-[#00FF88]'
-                            : 'text-white/60 hover:text-white'
-                            }`}
-                        >
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="bg-white/5 rounded-[30px] rounded-tl-none text-white/80 overflow-hidden min-h-[200px] max-h-[300px] overflow-y-auto custom-scrollbar">
-                      {activeTab === 'Tokens' && (
-                        <div className="flex flex-col">
-                          {tokens.length === 0 ? <div className="p-6 text-center text-white/40 text-sm">No tokens found</div> : tokens.map((t, i) => (
-                            <div key={i} className="flex justify-between items-center p-4 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors cursor-default">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">{t.icon || t.symbol[0]}</div>
-                                <div>
-                                  <div className="font-bold text-sm">{t.symbol}</div>
-                                  <div className="text-[10px] text-white/40">{t.balance < 0.000001 ? '0' : t.balance.toLocaleString()}</div>
-                                </div>
+                            {/* To Token */}
+                            <div className="bg-[#27272A] rounded-2xl p-4 border border-white/5 pt-6 z-0">
+                              <div className="flex justify-between mb-2">
+                                <span className="text-xs font-bold text-white/40 uppercase">You Receive</span>
+                                <span className="text-xs text-white/40">Balance: {swapToToken?.balance?.toFixed(4) || '0.00'}</span>
                               </div>
-                              <div className="text-right">
-                                <div className="font-mono text-sm">${t.value.toFixed(2)}</div>
-                                <div className="text-[10px] text-white/40">${t.price?.toFixed(2)}</div>
+                              <div className="flex items-center justify-between">
+                                <input
+                                  placeholder="0"
+                                  value={swapToAmount}
+                                  readOnly
+                                  className="bg-transparent text-3xl font-bold text-white placeholder-white/20 outline-none w-1/2"
+                                />
+                                <button className="flex items-center gap-2 bg-black/40 hover:bg-black/60 px-3 py-1.5 rounded-full transition-colors border border-white/10">
+                                  <div className="w-6 h-6 bg-[#27AE60] rounded-full flex items-center justify-center text-[10px] font-bold">{swapToToken?.icon || 'U'}</div>
+                                  <span className="font-bold text-white">{swapToToken?.symbol || 'USDC'}</span>
+                                  <ChevronDown size={14} className="text-white/60" />
+                                </button>
                               </div>
+                              <div className="mt-2 text-xs text-white/40">≈ ${swapToAmount && !isNaN(parseFloat(swapToAmount)) ? (parseFloat(swapToAmount) * (swapToToken?.price || 0)).toFixed(2) : '0.00'}</div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      {activeTab === 'Collectibles' && (
-                        <div className="p-4 grid grid-cols-2 gap-2">
-                          {nfts.length === 0 ? <div className="col-span-2 py-8 text-center text-white/40 text-sm">No collectibles found</div> : nfts.map((nft, i) => (
-                            <div key={i} className="aspect-square bg-white/5 rounded-xl border border-white/5 overflow-hidden group/nft relative">
-                              {nft.image ? <img src={nft.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/20">NFT</div>}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover/nft:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                                <span className="text-[10px] font-bold truncate">{nft.name}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {activeTab === 'Activity' && (
-                        <div className="flex flex-col">
-                          {activity.length === 0 ? <div className="p-6 text-center text-white/40 text-sm">No recent activity</div> : activity.map((tx, i) => {
-                            const isSuccess = tx.effects?.status?.status === 'success';
-                            const timestamp = tx.timestampMs ? new Date(Number(tx.timestampMs)) : null;
-                            return (
-                              <div key={i} className="flex items-center gap-3 p-4 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isSuccess ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                                  <Activity size={12} />
-                                </div>
-                                <div className="flex-1 overflow-hidden">
-                                  <div className="flex justify-between items-center mb-0.5">
-                                    <span className="text-xs font-bold truncate">{tx.digest.slice(0, 8)}...</span>
-                                    <span className="text-[10px] text-white/40 font-mono">{timestamp ? timestamp.toLocaleDateString() : ''}</span>
-                                  </div>
-                                  <div className="text-[10px] text-white/60 truncate">Transaction Block</div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {isSettingsOpen && (
-                    <div className="absolute inset-0 bg-[#1A1A1A] z-20 flex flex-col animate-in slide-in-from-right duration-300">
-
-                      {activeSubmenu === 'favorites' && (
-                        <>
-                          <div className="flex items-center p-4 border-b border-white/5">
-                            <button onClick={() => setActiveSubmenu(null)} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
-                              </div>
-                            </button>
-                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Favorites</h2>
                           </div>
-                          <div className="flex-1 p-4">
-                            <p className="text-white/40 text-center text-sm">No favorite addresses yet.</p>
-                            <button className="mt-4 w-full py-2 bg-white/5 text-sm rounded-xl hover:bg-white/10 transition-colors">
-                              Add New Address
-                            </button>
-                          </div>
-                        </>
-                      )}
 
-                      {activeSubmenu === 'passkeys' && (
-                        <>
-                          <div className="flex items-center p-4 border-b border-white/5">
-                            <button onClick={() => setActiveSubmenu(null)} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
-                              </div>
-                            </button>
-                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Passkeys</h2>
+                          {/* Rate Info */}
+                          <div className="bg-white/5 rounded-xl p-3 mb-4 flex justify-between items-center text-xs">
+                            <span className="text-white/40">Rate</span>
+                            <span className="text-white/80 font-mono">1 {swapFromToken?.symbol || 'SUI'} ≈ {swapRate.toFixed(2)} {swapToToken?.symbol || 'USDC'}</span>
                           </div>
-                          <div className="flex-1 p-4">
-                            <div className="bg-[#2D2D2D] rounded-2xl p-4 mb-4">
-                              <div className="flex items-center gap-3">
-                                <Fingerprint className="w-8 h-8 text-green-400 p-1.5 bg-green-500/10 rounded-lg" />
-                                <div>
-                                  <p className="font-bold text-sm">Main Passkey</p>
-                                  <p className="text-xs text-white/40">Used for login</p>
-                                </div>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => createNewPasskey?.()}
-                              className="w-full py-3 bg-[#00FF88] text-black font-bold rounded-xl hover:bg-[#00CC6A] transition-colors"
-                            >
-                              Create New Passkey
-                            </button>
-                          </div>
-                        </>
-                      )}
 
-                      {/* Private Key Export Submenu */}
-                      {activeSubmenu === 'privatekey' && (
-                        <>
-                          <div className="flex items-center p-4 border-b border-white/5">
-                            <button onClick={() => { setActiveSubmenu(null); setExportedPrivateKey(null); setShowPrivateKey(false); }} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
-                              </div>
-                            </button>
-                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Private Key</h2>
-                          </div>
-                          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                            {/* Security Warning */}
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                  <span className="text-red-400 text-xs font-bold">!</span>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-red-400 font-bold text-sm mb-1">Security Warning</p>
-                                  <p className="text-red-300/80 text-xs leading-relaxed">
-                                    Never share your private key with anyone. Anyone with access to your private key can control your wallet and steal your funds.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Private Key Display */}
-                            {exportedPrivateKey && (
-                              <div className="bg-[#2D2D2D] rounded-xl p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold text-white/40 uppercase">Your Private Key</span>
-                                  <button
-                                    onClick={() => setShowPrivateKey(!showPrivateKey)}
-                                    className="text-xs text-[#00FF88] hover:text-[#00CC6A] font-medium"
-                                  >
-                                    {showPrivateKey ? 'Hide' : 'Click to Reveal'}
-                                  </button>
-                                </div>
-                                <div
-                                  className={`bg-black/40 rounded-lg p-3 font-mono text-xs break-all transition-all ${showPrivateKey ? 'blur-none' : 'blur-md select-none'
-                                    }`}
-                                  onClick={() => !showPrivateKey && setShowPrivateKey(true)}
-                                >
-                                  {exportedPrivateKey}
-                                </div>
-
-                                {/* Action Buttons */}
-                                {showPrivateKey && (
-                                  <div className="flex gap-2 pt-2">
-                                    <button
-                                      onClick={() => {
-                                        copyToClipboard(exportedPrivateKey, 'private-key');
-                                        toast.success('Private key copied to clipboard', { theme: 'dark' });
-                                      }}
-                                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                    >
-                                      {copiedField === 'private-key' ? <Check size={16} className="text-[#00FF88]" /> : <Copy size={16} />}
-                                      Copy
-                                    </button>
-                                    <button
-                                      onClick={downloadPrivateKey}
-                                      className="flex-1 py-2.5 bg-[#00FF88] hover:bg-[#00CC6A] text-black rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                                    >
-                                      <ArrowUp size={16} className="rotate-180" />
-                                      Download
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                          <button
+                            onClick={handleSwap}
+                            disabled={isSwapping || !swapFromAmount || parseFloat(swapFromAmount) <= 0}
+                            className="w-full h-14 bg-[#00FF88] text-black font-bold text-[16px] rounded-xl hover:bg-[#00CC6A] transition-colors active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSwapping ? (
+                              <>
+                                <RefreshCcw size={18} className="animate-spin" />
+                                Swapping...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCcw size={18} />
+                                Swap Tokens
+                              </>
                             )}
-
-                            {/* Info Box */}
-                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                  <span className="text-blue-400 text-xs font-bold">i</span>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-blue-400 font-bold text-sm mb-1">What is a Private Key?</p>
-                                  <p className="text-blue-300/80 text-xs leading-relaxed">
-                                    Your private key is like a master password that gives complete control over your wallet. Store it securely offline and never enter it on untrusted websites.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Recovery Phrase Submenu */}
-                      {activeSubmenu === 'recovery' && (
-                        <>
-                          <div className="flex items-center p-4 border-b border-white/5">
-                            <button onClick={() => setActiveSubmenu(null)} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
-                              </div>
-                            </button>
-                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Recovery Phrase</h2>
-                          </div>
-                          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                            {/* Info Box */}
-                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                  <span className="text-yellow-400 text-xs font-bold">!</span>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-yellow-400 font-bold text-sm mb-1">Passkey Authentication</p>
-                                  <p className="text-yellow-300/80 text-xs leading-relaxed">
-                                    {passkeyAddress
-                                      ? "Passkey-based wallets don't use traditional recovery phrases. Your passkey is stored securely by your device and can be synced across your devices using your platform's sync service (iCloud Keychain, Google Password Manager, etc.)."
-                                      : "Recovery phrases are managed by your connected wallet extension. Please check your wallet extension settings to view or backup your recovery phrase."
-                                    }
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {passkeyAddress && (
-                              <div className="bg-[#2D2D2D] rounded-xl p-4">
-                                <h3 className="font-bold text-sm mb-2">Backup Options</h3>
-                                <ul className="space-y-2 text-xs text-white/60">
-                                  <li className="flex items-start gap-2">
-                                    <span className="text-[#00FF88] mt-0.5">•</span>
-                                    <span>Enable passkey sync on your device to backup across your devices</span>
-                                  </li>
-                                  <li className="flex items-start gap-2">
-                                    <span className="text-[#00FF88] mt-0.5">•</span>
-                                    <span>Export your private key (above) and store it securely offline</span>
-                                  </li>
-                                  <li className="flex items-start gap-2">
-                                    <span className="text-[#00FF88] mt-0.5">•</span>
-                                    <span>Create multiple passkeys on different devices for redundancy</span>
-                                  </li>
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-
-                      {!activeSubmenu && (
-                        <>
-                          {/* Header */}
-                          <div className="flex items-center p-4 border-b border-white/5">
-                            <button onClick={toggleSettings} className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors">
-                              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5 text-white/60 rotate-180" />
-                              </div>
-                            </button>
-                            <h2 className="flex-1 text-center font-bold text-lg mr-8">Settings</h2>
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-
-                            {/* Favorite Addresses */}
-                            <div
-                              onClick={() => setActiveSubmenu('favorites')}
-                              className="bg-[#2D2D2D] rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-[#3D3D3D] transition-colors"
-                            >
-                              <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center">
-                                <Heart className="w-5 h-5 text-pink-500 fill-pink-500/20" />
-                              </div>
-                              <span className="font-medium">Favorite Addresses</span>
-                            </div>
-
-                            {/* Security Section */}
-                            <div>
-                              <h3 className="text-white/40 text-sm font-medium mb-2 pl-1">Security</h3>
-                              <div className="bg-[#2D2D2D] rounded-2xl overflow-hidden divide-y divide-white/5">
-                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={handleExportPrivateKey}>
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                                      <Key className="w-4 h-4 text-white/60" />
-                                    </div>
-                                    <span className="font-medium text-sm">Sui Private Key</span>
-                                  </div>
-                                  {keyExportLoading ? (
-                                    <RefreshCcw className="w-4 h-4 text-white/40 animate-spin" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4 text-white/40" />
-                                  )}
-                                </div>
-                                <div className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={() => setActiveSubmenu('recovery')}>
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                                      <Key className="w-4 h-4 text-white/60" />
-                                    </div>
-                                    <span className="font-medium text-sm">Recovery Phrase</span>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-white/40" />
-                                </div>
-                                <div
-                                  onClick={() => setActiveSubmenu('passkeys')}
-                                  className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                                      <Fingerprint className="w-4 h-4 text-white/60" />
-                                    </div>
-                                    <span className="font-medium text-sm">Passkeys</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white/40 text-sm">1</span>
-                                    <ChevronRight className="w-4 h-4 text-white/40" />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Login Section */}
-                            <div>
-                              <h3 className="text-white/40 text-sm font-medium mb-2 pl-1">Login</h3>
-                              <div className="bg-[#2D2D2D] rounded-2xl overflow-hidden divide-y divide-white/5">
-                                {/* Mock Social Logins */}
-                                {[
-                                  { name: 'Linked Wallets', icon: Wallet, color: 'text-blue-400', bg: 'bg-blue-500/20' },
-                                  { name: 'Email', icon: Mail, color: 'text-orange-400', bg: 'bg-orange-500/20' },
-                                  { name: 'Google', icon: null, img: 'https://www.google.com/favicon.ico', color: '', bg: 'bg-white/90' },
-                                  { name: 'Twitter', icon: TwitterIcon, color: 'text-white', bg: 'bg-black' },
-                                  { name: 'Telegram', icon: Send, color: 'text-white', bg: 'bg-blue-400', rotate: true },
-                                  { name: 'Discord', icon: MessageSquare, color: 'text-indigo-400', bg: 'bg-indigo-500/20' },
-                                ].map((item, i) => (
-                                  <div key={i} className="p-4 flex items-center justify-between hover:bg-[#3D3D3D] cursor-pointer transition-colors" onClick={() => toast.info(`${item.name} integration coming soon!`, { theme: "dark" })}>
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center border border-white/5`}>
-                                        {item.icon ? (
-                                          <item.icon className={`w-4 h-4 ${item.color} ${item.rotate ? 'rotate-[-45deg] translate-x-0.5' : ''}`} />
-                                        ) : (
-                                          <img src={item.img} alt={item.name} className="w-4 h-4" />
-                                        )}
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="font-medium text-sm">{item.name}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <button className="w-6 h-6 rounded bg-white/10 flex items-center justify-center hover:bg-white/20">
-                                        <Plus className="w-4 h-4 text-white" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="p-4 border-t border-white/5 mt-auto">
-                            <button
-                              onClick={() => disconnect()}
-                              className="w-full py-3 rounded-xl bg-white/5 hover:bg-red-500/10 text-white/60 hover:text-red-400 font-bold transition-colors"
-                            >
-                              Log Out
-                            </button>
-                          </div>
-                        </>
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                </AnimatePresence>
+
+                {/* Tabs */}
+                <div className="w-full border-b border-white/10 mb-4">
+                  <div className="flex gap-6">
+                    {(['Tokens', 'Collectibles', 'Activity'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab
+                          ? 'text-white'
+                          : 'text-white/40 hover:text-white/60'
+                          }`}
+                      >
+                        {tab}
+                        {activeTab === tab && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00FF88]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="w-full flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                  {activeTab === 'Tokens' && (
+                    <>
+                      {tokens.length === 0 ? (
+                        <div className="text-center text-white/40 py-8">
+                          <p>No tokens found</p>
+                        </div>
+                      ) : (
+                        tokens.map((token, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-[#2D9CDB] to-[#1976D2] rounded-full flex items-center justify-center text-white font-bold">
+                                {token.icon}
+                              </div>
+                              <div>
+                                <div className="font-medium text-white">{token.symbol}</div>
+                                <div className="text-xs text-white/40">
+                                  {token.balance.toFixed(4)} {token.symbol}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-white">
+                                ${token.value.toFixed(2)}
+                              </div>
+                              <div className="text-xs text-white/40">
+                                ${token.price.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {activeTab === 'Collectibles' && (
+                    <>
+                      {nfts.length === 0 ? (
+                        <div className="text-center text-white/40 py-8">
+                          <p>No collectibles found</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          {nfts.map((nft, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white/5 rounded-xl overflow-hidden hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              {nft.image ? (
+                                <img
+                                  src={nft.image}
+                                  alt={nft.name}
+                                  className="w-full aspect-square object-cover"
+                                />
+                              ) : (
+                                <div className="w-full aspect-square bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                                  <span className="text-4xl">🖼️</span>
+                                </div>
+                              )}
+                              <div className="p-2">
+                                <div className="text-xs font-medium text-white truncate">
+                                  {nft.name}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {activeTab === 'Activity' && (
+                    <>
+                      {activity.length === 0 ? (
+                        <div className="text-center text-white/40 py-8">
+                          <p>No recent activity</p>
+                        </div>
+                      ) : (
+                        activity.map((tx, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center">
+                                <Send size={16} className="text-white/60" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-white text-sm">
+                                  Transaction
+                                </div>
+                                <div className="text-xs text-white/40 font-mono">
+                                  {tx.digest.slice(0, 8)}...
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-white/60">
+                                {tx.effects?.status?.status === 'success' ? (
+                                  <span className="text-green-400">Success</span>
+                                ) : (
+                                  <span className="text-red-400">Failed</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Settings Overlay */}
+                <AnimatePresence>
+                  {isSettingsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 100 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 100 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 bg-[#18181B] z-50 p-6 flex flex-col"
+                    >
+                      {/* Settings Header */}
+                      <div className="flex items-center mb-6">
+                        <button
+                          onClick={() => {
+                            setIsSettingsOpen(false);
+                            setActiveSubmenu(null);
+                          }}
+                          className="p-2 -ml-2 rounded-full hover:bg-white/5 transition-colors"
+                        >
+                          <ChevronRight size={24} className="text-white rotate-180" />
+                        </button>
+                        <span className="text-lg font-bold text-white ml-2">
+                          {activeSubmenu === 'favorites' ? 'Favorite Tokens' : 'Settings'}
+                        </span>
+                      </div>
+
+                      {/* Settings Content */}
+                      <div className="flex flex-col flex-1 min-h-0">
+                        <div className="flex-1 overflow-y-auto space-y-6 pr-2 -mr-2">
+                          {/* Security Section */}
+                          <div className="bg-[#27272A] rounded-2xl overflow-hidden">
+                            <button
+                              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                  <Key size={16} className="text-white/80" />
+                                </div>
+                                <span className="text-white font-medium text-sm">Sui Private Key</span>
+                              </div>
+                              <ChevronRight size={16} className="text-white/40" />
+                            </button>
+
+                            <button
+                              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                  <Fingerprint size={16} className="text-white/80" />
+                                </div>
+                                <span className="text-white font-medium text-sm">Passkeys</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-white/40 text-xs">0</span>
+                                <ChevronRight size={16} className="text-white/40" />
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Login Section */}
+                          <div>
+                            <h3 className="text-white/40 text-xs font-medium uppercase mb-2 pl-1">Login</h3>
+                            <div className="bg-[#27272A] rounded-2xl overflow-hidden">
+                              <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                    <Wallet size={16} className="text-blue-400" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">Linked Wallets</span>
+                                </div>
+                                <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                                  <Plus size={14} className="text-white" />
+                                </div>
+                              </button>
+
+                              <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                    <Mail size={16} className="text-orange-400" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">Email</span>
+                                </div>
+                                <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                                  <Plus size={14} className="text-white" />
+                                </div>
+                              </button>
+
+                              {/* Connected Google Account */}
+                              <div className="w-full flex items-center justify-between p-4 bg-white/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                                    <img src="https://www.google.com/favicon.ico" alt="G" className="w-4 h-4" />
+                                  </div>
+                                  <div className="flex flex-col items-start">
+                                    <span className="text-white font-medium text-sm">Google</span>
+                                    <span className="text-white/40 text-xs truncate max-w-[120px]">
+                                      {currentAccount?.label?.replace('zkLogin - ', '') || 'Connected'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button onClick={() => disconnect()} className="w-6 h-6 rounded bg-white/10 flex items-center justify-center hover:bg-red-500/20 group">
+                                  <div className="w-2.5 h-0.5 bg-white/60 group-hover:bg-red-400"></div>
+                                </button>
+                              </div>
+
+                              <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center border border-white/10">
+                                    <Twitter size={16} className="text-white" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">Twitter</span>
+                                </div>
+                                <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                                  <Plus size={14} className="text-white" />
+                                </div>
+                              </button>
+
+                              <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-[#0088cc]/20 rounded-lg flex items-center justify-center">
+                                    <Send size={16} className="text-[#0088cc]" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">Telegram</span>
+                                </div>
+                                <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                                  <Plus size={14} className="text-white" />
+                                </div>
+                              </button>
+
+                              <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-[#5865F2]/20 rounded-lg flex items-center justify-center">
+                                    <Gamepad2 size={16} className="text-[#5865F2]" />
+                                  </div>
+                                  <span className="text-white font-medium text-sm">Discord</span>
+                                </div>
+                                <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                                  <Plus size={14} className="text-white" />
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-2">
+                          <button
+                            onClick={() => disconnect()}
+                            className="w-full h-12 bg-[#27272A] text-[#FF5252] font-bold rounded-2xl hover:bg-[#27272A]/80 transition-colors"
+                          >
+                            Log Out
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Bottom Navigation - Only visible on mobile */}
-        <BottomNav navItems={navItems} />
-      </AuthProvider>
-    </div>
+        <div className="md:hidden">
+          <BottomNav navItems={navItems} />
+        </div>
+      </div >
+    </div >
   );
 }

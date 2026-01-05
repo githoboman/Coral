@@ -3,8 +3,7 @@ import { toast } from 'react-toastify';
 import { LoginModal, LoginDrawer } from './Login';
 import { OnboardingModal } from './Onboarding';
 import { WaitlistModal } from './WaitlistModal';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { useAuth } from '@/hooks/useAuth';
+import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { jwtDecode } from 'jwt-decode';
 import 'react-toastify/dist/ReactToastify.css';
@@ -41,10 +40,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  const auth = useAuth();
   const currentAccount = useCurrentAccount();
+  const { connectionStatus } = useCurrentWallet();
+
+  // Check if dApp Kit is still initializing
+  const isInitializing = connectionStatus === 'connecting';
 
   useEffect(() => {
     const checkMobile = () => {
@@ -156,9 +157,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const decodedJwt = jwtDecode<GoogleJwtPayload>(jwt);
-      console.log('Successfully decoded JWT');
-      console.log('User email:', decodedJwt.email);
-      console.log('User name:', decodedJwt.name);
       return decodedJwt.email || null;
     } catch (error) {
       console.error('Error decoding JWT:', error);
@@ -168,35 +166,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 
   useEffect(() => {
-    // Debug logging for account state
-    console.log('[AuthProvider] Account state:', {
-      currentAccount: currentAccount?.address,
-      authIsAuthenticated: auth.isAuthenticated,
-      authAddress: auth.address,
-    });
+    // Don't do anything while still initializing
+    if (isInitializing) {
+      return;
+    }
 
-    // Wait a brief moment for wallet connection to initialize
-    // This prevents the flash of login modal before currentAccount is loaded
-    const initTimer = setTimeout(() => {
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
-    }, 500); // Increased to 500ms to ensure wallet state is loaded
-
-    // Check if either auth method is authenticated
-    const isUserAuthenticated = auth.isAuthenticated || !!currentAccount;
-    const activeAddress = auth.isAuthenticated ? auth.address : currentAccount?.address;
-
+    // Check if user is authenticated via Enoki wallet
+    const isUserAuthenticated = !!currentAccount;
+    const activeAddress = currentAccount?.address;
     if (!isUserAuthenticated) {
-      // Only show login modal if we've initialized (prevents flash on first render)
-      if (isInitialized) {
+      if (!isInitializing) {
         setIsLoginOpen(true);
       }
       setIsOnboardingOpen(false);
       setCheckingOnboarding(false); // Reset loading state when disconnected
     } else {
-      // User is authenticated, mark as initialized immediately
-      setIsInitialized(true);
       setIsLoginOpen(false);
       // Extract email from JWT when user is authenticated
       if (activeAddress && !userEmail) {
@@ -213,13 +197,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     }
 
-    return () => clearTimeout(initTimer);
-  }, [auth.isAuthenticated, auth.pubkeyHex, auth.address, currentAccount, isInitialized]);
+    return;
+  }, [isInitializing, currentAccount]);
 
   const checkUserOnboardingStatus = async () => {
-    // Determine which auth method is active
-    const activeAddress = auth.isAuthenticated ? auth.address : currentAccount?.address;
-    const activeId = auth.isAuthenticated ? auth.pubkeyHex : currentAccount?.address; // For Enoki, address is ID
+    // Get the active address from Enoki wallet
+    const activeAddress = currentAccount?.address;
+    const activeId = currentAccount?.address; // Use address as ID for Enoki
 
     if (!activeId || !activeAddress) {
       setCheckingOnboarding(false); // Reset loading state if no auth data
@@ -297,7 +281,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const handleOnboardingSubmit = async (email: string, additionalData?: { username?: string; firstName?: string; lastName?: string }) => {
-    const activeId = auth.isAuthenticated ? auth.pubkeyHex : currentAccount?.address;
+    const activeId = currentAccount?.address;
 
     if (!activeId) {
       toast.error('Authentication required');
@@ -389,15 +373,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  if (checkingOnboarding) {
+  // Show loading spinner while initializing
+  if (isInitializing) {
     return <LoadingSpinner fullScreen />;
   }
-
-  // Show loading during initialization to prevent login modal flash
-  if (!isInitialized) {
-    return <LoadingSpinner fullScreen />;
-  }
-
 
   return (
     <>
@@ -406,13 +385,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       {/* Login Modal/Drawer */}
       {isMobile ? (
         <LoginDrawer
-          isOpen={isLoginOpen && !currentAccount && isInitialized}
-          loading={auth.loading}
+          isOpen={isLoginOpen && !currentAccount}
+          loading={false}
         />
       ) : (
         <LoginModal
-          isOpen={isLoginOpen && !currentAccount && isInitialized}
-          loading={auth.loading}
+          isOpen={isLoginOpen && !currentAccount}
+          loading={false}
         />
       )}
 

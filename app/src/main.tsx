@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import App from './App.tsx';
+import { AuthProvider } from '@/components/auth/AuthProvider';
 import './global.css';
 import './styles/chat.css';
 
@@ -32,7 +33,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <WalletProvider autoConnect>
           <Provider store={store}>
             <BrowserRouter>
-              <App />
+              <AuthProvider>
+                <App />
+              </AuthProvider>
             </BrowserRouter>
           </Provider>
         </WalletProvider>
