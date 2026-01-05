@@ -150,13 +150,13 @@ const Account = () => {
       {userAccount && (
         <div className="space-y-8">
           {/* Account Info */}
-          <div className="bg-[#151515] border border-white/10 rounded-[30px] p-8 relative overflow-hidden group">
+          <div className="bg-[#151515] border border-white/10 rounded-[30px] p-4 md:p-8 relative overflow-hidden group">
             {/* Background Gradient */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/10 to-purple-500/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full mb-6 relative z-10 gap-6">
               <div className="flex items-start gap-6">
-                <div className="rounded-2xl h-24 w-24 overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/10 shadow-xl group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
+                <div className="rounded-2xl h-16 w-16 md:h-24 md:w-24 overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/10 shadow-xl group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
                   <img
                     src="/assets/images/pfp.png"
                     alt="User"
@@ -186,7 +186,7 @@ const Account = () => {
 
               <div className="flex flex-col items-start md:items-end w-full md:w-auto mt-4 md:mt-0">
                 {userAccount.rank && (
-                  <div className={`${getRankBadgeColor(userAccount.rank)} text - white px - 4 py - 2 rounded - xl flex items - center gap - 2 font - bold shadow - lg shadow - blue - 900 / 20`}>
+                  <div className={`${getRankBadgeColor(userAccount.rank)} text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-blue-900/20`}>
                     <Trophy className="w-5 h-5" />
                     Rank #{userAccount.rank}
                   </div>
@@ -245,12 +245,12 @@ const Account = () => {
             <table className="w-full">
               <thead className="bg-white/5 border-b border-white/5">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Rank</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Level</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Total XP</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Points</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Referrals</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Rank</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">User</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden md:table-cell">Level</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Total XP</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden sm:table-cell">Points</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden lg:table-cell">Referrals</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-white/80">
@@ -259,32 +259,32 @@ const Account = () => {
                     key={entry.user_id}
                     className={`hover:bg-white/5 transition-colors ${entry.user_id === currentAccount?.address ? 'bg-teal-500/10' : ''}`}
                   >
-                    <td className="px-6 py-4">
-                      <div className={`inline - flex items - center justify - center w - 8 h - 8 rounded - lg ${getRankBadgeColor(entry.rank)} text - white font - bold text - sm shadow - lg`}>
+                    <td className="px-3 py-3 md:px-6 md:py-4">
+                      <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${getRankBadgeColor(entry.rank)} text-white font-bold text-sm shadow-lg`}>
                         {entry.rank}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <div>
-                        <p className="font-bold text-white">
+                        <p className="font-bold text-white text-sm md:text-base">
                           {entry.username || entry.email?.split('@')[0] || 'Anonymous'}
                         </p>
-                        <p className="text-xs text-white/40 font-mono">{truncateAddress(entry.wallet_address)}</p>
+                        <p className="text-xs text-white/40 font-mono hidden sm:block">{truncateAddress(entry.wallet_address)}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4 hidden md:table-cell">
                       <div className="flex items-center gap-1">
                         <Award className="w-4 h-4 text-blue-400" />
                         <span className="font-bold">{entry.level}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-white font-mono font-medium">{entry.xp.toLocaleString()}</span>
+                    <td className="px-3 py-3 md:px-6 md:py-4">
+                      <span className="text-white font-mono font-medium text-sm md:text-base">{entry.xp.toLocaleString()}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4 hidden sm:table-cell">
                       <span className="text-green-400 font-mono font-medium">{entry.points.toLocaleString()}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4 hidden lg:table-cell">
                       <span className="text-purple-400 font-mono font-medium">{entry.referral_points.toLocaleString()}</span>
                     </td>
                   </tr>
