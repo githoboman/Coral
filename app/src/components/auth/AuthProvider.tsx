@@ -89,13 +89,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (walletInfo) {
           try {
             const parsed = JSON.parse(walletInfo);
-            console.log('[AuthProvider] Dapp-kit wallet info:', parsed);
+            // console.log('[AuthProvider] Dapp-kit wallet info:', parsed);
             // Check if there's a JWT in the wallet info
             if (parsed.jwt || parsed.token || parsed.idToken) {
               jwt = parsed.jwt || parsed.token || parsed.idToken;
             }
           } catch (e) {
-            console.log('[AuthProvider] Could not parse wallet info');
+            // console.log('[AuthProvider] Could not parse wallet info');
           }
         }
       }
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               jwt = privyToken;
             }
           } catch (e) {
-            console.log('[AuthProvider] Could not parse Privy token');
+            // console.log('[AuthProvider] Could not parse Privy token');
           }
         }
       }
@@ -138,8 +138,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (!jwt) {
-        console.log('No JWT found in localStorage or sessionStorage');
-        console.log('Checked: zklogin_jwt, enoki_jwt, id_token, dapp-kit, Privy storage');
+        // console.log('No JWT found in localStorage or sessionStorage');
+        // console.log('Checked: zklogin_jwt, enoki_jwt, id_token, dapp-kit, Privy storage');
 
         // Alternative: Try to get user info from Privy connections
         const privyConnections = localStorage.getItem('privy:connections');
@@ -187,7 +187,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const email = extractEmailFromJWT();
         if (email) {
           setUserEmail(email);
-          console.log('Extracted email from JWT:', email);
+          // console.log('Extracted email from JWT:', email);
         }
       }
       // Always check onboarding status when user is authenticated (but only if not already checking)

@@ -12,10 +12,16 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { useDisconnectWallet, useCurrentAccount } from '@mysten/dapp-kit';
 import { Sidebar } from '@/components/app/Sidebar';
+import { MobileDashboardSidebar } from '@/components/app/MobileDashboardSidebar';
 import { BottomNav } from '@/components/app/BottomNav';
 import { MobileTopBar } from '@/components/app/MobileTopBar';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+export type LayoutContextType = {
+  toggleWallet: () => void;
+  walletBalanceUSD: string;
+};
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -56,6 +62,15 @@ export default function AppLayout() {
 
   const [activeWalletModal, setActiveWalletModal] = useState<'deposit' | 'send' | 'swap' | null>(null);
   const [activeTab, setActiveTab] = useState<'Tokens' | 'Collectibles' | 'Activity'>('Tokens');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // logic for dashboard check - treats root and dynamic chat IDs as dashboard
+  const isDashboard = !['/activity', '/account', '/onchain'].some(path => location.pathname.startsWith(path));
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   const [walletBalanceUSD, setWalletBalanceUSD] = useState<string>('0.00');
 
@@ -387,13 +402,48 @@ export default function AppLayout() {
         </div>
 
         {/* Main Content - Add bottom padding on mobile for bottom nav */}
-        <div className="h-fit flex-1 pb-20 md:pb-0">
-          <MobileTopBar balance={walletBalanceUSD} onWalletClick={() => setIsWalletCollapsed(false)} />
-          <Outlet />
+        <div className={`h-fit w-full flex-1 ${!isDashboard ? 'pb-20' : ''} md:pb-0`}>
+          <MobileTopBar
+            balance={walletBalanceUSD}
+            onWalletClick={!isDashboard ? () => setIsWalletCollapsed(false) : undefined}
+            onMenuClick={isDashboard ? () => setIsSidebarOpen(true) : undefined}
+          />
+          <Outlet context={{ toggleWallet: () => setIsWalletCollapsed((prev: boolean) => !prev), walletBalanceUSD } satisfies LayoutContextType} />
         </div>
 
+        {/* Mobile Sidebar Drawer */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 z-[70] md:hidden backdrop-blur-sm"
+                onClick={() => setIsSidebarOpen(false)}
+              />
+              <motion.div
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed inset-y-0 left-0 w-64 bg-[#18181B] z-[80] p-4 border-r border-white/10 md:hidden overflow-y-auto"
+              >
+                {isDashboard ? (
+                  <MobileDashboardSidebar
+                    navItems={navItems}
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                ) : (
+                  <Sidebar navItems={navItems} onSignOut={() => disconnect()} />
+                )}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* Wallet Section */}
-        <div className={`sticky top-0 p-0 md:p-4 ${!isWalletCollapsed ? 'fixed inset-0 z-[60] flex justify-end bg-[#18181B] md:bg-transparent md:backdrop-blur-none md:block' : 'hidden md:block'}`}>
+        <div className={`p-0 md:p-4 md:sticky top-0 ${!isWalletCollapsed ? 'fixed inset-0 z-[100] w-full md:w-fit h-[100dvh] flex flex-col justify-end bg-[#18181B] md:bg-transparent md:backdrop-blur-none md:block' : 'hidden md:block'}`}>
           <AnimatePresence mode="wait">
             {isWalletCollapsed ? (
               <motion.button
@@ -413,10 +463,10 @@ export default function AppLayout() {
             ) : (
               <motion.div
                 key="expanded"
-                initial={{ opacity: 0, right: -100 }}
-                animate={{ opacity: 1, right: 0 }}
-                exit={{ opacity: 0, right: -100 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, x: '100%' }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: '100%' }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
               >
                 <div className="flex justify-between items-center w-full mb-8">
@@ -991,9 +1041,11 @@ export default function AppLayout() {
         </div>
 
         {/* Bottom Navigation - Only visible on mobile */}
-        <div className="md:hidden">
-          <BottomNav navItems={navItems} />
-        </div>
+        {!isDashboard && (
+          <div className="md:hidden">
+            <BottomNav navItems={navItems} />
+          </div>
+        )}
       </div >
     </div >
   );

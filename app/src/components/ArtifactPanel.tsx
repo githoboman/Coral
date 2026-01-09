@@ -41,7 +41,7 @@ const ArtifactPanel: React.FC<ArtifactPanelProps> = ({ artifact, onClose }) => {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed top-0 right-0 h-screen w-[45vw] bg-[#0d1117] border-l border-white/10 shadow-2xl z-50 flex flex-col"
+          className="fixed top-0 right-0 h-screen w-full md:w-[45vw] bg-[#0d1117] border-l border-white/10 shadow-2xl z-50 flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
