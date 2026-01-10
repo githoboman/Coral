@@ -15,6 +15,7 @@ import { Sidebar } from '@/components/app/Sidebar';
 import { MobileDashboardSidebar } from '@/components/app/MobileDashboardSidebar';
 import { BottomNav } from '@/components/app/BottomNav';
 import { MobileTopBar } from '@/components/app/MobileTopBar';
+import { AutoCheckIn } from '@/components/features/CheckInButton';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -396,12 +397,12 @@ export default function AppLayout() {
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-red-500 to-green-600 opacity-3 blur-xl -z-10" />
 
       <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-        {/* Sidebar - Hidden on mobile, visible on desktop */}
+        {/* Sidebar */}
         <div className="sticky top-0 p-4 hidden md:flex">
           <Sidebar navItems={navItems} onSignOut={() => disconnect()} />
         </div>
 
-        {/* Main Content - Add bottom padding on mobile for bottom nav */}
+        {/* Main Content */}
         <div className={`h-fit w-full flex-1 ${!isDashboard ? 'pb-20' : ''} md:pb-0`}>
           <MobileTopBar
             balance={walletBalanceUSD}
@@ -1040,13 +1041,16 @@ export default function AppLayout() {
           </AnimatePresence>
         </div>
 
-        {/* Bottom Navigation - Only visible on mobile */}
+        {/* Bottom Navigation*/}
         {!isDashboard && (
           <div className="md:hidden">
             <BottomNav navItems={navItems} />
           </div>
         )}
       </div >
+
+      {/* Auto Check-in Modal*/}
+      <AutoCheckIn />
     </div >
   );
 }

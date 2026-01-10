@@ -5,6 +5,7 @@ import eventsRouter from './events';
 import waitlistRouter from './waitlist';
 import accountRouter from './account';
 import chatRouter from './chat';
+import checkinRouter from './checkin';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.use(eventsRouter);
 router.use(waitlistRouter);
 router.use(accountRouter);
 router.use(chatRouter);
+router.use(checkinRouter);
 
 // GET /api/info - Server information
 router.get('/info', (_req: Request, res: Response) => {
@@ -52,7 +54,7 @@ router.get('/info', (_req: Request, res: Response) => {
       account: [
         'GET /api/account/:user_id',
         'GET /api/leaderboard',
-        'POST /api/add-xp/:user_id',
+        'POST /api/add-points/:user_id',
       ],
       chat: [
         'POST /api/chat',

@@ -10,8 +10,6 @@ export interface UserProfile {
   last_name?: string;
   is_premium: boolean;
   points: number;
-  xp?: number;
-  level?: number;
   referral_points?: number;
   daily_post_count: number;
   preferences: Record<string, any>;
@@ -169,10 +167,6 @@ export interface AccountDetails {
   username?: string;
   first_name?: string;
   last_name?: string;
-  xp: number;
-  level: number;
-  current_level_xp: number;
-  next_level_xp: number;
   points: number;
   referral_points: number;
   rank?: number;
@@ -186,22 +180,6 @@ export interface LeaderboardEntry {
   wallet_address: string;
   username?: string;
   email?: string;
-  xp: number;
-  level: number;
   points: number;
   referral_points: number;
-}
-
-export interface AddXpRequest {
-  xp_amount: number;
-}
-
-export interface AddXpResponse {
-  message: string;
-  user_id: string;
-  xp_added: number;
-  total_xp: number;
-  level: number;
-  level_up: boolean;
-  levels_gained: number;
 }

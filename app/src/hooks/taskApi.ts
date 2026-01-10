@@ -18,6 +18,7 @@ export interface Task {
   actual_duration_minutes?: number;
   parent_task_id?: number;
   subtask_order?: number;
+  points_awarded?: number;
 }
 
 export interface TaskListResponse {

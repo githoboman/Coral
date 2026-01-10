@@ -7,8 +7,6 @@ export interface LeaderboardEntry {
   wallet_address: string;
   username?: string;
   email?: string;
-  xp: number;
-  level: number;
   points: number;
   referral_points: number;
 }

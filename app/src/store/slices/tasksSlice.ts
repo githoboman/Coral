@@ -52,12 +52,13 @@ export const updateTaskStatus = createAsyncThunk(
   'tasks/updateTaskStatus',
   async ({ taskId, userId, completed }: { taskId: number; userId: string; completed: boolean }, { rejectWithValue }) => {
     try {
+      let response;
       if (completed) {
-        await taskApi.completeTask(taskId, userId);
+        response = await taskApi.completeTask(taskId, userId);
       } else {
-        await taskApi.updateTask(taskId, userId, { status: 'pending' });
+        response = await taskApi.updateTask(taskId, userId, { status: 'pending' });
       }
-      return { taskId, completed };
+      return { taskId, completed, task: response };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update task');
     }
@@ -129,7 +130,7 @@ const tasksSlice = createSlice({
       .addCase(updateTaskStatus.fulfilled, (state, action) => {
         const index = state.tasks.findIndex(t => t.id === action.payload.taskId);
         if (index !== -1) {
-          state.tasks[index].status = action.payload.completed ? 'completed' : 'pending';
+          state.tasks[index] = { ...state.tasks[index], ...action.payload.task };
         }
       })
       .addCase(updateTaskStatus.rejected, (state, action) => {

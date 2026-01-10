@@ -64,4 +64,5 @@ export interface ChatResponse {
   requires_fee?: boolean;
   estimated_cost?: number;
   workflow_steps?: WorkflowStep[];
+  points_awarded?: number;
 }
