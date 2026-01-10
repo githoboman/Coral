@@ -38,6 +38,13 @@ const workflow = new StateGraph<AgentState>({
       value: (x, y) => y ?? x,
       default: () => 0,
     },
+    transactionHash: {
+      value: (x, y) => y ?? x,
+    },
+    gasPaid: {
+      value: (x, y) => y ?? x,
+      default: () => false,
+    },
     workflowSteps: {
       value: (x, y) => y ?? x,
       default: () => [],

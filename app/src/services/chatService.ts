@@ -7,6 +7,7 @@ export interface ChatMessage {
   message: string;
   agent_id?: string;
   chat_id?: string;
+  transaction_hash?: string; // Gas payment transaction hash
   history?: Array<{
     role: 'user' | 'assistant';
     content: string;
@@ -27,7 +28,11 @@ export interface ChatResponse {
 }
 
 export async function sendChatMessage(data: ChatMessage): Promise<ChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+  const url = `${API_BASE_URL}/api/chat`;
+  console.log('[ChatService] Sending message to:', url);
+  console.log('[ChatService] Request data:', { ...data, message: data.message.substring(0, 50) + '...' });
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,8 +40,26 @@ export async function sendChatMessage(data: ChatMessage): Promise<ChatResponse> 
     body: JSON.stringify(data),
   });
 
+  console.log('[ChatService] Response status:', response.status, response.statusText);
+
   if (!response.ok) {
-    throw new Error(`Chat API error: ${response.statusText}`);
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      const errorText = await response.text();
+      errorData = { message: errorText };
+    }
+
+    console.error('[ChatService] Error response:', errorData);
+
+    // Create error with response data for rate limiting
+    const error: any = new Error(errorData.message || `Chat API error: ${response.statusText}`);
+    error.response = {
+      status: response.status,
+      data: errorData
+    };
+    throw error;
   }
 
   return response.json();

@@ -92,8 +92,8 @@ export const waitlistEmailSchema = z.object({
 });
 
 // ============ Account Validation Schemas ============
-export const addXpSchema = z.object({
-  xp_amount: z.number().int().positive('XP amount must be positive'),
+export const addPointsSchema = z.object({
+  amount: z.number().int().positive('Amount must be positive'),
 });
 
 // ============ Validation Middleware Helper ============

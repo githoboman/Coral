@@ -3,14 +3,18 @@ import { agentGraph } from '../services/agents/graph';
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { ChatRequest, ChatResponse } from '../services/agents/types';
 import getSupabaseClient from '../config/supabase';
+import { rateLimitMiddleware } from '../middleware/rateLimiter';
+import { awardChatPoints } from '../services/pointsService';
 
 const router = Router();
 const supabase = getSupabaseClient();
 
 // Main chat endpoint
-router.post('/chat', async (req, res) => {
+router.post('/chat', rateLimitMiddleware, async (req, res) => {
+  console.log('[CHAT ROUTE] POST /chat endpoint hit!');
+  console.log('[CHAT ROUTE] Request body:', req.body);
   try {
-    const { user_id, message, chat_id, agent_id }: ChatRequest = req.body;
+    const { user_id, message, chat_id, agent_id, transaction_hash }: ChatRequest = req.body;
 
     if (!user_id || !message) {
       return res.status(400).json({ error: 'user_id and message are required' });
@@ -26,7 +30,14 @@ router.post('/chat', async (req, res) => {
       userQuery: message,
       userId: user_id,
       chatId: chat_id,
+      transactionHash: transaction_hash,
+      gasPaid: !!transaction_hash, // If transaction hash provided, gas is paid
     };
+
+    console.log('[CHAT ROUTE] Initial state:', {
+      hasTransactionHash: !!transaction_hash,
+      gasPaid: !!transaction_hash,
+    });
 
     // Run the graph
     const result = await agentGraph.invoke(initialState);
@@ -74,6 +85,9 @@ router.post('/chat', async (req, res) => {
       .update({ last_updated: new Date().toISOString() })
       .eq('chat_id', activeChatId);
 
+    // Award chat points (max 5/day)
+    const pointsResult = await awardChatPoints(user_id);
+
     const response: ChatResponse = {
       response: (result.finalResponse as string) || 'No response generated',
       agent_used: (result.targetAgent as string) || 'main',
@@ -81,6 +95,7 @@ router.post('/chat', async (req, res) => {
       requires_fee: result.requiresFee as boolean | undefined,
       estimated_cost: result.estimatedCost as number | undefined,
       workflow_steps: result.workflowSteps as any,
+      points_awarded: pointsResult.points_awarded,
     };
 
     res.json(response);

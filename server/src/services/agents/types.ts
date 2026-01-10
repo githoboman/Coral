@@ -9,6 +9,8 @@ export interface AgentState {
   targetAgent?: string;
   requiresFee?: boolean;
   estimatedCost?: number;
+  transactionHash?: string; // Gas payment transaction hash
+  gasPaid?: boolean; // Flag to indicate if gas was paid
   workflowSteps?: WorkflowStep[];
   finalResponse?: string;
   error?: string;
@@ -48,6 +50,7 @@ export interface ChatRequest {
   message: string;
   agent_id?: string;
   chat_id?: string;
+  transaction_hash?: string; // Gas payment transaction hash
   history?: Array<{
     role: 'user' | 'assistant';
     content: string;
@@ -61,4 +64,5 @@ export interface ChatResponse {
   requires_fee?: boolean;
   estimated_cost?: number;
   workflow_steps?: WorkflowStep[];
+  points_awarded?: number;
 }

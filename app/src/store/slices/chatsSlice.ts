@@ -60,7 +60,7 @@ const initialState: ChatsState = {
 // Async thunks - Using Mock Data
 export const fetchChats = createAsyncThunk(
   'chats/fetchChats',
-  async (userId: string, { getState, rejectWithValue }) => {
+  async (userId: string, { getState }) => {
     try {
       const state = getState() as { chats: ChatsState };
 
@@ -72,6 +72,11 @@ export const fetchChats = createAsyncThunk(
       // Fetch from real API
       const response = await fetch(`${apiBaseUrl}/api/chats/${userId}`);
 
+      // Handle 404 as empty chats (user has no chats yet)
+      if (response.status === 404) {
+        return { chats: [], fromCache: false };
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch chats');
       }
@@ -80,7 +85,9 @@ export const fetchChats = createAsyncThunk(
 
       return { chats, fromCache: false };
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      // Return empty array on error instead of rejecting
+      console.warn('Failed to fetch chats:', error.message);
+      return { chats: [], fromCache: false };
     }
   }
 );
@@ -106,8 +113,8 @@ export const fetchChatHistory = createAsyncThunk(
       const data = await response.json();
 
       // Transform backend data to frontend Message format
-      const messages: Message[] = data.map((msg: any) => ({
-        id: msg.message_id || Date.now(),
+      const messages: Message[] = data.map((msg: any, index: number) => ({
+        id: msg.id || msg.message_id || (Date.now() + index),
         text: msg.query || msg.response || '',
         sender: msg.sender as 'user' | 'ai',
         timestamp: new Date(msg.timestamp).toLocaleTimeString(),

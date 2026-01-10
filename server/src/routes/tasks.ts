@@ -2,6 +2,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getSupabaseClient } from '../config/supabase';
 import { validate, taskCreateSchema, taskUpdateSchema, taskBulkCreateSchema } from '../utils/validation';
+import { awardTaskCompletionPoints } from '../services/pointsService';
 import { Task, TaskCreateRequest, TaskUpdateRequest, TaskBulkCreateRequest, TaskListResponse } from '../types';
 
 const router = Router();
@@ -355,7 +356,7 @@ router.delete('/tasks/:task_id', async (req: Request, res: Response, next: NextF
 
 /**
  * POST /api/tasks/:task_id/complete
- * Mark a task as completed
+ * Mark a task as completed and award points
  */
 router.post('/tasks/:task_id/complete', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -385,6 +386,11 @@ router.post('/tasks/:task_id/complete', async (req: Request, res: Response, next
       return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
     }
 
+    // Don't award points if already completed
+    if (existingTask.status === 'completed') {
+      return res.json({ ...existingTask, points_awarded: 0 });
+    }
+
     const { data, error } = await supabase
       .from('tasks')
       .update({
@@ -402,8 +408,16 @@ router.post('/tasks/:task_id/complete', async (req: Request, res: Response, next
       return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to complete task' });
     }
 
-    console.log(`Completed task: ${task_id} for user: ${user_id}`);
-    return res.json(data);
+    // Award points based on task priority
+    const priority = existingTask.priority as 'low' | 'medium' | 'high';
+    const pointsResult = await awardTaskCompletionPoints(user_id, priority);
+
+    console.log(`Completed task: ${task_id} for user: ${user_id} (+${pointsResult.points_awarded} pts)`);
+    return res.json({
+      ...data,
+      points_awarded: pointsResult.points_awarded,
+      total_points: pointsResult.total_points
+    });
   } catch (error) {
     console.error('Error in complete task:', error);
     next(error);

@@ -26,6 +26,30 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
   const isInTelegram = isTelegramEnvironment();
 
   useEffect(() => {
+    // Suppress Telegram Web App library logs
+    const originalLog = console.log;
+    const originalInfo = console.info;
+    const originalWarn = console.warn;
+
+    const filterLog = (originalMethod: any, args: any[]) => {
+      if (args.some(arg => typeof arg === 'string' && arg.includes('[Telegram.WebView]'))) {
+        return;
+      }
+      originalMethod.apply(console, args);
+    };
+
+    console.log = (...args) => filterLog(originalLog, args);
+    console.info = (...args) => filterLog(originalInfo, args);
+    // console.warn = (...args) => filterLog(originalWarn, args); // Optional: keep warnings
+
+    return () => {
+      console.log = originalLog;
+      console.info = originalInfo;
+      console.warn = originalWarn;
+    };
+  }, []);
+
+  useEffect(() => {
     if (isInTelegram) {
       // Initialize Telegram Web App
       initTelegramWebApp();
@@ -36,12 +60,9 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
       setIsInitialized(true);
 
       // Log initialization for debugging
-      console.log('[Telegram] Mini App initialized');
-      console.log('[Telegram] Platform:', window.Telegram?.WebApp.platform);
-      console.log('[Telegram] Version:', window.Telegram?.WebApp.version);
-      console.log('[Telegram] Color Scheme:', window.Telegram?.WebApp.colorScheme);
+      // console.log('[Telegram] Mini App initialized');
     } else {
-      console.log('[Telegram] Not running in Telegram environment');
+      // console.log('[Telegram] Not running in Telegram environment');
       setIsInitialized(true);
     }
   }, [isInTelegram]);

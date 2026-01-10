@@ -1,12 +1,12 @@
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { Plus, Fuel, X, Clock, ArrowUp, Terminal, Square, Layout } from 'lucide-react';
+import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit';
+import { Plus, Fuel, X, Clock, ArrowUp, Terminal, Square, Layout, Wallet, ChevronDown } from 'lucide-react';
 import WorkflowSteps from '@/components/WorkflowSteps';
 import AgentSelector from '@/components/AgentSelector';
 import RecentChatsModal from '@/components/RecentChatsModal';
 import ArtifactPanel from '@/components/ArtifactPanel';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -14,6 +14,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/atom-one-dark.css";
+import { LayoutContextType } from './Layout';
 
 // Define custom Sui Move language for rehype-highlight
 const moveLanguage = (hljs: any) => {
@@ -66,7 +67,7 @@ import rust from "highlight.js/lib/languages/rust";
 import { ModalPortal } from '@/components/ui/ModalPortal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchChats, fetchChatHistory, setCurrentChat, addMessage, setMessages, setActiveArtifact, type Message } from '@/store/slices/chatsSlice';
+import { fetchChats, fetchChatHistory, setCurrentChat, addMessage, setMessages, setActiveArtifact, deleteChat, type Message } from '@/store/slices/chatsSlice';
 import { getAgentConfig } from '@/config/agents';
 import { getCommandsForAgent, filterCommands, type Command } from '@/config/commands';
 import { sendChatMessage } from '@/services/chatService';
@@ -85,21 +86,22 @@ const MarkdownComponents = (handleOpenArtifact: any) => ({
   h2: ({ node, ...props }: any) => <h2 className="text-lg font-semibold mb-3 mt-5 text-white" {...props} />,
   h3: ({ node, ...props }: any) => <h3 className="text-base font-semibold mb-2 mt-4 text-white/90" {...props} />,
   h4: ({ node, ...props }: any) => <h4 className="text-sm font-semibold mb-2 mt-3 text-white/80" {...props} />,
-  p: ({ node, ...props }: any) => <p className="leading-7 mb-4 text-gray-300 last:mb-0" {...props} />,
+  p: ({ node, ...props }: any) => <p className="leading-7 mb-4 text-gray-300 last:mb-0 break-words" {...props} />,
   ul: ({ node, ...props }: any) => <ul className="list-disc list-outside ml-5 mb-4 space-y-1 text-gray-300" {...props} />,
   ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside ml-5 mb-4 space-y-1 text-gray-300" {...props} />,
-  li: ({ node, ...props }: any) => <li className="pl-1" {...props} />,
-  blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-white/20 pl-4 py-1 my-4 text-gray-400 italic" {...props} />,
-  a: ({ node, ...props }: any) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+  li: ({ node, ...props }: any) => <li className="pl-1 break-words" {...props} />,
+  blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-white/20 pl-4 py-1 my-4 text-gray-400 italic break-words" {...props} />,
+  a: ({ node, ...props }: any) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors break-words" target="_blank" rel="noopener noreferrer" {...props} />,
+  pre: ({ children }: any) => <>{children}</>,
   code: ({ node, className, children, ...props }: any) => {
     const match = /language-(\w+)/.exec(className || '')
     const isInline = !match && !String(children).includes('\n')
     return isInline ? (
-      <code className="bg-white/10 text-white/90 px-1.5 py-0.5 rounded text-[13px] font-mono border border-white/5" {...props}>
+      <code className="bg-white/10 text-white/90 px-1.5 py-0.5 rounded text-[13px] font-mono border border-white/5 break-all" {...props}>
         {children}
       </code>
     ) : (
-      <div className="rounded-xl overflow-hidden bg-white/5 border border-white/10">
+      <div className="rounded-xl overflow-hidden bg-white/5 border border-white/10 my-4 w-full max-w-full">
         {match && (
           <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-white/5">
             <span className="text-xs text-gray-400 font-medium font-sans">{match[1].charAt(0).toUpperCase() + match[1].slice(1)}</span>
@@ -125,23 +127,27 @@ const MarkdownComponents = (handleOpenArtifact: any) => ({
             </div>
           </div>
         )}
-        <code className={`${className} block overflow-x-auto text-sm p-4 font-mono leading-relaxed`} {...props}>
-          {children}
-        </code>
+        <div className="overflow-x-auto w-full">
+          <code className={`${className} block text-sm p-4 font-mono leading-relaxed min-w-0`} {...props}>
+            {children}
+          </code>
+        </div>
       </div>
     )
   },
-  table: ({ node, ...props }: any) => <div className="overflow-x-auto my-6 rounded-lg border border-white/10"><table className="w-full text-left border-collapse bg-white/5" {...props} /></div>,
+  table: ({ node, ...props }: any) => <div className="overflow-x-auto my-6 rounded-lg border border-white/10 w-full"><table className="w-full text-left border-collapse bg-white/5" {...props} /></div>,
   th: ({ node, ...props }: any) => <th className="bg-white/10 p-3 font-semibold text-white/90 border-b border-white/10 text-sm whitespace-nowrap" {...props} />,
-  td: ({ node, ...props }: any) => <td className="p-3 border-b border-white/5 text-gray-300 text-sm" {...props} />,
+  td: ({ node, ...props }: any) => <td className="p-3 border-b border-white/5 text-gray-300 text-sm whitespace-nowrap" {...props} />,
   hr: ({ node, ...props }: any) => <hr className="border-white/10 my-8" {...props} />,
-  img: ({ node, ...props }: any) => <img className="rounded-lg my-4 max-w-full border border-white/10" {...props} alt={props.alt || ''} />,
+  img: ({ node, ...props }: any) => <img className="rounded-lg my-4 max-w-full h-auto border border-white/10" {...props} alt={props.alt || ''} />,
 });
 
 const Dashboard = () => {
   const currentAccount = useCurrentAccount();
+  const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
+  const { toggleWallet } = useOutletContext<LayoutContextType>();
 
   // Redux state
   const dispatch = useAppDispatch();
@@ -164,10 +170,14 @@ const Dashboard = () => {
   const [selectedAgentId, setSelectedAgentId] = useState<string>('main');
   const [feeModalDetail, setFeeModalDetail] = useState<{ agent: string; cost: number; reason: string } | null>(null);
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
+  const [isPayingGas, setIsPayingGas] = useState(false);
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [workflowSteps, setWorkflowSteps] = useState<any[]>([]);
 
@@ -373,6 +383,19 @@ const Dashboard = () => {
       setIsProcessingPrompt(false);
       setAgentUsed(response.agent_used);
 
+      // Check if fee is required (research agent needs gas)
+      // IMPORTANT: Check this BEFORE adding any messages or updating chat
+      if (response.requires_fee && response.estimated_cost) {
+        setIsLoading(false);
+        setPendingQuery(query);
+        setFeeModalDetail({
+          agent: response.agent_used,
+          cost: response.estimated_cost,
+          reason: 'Deep research and analysis'
+        });
+        return; // Stop here and wait for user to sign - don't add any messages
+      }
+
       // Handle workflow steps if present (for research agent)
       if (response.workflow_steps && response.workflow_steps.length > 0) {
         setWorkflowSteps(response.workflow_steps);
@@ -412,15 +435,24 @@ const Dashboard = () => {
 
       setIsLoading(false);
       setWorkflowSteps([]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
       setIsLoading(false);
       setIsProcessingPrompt(false);
 
+      // Determine error message
+      let errorText = 'Sorry, I encountered an error. Please try again.';
+
+      // Handle rate limit error
+      if (error.response?.status === 429) {
+        const data = error.response.data;
+        errorText = `⏱️ **Rate Limit Reached**\n\n${data.message}\n\nYou can send ${data.limit} messages every 6 hours.`;
+      }
+
       // Show error message
       const errorMessage: Message = {
         id: Date.now() + Math.random(),
-        text: 'Sorry, I encountered an error. Please try again.',
+        text: errorText,
         sender: 'ai',
         timestamp: new Date().toLocaleTimeString(),
       };
@@ -459,15 +491,97 @@ const Dashboard = () => {
     setShowCommandMenu(false);
   };
 
-  const confirmFee = () => {
-    console.log('Fee confirmed, executing query:', pendingQuery);
-    if (pendingQuery) {
+  const confirmFee = async () => {
+    if (!pendingQuery || !feeModalDetail || !currentAccount?.address) {
+      console.error('Missing required data for signature');
+      return;
+    }
 
-      // Clear modal state before executing
+    setIsPayingGas(true);
+
+    try {
+      // Create message to sign (includes timestamp to prevent replay attacks)
+      const timestamp = Date.now();
+      const message = `Approve Research Agent\nCost: ${feeModalDetail.cost} SUI\nQuery: ${pendingQuery}\nTimestamp: ${timestamp}`;
+
+      // Sign message with user's wallet
+      const { signature } = await signPersonalMessage({
+        message: new TextEncoder().encode(message),
+      });
+
+      console.log('Message signed successfully:', signature);
+
+      // Clear fee modal
       setFeeModalDetail(null);
-      setPendingQuery(null);
-      // Skip adding user message again since it was already added before the fee modal
-      handleSendMessage();
+      setIsPayingGas(false);
+
+      // Resend chat request with signature
+      try {
+        setIsLoading(true);
+        setIsProcessingPrompt(true);
+
+        const history = messages
+          .slice(-5)
+          .map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant' as 'user' | 'assistant',
+            content: msg.sender === 'ai' && msg.variations
+              ? msg.variations[msg.currentVariationIndex ?? 0]
+              : msg.text
+          }));
+
+        const response = await sendChatMessage({
+          user_id: currentAccount.address,
+          message: pendingQuery,
+          chat_id: currentChatId || chatId,
+          agent_id: selectedAgentId !== 'main' ? selectedAgentId : undefined,
+          transaction_hash: signature, // Send signature as "transaction hash"
+          history,
+        });
+
+        setIsProcessingPrompt(false);
+        setAgentUsed(response.agent_used);
+
+        if (response.workflow_steps && response.workflow_steps.length > 0) {
+          setWorkflowSteps(response.workflow_steps);
+        }
+
+        let activeChatId = response.chat_id;
+        if (!currentChatId && !chatId) {
+          dispatch(setCurrentChat(activeChatId));
+          const allMessages = [...tempMessages];
+          allMessages.forEach(msg => {
+            dispatch(addMessage({ chatId: activeChatId!, message: { ...msg, chat_id: activeChatId } }));
+          });
+          setTempMessages([]);
+          navigate(`/${activeChatId}`);
+        }
+
+        const aiMessage: Message = {
+          id: Date.now() + Math.random(),
+          text: response.response,
+          sender: 'ai',
+          timestamp: new Date().toLocaleTimeString(),
+          chat_id: activeChatId || undefined,
+          agentType: getAgentConfig(response.agent_used).displayName,
+          agentId: response.agent_used,
+        };
+
+        if (activeChatId) {
+          dispatch(addMessage({ chatId: activeChatId, message: aiMessage }));
+        }
+
+        setIsLoading(false);
+        setWorkflowSteps([]);
+        setPendingQuery(null);
+      } catch (error) {
+        console.error('Error executing research after signing:', error);
+        setIsLoading(false);
+        setIsProcessingPrompt(false);
+      }
+    } catch (error: any) {
+      console.error('Message signing failed:', error);
+      setIsPayingGas(false);
+      alert('Signing failed: ' + error.message);
     }
   };
 
@@ -475,6 +589,7 @@ const Dashboard = () => {
     console.log('Fee cancelled');
     setFeeModalDetail(null);
     setPendingQuery(null);
+    setIsPayingGas(false);
   };
 
   const handleCloseArtifact = () => {
@@ -573,7 +688,7 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col justify-between min-h-[100dvh] w-full max-w-4xl mx-auto">
       <div>
-        <div className="sticky top-0 py-4 w-full flex items-center gap-3 mb-2 z-[50]">
+        <div className="sticky md:fixed top-0 p-4 w-full flex items-center justify-end md:justify-start gap-3 mb-2 z-50">
           {/* Agent Selector */}
           <AgentSelector
             selectedAgentId={selectedAgentId}
@@ -590,7 +705,7 @@ const Dashboard = () => {
           >
             <Clock size={16} />
             {currentChatId && chats.find(c => c.chat_id === currentChatId) && (
-              <span className="text-sm font-medium truncate max-w-[150px]">
+              <span className="hidden md:block text-sm font-medium truncate max-w-[150px]">
                 {chats.find(c => c.chat_id === currentChatId)?.name}
               </span>
             )}
@@ -600,7 +715,7 @@ const Dashboard = () => {
           {chatId && (
             <button
               onClick={startNewChat}
-              className="bg-white/10 hover:bg-white/15 text-white/80 p-3 rounded-full border border-white/10 transition-all duration-200 cursor-pointer"
+              className="bg-white/10 hover:bg-white/15 text-white/80 p-4 rounded-full border border-white/10 transition-all duration-200 cursor-pointer"
               title="New Chat"
             >
               <Plus size={16} />
@@ -610,7 +725,15 @@ const Dashboard = () => {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
+      <div
+        ref={scrollContainerRef}
+        onScroll={(e) => {
+          const target = e.target as HTMLDivElement;
+          const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+          setShowScrollButton(!isNearBottom);
+        }}
+        className="flex-1 overflow-y-auto pt-16 px-4 pb-4 custom-scrollbar relative"
+      >
         <AnimatePresence mode="popLayout">
           {messages.length === 0 && !isLoading && !isProcessingPrompt && !streamingText ? (
             <motion.div
@@ -649,7 +772,7 @@ const Dashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'} group`}
                 >
-                  <div className={`max-w-[85%] ${message.sender === 'user' ? 'bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl' : ''}`}>
+                  <div className={`md:max-w-[85%] overflow-hidden ${message.sender === 'user' ? 'bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl md:w-auto md:ml-auto w-fit' : ''}`}>
                     {message.sender === 'ai' && (
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
                         <img
@@ -660,7 +783,7 @@ const Dashboard = () => {
                         <span>{message.agentType?.toUpperCase() || 'TOVIRA'}</span>
                       </div>
                     )}
-                    <div className="w-full text-gray-200">
+                    <div className="w-full text-gray-200 break-words">
                       {message.sender === 'user' ? (
                         <p className="text-[15px] break-all leading-relaxed m-0">{message.text}</p>
                       ) : (
@@ -682,9 +805,9 @@ const Dashboard = () => {
                             components={MarkdownComponents(handleOpenArtifact)}
                           >
                             {(() => {
-                              const messageText = message.variations
+                              const messageText = String(message.variations
                                 ? message.variations[message.currentVariationIndex ?? 0]
-                                : message.text;
+                                : message.text || '');
 
                               // Extract URLs that will have preview cards
                               const urlRegex = /(https?:\/\/[^\s\)]+)/g;
@@ -708,9 +831,9 @@ const Dashboard = () => {
                             })()}
                           </ReactMarkdown>
                           {message.sender === 'ai' && (() => {
-                            const messageText = message.variations
+                            const messageText = String(message.variations
                               ? message.variations[message.currentVariationIndex ?? 0]
-                              : message.text;
+                              : message.text || '');
                             const urlRegex = /(https?:\/\/[^\s\)]+)/g;
                             const urls = messageText.match(urlRegex) || [];
                             return urls.slice(0, 3).map((url, idx) => (
@@ -870,7 +993,7 @@ const Dashboard = () => {
                     animate={{ opacity: 1 }}
                     className="flex flex-col items-start"
                   >
-                    <div className="max-w-[85%]">
+                    <div className="w-full md:max-w-[85%] overflow-hidden">
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
                         <img
                           src={getAgentConfig(agentUsed).iconUrl}
@@ -879,7 +1002,7 @@ const Dashboard = () => {
                         />
                         <span>{getAgentConfig(agentUsed).displayName.toUpperCase()}</span>
                       </div>
-                      <div className="prose prose-invert prose-sm max-w-none">
+                      <div className="prose prose-invert prose-sm max-w-none break-words">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[[rehypeHighlight, {
@@ -910,9 +1033,9 @@ const Dashboard = () => {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex flex-col items-start"
+                    className="flex flex-col items-start w-full"
                   >
-                    <div className="flex items-center gap-1 px-4 py-3">
+                    <div className="flex items-center gap-1 px-4 py-3 max-w-[85%]">
                       <div className="relative">
                         <img
                           src={getAgentConfig(selectedAgentId).iconUrl}
@@ -929,6 +1052,9 @@ const Dashboard = () => {
             </div >
           )}
         </AnimatePresence >
+
+        {/* Scroll to Bottom Button */}
+
       </div >
 
       {/* Fee Modal - Rendered via Portal at document.body */}
@@ -958,9 +1084,9 @@ const Dashboard = () => {
                   </button>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-2">Transaction Fee Required</h3>
+                <h3 className="text-xl font-bold text-white mb-2">Signature Required</h3>
                 <p className="text-white/60 text-sm mb-4">
-                  The <strong>{feeModalDetail.agent === 'research_agent' ? 'Research' : 'Task'} Agent</strong> needs gas for this operation.
+                  The <strong>{feeModalDetail.agent === 'research_agent' ? 'Research' : 'Task'} Agent</strong> requires your signature to proceed.
                 </p>
 
                 <div className="bg-black/40 rounded-lg p-3 mb-6 flex justify-between items-center">
@@ -973,15 +1099,27 @@ const Dashboard = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={cancelFee}
-                    className="flex-1 py-3 text-sm font-medium text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
+                    disabled={isPayingGas}
+                    className="flex-1 py-3 text-sm font-medium text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmFee}
-                    className="flex-1 py-3 text-sm font-medium text-black bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all font-bold"
+                    disabled={isPayingGas}
+                    className="flex-1 py-3 text-sm font-medium text-black bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Approve & Pay
+                    {isPayingGas ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Signing...
+                      </>
+                    ) : (
+                      'Sign & Approve'
+                    )}
                   </button>
                 </div>
               </motion.div>
@@ -991,9 +1129,9 @@ const Dashboard = () => {
       </AnimatePresence >
 
       {/* Input */}
-      < div className={`w-full flex justify-center items-center p-4 sticky bottom-0`}>
+      <div className={`w-full flex justify-center items-end p-4 sticky bottom-0 gap-2`}>
         <motion.div
-          className="group relative max-w-3xl w-full bg-[#1d1d1d]/95 backdrop-blur-xl border border-white/20 flex flex-col gap-2 text-white rounded-[30px] transition-all duration-200 p-4 shadow-2xl"
+          className="group relative max-w-3xl flex-1 bg-[#1d1d1d]/95 backdrop-blur-xl border border-white/20 flex flex-col gap-2 text-white rounded-[30px] transition-all duration-200 p-4 shadow-2xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -1125,16 +1263,39 @@ const Dashboard = () => {
             )}
           </div>
         </motion.div>
-      </div >
+
+        {/* Mobile Wallet Button (Outside bubble) */}
+        <button
+          onClick={toggleWallet}
+          className="md:hidden flex-shrink-0 w-12 h-12 bg-[#1d1d1d]/95 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-transform mb-1"
+        >
+          <Wallet size={20} className="text-[#00FF88]" />
+        </button>
+
+        {/* Scroll to Bottom Button - Moved outside scroll container */}
+        <AnimatePresence>
+          {showScrollButton && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={scrollToBottom}
+              className="fixed bottom-24 right-6 p-3 bg-[#1d1d1d]/95 backdrop-blur-xl border border-white/20 rounded-full shadow-2xl hover:bg-white/10 transition-colors z-[60] cursor-pointer"
+            >
+              <ChevronDown size={20} className="text-white hover:scale-110 transition-transform duration-200" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Artifact Panel */}
-      < ArtifactPanel
+      <ArtifactPanel
         artifact={activeArtifact}
         onClose={handleCloseArtifact}
       />
 
       {/* Recent Chats Modal */}
-      < RecentChatsModal
+      <RecentChatsModal
         isOpen={isRecentModalOpen}
         onClose={() => setIsRecentModalOpen(false)}
         chats={chats}
@@ -1146,8 +1307,15 @@ const Dashboard = () => {
         onAgentChange={(agentId) => {
           setSelectedAgentId(agentId);
         }}
+        onChatDelete={(chatId) => {
+          dispatch(deleteChat(chatId));
+          // If the deleted chat was the current chat, navigate to home
+          if (chatId === currentChatId) {
+            navigate('/');
+          }
+        }}
       />
-    </div >
+    </div>
   );
 };
 

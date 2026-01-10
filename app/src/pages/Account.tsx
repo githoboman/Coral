@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Trophy, Star, Users, Award } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Trophy, Star, Users } from 'lucide-react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -12,10 +12,6 @@ interface UserAccount {
   username?: string;
   first_name?: string;
   last_name?: string;
-  xp: number;
-  level: number;
-  current_level_xp: number;
-  next_level_xp: number;
   points: number;
   referral_points: number;
   rank: number | null;
@@ -64,7 +60,6 @@ const Account = () => {
     if (currentAccount?.address) {
       setLoading(true);
       setError(null);
-      // Parallel fetch: account data and leaderboard simultaneously
       Promise.all([
         fetchAccountData(),
         dispatch(fetchLeaderboard())
@@ -72,7 +67,6 @@ const Account = () => {
         setLoading(false);
       });
     } else {
-      // If not authenticated, stop loading
       setLoading(false);
       setError('Please connect your wallet to view your account');
     }
@@ -80,17 +74,8 @@ const Account = () => {
 
   const truncateAddress = (address: string) => {
     if (!address) return 'N/A';
-    return `${address.slice(0, 6)}...${address.slice(-4)} `;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
-
-  // Memoize expensive calculations
-  const getProgressPercentage = useMemo(() => {
-    if (!userAccount) return 0;
-    const { xp, current_level_xp, next_level_xp } = userAccount;
-    const xpInLevel = xp - current_level_xp;
-    const xpNeeded = next_level_xp - current_level_xp;
-    return (xpInLevel / xpNeeded) * 100;
-  }, [userAccount]);
 
   const getRankBadgeColor = (rank: number) => {
     if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600';
@@ -173,12 +158,9 @@ const Account = () => {
                       <span className="font-mono text-sm text-white/40">{truncateAddress(userAccount.wallet_address)}</span>
                     </div>
                   </div>
-                  {userAccount.email && (
-                    <p className="text-white/40 text-sm hidden">{userAccount.email}</p>
-                  )}
                   {userAccount.is_premium && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-yellow-400/20 to-yellow-600/20 text-yellow-400 border border-yellow-500/20 text-xs font-bold rounded-full w-fit mt-2">
-                      <Star className="w-3 h-3fill-yellow-400" /> PREMIUM MEMBER
+                      <Star className="w-3 h-3 fill-yellow-400" /> PREMIUM MEMBER
                     </span>
                   )}
                 </div>
@@ -196,32 +178,8 @@ const Account = () => {
 
             <div className="h-px bg-white/5 my-6" />
 
-            {/* Progress Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-blue-400" />
-                  <p className="text-lg font-bold">Level {userAccount.level}</p>
-                </div>
-                <p className="text-sm font-mono text-white/40">
-                  <span className="text-white/80">{userAccount.xp - userAccount.current_level_xp}</span> / {userAccount.next_level_xp - userAccount.current_level_xp} XP
-                </p>
-              </div>
-
-              <div className="relative w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                  style={{ width: `${getProgressPercentage}% ` }}
-                />
-              </div>
-            </div>
-
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-              <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
-                <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Total XP</p>
-                <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-blue-400 transition-colors">{userAccount.xp.toLocaleString()}</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
                 <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Points</p>
                 <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-green-400 transition-colors">{userAccount.points.toLocaleString()}</p>
@@ -247,10 +205,8 @@ const Account = () => {
                 <tr>
                   <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Rank</th>
                   <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">User</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden md:table-cell">Level</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Total XP</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden sm:table-cell">Points</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden lg:table-cell">Referrals</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Points</th>
+                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden sm:table-cell">Referrals</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-white/80">
@@ -272,19 +228,10 @@ const Account = () => {
                         <p className="text-xs text-white/40 font-mono hidden sm:block">{truncateAddress(entry.wallet_address)}</p>
                       </div>
                     </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 hidden md:table-cell">
-                      <div className="flex items-center gap-1">
-                        <Award className="w-4 h-4 text-blue-400" />
-                        <span className="font-bold">{entry.level}</span>
-                      </div>
-                    </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
-                      <span className="text-white font-mono font-medium text-sm md:text-base">{entry.xp.toLocaleString()}</span>
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 hidden sm:table-cell">
                       <span className="text-green-400 font-mono font-medium">{entry.points.toLocaleString()}</span>
                     </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 hidden lg:table-cell">
+                    <td className="px-3 py-3 md:px-6 md:py-4 hidden sm:table-cell">
                       <span className="text-purple-400 font-mono font-medium">{entry.referral_points.toLocaleString()}</span>
                     </td>
                   </tr>

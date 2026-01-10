@@ -320,7 +320,14 @@ const Activity = () => {
       setLoadingStates(prev => ({ ...prev, updating: true }));
       setError(null);
 
-      await dispatch(updateTaskStatus({ taskId: id, userId, completed: !task.completed }));
+      const result = await dispatch(updateTaskStatus({ taskId: id, userId, completed: !task.completed }));
+      if (updateTaskStatus.fulfilled.match(result)) {
+        const points = result.payload.task.points_awarded;
+        if (points && points > 0) {
+          // You might want to replace this with a toast notification
+          alert(`Task completed! +${points} Points`);
+        }
+      }
     } catch (err) {
       console.error('Failed to toggle task:', err);
       setError('Failed to update task. Please try again.');

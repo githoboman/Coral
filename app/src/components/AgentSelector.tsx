@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAgentConfig, allAgents } from '@/config/agents';
+import { ModalPortal } from '@/components/ui/ModalPortal';
 
 interface AgentSelectorProps {
   selectedAgentId: string;
@@ -11,21 +12,8 @@ interface AgentSelectorProps {
 
 const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: AgentSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectedAgent = getAgentConfig(selectedAgentId);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleAgentSelect = (agentId: string) => {
     onAgentChange(agentId);
@@ -33,69 +21,116 @@ const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: Agent
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
-      {/* Trigger Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-3 rounded-full bg-white/5 hover:bg-white/10 transition-all duration-200 border border-white/10"
-      >
-        <img
-          src={selectedAgent.iconUrl}
-          alt={selectedAgent.displayName}
-          className="w-6 h-6 rounded-full object-cover"
-        />
-        <span className="text-white font-medium text-sm">{selectedAgent.displayName}</span>
-        <ChevronDown
-          size={16}
-          className={`text-white/60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
+    <>
+      <div className={className}>
+        {/* Trigger Button */}
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 px-3 py-3 rounded-full bg-white/5 hover:bg-white/10 transition-all duration-200 border border-white/10"
+        >
+          <img
+            src={selectedAgent.iconUrl}
+            alt={selectedAgent.displayName}
+            className="w-6 h-6 rounded-full object-cover"
+          />
+          <span className="text-white font-medium text-sm">{selectedAgent.displayName}</span>
+          <ChevronDown
+            size={16}
+            className="text-white/60"
+          />
+        </button>
+      </div>
 
-      {/* Dropdown Menu */}
+      {/* Agent Selection Modal */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 mt-2 w-full min-w-[280px] bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
-          >
-            {allAgents.map((agent) => {
-              const isSelected = agent.id === selectedAgentId;
+          <ModalPortal>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
+            />
 
-              return (
-                <button
-                  key={agent.id}
-                  onClick={() => handleAgentSelect(agent.id)}
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors duration-150"
-                  style={{
-                    background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-                  }}
-                >
-                  {/* Agent Icon - Image */}
-                  <img
-                    src={agent.iconUrl}
-                    alt={agent.displayName}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+              onClick={() => setIsOpen(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden"
+              >
+                {/* Header */}
+                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-white">Select AI Agent</h2>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                  >
+                    <X size={18} className="text-white/60" />
+                  </button>
+                </div>
 
-                  {/* Agent Name - Simple */}
-                  <span className="text-white font-medium text-sm flex-1 text-left">
-                    {agent.displayName}
-                  </span>
+                {/* Agents Grid */}
+                <div className="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {allAgents.map((agent) => {
+                    const isSelected = agent.id === selectedAgentId;
 
-                  {/* Selected Indicator */}
-                  {isSelected && (
-                    <Check size={18} className="text-white" />
-                  )}
-                </button>
-              );
-            })}
-          </motion.div>
+                    return (
+                      <button
+                        key={agent.id}
+                        onClick={() => handleAgentSelect(agent.id)}
+                        className={`relative flex flex-col items-start p-3 rounded-2xl border transition-all duration-200 text-left group ${isSelected
+                          ? 'bg-white/10 border-white/20'
+                          : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between w-full mb-2">
+                          <div className="w-10 h-10 rounded-full p-0.5 bg-gradient-to-br from-white/10 to-white/5 border border-white/10">
+                            <img
+                              src={agent.iconUrl}
+                              alt={agent.displayName}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          </div>
+                          {isSelected && (
+                            <div className="w-5 h-5 rounded-full bg-[#00FF88] flex items-center justify-center">
+                              <Check size={12} className="text-black font-bold" />
+                            </div>
+                          )}
+                        </div>
+
+                        <h3 className="text-white font-bold text-base mb-1 group-hover:text-[#00FF88] transition-colors">
+                          {agent.displayName}
+                        </h3>
+
+                        <p className="text-white/60 text-xs mb-3 line-clamp-2">
+                          {agent.description}
+                        </p>
+
+                        <div className="mt-auto pt-3 w-full border-t border-white/5 flex items-center justify-between">
+                          <span className="text-xs font-mono text-white/40 uppercase">Cost</span>
+                          <span className={`text-xs font-bold ${agent.fee > 0 ? 'text-[#00FF88]' : 'text-white/60'}`}>
+                            {agent.feeDisplay}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </ModalPortal>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 };
 
