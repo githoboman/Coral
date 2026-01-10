@@ -60,7 +60,7 @@ const initialState: ChatsState = {
 // Async thunks - Using Mock Data
 export const fetchChats = createAsyncThunk(
   'chats/fetchChats',
-  async (userId: string, { getState, rejectWithValue }) => {
+  async (userId: string, { getState }) => {
     try {
       const state = getState() as { chats: ChatsState };
 
