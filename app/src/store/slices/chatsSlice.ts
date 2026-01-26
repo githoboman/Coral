@@ -8,6 +8,7 @@ export interface Chat {
   name: string;
   created_at: string;
   last_updated: string;
+  agent_id?: string;
 }
 
 
@@ -60,17 +61,23 @@ const initialState: ChatsState = {
 // Async thunks - Using Mock Data
 export const fetchChats = createAsyncThunk(
   'chats/fetchChats',
-  async (userId: string, { getState }) => {
+  async ({ userId, agentId }: { userId: string; agentId?: string }, { getState }) => {
     try {
       const state = getState() as { chats: ChatsState };
 
-      // Check cache validity
-      if (isCacheValid(state.chats.lastFetch) && state.chats.chats.length > 0) {
+      // Check cache validity (simplified: invalidating cache if agentId changes is complex, so we might skip cache or ensure cache is segmented)
+      // For now, let's skip cache check if we are filtering, or we need to change how we store/check cache.
+      // To be safe and simple: always fetch if filtering.
+      if (!agentId && isCacheValid(state.chats.lastFetch) && state.chats.chats.length > 0) {
         return { chats: state.chats.chats, fromCache: true };
       }
 
       // Fetch from real API
-      const response = await fetch(`${apiBaseUrl}/api/chats/${userId}`);
+      let url = `${apiBaseUrl}/api/chats/${userId}`;
+      if (agentId) {
+        url += `?agentId=${agentId}`;
+      }
+      const response = await fetch(url);
 
       // Handle 404 as empty chats (user has no chats yet)
       if (response.status === 404) {

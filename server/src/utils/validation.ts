@@ -4,7 +4,7 @@ import { z } from 'zod';
 // ============ User Validation Schemas ============
 export const userUpdateSchema = z.object({
   user_id: z.string().min(1, 'User ID is required'),
-  wallet_address: z.string().min(1, 'Wallet address is required'),
+  wallet_address: z.string().nullable().optional(),
   email: z.string().email().optional(),
   username: z.string().optional(),
   first_name: z.string().optional(),
@@ -17,6 +17,9 @@ export const userOnboardSchema = z.object({
   username: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
+  notifications_enabled: z.boolean().optional(),
+  analytics_enabled: z.boolean().optional(),
+  personalization_enabled: z.boolean().optional(),
 });
 
 // ============ Task Validation Schemas ============

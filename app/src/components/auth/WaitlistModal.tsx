@@ -62,7 +62,7 @@ export function WaitlistModal({ isOpen, loading, message, initialEmail, onSubmit
               <button
                 type="button"
                 onClick={onClearMessage}
-                className="text-current opacity-60 hover:opacity-100"
+                className="text-current opacity-60 hover:opacity-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

@@ -527,271 +527,349 @@ const Activity = () => {
         </div>
       </div>
 
-      {/* Phase 1: Statistics Dashboard */}
-      {showStats && (
-        <div className="mb-6 bg-white/5 backdrop-blur-sm rounded-[20px] border border-white/10 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Overview</h3>
-            <button
-              onClick={() => setShowStats(false)}
-              className="text-sm text-white/60 hover:text-white/80 transition-colors"
-            >
-              Hide
-            </button>
-          </div>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Sidebar: Stats & Filters */}
+        <div className="w-full lg:w-80 flex-none space-y-6">
+          {/* Stats Phase 1: Statistics Dashboard */}
+          {showStats && (
+            <div className="bg-white/5 backdrop-blur-sm rounded-[20px] border border-white/10 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Overview</h3>
+                <button
+                  onClick={() => setShowStats(false)}
+                  className="text-sm text-white/60 hover:text-white/80 transition-colors"
+                >
+                  Hide
+                </button>
+              </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.totalTasks}</div>
-              <div className="text-xs text-white/60 mt-1">Total Tasks</div>
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                  <div className="text-xl font-bold text-white">{stats.totalTasks}</div>
+                  <div className="text-[10px] text-white/60 mt-1 uppercase tracking-wider">Total</div>
+                </div>
 
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.completedTasks}</div>
-              <div className="text-xs text-white/60 mt-1">Completed</div>
-            </div>
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                  <div className="text-xl font-bold text-white">{stats.completedTasks}</div>
+                  <div className="text-[10px] text-white/60 mt-1 uppercase tracking-wider">Done</div>
+                </div>
 
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.pendingTasks}</div>
-              <div className="text-xs text-white/60 mt-1">Pending</div>
-            </div>
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                  <div className="text-xl font-bold text-white">{stats.pendingTasks}</div>
+                  <div className="text-[10px] text-white/60 mt-1 uppercase tracking-wider">Pending</div>
+                </div>
 
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.overdueTasks}</div>
-              <div className="text-xs text-white/60 mt-1">Overdue</div>
-            </div>
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                  <div className="text-xl font-bold text-white">{stats.overdueTasks}</div>
+                  <div className="text-[10px] text-white/60 mt-1 uppercase tracking-wider">Overdue</div>
+                </div>
 
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.upcomingEvents}</div>
-              <div className="text-xs text-white/60 mt-1">Events</div>
-            </div>
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10 col-span-2">
+                  <div className="text-xl font-bold text-white">{stats.upcomingEvents}</div>
+                  <div className="text-[10px] text-white/60 mt-1 uppercase tracking-wider">Upcoming Events</div>
+                </div>
 
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-2xl font-bold text-white">{stats.completionRate}%</div>
-              <div className="text-xs text-white/60 mt-1">Completion</div>
-              <div className="mt-2 w-full bg-white/10 rounded-full h-1.5">
-                <div
-                  className="bg-white h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${stats.completionRate}%` }}
-                />
+                <div className="bg-white/5 rounded-lg p-3 border border-white/10 col-span-2">
+                  <div className="flex justify-between items-end mb-1">
+                    <div className="text-xl font-bold text-white">{stats.completionRate}%</div>
+                    <div className="text-[10px] text-white/60 uppercase tracking-wider">Rate</div>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5">
+                    <div
+                      className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                      style={{ width: `${stats.completionRate}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {!showStats && (
-        <button
-          onClick={() => setShowStats(true)}
-          className="mb-6 w-full py-2 text-sm text-white/60 hover:text-white/80 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
-        >
-          Show Statistics
-        </button>
-      )}
-
-      {/* Phase 2: Filter Panel */}
-      {activeTab === 'Tasks' && (
-        <div className="mb-6 bg-white/5 backdrop-blur-sm rounded-[20px] border border-white/10 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <input
-              type="text"
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-
-            {/* Priority Filter */}
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-            >
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Priorities</option>
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="high">High</option>
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="medium">Medium</option>
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="low">Low</option>
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-            >
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Status</option>
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="pending">Pending</option>
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="completed">Completed</option>
-            </select>
-
-            {/* Tag Filter */}
-            <select
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-            >
-              <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Tags</option>
-              {allTags.map(tag => (
-                <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} key={tag} value={tag}>{tag}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Filters Button */}
-          {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all') && (
+          {!showStats && (
             <button
-              onClick={() => {
-                setSearchQuery('');
-                setPriorityFilter('all');
-                setStatusFilter('all');
-                setTagFilter('all');
-              }}
-              className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              onClick={() => setShowStats(true)}
+              className="w-full py-2 text-sm text-white/60 hover:text-white/80 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
             >
-              Clear all filters
+              Show Statistics
             </button>
           )}
-        </div>
-      )}
 
-      <div className="flex-1">
-        {activeTab === 'Calendar' && (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold">
-                {activeView === 'Month' && fmtMonthYear(displayedDate)}
-                {activeView === 'Week' && `${weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                {activeView === 'Day' && displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
-                {activeView === 'Schedule' && `Schedule – ${fmtMonthYear(displayedDate)}`}
-              </h3>
+          {/* Phase 2: Filter Panel */}
+          {activeTab === 'Tasks' && (
+            <div className="bg-white/5 backdrop-blur-sm rounded-[20px] border border-white/10 p-5 space-y-4">
+              <h3 className="text-lg font-semibold">Filters</h3>
 
-              <div className="flex items-center space-x-2">
-                <button onClick={goPrev} className="cursor-pointer p-2 rounded-md hover:bg-white/5 text-gray-500" title="Previous"><ChevronLeft /></button>
-                <button onClick={goToday} className="cursor-pointer px-3 py-1 rounded-md bg-white/5 text-sm" title="Today">Today</button>
-                <button onClick={goNext} className="cursor-pointer p-2 rounded-md hover:bg-white/5 text-gray-500" title="Next"><ChevronRight /></button>
+              <div className="space-y-3">
+                {/* Search */}
+                <div>
+                  <label className="text-xs text-white/40 mb-1.5 block">Search</label>
+                  <input
+                    type="text"
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+
+                {/* Priority Filter */}
+                <div>
+                  <label className="text-xs text-white/40 mb-1.5 block">Priority</label>
+                  <select
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer appearance-none"
+                  >
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Priorities</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="high">High</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="medium">Medium</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="low">Low</option>
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="text-xs text-white/40 mb-1.5 block">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer appearance-none"
+                  >
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Status</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="pending">Pending</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="completed">Completed</option>
+                  </select>
+                </div>
+
+                {/* Tag Filter */}
+                <div>
+                  <label className="text-xs text-white/40 mb-1.5 block">Tag</label>
+                  <select
+                    value={tagFilter}
+                    onChange={(e) => setTagFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer appearance-none"
+                  >
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="all">All Tags</option>
+                    {allTags.map(tag => (
+                      <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {/* Clear Filters Button */}
+              {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setPriorityFilter('all');
+                    setStatusFilter('all');
+                    setTagFilter('all');
+                  }}
+                  className="w-full py-2 text-sm text-blue-400 hover:text-blue-300 transition-colors border border-blue-500/30 rounded-lg hover:bg-blue-500/10"
+                >
+                  Clear all filters
+                </button>
+              )}
             </div>
+          )}
+        </div>
 
-            {activeView === 'Month' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-2 sm:p-4">
-                <div className="grid grid-cols-7 gap-1 mb-2 text-center">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-xs sm:text-sm font-medium text-gray-500 py-2">{d}</div>
-                  ))}
-                </div>
+        <div className="flex-1">
+          {activeTab === 'Calendar' && (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold">
+                  {activeView === 'Month' && fmtMonthYear(displayedDate)}
+                  {activeView === 'Week' && `${weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                  {activeView === 'Day' && displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                  {activeView === 'Schedule' && `Schedule – ${fmtMonthYear(displayedDate)}`}
+                </h3>
 
-                <div className="grid grid-cols-7 gap-1">
-                  {monthGrid.map((cell, idx) => {
-                    const key = dateToKey(cell);
-                    const isCurrent = cell.getMonth() === displayedDate.getMonth();
-                    const isToday = key === todayKey;
-                    const evs = eventsForDateKey(key);
-                    const tsks = tasksForDateKey(key);
-
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => openAddModal(cell)}
-                        className={`relative rounded-lg p-1 sm:p-2 h-14 sm:h-24 border border-gray-200/50 transition-colors cursor-pointer ${isToday ? 'bg-blue-50/50 border-blue-200/50' : ''} ${isCurrent ? 'hover:bg-white/5' : 'bg-gray-50/50 text-gray-400'}`}
-                      >
-                        <div className={`text-xs sm:text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{cell.getDate()}</div>
-
-                        {/* Desktop View: Text details */}
-                        <div className="mt-1 space-y-0.5 overflow-hidden hidden sm:block">
-                          {evs.slice(0, 2).map(ev => (
-                            <div
-                              key={ev.id}
-                              onClick={e => { e.stopPropagation(); openViewModal(ev); }}
-                              className={`text-xs truncate rounded px-1 py-0.5 ${ev.color} text-white cursor-pointer`}
-                              title={`${ev.title} ${ev.time ?? ''}`}
-                            >
-                              {ev.title}
-                            </div>
-                          ))}
-                          {tsks.slice(0, 2).map(t => (
-                            <div
-                              key={t.id}
-                              onClick={e => { e.stopPropagation(); openViewModal(t); }}
-                              className={`text-xs truncate rounded px-1 py-0.5 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 cursor-pointer flex items-center`}
-                            >
-                              <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
-                              {t.title}
-                            </div>
-                          ))}
-                          {(evs.length + tsks.length > 4) && <div className="text-xs text-gray-500">+{evs.length + tsks.length - 4} more</div>}
-                        </div>
-
-                        {/* Mobile View: Dots */}
-                        <div className="mt-1 flex flex-wrap gap-1 sm:hidden justify-center">
-                          {evs.map(ev => (
-                            <div key={ev.id} className={`w-1.5 h-1.5 rounded-full ${ev.color}`} />
-                          ))}
-                          {tsks.map(t => (
-                            <div key={t.id} className={`w-1.5 h-1.5 rounded-full ${t.completed ? 'bg-gray-400' : 'bg-gray-300'}`} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center space-x-2">
+                  <button onClick={goPrev} className="cursor-pointer p-2 rounded-md hover:bg-white/5 text-gray-500" title="Previous"><ChevronLeft /></button>
+                  <button onClick={goToday} className="cursor-pointer px-3 py-1 rounded-md bg-white/5 text-sm" title="Today">Today</button>
+                  <button onClick={goNext} className="cursor-pointer p-2 rounded-md hover:bg-white/5 text-gray-500" title="Next"><ChevronRight /></button>
                 </div>
               </div>
-            )}
 
-            {activeView === 'Week' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden overflow-x-auto">
-                <div className="grid grid-cols-8 gap-0 border-b border-gray-200/30 min-w-[600px]">
-                  <div className="p-2 text-xs text-gray-500" />
-                  {weekDays.map(d => (
-                    <div key={dateToKey(d)} className="p-2 text-center">
-                      <div className="text-xs text-gray-500">{fmtShortDay(d)}</div>
-                      <div className="text-lg font-semibold">{fmtDayNumber(d)}</div>
-                    </div>
-                  ))}
-                </div>
+              {activeView === 'Month' && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-2 sm:p-4">
+                  <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                      <div key={d} className="text-xs sm:text-sm font-medium text-gray-500 py-2">{d}</div>
+                    ))}
+                  </div>
 
-                <div className="relative h-[1400px]">
-                  {HOURS.map(h => (
-                    <div key={h} className="grid grid-cols-8 gap-0 border-b border-gray-200/20 min-w-[600px]" style={{ height: '58px' }}>
-                      <div className="flex items-center justify-end pr-2 text-xs text-gray-500">
-                        {fmtHour(h)}
-                      </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {monthGrid.map((cell, idx) => {
+                      const key = dateToKey(cell);
+                      const isCurrent = cell.getMonth() === displayedDate.getMonth();
+                      const isToday = key === todayKey;
+                      const evs = eventsForDateKey(key);
+                      const tsks = tasksForDateKey(key);
 
-                      {weekDays.map(d => {
-                        const key = dateToKey(d);
-                        const dayEvs = eventsForDateKey(key).filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'));
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => openAddModal(cell)}
+                          className={`relative rounded-lg p-1 sm:p-2 h-14 sm:h-24 border border-gray-200/50 transition-colors cursor-pointer ${isToday ? 'bg-blue-50/50 border-blue-200/50' : ''} ${isCurrent ? 'hover:bg-white/5' : 'bg-gray-50/50 text-gray-400'}`}
+                        >
+                          <div className={`text-xs sm:text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{cell.getDate()}</div>
 
-                        return (
-                          <div
-                            key={key}
-                            className="relative border-l border-gray-200/20 hover:bg-white/5 cursor-pointer"
-                            onClick={() => openAddModal(d)}
-                          >
-                            {h === 0 && (
-                              <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
-                                {eventsForDateKey(key).filter(e => !e.time).map(ev => (
-                                  <div
-                                    key={ev.id}
-                                    onClick={e => { e.stopPropagation(); openViewModal(ev); }}
-                                    className={`text-xs truncate rounded px-1 ${ev.color} text-white`}
-                                  >
-                                    {ev.title}
-                                  </div>
-                                ))}
-                                {tasksForDateKey(key).map(t => (
-                                  <div
-                                    key={t.id}
-                                    onClick={e => { e.stopPropagation(); openViewModal(t); }}
-                                    className={`text-xs truncate rounded px-1 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 flex items-center`}
-                                  >
-                                    <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
-                                    {t.title}
-                                  </div>
-                                ))}
+                          {/* Desktop View: Text details */}
+                          <div className="mt-1 space-y-0.5 overflow-hidden hidden sm:block">
+                            {evs.slice(0, 2).map(ev => (
+                              <div
+                                key={ev.id}
+                                onClick={e => { e.stopPropagation(); openViewModal(ev); }}
+                                className={`text-xs truncate rounded px-1 py-0.5 ${ev.color} text-white cursor-pointer`}
+                                title={`${ev.title} ${ev.time ?? ''}`}
+                              >
+                                {ev.title}
                               </div>
-                            )}
+                            ))}
+                            {tsks.slice(0, 2).map(t => (
+                              <div
+                                key={t.id}
+                                onClick={e => { e.stopPropagation(); openViewModal(t); }}
+                                className={`text-xs truncate rounded px-1 py-0.5 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 cursor-pointer flex items-center`}
+                              >
+                                <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
+                                {t.title}
+                              </div>
+                            ))}
+                            {(evs.length + tsks.length > 4) && <div className="text-xs text-gray-500">+{evs.length + tsks.length - 4} more</div>}
+                          </div>
 
-                            {dayEvs.map(ev => (
+                          {/* Mobile View: Dots */}
+                          <div className="mt-1 flex flex-wrap gap-1 sm:hidden justify-center">
+                            {evs.map(ev => (
+                              <div key={ev.id} className={`w-1.5 h-1.5 rounded-full ${ev.color}`} />
+                            ))}
+                            {tsks.map(t => (
+                              <div key={t.id} className={`w-1.5 h-1.5 rounded-full ${t.completed ? 'bg-gray-400' : 'bg-gray-300'}`} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeView === 'Week' && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden overflow-x-auto">
+                  <div className="grid grid-cols-8 gap-0 border-b border-gray-200/30 min-w-[600px]">
+                    <div className="p-2 text-xs text-gray-500" />
+                    {weekDays.map(d => (
+                      <div key={dateToKey(d)} className="p-2 text-center">
+                        <div className="text-xs text-gray-500">{fmtShortDay(d)}</div>
+                        <div className="text-lg font-semibold">{fmtDayNumber(d)}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="relative h-[1400px]">
+                    {HOURS.map(h => (
+                      <div key={h} className="grid grid-cols-8 gap-0 border-b border-gray-200/20 min-w-[600px]" style={{ height: '58px' }}>
+                        <div className="flex items-center justify-end pr-2 text-xs text-gray-500">
+                          {fmtHour(h)}
+                        </div>
+
+                        {weekDays.map(d => {
+                          const key = dateToKey(d);
+                          const dayEvs = eventsForDateKey(key).filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'));
+
+                          return (
+                            <div
+                              key={key}
+                              className="relative border-l border-gray-200/20 hover:bg-white/5 cursor-pointer"
+                              onClick={() => openAddModal(d)}
+                            >
+                              {h === 0 && (
+                                <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
+                                  {eventsForDateKey(key).filter(e => !e.time).map(ev => (
+                                    <div
+                                      key={ev.id}
+                                      onClick={e => { e.stopPropagation(); openViewModal(ev); }}
+                                      className={`text-xs truncate rounded px-1 ${ev.color} text-white`}
+                                    >
+                                      {ev.title}
+                                    </div>
+                                  ))}
+                                  {tasksForDateKey(key).map(t => (
+                                    <div
+                                      key={t.id}
+                                      onClick={e => { e.stopPropagation(); openViewModal(t); }}
+                                      className={`text-xs truncate rounded px-1 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 flex items-center`}
+                                    >
+                                      <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
+                                      {t.title}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {dayEvs.map(ev => (
+                                <div
+                                  key={ev.id}
+                                  onClick={e => { e.stopPropagation(); openViewModal(ev); }}
+                                  className={`absolute inset-x-1 top-1 h-5 rounded px-1 text-xs ${ev.color} text-white flex items-center truncate`}
+                                >
+                                  {ev.time} {ev.title}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeView === 'Day' && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-gray-200/30">
+                    <div className="text-sm text-gray-500">{displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+                  </div>
+
+                  <div className="relative h-[1400px]">
+                    {HOURS.map(h => (
+                      <div key={h} className="flex border-b border-gray-200/20" style={{ height: '58px' }}>
+                        <div className="w-16 flex items-center justify-end pr-2 text-xs text-gray-500">{fmtHour(h)}</div>
+                        <div
+                          className="flex-1 relative hover:bg-white/5 cursor-pointer"
+                          onClick={() => openAddModal(displayedDate)}
+                        >
+                          {h === 0 && (
+                            <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
+                              {eventsForDateKey(dayKey).filter(e => !e.time).map(ev => (
+                                <div
+                                  key={ev.id}
+                                  onClick={e => { e.stopPropagation(); openViewModal(ev); }}
+                                  className={`text-xs truncate rounded px-1 ${ev.color} text-white`}
+                                >
+                                  {ev.title}
+                                </div>
+                              ))}
+                              {tasksForDateKey(dayKey).map(t => (
+                                <div
+                                  key={t.id}
+                                  onClick={e => { e.stopPropagation(); openViewModal(t); }}
+                                  className={`text-xs truncate rounded px-1 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 flex items-center`}
+                                >
+                                  <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
+                                  {t.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {eventsForDateKey(dayKey)
+                            .filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'))
+                            .map(ev => (
                               <div
                                 key={ev.id}
                                 onClick={e => { e.stopPropagation(); openViewModal(ev); }}
@@ -800,422 +878,365 @@ const Activity = () => {
                                 {ev.time} {ev.title}
                               </div>
                             ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeView === 'Day' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-gray-200/30">
-                  <div className="text-sm text-gray-500">{displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-                </div>
-
-                <div className="relative h-[1400px]">
-                  {HOURS.map(h => (
-                    <div key={h} className="flex border-b border-gray-200/20" style={{ height: '58px' }}>
-                      <div className="w-16 flex items-center justify-end pr-2 text-xs text-gray-500">{fmtHour(h)}</div>
-                      <div
-                        className="flex-1 relative hover:bg-white/5 cursor-pointer"
-                        onClick={() => openAddModal(displayedDate)}
-                      >
-                        {h === 0 && (
-                          <div className="absolute inset-x-0 top-0 h-6 flex flex-col gap-1 px-1 overflow-hidden">
-                            {eventsForDateKey(dayKey).filter(e => !e.time).map(ev => (
-                              <div
-                                key={ev.id}
-                                onClick={e => { e.stopPropagation(); openViewModal(ev); }}
-                                className={`text-xs truncate rounded px-1 ${ev.color} text-white`}
-                              >
-                                {ev.title}
-                              </div>
-                            ))}
-                            {tasksForDateKey(dayKey).map(t => (
-                              <div
-                                key={t.id}
-                                onClick={e => { e.stopPropagation(); openViewModal(t); }}
-                                className={`text-xs truncate rounded px-1 ${t.completed ? 'bg-gray-400 line-through' : 'bg-gray-300'} text-gray-800 flex items-center`}
-                              >
-                                <input type="checkbox" checked={t.completed} readOnly className="w-3 h-3 mr-1" />
-                                {t.title}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {eventsForDateKey(dayKey)
-                          .filter(e => e.time?.split(':')[0] === String(h).padStart(2, '0'))
-                          .map(ev => (
-                            <div
-                              key={ev.id}
-                              onClick={e => { e.stopPropagation(); openViewModal(ev); }}
-                              className={`absolute inset-x-1 top-1 h-5 rounded px-1 text-xs ${ev.color} text-white flex items-center truncate`}
-                            >
-                              {ev.time} {ev.title}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeView === 'Schedule' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
-                <ul className="space-y-3">
-                  {scheduleList.length === 0 && <div className="text-gray-500">No items</div>}
-                  {scheduleList.map(it => (
-                    <li
-                      key={it.id}
-                      onClick={() => openViewModal(it)}
-                      className="p-3 bg-white/5 rounded-md flex items-center justify-between cursor-pointer"
-                    >
-                      <div>
-                        <div className="font-medium flex items-center gap-2">
-                          {it.type === 'task' && (
-                            <input
-                              type="checkbox"
-                              checked={it.completed}
-                              onChange={e => { e.stopPropagation(); toggleTaskComplete(it.id); }}
-                              className="rounded"
-                            />
-                          )}
-                          {it.title}
-                        </div>
-                        <div className="text-sm text-gray-400">
-                          {it.time ? `${it.time} • ` : ''}{fmtFullDate(it.dateKey)}
                         </div>
                       </div>
-                      {it.type === 'event' && <div className={`w-3 h-3 rounded-full ${it.color}`} />}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </>
-        )}
-
-        {activeTab === 'Tasks' && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-              <h3 className="text-lg font-semibold flex items-center">
-                <span className="mr-2">Tasks</span>
-                <span className="text-sm text-white/60">({filteredItems.filter(i => i.type === 'task').length})</span>
-              </h3>
-
-              {/* Group By and Sort By Controls */}
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                {/* Phase 3: Bulk Select Toggle */}
-                <button
-                  onClick={() => {
-                    setBulkSelectMode(!bulkSelectMode);
-                    setSelectedTaskIds(new Set());
-                  }}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${bulkSelectMode
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
-                    }`}
-                >
-                  {bulkSelectMode ? 'Cancel' : 'Select'}
-                </button>
-
-                <select
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value as any)}
-                  className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                >
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="none">No Grouping</option>
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Group by Priority</option>
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="status">Group by Status</option>
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Group by Date</option>
-                </select>
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
-                >
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Sort by Date</option>
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Sort by Priority</option>
-                  <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="alpha">Sort Alphabetically</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Phase 3: Bulk Action Buttons */}
-            {bulkSelectMode && (
-              <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center justify-between">
-                <div className="flex gap-2">
-                  <button
-                    onClick={selectAllTasks}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Select All
-                  </button>
-                  <span className="text-white/40">|</span>
-                  <button
-                    onClick={deselectAllTasks}
-                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Deselect All
-                  </button>
-                  <span className="text-white/40 ml-2">
-                    {selectedTaskIds.size} selected
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={bulkCompleteSelected}
-                    disabled={selectedTaskIds.size === 0}
-                    className="px-3 py-1.5 text-sm bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Complete Selected
-                  </button>
-                  <button
-                    onClick={bulkDeleteSelected}
-                    disabled={selectedTaskIds.size === 0}
-                    className="px-3 py-1.5 text-sm bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Delete Selected
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {filteredItems.filter(i => i.type === 'task').length === 0 ? (
-              <div className="text-center py-12 text-white/40">
-                <p>No tasks found</p>
-                {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all') && (
-                  <p className="text-sm mt-2">Try adjusting your filters</p>
-                )}
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {filteredItems
-                  .filter(i => i.type === 'task')
-                  .sort((a, b) => {
-                    if (sortBy === 'date') return a.dateKey.localeCompare(b.dateKey);
-                    if (sortBy === 'priority') {
-                      const priorityOrder = { high: 0, medium: 1, low: 2 };
-                      return (priorityOrder[a.priority as keyof typeof priorityOrder] || 3) -
-                        (priorityOrder[b.priority as keyof typeof priorityOrder] || 3);
-                    }
-                    return a.title.localeCompare(b.title);
-                  })
-                  .map(t => (
-                    <li key={t.id} className="flex items-start space-x-3 p-3 bg-white/5 rounded-md hover:bg-white/10 transition-colors group">
-                      {/* Phase 3: Bulk select checkbox or regular checkbox */}
-                      {bulkSelectMode ? (
-                        <input
-                          type="checkbox"
-                          checked={selectedTaskIds.has(t.id)}
-                          onChange={() => toggleTaskSelection(t.id)}
-                          className="mt-1 rounded w-5 h-5"
-                        />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={t.completed}
-                          onChange={() => toggleTaskComplete(t.id)}
-                          className="mt-1 rounded"
-                        />
-                      )}
-
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`${t.completed ? 'line-through text-gray-500' : 'text-white'}`}>
-                            {t.title}
-                          </span>
-                          {t.priority && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${t.priority === 'high' ? 'bg-white/20 text-white' :
-                              t.priority === 'medium' ? 'bg-white/15 text-white/80' :
-                                'bg-white/10 text-white/60'
-                              }`}>
-                              {t.priority}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {fmtFullDate(t.dateKey)}
-                        </div>
-                        {t.tags && t.tags.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {t.tags.map(tag => (
-                              <span key={tag} className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Phase 3: Duplicate button */}
-                      {!bulkSelectMode && (
-                        <button
-                          onClick={() => duplicateTask(t.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-xs bg-white/10 text-white/60 hover:bg-white/20 hover:text-white rounded"
-                          title="Duplicate task"
-                        >
-                          Duplicate
-                        </button>
-                      )}
-                    </li>
-                  ))}
-              </ul>
-            )}
-
-            <button
-              onClick={() => openAddModal(new Date(), 'task')}
-              className="mt-6 w-full py-3 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            >
-              + Add Task
-            </button>
-          </div>
-        )}
-      </div>
-
-      {
-        isModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
-            <div className="bg-[#2B2B2B] rounded-[20px] shadow-lg p-6 w-full max-w-md relative">
-              <button onClick={closeModal} className="cursor-pointer absolute top-3 right-3 text-gray-500 hover:text-gray-700">
-                <X />
-              </button>
-
-              {!selectedItem && selectedDateForModal && (
-                <>
-                  <h3 className="text-lg font-semibold mb-3">Add New</h3>
-                  <div className="text-sm text-gray-500 mb-4">
-                    {selectedDateForModal.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
-                  </div>
-
-                  <div className="flex mb-4 border border-white/20 rounded-full overflow-hidden">
-                    {(['event', 'task'] as const).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setModalMode(m)}
-                        className={`cursor-pointer flex-1 py-2 text-sm font-medium transition-colors ${modalMode === m
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white/10 text-white/40'
-                          }`}
-                      >
-                        {m === 'event' ? 'Event' : 'Task'}
-                      </button>
                     ))}
                   </div>
-
-                  <form onSubmit={handleAddSubmit} className="space-y-3">
-                    <input
-                      name="title"
-                      placeholder={modalMode === 'event' ? 'Event title' : 'Task name'}
-                      required
-                      className="w-full px-3 py-2 bg-transparent border-b-2 border-gray-100 text-white focus:ring-0 focus:outline-none"
-                    />
-
-                    {modalMode === 'event' && (
-                      <>
-                        <input
-                          type="time"
-                          name="time"
-                          defaultValue="00:00"
-                          className="w-fit px-3 py-2 bg-white/10 rounded-md cursor-pointer border border-white/20 text-white bg-[#2D2D2D] focus:ring-0 focus:outline-none"
-                        />
-                        <select name="color" className="w-full px-3 py-2 bg-[#2D2D2D] rounded-md cursor-pointer border border-white/20 text-white focus:ring-0 focus:outline-none">
-                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-blue-500">Blue</option>
-                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-red-500">Red</option>
-                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-green-500">Green</option>
-                          <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-purple-500">Purple</option>
-                        </select>
-                      </>
-                    )}
-
-                    <textarea
-                      name="desc"
-                      placeholder="Description (optional)"
-                      className="w-full px-3 py-2 rounded-md bg-white/10 text-white/40 resize-none focus:ring-0 focus:outline-none"
-                      rows={4}
-                    />
-
-                    <div className="flex justify-end gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={closeModal}
-                        className="cursor-pointer px-4 py-2 rounded-md border border-white/20 text-white/50 hover:bg-white/15"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                      >
-                        Add {modalMode === 'event' ? 'Event' : 'Task'}
-                      </button>
-                    </div>
-                  </form>
-                </>
+                </div>
               )}
 
-              {selectedItem && (
-                <>
-                  <h3 className="text-lg font-semibold mb-2">
-                    {selectedItem.type === 'event' ? 'Event' : 'Task'} Details
-                  </h3>
-                  <div className="text-sm text-gray-500 mb-4">
-                    {fmtFullDate(selectedItem.dateKey)} {selectedItem.time ? `• ${selectedItem.time}` : ''}
-                  </div>
-
-                  <div className="mb-4">
-                    {selectedItem.type === 'task' && (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedItem.completed}
-                          onChange={() => toggleTaskComplete(selectedItem.id)}
-                          className="rounded w-4 h-4"
-                        />
-                        <span className={`${selectedItem.completed ? 'line-through text-gray-500' : ''}`}>
-                          {selectedItem.title}
-                        </span>
-                      </label>
-                    )}
-                    {selectedItem.type === 'event' && (
-                      <>
-                        <div className="font-medium">{selectedItem.title}</div>
-                        {selectedItem.desc && <div className="text-sm text-gray-600 mt-1">{selectedItem.desc}</div>}
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    {selectedItem.type === 'event' && (
-                      <div className={`w-4 h-4 rounded-full ${selectedItem.color}`} />
-                    )}
-                    <div className="flex gap-2">
-                      <button onClick={closeModal} className="px-3 py-2 rounded-md border">
-                        Close
-                      </button>
-                      <button
-                        onClick={() => deleteItem(selectedItem.id)}
-                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              {activeView === 'Schedule' && (
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
+                  <ul className="space-y-3">
+                    {scheduleList.length === 0 && <div className="text-gray-500">No items</div>}
+                    {scheduleList.map(it => (
+                      <li
+                        key={it.id}
+                        onClick={() => openViewModal(it)}
+                        className="p-3 bg-white/5 rounded-md flex items-center justify-between cursor-pointer"
                       >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </>
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            {it.type === 'task' && (
+                              <input
+                                type="checkbox"
+                                checked={it.completed}
+                                onChange={e => { e.stopPropagation(); toggleTaskComplete(it.id); }}
+                                className="rounded"
+                              />
+                            )}
+                            {it.title}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {it.time ? `${it.time} • ` : ''}{fmtFullDate(it.dateKey)}
+                          </div>
+                        </div>
+                        {it.type === 'event' && <div className={`w-3 h-3 rounded-full ${it.color}`} />}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
+            </>
+          )}
+
+          {activeTab === 'Tasks' && (
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-sm p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <span className="mr-2">Tasks</span>
+                  <span className="text-sm text-white/60">({filteredItems.filter(i => i.type === 'task').length})</span>
+                </h3>
+
+                {/* Group By and Sort By Controls */}
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  {/* Phase 3: Bulk Select Toggle */}
+                  <button
+                    onClick={() => {
+                      setBulkSelectMode(!bulkSelectMode);
+                      setSelectedTaskIds(new Set());
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${bulkSelectMode
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
+                      }`}
+                  >
+                    {bulkSelectMode ? 'Cancel' : 'Select'}
+                  </button>
+
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as any)}
+                    className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                  >
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="none">No Grouping</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Group by Priority</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="status">Group by Status</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Group by Date</option>
+                  </select>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer"
+                  >
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="date">Sort by Date</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="priority">Sort by Priority</option>
+                    <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="alpha">Sort Alphabetically</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Phase 3: Bulk Action Buttons */}
+              {bulkSelectMode && (
+                <div className="mb-4 p-3 bg-white/5 rounded-lg border border-white/10 flex items-center justify-between">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={selectAllTasks}
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-white/40">|</span>
+                    <button
+                      onClick={deselectAllTasks}
+                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Deselect All
+                    </button>
+                    <span className="text-white/40 ml-2">
+                      {selectedTaskIds.size} selected
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={bulkCompleteSelected}
+                      disabled={selectedTaskIds.size === 0}
+                      className="px-3 py-1.5 text-sm bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Complete Selected
+                    </button>
+                    <button
+                      onClick={bulkDeleteSelected}
+                      disabled={selectedTaskIds.size === 0}
+                      className="px-3 py-1.5 text-sm bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Delete Selected
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {filteredItems.filter(i => i.type === 'task').length === 0 ? (
+                <div className="text-center py-12 text-white/40">
+                  <p>No tasks found</p>
+                  {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all') && (
+                    <p className="text-sm mt-2">Try adjusting your filters</p>
+                  )}
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {filteredItems
+                    .filter(i => i.type === 'task')
+                    .sort((a, b) => {
+                      if (sortBy === 'date') return a.dateKey.localeCompare(b.dateKey);
+                      if (sortBy === 'priority') {
+                        const priorityOrder = { high: 0, medium: 1, low: 2 };
+                        return (priorityOrder[a.priority as keyof typeof priorityOrder] || 3) -
+                          (priorityOrder[b.priority as keyof typeof priorityOrder] || 3);
+                      }
+                      return a.title.localeCompare(b.title);
+                    })
+                    .map(t => (
+                      <li key={t.id} className="flex items-start space-x-3 p-3 bg-white/5 rounded-md hover:bg-white/10 transition-colors group">
+                        {/* Phase 3: Bulk select checkbox or regular checkbox */}
+                        {bulkSelectMode ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedTaskIds.has(t.id)}
+                            onChange={() => toggleTaskSelection(t.id)}
+                            className="mt-1 rounded w-5 h-5"
+                          />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={t.completed}
+                            onChange={() => toggleTaskComplete(t.id)}
+                            className="mt-1 rounded"
+                          />
+                        )}
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`${t.completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                              {t.title}
+                            </span>
+                            {t.priority && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${t.priority === 'high' ? 'bg-white/20 text-white' :
+                                t.priority === 'medium' ? 'bg-white/15 text-white/80' :
+                                  'bg-white/10 text-white/60'
+                                }`}>
+                                {t.priority}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {fmtFullDate(t.dateKey)}
+                          </div>
+                          {t.tags && t.tags.length > 0 && (
+                            <div className="flex gap-1 mt-1">
+                              {t.tags.map(tag => (
+                                <span key={tag} className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Phase 3: Duplicate button */}
+                        {!bulkSelectMode && (
+                          <button
+                            onClick={() => duplicateTask(t.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 text-xs bg-white/10 text-white/60 hover:bg-white/20 hover:text-white rounded"
+                            title="Duplicate task"
+                          >
+                            Duplicate
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              )}
+
+              <button
+                onClick={() => openAddModal(new Date(), 'task')}
+                className="mt-6 w-full py-3 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              >
+                + Add Task
+              </button>
             </div>
-          </div>
-        )
-      }
-    </div >
+          )}
+        </div>
+
+        {
+          isModalOpen && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+              <div className="bg-[#2B2B2B] rounded-[20px] shadow-lg p-6 w-full max-w-md relative">
+                <button onClick={closeModal} className="cursor-pointer absolute top-3 right-3 text-gray-500 hover:text-gray-700">
+                  <X />
+                </button>
+
+                {!selectedItem && selectedDateForModal && (
+                  <>
+                    <h3 className="text-lg font-semibold mb-3">Add New</h3>
+                    <div className="text-sm text-gray-500 mb-4">
+                      {selectedDateForModal.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+
+                    <div className="flex mb-4 border border-white/20 rounded-full overflow-hidden">
+                      {(['event', 'task'] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setModalMode(m)}
+                          className={`cursor-pointer flex-1 py-2 text-sm font-medium transition-colors ${modalMode === m
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white/10 text-white/40'
+                            }`}
+                        >
+                          {m === 'event' ? 'Event' : 'Task'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <form onSubmit={handleAddSubmit} className="space-y-3">
+                      <input
+                        name="title"
+                        placeholder={modalMode === 'event' ? 'Event title' : 'Task name'}
+                        required
+                        className="w-full px-3 py-2 bg-transparent border-b-2 border-gray-100 text-white focus:ring-0 focus:outline-none"
+                      />
+
+                      {modalMode === 'event' && (
+                        <>
+                          <input
+                            type="time"
+                            name="time"
+                            defaultValue="00:00"
+                            className="w-fit px-3 py-2 bg-white/10 rounded-md cursor-pointer border border-white/20 text-white bg-[#2D2D2D] focus:ring-0 focus:outline-none"
+                          />
+                          <select name="color" className="w-full px-3 py-2 bg-[#2D2D2D] rounded-md cursor-pointer border border-white/20 text-white focus:ring-0 focus:outline-none">
+                            <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-blue-500">Blue</option>
+                            <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-red-500">Red</option>
+                            <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-green-500">Green</option>
+                            <option style={{ backgroundColor: '#1a1a1a', color: 'white' }} value="bg-purple-500">Purple</option>
+                          </select>
+                        </>
+                      )}
+
+                      <textarea
+                        name="desc"
+                        placeholder="Description (optional)"
+                        className="w-full px-3 py-2 rounded-md bg-white/10 text-white/40 resize-none focus:ring-0 focus:outline-none"
+                        rows={4}
+                      />
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={closeModal}
+                          className="cursor-pointer px-4 py-2 rounded-md border border-white/20 text-white/50 hover:bg-white/15"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="cursor-pointer px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                        >
+                          Add {modalMode === 'event' ? 'Event' : 'Task'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+
+                {selectedItem && (
+                  <>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {selectedItem.type === 'event' ? 'Event' : 'Task'} Details
+                    </h3>
+                    <div className="text-sm text-gray-500 mb-4">
+                      {fmtFullDate(selectedItem.dateKey)} {selectedItem.time ? `• ${selectedItem.time}` : ''}
+                    </div>
+
+                    <div className="mb-4">
+                      {selectedItem.type === 'task' && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedItem.completed}
+                            onChange={() => toggleTaskComplete(selectedItem.id)}
+                            className="rounded w-4 h-4"
+                          />
+                          <span className={`${selectedItem.completed ? 'line-through text-gray-500' : ''}`}>
+                            {selectedItem.title}
+                          </span>
+                        </label>
+                      )}
+                      {selectedItem.type === 'event' && (
+                        <>
+                          <div className="font-medium">{selectedItem.title}</div>
+                          {selectedItem.desc && <div className="text-sm text-gray-600 mt-1">{selectedItem.desc}</div>}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      {selectedItem.type === 'event' && (
+                        <div className={`w-4 h-4 rounded-full ${selectedItem.color}`} />
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={closeModal} className="px-3 py-2 rounded-md border">
+                          Close
+                        </button>
+                        <button
+                          onClick={() => deleteItem(selectedItem.id)}
+                          className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        }
+      </div>
+    </div>
   );
 };
 

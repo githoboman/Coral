@@ -1,14 +1,26 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
 import { AppLayout, Dashboard, Activity, Account, OnchainAnalysis } from '@/pages/';
 import { TelegramProvider } from '@/components/TelegramProvider';
+import { SplashScreen } from '@/components/ui/SplashScreen';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <TelegramProvider>
-      <div>
+      <div className={`app-container ${showSplash ? 'splash-visible' : ''}`}>
+        {showSplash && <SplashScreen />}
         <Routes>
           <Route
             element={

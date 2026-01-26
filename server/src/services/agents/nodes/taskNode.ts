@@ -111,6 +111,8 @@ Examples:
       confirmationMessage += `\n- Details: ${data.description}`;
     }
 
+    confirmationMessage += `\n\n**What would you like to do next?**\n- Create another task\n- View my task list\n- Update this task`;
+
     console.log(`Task created: ${data.id} for user: ${state.userId}`);
 
     return {

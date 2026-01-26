@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { X, Mail } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Mail } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface OnboardingProps {
@@ -7,111 +9,175 @@ interface OnboardingProps {
   loading: boolean;
   message: string | null;
   initialEmail?: string | null;
-  onSubmit: (email: string, additionalData?: { username?: string; firstName?: string; lastName?: string }) => void;
-  onClearMessage: () => void;
+  onVerifyWaitlist: (email: string) => Promise<boolean>;
+  onSubmit: (email: string, additionalData?: {
+    notifications_enabled?: boolean;
+    analytics_enabled?: boolean;
+    personalization_enabled?: boolean;
+  }) => void;
 }
 
-export function OnboardingModal({ isOpen, loading, message, initialEmail, onSubmit, onClearMessage }: OnboardingProps) {
+export function OnboardingModal({ isOpen, loading, message, initialEmail, onVerifyWaitlist, onSubmit }: OnboardingProps) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState(initialEmail || '');
+  const [preferences, setPreferences] = useState({
+    notifications: true,
+    analytics: false,
+    personalization: false
+  });
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isEmailFromOAuth = !!initialEmail;
 
-  // Update email state when initialEmail changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialEmail) {
       setEmail(initialEmail);
     }
   }, [initialEmail]);
 
+  useGSAP(() => {
+    if (isOpen) {
+      gsap.fromTo(modalRef.current, { opacity: 0, scale: 0.9, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'power3.out' });
+    }
+  }, [isOpen]);
+
+  useGSAP(() => {
+    if (contentRef.current) {
+      gsap.fromTo(contentRef.current, { opacity: 0, x: step === 1 ? -20 : 20 }, { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' });
+    }
+  }, [step]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
+  const handleWaitlistVerify = async () => {
     if (email.trim()) {
-      onSubmit(email.trim());
+      const success = await onVerifyWaitlist(email.trim());
+      if (success) {
+        setStep(2);
+      }
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !loading && email.trim()) {
-      handleSubmit();
-    }
+  const handleFinalSubmit = () => {
+    onSubmit(email.trim(), {
+      notifications_enabled: preferences.notifications,
+      analytics_enabled: preferences.analytics,
+      personalization_enabled: preferences.personalization
+    });
   };
+
+  const Switch = ({ active, onChange }: { active: boolean, onChange: (val: boolean) => void }) => (
+    <button
+      onClick={() => onChange(!active)}
+      className={`w-12 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${active ? 'bg-[#B7FC0D]' : 'bg-white/10'}`}
+    >
+      <div className={`absolute top-1 w-4 h-4 rounded-full transition-all duration-300 ${active ? 'left-7 bg-[#070B0F]' : 'left-1 bg-white/40'}`} />
+    </button>
+  );
 
   return (
-    <div className="fixed inset-0 bg-[#161010] z-[300] backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-md bg-[#0C1419]/45 backdrop-blur-xl border border-white/10 rounded-[20px] shadow-2xl animate-in fade-in-50 slide-in-from-bottom-2 duration-300">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center gap-3 mb-4">
-            <div className="w-35 h-35 bg-gradient-to-r from-transparent to-[#00103] backdrop-blur-md rounded-xl flex items-center justify-center">
-              <img
-                src="/assets/images/signin-logo.png"
-                alt="Logo"
-                className=" h-full w-full bg-cover"
-              />
-            </div>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white to-[#00FF88] bg-clip-text text-transparent mb-2">
-            Complete Your Profile
-          </h2>
-          <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
-            Enter your email to verify your waitlist status
-          </p>
-        </div>
+    <div className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="w-full max-w-[400px] bg-[#070B0F]/95 backdrop-blur-2xl border border-white/5 rounded-[32px] shadow-2xl relative overflow-hidden"
+      >
+        <div className="p-6" ref={contentRef}>
+          {step === 1 ? (
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B7FC0D] to-[#246AFC] p-0.5 mb-6">
+                <div className="w-full h-full rounded-full bg-[#070B0F] flex items-center justify-center p-3">
+                  <img src="/assets/images/signin-logo.png" alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
 
-        <div className="p-6 space-y-4">
-          {message && (
-            <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${message.includes('successfully') || message.includes('Welcome')
-              ? 'bg-green-50 text-green-800'
-              : 'bg-red-50 text-red-800'
-              }`}>
-              <span className="flex-1">{message}</span>
-              <button
-                type="button"
-                onClick={onClearMessage}
-                className="text-current opacity-60 hover:opacity-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">Complete Your Profile</h2>
+              <p className="text-white/40 text-sm text-center mb-8 font-medium">Enter your email to verify your waitlist status</p>
+
+              <div className="w-full space-y-5">
+                {message && (
+                  <div className={`p-4 rounded-2xl text-sm font-medium ${message.includes('successfully') ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                    {message}
+                  </div>
+                )}
+
+                <div className="relative group">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#B7FC0D] transition-colors">
+                    <Mail size={20} />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => !isEmailFromOAuth && setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="w-full pl-14 pr-6 py-3.5 bg-[#15191C] border border-white/5 rounded-full text-white text-base placeholder-white/20 focus:outline-none focus:border-[#B7FC0D]/30 transition-all font-medium"
+                    disabled={loading || isEmailFromOAuth}
+                  />
+                </div>
+
+                <button
+                  onClick={handleWaitlistVerify}
+                  disabled={loading || !email.trim()}
+                  className="w-full py-3.5 bg-white text-black rounded-full font-bold text-base hover:bg-white/90 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                >
+                  {loading ? (
+                    <>
+                      <LoadingSpinner size="sm" className="border-black border-t-transparent" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify Waitlist Status'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <h2 className="text-[24px] font-bold text-white mb-5 tracking-tight">Choose what we can do</h2>
+
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5">
+                  <span className="text-white font-bold text-base">Recieve notifications</span>
+                  <Switch
+                    active={preferences.notifications}
+                    onChange={(v) => setPreferences(prev => ({ ...prev, notifications: v }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5">
+                  <span className="text-white font-bold text-base">Analytics data sharing</span>
+                  <Switch
+                    active={preferences.analytics}
+                    onChange={(v) => setPreferences(prev => ({ ...prev, analytics: v }))}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/5">
+                  <span className="text-white font-bold text-sm">Personalisation</span>
+                  <Switch
+                    active={preferences.personalization}
+                    onChange={(v) => setPreferences(prev => ({ ...prev, personalization: v }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleFinalSubmit}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-10 py-3.5 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {loading ? <LoadingSpinner size="sm" /> : 'Continue'}
+                </button>
+              </div>
             </div>
           )}
-
-          <div>
-            <div className="w-full text-white/70 px-4 py-2.5 bg-[#191919] border border-[#4E4E4E] rounded-full relative flex items-center gap-2">
-              <Mail className="mt-1.5" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => !isEmailFromOAuth && setEmail(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="your@email.com"
-                required
-                disabled={loading || isEmailFromOAuth}
-                readOnly={isEmailFromOAuth}
-                className={`text-lg focus:outline-none focus:ring-0 focus:border-transparent disabled:bg-white/10 disabled:text-white/50 ${isEmailFromOAuth ? 'cursor-not-allowed opacity-75' : ''}`}
-              />
-            </div>
-            {isEmailFromOAuth && (
-              <p className="text-xs text-white/40 mt-2 ml-4">Email from your Google account</p>
-            )}
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !email.trim()}
-            className={`mt-10 cursor-pointer w-full group relative overflow-hidden border border-[#4E4E4E] rounded-full py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${loading
-              ? 'bg-white/10 cursor-not-allowed opacity-50'
-              : 'bg-[#191919] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-              } text-white disabled:cursor-not-allowed`}
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-sm">Verifying waitlist status...</span>
-              </div>
-            ) : (
-              <p>Verify Waitlist Status</p>
-            )}
-          </button>
         </div>
+      </div>
+
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[400px] text-center text-[10px] text-white/30 font-medium leading-normal px-4 opacity-0 animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
+        You can help us improve Tovira AI by allowing access to your usage data.{' '}
+        <button className="text-[#B7FC0D] hover:underline cursor-pointer">Learn more about data sharing</button>
       </div>
     </div>
   );

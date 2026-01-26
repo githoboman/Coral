@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, Check, X } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAgentConfig, allAgents } from '@/config/agents';
+import { allAgents } from '@/config/agents';
 import { ModalPortal } from '@/components/ui/ModalPortal';
 
 interface AgentSelectorProps {
@@ -13,8 +13,6 @@ interface AgentSelectorProps {
 const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: AgentSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedAgent = getAgentConfig(selectedAgentId);
-
   const handleAgentSelect = (agentId: string) => {
     onAgentChange(agentId);
     setIsOpen(false);
@@ -23,20 +21,15 @@ const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: Agent
   return (
     <>
       <div className={className}>
-        {/* Trigger Button */}
+        {/* Trigger Button - Gradient Pill */}
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 px-3 py-3 rounded-full bg-white/5 hover:bg-white/10 transition-all duration-200 border border-white/10"
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#8BEE1C] to-[#2B87D1] hover:opacity-90 transition-all duration-300 shadow-lg active:scale-95 group cursor-pointer"
         >
-          <img
-            src={selectedAgent.iconUrl}
-            alt={selectedAgent.displayName}
-            className="w-6 h-6 rounded-full object-cover"
-          />
-          <span className="text-white font-medium text-sm">{selectedAgent.displayName}</span>
-          <ChevronDown
-            size={16}
-            className="text-white/60"
+          <span className="text-white font-bold text-[15px]">Select agent</span>
+          <ChevronUp
+            size={18}
+            className={`text-white transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
           />
         </button>
       </div>
@@ -51,80 +44,64 @@ const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: Agent
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
+              className="fixed inset-0 bg-black/40 backdrop-blur-md z-[200] cursor-pointer"
             />
 
-            {/* Modal Content */}
+            {/* Modal Content - Positioned above the input area */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-              onClick={() => setIsOpen(false)}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-[90px] right-4 md:right-8 z-[200] w-full max-w-[320px]"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-[#1a1a1a] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden"
+                className="bg-[#070B0F]/95 backdrop-blur-2xl border border-white/10 rounded-[30px] p-4 shadow-2xl flex flex-col gap-2"
               >
-                {/* Header */}
-                <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-white">Select AI Agent</h2>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="p-1 hover:bg-white/10 rounded-full transition-colors"
-                  >
-                    <X size={18} className="text-white/60" />
-                  </button>
-                </div>
+                {allAgents.map((agent) => {
+                  const isSelected = agent.id === selectedAgentId;
 
-                {/* Agents Grid */}
-                <div className="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {allAgents.map((agent) => {
-                    const isSelected = agent.id === selectedAgentId;
+                  return (
+                    <button
+                      key={agent.id}
+                      onClick={() => handleAgentSelect(agent.id)}
+                      className={`relative flex items-center p-2 rounded-2xl transition-all duration-300 text-left gap-3 cursor-pointer
+                        ${isSelected
+                          ? 'bg-white/5 border border-white/10'
+                          : 'bg-transparent border border-transparent hover:bg-white/5'
+                        }
+                      `}
+                    >
+                      {/* Icon Container */}
+                      <div className="w-10 h-10 rounded-full p-1.5 bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+                        <img
+                          src={agent.iconUrl}
+                          alt={agent.displayName}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
 
-                    return (
-                      <button
-                        key={agent.id}
-                        onClick={() => handleAgentSelect(agent.id)}
-                        className={`relative flex flex-col items-start p-3 rounded-2xl border transition-all duration-200 text-left group ${isSelected
-                          ? 'bg-white/10 border-white/20'
-                          : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between w-full mb-2">
-                          <div className="w-10 h-10 rounded-full p-0.5 bg-gradient-to-br from-white/10 to-white/5 border border-white/10">
-                            <img
-                              src={agent.iconUrl}
-                              alt={agent.displayName}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          </div>
-                          {isSelected && (
-                            <div className="w-5 h-5 rounded-full bg-[#00FF88] flex items-center justify-center">
-                              <Check size={12} className="text-black font-bold" />
-                            </div>
-                          )}
+                      {/* Info Container */}
+                      <div className="flex-1 flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-white font-semibold text-[14px]">{agent.displayName}</span>
                         </div>
 
-                        <h3 className="text-white font-bold text-base mb-1 group-hover:text-[#00FF88] transition-colors">
-                          {agent.displayName}
-                        </h3>
-
-                        <p className="text-white/60 text-xs mb-3 line-clamp-2">
-                          {agent.description}
-                        </p>
-
-                        <div className="mt-auto pt-3 w-full border-t border-white/5 flex items-center justify-between">
-                          <span className="text-xs font-mono text-white/40 uppercase">Cost</span>
-                          <span className={`text-xs font-bold ${agent.fee > 0 ? 'text-[#00FF88]' : 'text-white/60'}`}>
-                            {agent.feeDisplay}
-                          </span>
+                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold 
+                          ${agent.fee > 0 ? 'bg-[#B7FC0D]/10 text-[#B7FC0D]' : 'bg-white/10 text-white/40'}
+                        `}>
+                          {agent.fee > 0 ? `$${agent.fee}` : 'Free'}
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                      </div>
+
+                      {/* Selected Glow/Gradient Border Effect */}
+                      {isSelected && (
+                        <div className="absolute inset-0 rounded-2xl border border-[#B7FC0D]/30 pointer-events-none" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
           </ModalPortal>

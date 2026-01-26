@@ -1,7 +1,78 @@
 @import "tailwindcss";
 
 :root {
-  /* Telegram theme variables - will be populated by SDK */
+  --splash-bg: #0a0a0a;
+  --loader-color: #3b82f6;
+}
+
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: var(--splash-bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.8s ease-out, visibility 0.8s;
+}
+
+.splash-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.splash-logo {
+  width: 100px;
+  height: auto;
+  animation: logo-entrance 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  opacity: 0;
+}
+
+.splash-loader {
+  width: 200px;
+  height: 200px;
+  padding: 4px;
+  background: conic-gradient(#B7FC0D, #246AFC);
+  mask: radial-gradient(circle, transparent 69%, black 70%);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes logo-entrance {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+    filter: blur(10px);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+:root {
   --tg-bg-color: #ffffff;
   --tg-text-color: #000000;
   --tg-hint-color: #999999;
@@ -15,7 +86,6 @@
   --tg-destructive-text-color: #e53935;
 }
 
-/* Telegram viewport adjustments */
 html,
 body {
   overscroll-behavior: none;
@@ -45,12 +115,10 @@ body {
   background-color: #4b5563;
 }
 
-/* Safe area insets for mobile devices with notches */
 .safe-area-inset-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Select dropdown styling to match dark theme */
 select {
   background-color: rgba(255, 255, 255, 0.05);
   color: white;
@@ -69,7 +137,6 @@ select option:checked {
   background: linear-gradient(0deg, #2a2a2a 0%, #2a2a2a 100%);
 }
 
-/* Firefox specific */
 @-moz-document url-prefix() {
   select option:checked {
     background-color: #2a2a2a !important;

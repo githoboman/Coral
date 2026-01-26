@@ -29,8 +29,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork={network}>
-        <RegisterEnokiWallets />
         <WalletProvider autoConnect>
+          <RegisterEnokiWallets />
           <Provider store={store}>
             <BrowserRouter>
               <AuthProvider>
@@ -41,5 +41,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </WalletProvider>
       </SuiClientProvider>
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode >,
 );

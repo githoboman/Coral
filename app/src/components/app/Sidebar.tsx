@@ -1,7 +1,19 @@
-import { Link } from 'react-router-dom';
-import { Search, Home, Bell, User, Users, PanelLeftClose, PanelRightClose, MessageSquare, Activity } from 'lucide-react';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import {
+  MessageSquare,
+  BarChart2,
+  Bell,
+  Clock,
+  User,
+  PanelLeft,
+  ChevronRight
+} from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { useCurrentAccount } from '@mysten/dapp-kit';
+import { fetchChats } from '@/store/slices/chatsSlice';
 
 interface SidebarProps {
   navItems: Array<{
@@ -9,102 +21,229 @@ interface SidebarProps {
     to: string;
     icon: keyof typeof iconMap;
     active: boolean;
+    hasSubmenu?: boolean;
+    subItems?: Array<{ name: string; to: string }>;
   }>;
-  onSignOut: () => void;
+  onSignOut?: () => void;
 }
 
 const iconMap = {
-  home: Home,
-  profile: User,
-  users: Users,
   messageSquare: MessageSquare,
+  activity: BarChart2,
   bell: Bell,
-  activity: Activity,
+  clock: Clock,
+  profile: User,
 };
 
 export function Sidebar({ navItems }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isRecentsOpen, setIsRecentsOpen] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const recentsRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const currentAccount = useCurrentAccount();
+  const user_id = currentAccount?.address;
+
+  // Get chats and current chat ID from Redux
+  const chats = useAppSelector(state => state.chats.chats);
+  const currentChatId = useAppSelector(state => state.chats.currentChatId);
+
+  // Fetch chats if not already loaded
+  useEffect(() => {
+    if (user_id && chats.length === 0) {
+      dispatch(fetchChats({ userId: user_id }));
+    }
+  }, [user_id, dispatch, chats.length]);
+
+  // Sort chats by last updated
+  const sortedChats = [...chats].sort((a, b) =>
+    new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime()
+  ).slice(0, 10); // Show up to 10 recent chats
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  return (
-    <motion.div
-      animate={{ width: isCollapsed ? 64 : 256, opacity: isCollapsed ? 0.8 : 1 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="h-full bg-gradient-to-b from-[#fdfdfd]/10 to-[#010103]/90 backdrop-blur-xl rounded-[30px] border border-white/10 flex flex-col"
-    >
-      <div className={`p-6 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-        {!isCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img
-                src="/assets/logo.png"
-                alt="Logo"
-                className="h-full w-full bg-cover"
-              />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">
-                Tovira
-              </h1>
-            </div>
-          </div>
-        )}
-        <button
-          onClick={toggleSidebar}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-        >
-          {isCollapsed ? <PanelRightClose size={20} className="text-white/60" /> : <PanelLeftClose size={20} className="text-white/60" />}
-        </button>
-      </div>
+  useGSAP(() => {
+    const activeLink = containerRef.current?.querySelector('.sidebar-link-active');
+    if (activeLink && indicatorRef.current) {
+      const rect = activeLink.getBoundingClientRect();
+      const parentRect = containerRef.current!.getBoundingClientRect();
+      const targetY = rect.top - parentRect.top + (rect.height / 2) - 20; // 20 is half of 40px height
 
-      <div className={`px-4 ${isCollapsed ? 'hidden' : ''}`}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={18} />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 bg-white/5 rounded-[30px] text-white/80 placeholder-white/40 border border-white/10 focus:outline-none focus:border-[#00FF88] transition-colors"
-          />
+      gsap.to(indicatorRef.current, {
+        y: targetY,
+        opacity: 1,
+        duration: 0.4,
+        ease: 'expo.out',
+        overwrite: true
+      });
+    } else if (indicatorRef.current) {
+      gsap.to(indicatorRef.current, { opacity: 0, duration: 0.2 });
+    }
+  }, [navItems, isCollapsed, location.pathname]);
+
+  useGSAP(() => {
+    const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.35 } });
+
+    tl.to(containerRef.current, {
+      width: isCollapsed ? 64 : 240,
+    }, 0);
+
+    tl.to(".sidebar-label", {
+      opacity: isCollapsed ? 0 : 1,
+      x: isCollapsed ? -20 : 0,
+      pointerEvents: isCollapsed ? 'none' : 'auto',
+      duration: 0.25,
+    }, 0);
+
+    tl.to(".sidebar-header-toggle", {
+      opacity: isCollapsed ? 0 : 1,
+      pointerEvents: isCollapsed ? 'none' : 'auto',
+      duration: 0.2
+    }, 0);
+  }, [isCollapsed]);
+
+  useGSAP(() => {
+    if (recentsRef.current) {
+      if (isRecentsOpen && !isCollapsed) {
+        gsap.to(recentsRef.current, { height: 'auto', opacity: 1, duration: 0.4, ease: 'power2.out' });
+      } else {
+        gsap.to(recentsRef.current, { height: 0, opacity: 0, duration: 0.3, ease: 'power2.in' });
+      }
+    }
+  }, [isRecentsOpen, isCollapsed]);
+
+
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-[calc(100dvh-32px)] bg-[#070B0F] border border-white/5 rounded-[30px] flex flex-col relative shadow-2xl overflow-hidden will-change-[width]"
+    >
+      {/* Floating Indicator */}
+      <div
+        ref={indicatorRef}
+        className="absolute left-0 w-[3px] h-[40px] bg-[#B7FC0D] rounded-r-full z-50 pointer-events-none opacity-0 shadow-[0_0_12px_rgba(183,252,13,0.4)]"
+      />
+
+      {/* Header */}
+      <div className={`flex items-center mb-6 h-14 overflow-hidden transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'p-4 justify-between'}`}>
+        <div className={`flex items-center gap-3 cursor-pointer min-w-0 ${isCollapsed ? 'justify-center' : ''}`} onClick={() => (window.location.href = '/')}>
+          <div className="w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src="/assets/logo.png" alt="Logo" className="w-5 h-5 object-contain" />
+          </div>
+          {!isCollapsed && <span className="sidebar-label text-[22px] font-bold text-white tracking-tight truncate">Tovira</span>}
         </div>
+        {!isCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="sidebar-header-toggle text-white/40 hover:text-white transition-colors p-1 cursor-pointer flex-shrink-0"
+          >
+            <PanelLeft size={20} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-6">
-        <ul className="space-y-1 px-3">
-          {navItems.map((item) => {
-            const Icon = iconMap[item.icon] || Home;
-            return (
-              <li key={item.name}>
-                <Link
-                  to={item.to}
-                  className={`group flex items-center px-3 py-3 rounded-xl transition-all duration-200 gap-3 ${isCollapsed && "justify-center"} ${item.active
-                    ? 'bg-gradient-to-r from-[#ffffff]/5 to-[#fdfdfd]/5 border border-[#ffffff]/10 text-white shadow-lg'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                >
+      <nav className="flex-1 px-2 space-y-1 overflow-y-auto no-scrollbar">
+        {navItems.map((item) => {
+          const Icon = iconMap[item.icon] || MessageSquare;
+          const isRecents = item.icon === 'clock';
+
+          return (
+            <div key={item.name} className="flex flex-col">
+              <Link
+                to={isRecents ? "#" : item.to}
+                onClick={(e) => {
+                  if (isRecents) {
+                    e.preventDefault();
+                    setIsRecentsOpen(!isRecentsOpen);
+                    if (isCollapsed) setIsCollapsed(false);
+                  }
+                }}
+                className={`sidebar-link group relative flex items-center h-12 rounded-2xl cursor-pointer transition-all duration-300
+                  ${item.active ? 'bg-white/10 text-white shadow-lg sidebar-link-active' : 'text-white/40 hover:text-white hover:bg-white/5'}
+                  ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
+                `}
+              >
+                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
                   <Icon
-                    className={`flex-shrink-0 ${item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'
-                      } transition-colors duration-200`}
                     size={20}
+                    className={`${item.active ? 'text-white' : 'group-hover:text-white'} transition-colors duration-200`}
                   />
-                  {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                </div>
+
+                {!isCollapsed && (
+                  <div className="sidebar-label flex flex-1 items-center justify-between min-w-0">
+                    <span className="text-[17px] font-bold tracking-tight truncate pl-3">{item.name}</span>
+                    {isRecents && (
+                      <ChevronRight
+                        size={16}
+                        className={`transition-transform duration-300 flex-shrink-0 ${isRecentsOpen ? 'rotate-90' : ''} text-white/40`}
+                      />
+                    )}
+                  </div>
+                )}
+              </Link>
+
+              {/* Recents Accordion */}
+              {isRecents && (
+                <div
+                  ref={recentsRef}
+                  className="overflow-hidden flex flex-col pl-10 pr-3 space-y-2 opacity-0 h-0"
+                >
+                  <div className="py-1.5 space-y-2">
+                    {sortedChats.map((chat) => (
+                      <button
+                        key={chat.chat_id}
+                        onClick={() => {
+                          navigate(`/${chat.chat_id}`);
+                        }}
+                        className={`text-[12px] text-left transition-colors truncate cursor-pointer w-full block
+                          ${chat.chat_id === currentChatId ? 'text-white' : 'text-white/30 hover:text-white/60'}
+                        `}
+                      >
+                        {chat.name || "Untitled Chat"}
+                      </button>
+                    ))}
+                    {sortedChats.length === 0 && (
+                      <span className="text-[10px] text-white/20 italic">No recent chats</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
-      <div className={`p-4 ${isCollapsed ? 'hidden' : ''}`}>
-        <div className="mt-4 pt-4">
-          <p className="text-white/30 text-xs text-center">
-            Built on <span className="font-semibold text-[#00FF88]">Sui</span>
-          </p>
-        </div>
+      {/* Bottom Actions */}
+      <div className="p-2 border-t border-white/5 space-y-1 overflow-hidden">
+        <Link
+          to="/account"
+          className={`sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300
+            ${location.pathname === '/account' ? 'bg-white/10 text-white sidebar-link-active' : ''}
+            ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
+          `}
+        >
+          <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+            <User size={20} />
+          </div>
+          {!isCollapsed && <span className="sidebar-label text-[17px] font-bold tracking-tight truncate pl-3">Profile</span>}
+        </Link>
       </div>
-    </motion.div>
+
+      {/* Collapse toggle for collapsed state */}
+      <button
+        onClick={toggleSidebar}
+        className={`absolute bottom-16 left-1/2 -translate-x-1/2 p-2 text-white/20 hover:text-white transition-all cursor-pointer ${isCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
+        <PanelLeft size={20} />
+      </button>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 // ============ User Types ============
 export interface UserProfile {
   user_id: string;
-  wallet_address: string;
+  wallet_address: string | null;
   email?: string;
   username?: string;
   first_name?: string;
@@ -20,7 +20,7 @@ export interface UserProfile {
 
 export interface UserUpdateRequest {
   user_id: string;
-  wallet_address: string;
+  wallet_address: string | null;
   email?: string;
   username?: string;
   first_name?: string;
@@ -33,6 +33,9 @@ export interface UserOnboardRequest {
   username?: string;
   first_name?: string;
   last_name?: string;
+  notifications_enabled?: boolean;
+  analytics_enabled?: boolean;
+  personalization_enabled?: boolean;
 }
 
 // ============ Task Types ============

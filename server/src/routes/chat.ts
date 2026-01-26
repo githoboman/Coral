@@ -51,6 +51,7 @@ router.post('/chat', rateLimitMiddleware, async (req, res) => {
         .insert({
           user_id,
           name: message.substring(0, 50), // Use first 50 chars as chat name
+          agent_id: agent_id || 'main',
         })
         .select('chat_id')
         .single();
@@ -151,12 +152,19 @@ router.post('/chat/stream', async (req, res) => {
 router.get('/chats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    const { agentId } = req.query;
 
-    const { data: chats, error } = await supabase
+    let query = supabase
       .from('chats')
       .select('*')
       .eq('user_id', userId)
       .order('last_updated', { ascending: false });
+
+    if (agentId) {
+      query = query.eq('agent_id', agentId);
+    }
+
+    const { data: chats, error } = await query;
 
     if (error) {
       console.error('Error fetching chats:', error);
