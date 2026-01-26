@@ -3,10 +3,30 @@ import { toast } from 'react-toastify';
 import { LoginModal, LoginDrawer } from './Login';
 import { OnboardingModal } from './Onboarding';
 import { WaitlistModal } from './WaitlistModal';
-import { useCurrentAccount, useCurrentWallet } from '@mysten/dapp-kit';
+import { useCurrentAccount, useCurrentWallet, useDisconnectWallet } from '@mysten/dapp-kit';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { jwtDecode } from 'jwt-decode';
+import { supabase } from '@/lib/supabase';
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import 'react-toastify/dist/ReactToastify.css';
+
+interface AuthContextType {
+  setIsLoginOpen: (open: boolean) => void;
+  isLoginOpen: boolean;
+  isOnboarded: boolean;
+  userEmail: string | null;
+  signOut: () => Promise<void>;
+}
+
+export const AuthContext = React.createContext<AuthContextType | null>(null);
+
+export const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -40,8 +60,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
 
   const currentAccount = useCurrentAccount();
+  const { mutate: disconnectWallet } = useDisconnectWallet();
   const { connectionStatus } = useCurrentWallet();
 
   // Check if dApp Kit is still initializing
@@ -58,13 +80,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Supabase auth listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSupabaseUser(session?.user ?? null);
+      if (session?.user) {
+        setUserEmail(session.user.email ?? null);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      setSupabaseUser(session?.user ?? null);
+      if (session?.user) {
+        setUserEmail(session.user.email ?? null);
+      } else {
+        setSupabaseUser(null);
+        setUserEmail(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Extract email from JWT
   const extractEmailFromJWT = (): string | null => {
     try {
       // Try multiple possible JWT storage locations
       let jwt = localStorage.getItem('zklogin_jwt');
-
-      // If not found in localStorage, try sessionStorage
       if (!jwt) {
         jwt = sessionStorage.getItem('zklogin_jwt');
       }
@@ -74,8 +116,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!jwt) {
         jwt = sessionStorage.getItem('id_token');
       }
-
-      // Try localStorage alternatives
       if (!jwt) {
         jwt = localStorage.getItem('enoki_jwt');
       }
@@ -83,76 +123,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         jwt = localStorage.getItem('id_token');
       }
 
-      // Check dapp-kit wallet connection info
       if (!jwt) {
         const walletInfo = localStorage.getItem('sui-dapp-kit:wallet-connection-info');
         if (walletInfo) {
           try {
             const parsed = JSON.parse(walletInfo);
-            // console.log('[AuthProvider] Dapp-kit wallet info:', parsed);
-            // Check if there's a JWT in the wallet info
             if (parsed.jwt || parsed.token || parsed.idToken) {
               jwt = parsed.jwt || parsed.token || parsed.idToken;
             }
           } catch (e) {
-            // console.log('[AuthProvider] Could not parse wallet info');
-          }
-        }
-      }
-
-      // Check Privy token storage
-      if (!jwt) {
-        const privyToken = localStorage.getItem('privy:token');
-        if (privyToken) {
-          try {
-            // Privy token might be a JWT or contain user info
-            if (privyToken.includes('.')) {
-              jwt = privyToken;
-            }
-          } catch (e) {
-            // console.log('[AuthProvider] Could not parse Privy token');
-          }
-        }
-      }
-
-      // Check for wallet-specific storage
-      if (!jwt) {
-        // Check all localStorage keys for anything that might be a JWT
-        const allKeys = Object.keys(localStorage);
-        console.log('Available localStorage keys:', allKeys);
-
-        // Look for keys that might contain JWT
-        const jwtKey = allKeys.find(key =>
-          key.toLowerCase().includes('jwt') ||
-          key.toLowerCase().includes('token') ||
-          key.toLowerCase().includes('enoki')
-        );
-
-        if (jwtKey) {
-          const value = localStorage.getItem(jwtKey);
-          if (value && value.includes('.')) { // JWTs have dots
-            jwt = value;
-            console.log(`Found potential JWT in key: ${jwtKey}`);
           }
         }
       }
 
       if (!jwt) {
-        // console.log('No JWT found in localStorage or sessionStorage');
-        // console.log('Checked: zklogin_jwt, enoki_jwt, id_token, dapp-kit, Privy storage');
-
-        // Alternative: Try to get user info from Privy connections
-        const privyConnections = localStorage.getItem('privy:connections');
-        if (privyConnections) {
-          try {
-            const connections = JSON.parse(privyConnections);
-            console.log('[AuthProvider] Privy connections:', connections);
-            // This might contain user info
-          } catch (e) {
-            console.log('[AuthProvider] Could not parse Privy connections');
-          }
-        }
-
         return null;
       }
 
@@ -166,47 +150,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 
   useEffect(() => {
-    // Don't do anything while still initializing
     if (isInitializing) {
       return;
     }
 
-    // Check if user is authenticated via Enoki wallet
-    const isUserAuthenticated = !!currentAccount;
-    const activeAddress = currentAccount?.address;
-    if (!isUserAuthenticated) {
+    const isEnokiAuthenticated = !!currentAccount;
+    const isSupabaseAuthenticated = !!supabaseUser;
+
+    if (!isEnokiAuthenticated && !isSupabaseAuthenticated) {
       if (!isInitializing) {
         setIsLoginOpen(true);
       }
       setIsOnboardingOpen(false);
-      setCheckingOnboarding(false); // Reset loading state when disconnected
     } else {
       setIsLoginOpen(false);
-      // Extract email from JWT when user is authenticated
-      if (activeAddress && !userEmail) {
+
+      if (isEnokiAuthenticated && !userEmail) {
         const email = extractEmailFromJWT();
         if (email) {
           setUserEmail(email);
-          // console.log('Extracted email from JWT:', email);
         }
       }
-      // Always check onboarding status when user is authenticated (but only if not already checking)
-      if (activeAddress && !checkingOnboarding) {
+
+      const activeId = isEnokiAuthenticated ? currentAccount.address : supabaseUser?.id;
+
+      if (activeId && !checkingOnboarding) {
         setCheckingOnboarding(true);
-        checkUserOnboardingStatus();
+        checkUserOnboardingStatus(activeId, isEnokiAuthenticated ? currentAccount.address : null);
       }
     }
 
     return;
-  }, [isInitializing, currentAccount]);
+  }, [isInitializing, currentAccount, supabaseUser]);
 
-  const checkUserOnboardingStatus = async () => {
-    // Get the active address from Enoki wallet
-    const activeAddress = currentAccount?.address;
-    const activeId = currentAccount?.address; // Use address as ID for Enoki
-
-    if (!activeId || !activeAddress) {
-      setCheckingOnboarding(false); // Reset loading state if no auth data
+  const checkUserOnboardingStatus = async (activeId: string, walletAddress: string | null) => {
+    if (!activeId) {
+      setCheckingOnboarding(false);
       return;
     }
 
@@ -232,7 +211,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (!data.exists) {
         // User doesn't exist, create profile
-        await createUserProfile(activeId, activeAddress);
+        await createUserProfile(activeId, walletAddress);
       } else if (!data.is_onboarded) {
         // User exists but not onboarded
         setIsOnboarded(false);
@@ -250,10 +229,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const createUserProfile = async (userId: string, walletAddress: string) => {
+  const createUserProfile = async (userId: string, walletAddress: string | null) => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
     try {
+      console.log('Creating user profile with payload:', { user_id: userId, wallet_address: walletAddress });
       const response = await fetch(`${apiBaseUrl}/api/update-user`, {
         method: 'POST',
         headers: {
@@ -280,8 +260,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const handleOnboardingSubmit = async (email: string, additionalData?: { username?: string; firstName?: string; lastName?: string }) => {
-    const activeId = currentAccount?.address;
+  const handleVerifyWaitlist = async (email: string) => {
+    setOnboardingLoading(true);
+    setOnboardingMessage(null);
+
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/check-waitlist?email=${encodeURIComponent(email)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to verify waitlist');
+      }
+
+      const data = await response.json();
+
+      if (!data.on_waitlist) {
+        setOnboardingMessage('Your email was not found in our waitlist.');
+        toast.error('Your email was not found in our waitlist.');
+        return false;
+      }
+
+      setOnboardingMessage('Email verified successfully!');
+      return true;
+    } catch (error: any) {
+      console.error('Error verifying waitlist:', error.message);
+      setOnboardingMessage(error.message || 'Failed to verify waitlist');
+      toast.error(error.message || 'Failed to verify waitlist');
+      return false;
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
+
+  const handleOnboardingSubmit = async (email: string, additionalData?: {
+    notifications_enabled?: boolean;
+    analytics_enabled?: boolean;
+    personalization_enabled?: boolean;
+    username?: string;
+    firstName?: string;
+    lastName?: string
+  }) => {
+    const activeId = currentAccount?.address || supabaseUser?.id;
 
     if (!activeId) {
       toast.error('Authentication required');
@@ -305,6 +334,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           username: additionalData?.username,
           first_name: additionalData?.firstName,
           last_name: additionalData?.lastName,
+          notifications_enabled: additionalData?.notifications_enabled,
+          analytics_enabled: additionalData?.analytics_enabled,
+          personalization_enabled: additionalData?.personalization_enabled,
         }),
       });
 
@@ -358,7 +390,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setWaitlistMessage('Successfully added to waitlist!');
       toast.success('Successfully added to waitlist!');
 
-      // Close waitlist modal and open onboarding modal after successful submission
       setTimeout(() => {
         setIsWaitlistModalOpen(false);
         setWaitlistMessage(null);
@@ -373,25 +404,69 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Show loading spinner while initializing
+  const signOut = async () => {
+    try {
+      // 1. Disconnect SUI Wallet
+      disconnectWallet();
+
+      // 2. Sign out of Supabase
+      await supabase.auth.signOut();
+
+      // 3. Clear local storage and session storage
+      const itemsToClear = [
+        'zklogin_jwt', 'enoki_jwt', 'id_token',
+        'sui-dapp-kit:wallet-connection-info'
+      ];
+      itemsToClear.forEach(item => {
+        localStorage.removeItem(item);
+        sessionStorage.removeItem(item);
+      });
+
+      // 4. Reset states
+      setUserEmail(null);
+      setIsOnboarded(false);
+      setSupabaseUser(null);
+
+      // 5. Open login modal
+      setIsLoginOpen(true);
+
+      toast.success('Successfully logged out');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out completely');
+    }
+  };
+
   if (isInitializing) {
     return <LoadingSpinner fullScreen />;
   }
 
+  const handleSignInSuccess = () => {
+    setIsLoginOpen(false);
+  };
+
   return (
-    <>
+    <AuthContext.Provider value={{
+      setIsLoginOpen,
+      isLoginOpen,
+      isOnboarded,
+      userEmail,
+      signOut
+    }}>
       {children}
 
       {/* Login Modal/Drawer */}
       {isMobile ? (
         <LoginDrawer
-          isOpen={isLoginOpen && !currentAccount}
+          isOpen={isLoginOpen && !currentAccount && !supabaseUser}
           loading={false}
+          onSignIn={handleSignInSuccess}
         />
       ) : (
         <LoginModal
-          isOpen={isLoginOpen && !currentAccount}
+          isOpen={isLoginOpen && !currentAccount && !supabaseUser}
           loading={false}
+          onSignIn={handleSignInSuccess}
         />
       )}
 
@@ -401,8 +476,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         loading={onboardingLoading}
         message={onboardingMessage}
         initialEmail={userEmail}
+        onVerifyWaitlist={handleVerifyWaitlist}
         onSubmit={handleOnboardingSubmit}
-        onClearMessage={() => setOnboardingMessage(null)}
       />
 
       {/* Waitlist Modal */}
@@ -412,8 +487,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         message={waitlistMessage}
         initialEmail={userEmail}
         onSubmit={handleWaitlistSubmit}
-        onClearMessage={() => setWaitlistMessage(null)}
+        onClearMessage={() => setOnboardingMessage(null)}
       />
-    </>
+    </AuthContext.Provider>
   );
 }

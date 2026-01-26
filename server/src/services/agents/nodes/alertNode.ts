@@ -112,6 +112,8 @@ Examples:
       confirmationMessage += `\n- Details: ${data.description}`;
     }
 
+    confirmationMessage += `\n\n**What would you like to do next?**\n- Set another alert\n- View active alerts\n- Check wallet status`;
+
     console.log(`Alert created: ${data.id} for user: ${state.userId}`);
 
     return {

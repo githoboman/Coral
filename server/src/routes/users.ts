@@ -56,12 +56,57 @@ router.get('/fetch-user', async (req: Request, res: Response, next: NextFunction
 });
 
 /**
+ * GET /api/check-waitlist
+ * Check if email is in waitlist
+ */
+router.get('/check-waitlist', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        detail: 'Email cannot be empty',
+      });
+    }
+
+    const supabase = getSupabaseClient();
+    const { data: waitlistData, error: waitlistError } = await supabase
+      .from('waitlist_emails')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (waitlistError && waitlistError.code !== 'PGRST116') {
+      console.error('Error checking waitlist:', waitlistError);
+      throw waitlistError;
+    }
+
+    return res.json({
+      on_waitlist: !!waitlistData,
+    });
+  } catch (error) {
+    console.error('Error in check-waitlist:', error);
+    next(error);
+  }
+});
+
+/**
  * POST /api/onboard-user
  * Onboard user with email (validates against waitlist)
  */
 router.post('/onboard-user', validate(userOnboardSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { user_id, email, username, first_name, last_name } = req.body as UserOnboardRequest;
+    const {
+      user_id,
+      email,
+      username,
+      first_name,
+      last_name,
+      notifications_enabled,
+      analytics_enabled,
+      personalization_enabled
+    } = req.body as UserOnboardRequest;
 
     if (!user_id.trim()) {
       return res.status(400).json({
@@ -124,6 +169,11 @@ router.post('/onboard-user', validate(userOnboardSchema), async (req: Request, r
       user_id,
       email,
       last_active: new Date().toISOString(),
+      preferences: {
+        notifications_enabled,
+        analytics_enabled,
+        personalization_enabled
+      }
     };
 
     if (username) updateData.username = username;
@@ -174,7 +224,7 @@ router.post('/update-user', validate(userUpdateSchema), async (req: Request, res
 
     const supabase = getSupabaseClient();
 
-    const profileRecord: Partial<UserProfile> = {
+    const profileRecord: any = {
       user_id,
       wallet_address,
       is_premium: false,
@@ -204,7 +254,7 @@ router.post('/update-user', validate(userUpdateSchema), async (req: Request, res
     return res.json({
       message: 'User profile created successfully',
       user_id,
-      requires_onboarding: true,
+      requires_onboarding: !data.email,
     });
   } catch (error) {
     console.error('Error in update-user:', error);
