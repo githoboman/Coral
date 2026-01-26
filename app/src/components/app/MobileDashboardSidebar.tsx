@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, User, MessageSquare, Activity, X, Clock, ChevronRight, Layout } from 'lucide-react';
+import { Bell, User, MessageSquare, Activity, Clock, ChevronRight, Layout } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useEffect } from 'react';

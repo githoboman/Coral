@@ -540,6 +540,8 @@ export default function AppLayout() {
   // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
 
+  console.log('[Layout] currentAccount:', currentAccount);
+
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeWalletModal, setActiveWalletModal] = useState<'deposit' | 'send' | 'swap' | null>(null);
