@@ -1,29 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
-import { Mail } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+// src/components/Onboarding.tsx - SIMPLIFIED (NO WAITLIST VERIFICATION)
+import { useState, useEffect, useRef } from "react";
+import { Mail } from "lucide-react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 interface OnboardingProps {
   isOpen: boolean;
   loading: boolean;
   message: string | null;
   initialEmail?: string | null;
-  onVerifyWaitlist: (email: string) => Promise<boolean>;
-  onSubmit: (email: string, additionalData?: {
-    notifications_enabled?: boolean;
-    analytics_enabled?: boolean;
-    personalization_enabled?: boolean;
-  }) => void;
+  onSubmit: (
+    email: string,
+    additionalData?: {
+      notifications_enabled?: boolean;
+      analytics_enabled?: boolean;
+      personalization_enabled?: boolean;
+      username?: string;
+    },
+  ) => void;
 }
 
-export function OnboardingModal({ isOpen, loading, message, initialEmail, onVerifyWaitlist, onSubmit }: OnboardingProps) {
+export function OnboardingModal({
+  isOpen,
+  loading,
+  message,
+  initialEmail,
+  onSubmit,
+}: OnboardingProps) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [email, setEmail] = useState(initialEmail || '');
+  const [email, setEmail] = useState(initialEmail || "");
+  const [username, setUsername] = useState("");
   const [preferences, setPreferences] = useState({
     notifications: true,
     analytics: false,
-    personalization: false
+    personalization: false,
   });
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -38,24 +49,29 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
 
   useGSAP(() => {
     if (isOpen) {
-      gsap.fromTo(modalRef.current, { opacity: 0, scale: 0.9, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'power3.out' });
+      gsap.fromTo(
+        modalRef.current,
+        { opacity: 0, scale: 0.9, y: 20 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" },
+      );
     }
   }, [isOpen]);
 
   useGSAP(() => {
     if (contentRef.current) {
-      gsap.fromTo(contentRef.current, { opacity: 0, x: step === 1 ? -20 : 20 }, { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' });
+      gsap.fromTo(
+        contentRef.current,
+        { opacity: 0, x: step === 1 ? -20 : 20 },
+        { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" },
+      );
     }
   }, [step]);
 
   if (!isOpen) return null;
 
-  const handleWaitlistVerify = async () => {
+  const handleEmailNext = () => {
     if (email.trim()) {
-      const success = await onVerifyWaitlist(email.trim());
-      if (success) {
-        setStep(2);
-      }
+      setStep(2);
     }
   };
 
@@ -63,16 +79,25 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
     onSubmit(email.trim(), {
       notifications_enabled: preferences.notifications,
       analytics_enabled: preferences.analytics,
-      personalization_enabled: preferences.personalization
+      personalization_enabled: preferences.personalization,
+      username: username.trim() || undefined,
     });
   };
 
-  const Switch = ({ active, onChange }: { active: boolean, onChange: (val: boolean) => void }) => (
+  const Switch = ({
+    active,
+    onChange,
+  }: {
+    active: boolean;
+    onChange: (val: boolean) => void;
+  }) => (
     <button
       onClick={() => onChange(!active)}
-      className={`w-12 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${active ? 'bg-[#B7FC0D]' : 'bg-white/10'}`}
+      className={`w-12 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${active ? "bg-[#B7FC0D]" : "bg-white/10"}`}
     >
-      <div className={`absolute top-1 w-4 h-4 rounded-full transition-all duration-300 ${active ? 'left-7 bg-[#070B0F]' : 'left-1 bg-white/40'}`} />
+      <div
+        className={`absolute top-1 w-4 h-4 rounded-full transition-all duration-300 ${active ? "left-7 bg-[#070B0F]" : "left-1 bg-white/40"}`}
+      />
     </button>
   );
 
@@ -87,16 +112,27 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
             <div className="flex flex-col items-center">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B7FC0D] to-[#246AFC] p-0.5 mb-6">
                 <div className="w-full h-full rounded-full bg-[#070B0F] flex items-center justify-center p-3">
-                  <img src="/assets/images/signin-logo.png" alt="Logo" className="w-full h-full object-contain" />
+                  <img
+                    src="/assets/images/signin-logo.png"
+                    alt="Logo"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
               </div>
 
-              <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">Complete Your Profile</h2>
-              <p className="text-white/40 text-sm text-center mb-8 font-medium">Enter your email to verify your waitlist status</p>
+              <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">
+                Complete Your Profile
+              </h2>
+              <p className="text-white/40 text-sm text-center mb-8 font-medium">
+                Enter your email to get started. Waitlisted users get 300 bonus
+                points!
+              </p>
 
               <div className="w-full space-y-5">
                 {message && (
-                  <div className={`p-4 rounded-2xl text-sm font-medium ${message.includes('successfully') ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                  <div
+                    className={`p-4 rounded-2xl text-sm font-medium ${message.includes("successfully") ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
+                  >
                     {message}
                   </div>
                 )}
@@ -108,66 +144,108 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => !isEmailFromOAuth && setEmail(e.target.value)}
+                    onChange={(e) =>
+                      !isEmailFromOAuth && setEmail(e.target.value)
+                    }
                     placeholder="your@email.com"
                     className="w-full pl-14 pr-6 py-3.5 bg-[#15191C] border border-white/5 rounded-full text-white text-base placeholder-white/20 focus:outline-none focus:border-[#B7FC0D]/30 transition-all font-medium"
                     disabled={loading || isEmailFromOAuth}
+                    onKeyPress={(e) => e.key === "Enter" && handleEmailNext()}
+                  />
+                </div>
+
+                <div className="relative group">
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username (optional)"
+                    className="w-full px-6 py-3.5 bg-[#15191C] border border-white/5 rounded-full text-white text-base placeholder-white/20 focus:outline-none focus:border-[#B7FC0D]/30 transition-all font-medium"
+                    disabled={loading}
+                    onKeyPress={(e) => e.key === "Enter" && handleEmailNext()}
                   />
                 </div>
 
                 <button
-                  onClick={handleWaitlistVerify}
+                  onClick={handleEmailNext}
                   disabled={loading || !email.trim()}
                   className="w-full py-3.5 bg-white text-black rounded-full font-bold text-base hover:bg-white/90 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                   {loading ? (
                     <>
-                      <LoadingSpinner size="sm" className="border-black border-t-transparent" />
-                      Verifying...
+                      <LoadingSpinner
+                        size="sm"
+                        className="border-black border-t-transparent"
+                      />
+                      Processing...
                     </>
                   ) : (
-                    'Verify Waitlist Status'
+                    "Continue"
                   )}
                 </button>
               </div>
             </div>
           ) : (
             <div className="flex flex-col">
-              <h2 className="text-[24px] font-bold text-white mb-5 tracking-tight">Choose what we can do</h2>
+              <h2 className="text-[24px] font-bold text-white mb-5 tracking-tight">
+                Choose your preferences
+              </h2>
 
               <div className="space-y-3 mb-8">
                 <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5">
-                  <span className="text-white font-bold text-base">Recieve notifications</span>
+                  <span className="text-white font-bold text-base">
+                    Receive notifications
+                  </span>
                   <Switch
                     active={preferences.notifications}
-                    onChange={(v) => setPreferences(prev => ({ ...prev, notifications: v }))}
+                    onChange={(v) =>
+                      setPreferences((prev) => ({ ...prev, notifications: v }))
+                    }
                   />
                 </div>
 
                 <div className="flex items-center justify-between p-4 rounded-3xl bg-white/5 border border-white/5">
-                  <span className="text-white font-bold text-base">Analytics data sharing</span>
+                  <span className="text-white font-bold text-base">
+                    Analytics data sharing
+                  </span>
                   <Switch
                     active={preferences.analytics}
-                    onChange={(v) => setPreferences(prev => ({ ...prev, analytics: v }))}
+                    onChange={(v) =>
+                      setPreferences((prev) => ({ ...prev, analytics: v }))
+                    }
                   />
                 </div>
 
                 <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/5">
-                  <span className="text-white font-bold text-sm">Personalisation</span>
+                  <span className="text-white font-bold text-sm">
+                    Personalization
+                  </span>
                   <Switch
                     active={preferences.personalization}
-                    onChange={(v) => setPreferences(prev => ({ ...prev, personalization: v }))}
+                    onChange={(v) =>
+                      setPreferences((prev) => ({
+                        ...prev,
+                        personalization: v,
+                      }))
+                    }
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(1)}
+                  disabled={loading}
+                  className="px-8 py-3.5 bg-white/5 text-white rounded-full font-bold text-base hover:bg-white/10 transition-all cursor-pointer disabled:cursor-not-allowed"
+                >
+                  Back
+                </button>
                 <button
                   onClick={handleFinalSubmit}
                   disabled={loading}
-                  className="w-full sm:w-auto px-10 py-3.5 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
+                  className="flex-1 px-10 py-3.5 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  {loading ? <LoadingSpinner size="sm" /> : 'Continue'}
+                  {loading ? <LoadingSpinner size="sm" /> : "Complete Setup"}
                 </button>
               </div>
             </div>
@@ -175,9 +253,12 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
         </div>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[400px] text-center text-[10px] text-white/30 font-medium leading-normal px-4 opacity-0 animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-        You can help us improve Tovira AI by allowing access to your usage data.{' '}
-        <button className="text-[#B7FC0D] hover:underline cursor-pointer">Learn more about data sharing</button>
+      <div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[400px] text-center text-[10px] text-white/30 font-medium leading-normal px-4 opacity-0 animate-fade-in"
+        style={{ animationDelay: "0.5s", animationFillMode: "forwards" }}
+      >
+        Your email will be checked against our waitlist. Waitlisted users
+        receive 300 bonus points!
       </div>
     </div>
   );
