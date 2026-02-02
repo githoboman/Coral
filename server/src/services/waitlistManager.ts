@@ -46,33 +46,19 @@ export class WaitlistManager {
   private keypair: Ed25519Keypair;
 
   constructor(privateKey?: string) {
-    // Initialize SuiClient with Walrus extension
-    // Note: The 'network' parameter may vary based on SDK version
-    const baseClient = new SuiClient({
+    // CRITICAL: network parameter must be inside walrus() config, not SuiClient
+    // Walrus only supports 'testnet' and 'mainnet'
+    this.client = new SuiClient({
       url: getFullnodeUrl("testnet"),
-    });
-
-    // Try to extend with walrus - configuration may vary by SDK version
-    try {
-      this.client = baseClient.$extend(
-        walrus({
-          uploadRelay: {
-            host: "https://upload-relay.testnet.walrus.space",
-            sendTip: { max: 1_000 },
-          },
-        }),
-      );
-    } catch (error) {
-      // Fallback: try without network parameter
-      this.client = baseClient.$extend(
-        walrus({
-          uploadRelay: {
-            host: "https://upload-relay.testnet.walrus.space",
-            sendTip: { max: 1_000 },
-          },
-        } as any),
-      );
-    }
+    }).$extend(
+      walrus({
+        network: "testnet", // REQUIRED: Must be 'testnet' or 'mainnet'
+        uploadRelay: {
+          host: "https://upload-relay.testnet.walrus.space",
+          sendTip: { max: 1_000 },
+        },
+      }),
+    );
 
     const key = privateKey ?? process.env.WALRUS_PRIVATE_KEY;
 
@@ -237,6 +223,10 @@ export class WaitlistManager {
   // WHITELIST RETRIEVAL & VERIFICATION (FIXED - USE SDK getFiles)
   // ==========================================================================
 
+  /**
+   * Fetch whitelist from Walrus using SDK's getFiles method
+   * This properly decodes Quilt-encoded data
+   */
   /**
    * Fetch whitelist from Walrus using SDK's getFiles method
    * This properly decodes Quilt-encoded data and strips any header before JSON.
