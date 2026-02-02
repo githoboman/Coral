@@ -1,12 +1,8 @@
 // ============================================================================
-// WalrusUserManager - Manage user profiles on Walrus
+// WalrusUserManager - Manage user profiles on Walrus (Publisher/Aggregator)
 // ============================================================================
 
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { walrus } from "@mysten/walrus";
-import { WalrusFile } from "@mysten/walrus";
-import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+import axios from "axios";
 import "dotenv/config";
 
 // ============================================================================
@@ -38,34 +34,52 @@ export interface UsersRegistry {
   previous_blob?: string;
 }
 
+export interface WalrusUploadResponse {
+  newlyCreated?: {
+    blobObject: {
+      id: string;
+      storedEpoch: number;
+      blobId: string;
+      size: number;
+      encodingType: string;
+      certifiedEpoch: number;
+      storage: {
+        id: string;
+        startEpoch: number;
+        endEpoch: number;
+        storageSize: number;
+      };
+    };
+    encodedSize: number;
+    cost: number;
+  };
+  alreadyCertified?: {
+    blobId: string;
+    event: {
+      txDigest: string;
+      eventSeq: string;
+    };
+    endEpoch: number;
+  };
+}
+
 export class WalrusUserManager {
-  private client: any;
-  private keypair: Ed25519Keypair;
+  private publisherUrl: string;
+  private aggregatorUrl: string;
+  private epochs: number;
 
-  constructor(privateKey?: string) {
-    this.client = new SuiClient({
-      url: getFullnodeUrl("testnet"),
-    }).$extend(
-      walrus({
-        network: "testnet",
-        uploadRelay: {
-          host: "https://upload-relay.testnet.walrus.space",
-          sendTip: { max: 1_000 },
-        },
-      }),
-    );
-
-    const key = privateKey ?? process.env.WALRUS_PRIVATE_KEY;
-
-    if (!key) {
-      throw new Error("WALRUS_PRIVATE_KEY is not set");
-    }
-
-    const { secretKey } = decodeSuiPrivateKey(key);
-    this.keypair = Ed25519Keypair.fromSecretKey(secretKey);
+  constructor() {
+    this.publisherUrl =
+      process.env.WALRUS_PUBLISHER_URL ||
+      "https://publisher.walrus-testnet.walrus.space";
+    this.aggregatorUrl =
+      process.env.WALRUS_AGGREGATOR_URL ||
+      "https://aggregator.walrus-testnet.walrus.space";
+    this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
     console.log("✅ WalrusUserManager initialized");
-    console.log(`   Wallet: ${this.keypair.getPublicKey().toSuiAddress()}`);
+    console.log(`   Publisher: ${this.publisherUrl}`);
+    console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
   // ==========================================================================
@@ -109,38 +123,31 @@ export class WalrusUserManager {
           `📥 Fetching users registry: ${blobId} (attempt ${attempt}/${maxRetries})`,
         );
 
-        const [file] = await this.client.walrus.getFiles({
-          ids: [blobId],
-        });
-
-        const bytes = await file.bytes();
-        const rawText = new TextDecoder("utf-8", { fatal: false }).decode(
-          bytes,
+        const response = await axios.get(
+          `${this.aggregatorUrl}/v1/blobs/${blobId}`,
+          {
+            timeout: 30000,
+            headers: {
+              Accept: "application/json",
+            },
+          },
         );
 
-        // Locate JSON boundaries
-        const start = rawText.indexOf("{");
-        const end = rawText.lastIndexOf("}");
-
-        if (start === -1 || end === -1 || end <= start) {
-          throw new Error("Could not locate JSON boundaries");
-        }
-
-        let jsonText = rawText.slice(start, end + 1);
-
-        // Strip control characters
-        jsonText = jsonText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-
-        const registry = JSON.parse(jsonText);
+        const registry = response.data as UsersRegistry;
 
         console.log("✅ Users registry fetched successfully");
         console.log(`   Version: ${registry.version}`);
         console.log(`   Total users: ${registry.total_users}`);
 
         return registry;
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
         console.warn(`⚠️  Attempt ${attempt} failed:`, lastError.message);
+
+        if (error.response?.status === 404) {
+          console.error("❌ Registry blob not found");
+          return null;
+        }
 
         if (attempt < maxRetries) {
           const waitTime = 1500 * attempt;
@@ -172,32 +179,41 @@ export class WalrusUserManager {
         const registryJson = JSON.stringify(registry, null, 2);
         const registryBytes = new TextEncoder().encode(registryJson);
 
-        const file = WalrusFile.from({
-          contents: registryBytes,
-          identifier: `users_registry_v${registry.version}_${Date.now()}`,
-          tags: {
-            type: "users_registry",
-            version: registry.version.toString(),
-            category: "user_management",
+        const response = await axios.put(
+          `${this.publisherUrl}/v1/blobs`,
+          registryJson,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            params: {
+              epochs: this.epochs,
+            },
+            timeout: 30000,
           },
-        });
+        );
 
-        const results = await this.client.walrus.writeFiles({
-          files: [file],
-          epochs: 50,
-          deletable: false,
-          signer: this.keypair,
-        });
+        const result = response.data as WalrusUploadResponse;
 
-        const blobId = results[0].blobId;
+        const blobId =
+          result.newlyCreated?.blobObject?.blobId ||
+          result.alreadyCertified?.blobId;
+
+        if (!blobId) {
+          throw new Error("No blob ID returned from Walrus");
+        }
 
         console.log("✅ Upload successful!");
         console.log(`   Blob ID: ${blobId}`);
         console.log(`   Size: ${registryBytes.length} bytes`);
         console.log(`   Users: ${registry.total_users}`);
 
+        if (result.newlyCreated) {
+          console.log(`   Cost: ${result.newlyCreated.cost} MIST`);
+        }
+
         return blobId;
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
         console.warn(
           `⚠️  Attempt ${attempt} failed:`,
@@ -322,5 +338,26 @@ export class WalrusUserManager {
       console.error("Error checking user existence:", error);
       return false;
     }
+  }
+
+  /**
+   * Verify blob exists
+   */
+  async verifyBlob(blobId: string): Promise<boolean> {
+    try {
+      await axios.head(`${this.aggregatorUrl}/v1/blobs/${blobId}`, {
+        timeout: 10000,
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get blob URL
+   */
+  getBlobUrl(blobId: string): string {
+    return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 }

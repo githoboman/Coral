@@ -36,7 +36,7 @@ async function main() {
     const choice = await question(rl, "\nEnter choice (1-4): ");
 
     const privateKey = process.env.WALRUS_PRIVATE_KEY;
-    const manager = new WaitlistManager(privateKey);
+    const manager = new WaitlistManager();
 
     switch (choice.trim()) {
       case "1": {

@@ -1,23 +1,10 @@
 // ============================================================================
-// FILE 1: src/services/WaitlistManager.ts (FIXED - PROPER SDK USAGE)
+// WaitlistManager - Walrus Access Control using Publisher/Aggregator
 // ============================================================================
-/**
- * Waitlist Access Control System using Walrus
- * ===========================================
- *
- * ARCHITECTURE:
- * 1. Store email whitelist on Walrus (immutable, decentralized)
- * 2. Frontend checks email against Walrus before registration
- * 3. Admin can manually add new emails (creates new version)
- */
 
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { walrus } from "@mysten/walrus";
-import { WalrusFile } from "@mysten/walrus";
+import axios from "axios";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import "dotenv/config";
 
 // ============================================================================
@@ -28,7 +15,7 @@ export interface Whitelist {
   version: number;
   created_at: string;
   total_count: number;
-  emails: string[]; // Plaintext for now, will hash with Seal later
+  emails: string[]; // Plaintext for now
   description: string;
   previous_blob?: string;
 }
@@ -41,36 +28,53 @@ export interface MigrationRecord {
   version: number;
 }
 
+export interface WalrusUploadResponse {
+  newlyCreated?: {
+    blobObject: {
+      id: string;
+      storedEpoch: number;
+      blobId: string;
+      size: number;
+      encodingType: string;
+      certifiedEpoch: number;
+      storage: {
+        id: string;
+        startEpoch: number;
+        endEpoch: number;
+        storageSize: number;
+      };
+    };
+    encodedSize: number;
+    cost: number;
+  };
+  alreadyCertified?: {
+    blobId: string;
+    event: {
+      txDigest: string;
+      eventSeq: string;
+    };
+    endEpoch: number;
+  };
+}
+
 export class WaitlistManager {
-  private client: any;
-  private keypair: Ed25519Keypair;
+  private publisherUrl: string;
+  private aggregatorUrl: string;
+  private epochs: number;
 
-  constructor(privateKey?: string) {
-    // CRITICAL: network parameter must be inside walrus() config, not SuiClient
-    // Walrus only supports 'testnet' and 'mainnet'
-    this.client = new SuiClient({
-      url: getFullnodeUrl("testnet"),
-    }).$extend(
-      walrus({
-        network: "testnet", // REQUIRED: Must be 'testnet' or 'mainnet'
-        uploadRelay: {
-          host: "https://upload-relay.testnet.walrus.space",
-          sendTip: { max: 1_000 },
-        },
-      }),
-    );
-
-    const key = privateKey ?? process.env.WALRUS_PRIVATE_KEY;
-
-    if (!key) {
-      throw new Error("WALRUS_PRIVATE_KEY is not set");
-    }
-
-    const { secretKey } = decodeSuiPrivateKey(key);
-    this.keypair = Ed25519Keypair.fromSecretKey(secretKey);
+  constructor() {
+    // Use environment variables or defaults
+    this.publisherUrl =
+      process.env.WALRUS_PUBLISHER_URL ||
+      "https://publisher.walrus-testnet.walrus.space";
+    this.aggregatorUrl =
+      process.env.WALRUS_AGGREGATOR_URL ||
+      "https://aggregator.walrus-testnet.walrus.space";
+    this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
     console.log("✅ WaitlistManager initialized");
-    console.log(`   Wallet: ${this.keypair.getPublicKey().toSuiAddress()}`);
+    console.log(`   Publisher: ${this.publisherUrl}`);
+    console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
   // ==========================================================================
@@ -153,7 +157,7 @@ export class WaitlistManager {
   }
 
   /**
-   * Upload whitelist to Walrus using Quilt
+   * Upload whitelist to Walrus using Publisher API
    */
   async uploadToWalrus(
     whitelist: Whitelist,
@@ -167,40 +171,47 @@ export class WaitlistManager {
           `📤 Uploading to Walrus (attempt ${attempt}/${maxRetries})...`,
         );
 
-        // Convert whitelist to bytes
+        // Convert whitelist to JSON
         const whitelistJson = JSON.stringify(whitelist, null, 2);
         const whitelistBytes = new TextEncoder().encode(whitelistJson);
 
-        // Create WalrusFile
-        const file = WalrusFile.from({
-          contents: whitelistBytes,
-          identifier: `waitlist_v${whitelist.version}_${Date.now()}`,
-          tags: {
-            type: "whitelist",
-            version: whitelist.version.toString(),
-            category: "access_control",
+        // Upload using Publisher API
+        const response = await axios.put(
+          `${this.publisherUrl}/v1/blobs`,
+          whitelistJson,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            params: {
+              epochs: this.epochs,
+            },
+            timeout: 30000,
           },
-        });
+        );
 
-        // Upload with Quilt
-        const results = await this.client.walrus.writeFiles({
-          files: [file],
-          epochs: 50, // Store for 50 epochs
-          deletable: false, // Make immutable
-          signer: this.keypair,
-        });
+        const result = response.data as WalrusUploadResponse;
 
-        const blobId = results[0].blobId;
+        const blobId =
+          result.newlyCreated?.blobObject?.blobId ||
+          result.alreadyCertified?.blobId;
+
+        if (!blobId) {
+          throw new Error("No blob ID returned from Walrus");
+        }
 
         console.log("✅ Upload successful!");
         console.log(`   Blob ID: ${blobId}`);
         console.log(`   Size: ${whitelistBytes.length} bytes`);
         console.log(`   Emails: ${whitelist.total_count}`);
-        console.log(`   Storage: 50 epochs (~6 months)`);
-        console.log(`   Cost: ~0.02 WAL (Quilt optimized)`);
+        console.log(`   Storage: ${this.epochs} epochs`);
+
+        if (result.newlyCreated) {
+          console.log(`   Cost: ${result.newlyCreated.cost} MIST`);
+        }
 
         return blobId;
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
         console.warn(
           `⚠️  Attempt ${attempt} failed:`,
@@ -220,16 +231,11 @@ export class WaitlistManager {
   }
 
   // ==========================================================================
-  // WHITELIST RETRIEVAL & VERIFICATION (FIXED - USE SDK getFiles)
+  // WHITELIST RETRIEVAL & VERIFICATION
   // ==========================================================================
 
   /**
-   * Fetch whitelist from Walrus using SDK's getFiles method
-   * This properly decodes Quilt-encoded data
-   */
-  /**
-   * Fetch whitelist from Walrus using SDK's getFiles method
-   * This properly decodes Quilt-encoded data and strips any header before JSON.
+   * Fetch whitelist from Walrus using Aggregator API
    */
   async fetchWhitelist(
     blobId: string,
@@ -243,51 +249,32 @@ export class WaitlistManager {
           `📥 Fetching whitelist: ${blobId} (attempt ${attempt}/${maxRetries})`,
         );
 
-        // Use the SDK's getFiles method - this handles Quilt decoding
-        const [file] = await this.client.walrus.getFiles({
-          ids: [blobId],
-        });
-
-        // Decode the file content
-        const bytes = await file.bytes();
-        const rawText = new TextDecoder("utf-8", { fatal: false }).decode(
-          bytes,
+        // Fetch from Aggregator
+        const response = await axios.get(
+          `${this.aggregatorUrl}/v1/blobs/${blobId}`,
+          {
+            timeout: 30000,
+            headers: {
+              Accept: "application/json",
+            },
+          },
         );
 
-        // Locate JSON boundaries
-        const start = rawText.indexOf("{");
-        const end = rawText.lastIndexOf("}");
-
-        if (start === -1 || end === -1 || end <= start) {
-          throw new Error("Could not locate JSON boundaries");
-        }
-
-        // Slice JSON
-        let jsonText = rawText.slice(start, end + 1);
-
-        // 🚨 CRITICAL: strip non-JSON control characters
-        jsonText = jsonText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-
-        const whitelist = JSON.parse(jsonText);
+        const whitelist = response.data as Whitelist;
 
         console.log("✅ Whitelist fetched successfully");
         console.log(`   Version: ${whitelist.version}`);
         console.log(`   Emails: ${whitelist.total_count}`);
 
-        // Optional: Log identifier and tags if available
-        const identifier = await file.getIdentifier();
-        const tags = await file.getTags();
-        if (identifier) {
-          console.log(`   Identifier: ${identifier}`);
-        }
-        if (tags && Object.keys(tags).length > 0) {
-          console.log(`   Tags:`, tags);
-        }
-
         return whitelist;
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
         console.warn(`⚠️  Attempt ${attempt} failed:`, lastError.message);
+
+        if (error.response?.status === 404) {
+          console.error("❌ Blob not found on Walrus");
+          return null;
+        }
 
         if (attempt < maxRetries) {
           const waitTime = 1500 * attempt;
@@ -472,5 +459,26 @@ export class WaitlistManager {
 
     await fs.writeFile(filepath, JSON.stringify(record, null, 2));
     console.log(`Migration record saved: ${filename}`);
+  }
+
+  /**
+   * Verify blob exists
+   */
+  async verifyBlob(blobId: string): Promise<boolean> {
+    try {
+      await axios.head(`${this.aggregatorUrl}/v1/blobs/${blobId}`, {
+        timeout: 10000,
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Get blob URL
+   */
+  getBlobUrl(blobId: string): string {
+    return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 }

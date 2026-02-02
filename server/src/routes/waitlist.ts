@@ -17,7 +17,7 @@ let waitlistManager: WaitlistManager | null = null;
 function getWaitlistManager(): WaitlistManager {
   if (!waitlistManager) {
     const privateKey = process.env.WALRUS_PRIVATE_KEY;
-    waitlistManager = new WaitlistManager(privateKey);
+    waitlistManager = new WaitlistManager();
   }
   return waitlistManager;
 }
