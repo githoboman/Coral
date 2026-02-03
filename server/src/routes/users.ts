@@ -1,60 +1,20 @@
-// src/routes/users.ts
-import { Router, Request, Response, NextFunction } from 'express';
-import { getSupabaseClient } from '../config/supabase';
-import { validate, userUpdateSchema, userOnboardSchema } from '../utils/validation';
-import { UserProfile, UserUpdateRequest, UserOnboardRequest } from '../types';
+import { Router, Request, Response, NextFunction } from "express";
+import { WalrusUserManager } from "../services/walrusUserManager";
 
 const router = Router();
 
-/**
- * GET /api/fetch-user
- * Fetch user profile by user_id
- */
-router.get('/fetch-user', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { user_id } = req.query;
+const USER_REGISTRY_BLOB_ID = process.env.USER_REGISTRY_BLOB_ID || "";
 
-    if (!user_id || typeof user_id !== 'string' || !user_id.trim()) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        detail: 'User ID cannot be empty',
-      });
-    }
+let userManager: WalrusUserManager | null = null;
 
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', user_id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching user:', error);
-      throw error;
-    }
-
-    if (data) {
-      console.log(`User found: ${user_id}`);
-      const isOnboarded = !!data.email;
-      return res.json({
-        exists: true,
-        user: data,
-        is_onboarded: isOnboarded,
-      });
-    }
-
-    console.log(`User not found: ${user_id}`);
-    return res.json({
-      exists: false,
-      user: null,
-      is_onboarded: false,
-    });
-  } catch (error) {
-    console.error('Error in fetch-user:', error);
-    next(error);
+function getUserManager(): WalrusUserManager {
+  if (!userManager) {
+    userManager = new WalrusUserManager();
   }
-});
+  return userManager;
+}
 
+<<<<<<< HEAD
 
 
 /**
@@ -120,93 +80,135 @@ router.post('/onboard-user', validate(userOnboardSchema), async (req: Request, r
         notifications_enabled,
         analytics_enabled,
         personalization_enabled
+=======
+router.get(
+  "/fetch-user",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user_id } = req.query;
+
+      if (!user_id || typeof user_id !== "string" || !user_id.trim()) {
+        return res.status(400).json({
+          error: "Bad Request",
+          detail: "User ID cannot be empty",
+        });
+>>>>>>> f0d8db8fed36c78e646947c6fdcb93f317ca1773
       }
-    };
 
-    if (username) updateData.username = username;
-    if (first_name) updateData.first_name = first_name;
-    if (last_name) updateData.last_name = last_name;
+      if (!USER_REGISTRY_BLOB_ID) {
+        return res.json({
+          exists: false,
+          user: null,
+          is_onboarded: false,
+        });
+      }
 
-    const { data: updatedUser, error: updateError } = await supabase
-      .from('user_profiles')
-      .update(updateData)
-      .eq('user_id', user_id)
-      .select()
-      .single();
+      const manager = getUserManager();
+      const userProfile = await manager.getUserProfile(
+        USER_REGISTRY_BLOB_ID,
+        user_id,
+      );
 
-    if (updateError) {
-      console.error(`Failed to onboard user: ${user_id}`, updateError);
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        detail: 'Failed to complete onboarding',
+      if (userProfile) {
+        const isOnboarded = !!userProfile.email;
+        return res.json({
+          exists: true,
+          user: userProfile,
+          is_onboarded: isOnboarded,
+        });
+      }
+
+      return res.json({
+        exists: false,
+        user: null,
+        is_onboarded: false,
       });
+    } catch (error) {
+      console.error("Error in fetch-user:", error);
+      next(error);
     }
+  },
+);
 
-    console.log(`User onboarded successfully: ${user_id}`);
-    return res.json({
-      message: 'Onboarding completed successfully!',
-      user_id,
-      email,
-    });
-  } catch (error) {
-    console.error('Error in onboard-user:', error);
-    next(error);
-  }
-});
+router.post(
+  "/update-user",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const {
+        user_id,
+        wallet_address,
+        email,
+        username,
+        first_name,
+        last_name,
+        preferences,
+      } = req.body;
 
-/**
- * POST /api/update-user
- * Create or update user profile
- */
-router.post('/update-user', validate(userUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { user_id, wallet_address } = req.body as UserUpdateRequest;
+      if (!user_id.trim()) {
+        return res.status(400).json({
+          error: "Bad Request",
+          detail: "User ID cannot be empty",
+        });
+      }
 
-    if (!user_id.trim()) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        detail: 'User ID cannot be empty',
+      const manager = getUserManager();
+
+      let userProfile = await manager.getUserProfile(
+        USER_REGISTRY_BLOB_ID,
+        user_id,
+      );
+
+      if (userProfile) {
+        userProfile = {
+          ...userProfile,
+          email: email || userProfile.email,
+          username: username || userProfile.username,
+          first_name: first_name || userProfile.first_name,
+          last_name: last_name || userProfile.last_name,
+          preferences: preferences || userProfile.preferences,
+        };
+      } else {
+        userProfile = manager.createUserProfile(
+          email || "",
+          wallet_address || user_id,
+          false,
+          0,
+          {
+            username,
+            first_name,
+            last_name,
+            preferences,
+          },
+        );
+      }
+
+      const newBlobId = await manager.addOrUpdateUser(
+        USER_REGISTRY_BLOB_ID || null,
+        userProfile,
+      );
+
+      if (!newBlobId) {
+        return res.status(500).json({
+          error: "Internal Server Error",
+          detail: "Failed to update user profile",
+        });
+      }
+
+      if (newBlobId !== USER_REGISTRY_BLOB_ID) {
+        console.log(`\n⚠️  Update .env: USER_REGISTRY_BLOB_ID=${newBlobId}`);
+      }
+
+      return res.json({
+        message: "User profile updated successfully",
+        user_id,
+        requires_onboarding: !userProfile.email,
+        registry_blob_id: newBlobId,
       });
+    } catch (error) {
+      console.error("Error in update-user:", error);
+      next(error);
     }
-
-    const supabase = getSupabaseClient();
-
-    const profileRecord: any = {
-      user_id,
-      wallet_address,
-      is_premium: false,
-      points: 0,
-      daily_post_count: 0,
-      preferences: {},
-      timezone: 'UTC',
-      created_at: new Date().toISOString(),
-      last_active: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .upsert(profileRecord, { onConflict: 'user_id' })
-      .select()
-      .single();
-
-    if (error) {
-      console.error(`Failed to upsert user profile for user_id: ${user_id}`, error);
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        detail: 'Failed to update user profile',
-      });
-    }
-
-    console.log(`User profile updated/created for user_id: ${user_id}`);
-    return res.json({
-      message: 'User profile created successfully',
-      user_id,
-      requires_onboarding: !data.email,
-    });
-  } catch (error) {
-    console.error('Error in update-user:', error);
-    next(error);
-  }
-});
+  },
+);
 
 export default router;

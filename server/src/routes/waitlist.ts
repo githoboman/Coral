@@ -1,70 +1,99 @@
-// src/routes/waitlist.ts
-import { Router, Request, Response, NextFunction } from 'express';
-import { getSupabaseClient } from '../config/supabase';
-import { validate, waitlistEmailSchema } from '../utils/validation';
-import { WaitlistEmail } from '../types';
+import { Router, Request, Response, NextFunction } from "express";
+import { WaitlistManager } from "../services/waitlistManager";
 
 const router = Router();
 
-/**
- * POST /api/waitlist
- * Submit email to waitlist
- */
-router.post('/waitlist', validate(waitlistEmailSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { email } = req.body as WaitlistEmail;
-    const supabase = getSupabaseClient();
+const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
-    // Check if email already exists
-    const { data: existing, error: checkError } = await supabase
-      .from('waitlist_emails')
-      .select('email')
-      .eq('email', email)
-      .single();
+let waitlistManager: WaitlistManager | null = null;
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      throw checkError;
+function getWaitlistManager(): WaitlistManager {
+  if (!waitlistManager) waitlistManager = new WaitlistManager();
+  return waitlistManager;
+}
+
+router.post(
+  "/verify",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = req.body;
+
+      if (!email || typeof email !== "string") {
+        res.status(400).json({
+          error: "Bad Request",
+          detail: "Email is required",
+        });
+        return;
+      }
+
+      if (!WHITELIST_BLOB_ID) {
+        res.status(500).json({
+          error: "Configuration Error",
+          detail: "Waitlist not configured",
+        });
+        return;
+      }
+
+      const manager = getWaitlistManager();
+      const isWhitelisted = await manager.isEmailWhitelisted(
+        email,
+        WHITELIST_BLOB_ID,
+      );
+
+      if (isWhitelisted) {
+        res.json({
+          whitelisted: true,
+          message: "Email is on the waitlist",
+          email: email.toLowerCase().trim(),
+        });
+      } else {
+        res.status(403).json({
+          whitelisted: false,
+          message: "Email is not on the waitlist",
+        });
+      }
+    } catch (error) {
+      console.error("Error verifying waitlist:", error);
+      next(error);
     }
+  },
+);
 
-    if (existing) {
-      console.warn(`Duplicate email attempt: ${email}`);
-      res.status(409).json({
-        error: 'Conflict',
-        detail: 'This email is already registered on the waitlist',
+router.get(
+  "/info",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!WHITELIST_BLOB_ID) {
+        res.status(500).json({
+          error: "Configuration Error",
+          detail: "Waitlist not configured",
+        });
+        return;
+      }
+
+      const manager = getWaitlistManager();
+      const whitelist = await manager.fetchWhitelist(WHITELIST_BLOB_ID);
+
+      if (!whitelist) {
+        res.status(500).json({
+          error: "Error",
+          detail: "Could not fetch whitelist",
+        });
+        return;
+      }
+
+      res.json({
+        version: whitelist.version,
+        total_count: whitelist.total_count,
+        created_at: whitelist.created_at,
+        description: whitelist.description,
+        blob_id: WHITELIST_BLOB_ID,
       });
-      return;
+    } catch (error) {
+      console.error("Error fetching waitlist info:", error);
+      next(error);
     }
-
-    // Insert new email
-    const data = {
-      email,
-      created_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase
-      .from('waitlist_emails')
-      .insert(data)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Failed to insert email into Supabase:', error);
-      res.status(500).json({
-        error: 'Internal Server Error',
-        detail: 'Failed to add email to waitlist',
-      });
-      return;
-    }
-
-    console.log(`Email added to waitlist: ${email}`);
-    res.status(201).json({
-      message: 'Successfully added to waitlist!',
-      email,
-    });
-  } catch (error) {
-    console.error('Error in waitlist submission:', error);
-    next(error);
-  }
-});
+  },
+);
 
 export default router;

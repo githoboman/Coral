@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, Mail, AlertCircle } from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import React, { useState } from "react";
+import { X, Mail, AlertCircle } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 interface WaitlistModalProps {
   isOpen: boolean;
@@ -11,10 +11,16 @@ interface WaitlistModalProps {
   onClearMessage: () => void;
 }
 
-export function WaitlistModal({ isOpen, loading, message, initialEmail, onSubmit, onClearMessage }: WaitlistModalProps) {
-  const [email, setEmail] = useState(initialEmail || '');
+export function WaitlistModal({
+  isOpen,
+  loading,
+  message,
+  initialEmail,
+  onSubmit,
+  onClearMessage,
+}: WaitlistModalProps) {
+  const [email, setEmail] = useState(initialEmail || "");
 
-  // Update email state when initialEmail changes
   React.useEffect(() => {
     if (initialEmail) {
       setEmail(initialEmail);
@@ -30,7 +36,7 @@ export function WaitlistModal({ isOpen, loading, message, initialEmail, onSubmit
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !loading && email.trim()) {
+    if (e.key === "Enter" && !loading && email.trim()) {
       handleSubmit();
     }
   };
@@ -49,15 +55,19 @@ export function WaitlistModal({ isOpen, loading, message, initialEmail, onSubmit
               Join Our Waitlist
             </h2>
             <p className="text-white/60 text-sm leading-relaxed max-w-sm mx-auto">
-              Your email isn't on our waitlist yet. Join now to get early access!
+              Your email isn't on our waitlist yet. Join now to get early
+              access!
             </p>
           </div>
 
           {message && (
-            <div className={`p-3 rounded-lg text-sm flex items-start gap-2 ${message.includes('successfully') || message.includes('added')
-              ? 'bg-green-50 text-green-800'
-              : 'bg-red-50 text-red-800'
-              }`}>
+            <div
+              className={`p-3 rounded-lg text-sm flex items-start gap-2 ${
+                message.includes("successfully") || message.includes("added")
+                  ? "bg-green-50 text-green-800"
+                  : "bg-red-50 text-red-800"
+              }`}
+            >
               <span className="flex-1">{message}</span>
               <button
                 type="button"
@@ -88,10 +98,11 @@ export function WaitlistModal({ isOpen, loading, message, initialEmail, onSubmit
           <button
             onClick={handleSubmit}
             disabled={loading || !email.trim()}
-            className={`mt-10 cursor-pointer w-full group relative overflow-hidden border border-[#4E4E4E] rounded-full py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${loading
-              ? 'bg-white/10 cursor-not-allowed opacity-50'
-              : 'bg-[#191919] shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-              } text-white disabled:cursor-not-allowed`}
+            className={`mt-10 cursor-pointer w-full group relative overflow-hidden border border-[#4E4E4E] rounded-full py-4 px-6 font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              loading
+                ? "bg-white/10 cursor-not-allowed opacity-50"
+                : "bg-[#191919] shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            } text-white disabled:cursor-not-allowed`}
           >
             {loading ? (
               <div className="flex items-center gap-2">
