@@ -321,6 +321,33 @@ export class WalrusUserManager {
   }
 
   /**
+   * Find which wallet (if any) is already registered with this email.
+   * Returns the wallet_address string, or null if the email is free.
+   */
+  async findWalletByEmail(
+    registryBlobId: string,
+    email: string,
+  ): Promise<string | null> {
+    try {
+      const registry = await this.fetchUsersRegistry(registryBlobId);
+      if (!registry) return null;
+
+      const normalised = email.toLowerCase().trim();
+
+      for (const profile of Object.values(registry.users)) {
+        if (profile.email.toLowerCase().trim() === normalised) {
+          return profile.wallet_address;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in findWalletByEmail:", error);
+      return null;
+    }
+  }
+
+  /**
    * Check if user exists in registry
    */
   async userExists(

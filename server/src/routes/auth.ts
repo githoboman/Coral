@@ -81,6 +81,29 @@ router.post(
 
       console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
 
+      // --- 1b. Duplicate-email guard ---
+      //   An email can only ever be tied to one wallet.  If the registry
+      //   already exists and this email is already taken by a *different*
+      //   wallet, reject immediately.  Same wallet → fine (idempotent update).
+      if (blobRegistry) {
+        const existingWallet = await um.findWalletByEmail(
+          blobRegistry,
+          normalizedEmail,
+        );
+
+        if (existingWallet && existingWallet !== wallet_address) {
+          console.warn(
+            `⛔ Duplicate email: "${normalizedEmail}" already registered to ${existingWallet}`,
+          );
+          res.status(409).json({
+            error: "Conflict",
+            detail:
+              "This email address is already registered to another wallet.",
+          });
+          return;
+        }
+      }
+
       // --- 2. Create user profile ---
       const profile: UserProfile = {
         email: normalizedEmail,
