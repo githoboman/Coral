@@ -48,12 +48,10 @@ router.get(
       // --- Read current blob ID from on-chain BlobRegistry (no .env needed) ---
       const blobId = await minter.getCurrentBlobId();
       if (!blobId) {
-        return res
-          .status(404)
-          .json({
-            error: "Not Found",
-            detail: "User registry not initialized",
-          });
+        return res.status(404).json({
+          error: "Not Found",
+          detail: "User registry not initialized",
+        });
       }
 
       // --- Fetch profile from Walrus (email lives here) ---
@@ -138,8 +136,6 @@ router.get(
         .slice(0, 100)
         .map((user, idx) => ({ ...user, rank: idx + 1 }));
 
-      // Cache 5 min
-      res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
       return res.json({ leaderboard });
     } catch (error) {
       console.error("Error fetching leaderboard:", error);

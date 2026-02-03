@@ -61,6 +61,7 @@ export class WaitlistManager {
   private publisherUrl: string;
   private aggregatorUrl: string;
   private epochs: number;
+  private cachedWhitelist: Map<string, Whitelist> = new Map();
 
   constructor() {
     // Use environment variables or defaults
@@ -241,6 +242,14 @@ export class WaitlistManager {
     blobId: string,
     maxRetries: number = 3,
   ): Promise<Whitelist | null> {
+    // The whitelist blob ID is static for the lifetime of the process.
+    // Cache it so every isEmailWhitelisted call doesn't re-fetch.
+    const cached = this.cachedWhitelist.get(blobId);
+    if (cached) {
+      console.log(`📋 Returning cached whitelist for ${blobId}`);
+      return cached;
+    }
+
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -249,7 +258,6 @@ export class WaitlistManager {
           `📥 Fetching whitelist: ${blobId} (attempt ${attempt}/${maxRetries})`,
         );
 
-        // Fetch from Aggregator
         const response = await axios.get(
           `${this.aggregatorUrl}/v1/blobs/${blobId}`,
           {
@@ -266,6 +274,7 @@ export class WaitlistManager {
         console.log(`   Version: ${whitelist.version}`);
         console.log(`   Emails: ${whitelist.total_count}`);
 
+        this.cachedWhitelist.set(blobId, whitelist);
         return whitelist;
       } catch (error: any) {
         lastError = error as Error;
@@ -288,7 +297,6 @@ export class WaitlistManager {
     console.error("Last error:", lastError?.message);
     return null;
   }
-
   /**
    * Check if email is whitelisted
    */

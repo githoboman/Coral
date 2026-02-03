@@ -1,8 +1,4 @@
-// src/components/Onboarding.tsx  —  FIXED: Hooks called unconditionally
-//
-// Step 1: email + username  →  "Continue"
-// Step 2: preferences       →  "Complete Setup"
-// Step 3: Claim Points (wallet-signed transaction)
+// src/components/Onboarding.tsx
 
 import { useState, useEffect, useRef } from "react";
 import { Mail, Gift, Check } from "lucide-react";
@@ -10,6 +6,8 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useClaimPoints } from "@/hooks/useClaimPoints";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -39,7 +37,7 @@ export function OnboardingModal({
   // ---------------------------------------------------------------------------
   // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
   // ---------------------------------------------------------------------------
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [email, setEmail] = useState(initialEmail || "");
   const [username, setUsername] = useState("");
   const [preferences, setPreferences] = useState({
@@ -47,6 +45,7 @@ export function OnboardingModal({
     analytics: false,
     personalization: false,
   });
+  const [isWaitlisted, setIsWaitlisted] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -62,6 +61,14 @@ export function OnboardingModal({
   useEffect(() => {
     if (initialEmail) setEmail(initialEmail);
   }, [initialEmail]);
+
+  // Auto-redirect non-waitlisted users after 2 s on the welcome screen.
+  useEffect(() => {
+    if (step === 4) {
+      const timer = setTimeout(() => onComplete(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, onComplete]);
 
   useGSAP(() => {
     if (isOpen && modalRef.current) {
@@ -97,7 +104,6 @@ export function OnboardingModal({
 
   const handleFinalSubmit = async () => {
     try {
-      // Call the parent onSubmit (saves profile locally)
       const result = await onSubmit(email.trim(), {
         notifications_enabled: preferences.notifications,
         analytics_enabled: preferences.analytics,
@@ -106,14 +112,30 @@ export function OnboardingModal({
       });
 
       if (result?.success) {
-        // Profile saved successfully
-        // Always go to claim screen - the backend will check waitlist eligibility
-        // when the user clicks "Claim Points"
         setProfileSaved(true);
-        setStep(3);
+
+        // Lightweight waitlist check — read-only, no ticket minted.
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/auth/check-waitlist?email=${encodeURIComponent(email.trim())}`,
+          );
+          const data = await res.json();
+
+          if (data.on_waitlist) {
+            setIsWaitlisted(true);
+            setStep(3); // → claim screen (waitlisted users only)
+          } else {
+            setIsWaitlisted(false);
+            setStep(4); // → welcome screen, then auto-redirect
+          }
+        } catch {
+          // If the check itself fails, don't block the user.
+          // Send them to welcome and let them continue.
+          setIsWaitlisted(false);
+          setStep(4);
+        }
       }
     } catch (error) {
-      // Error is already handled by parent
       console.error("Failed to save profile:", error);
     }
   };
@@ -304,7 +326,7 @@ export function OnboardingModal({
           )}
 
           {/* ============================================================
-              STEP 3 — Claim Points (wallet-signed transaction)
+              STEP 3 — Claim Points (waitlisted users only)
               ============================================================ */}
           {step === 3 && (
             <div className="flex flex-col items-center">
@@ -420,6 +442,32 @@ export function OnboardingModal({
               )}
             </div>
           )}
+
+          {/* ============================================================
+              STEP 4 — Welcome (non-waitlisted users)
+              Auto-redirects to dashboard after 2 seconds.
+              ============================================================ */}
+          {step === 4 && (
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#B7FC0D]/20 to-[#246AFC]/20 border border-[#B7FC0D]/30 flex items-center justify-center mb-6">
+                <Check size={32} className="text-[#B7FC0D]" />
+              </div>
+
+              <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">
+                Welcome to Tovira!
+              </h2>
+              <p className="text-white/40 text-sm text-center mb-8 leading-relaxed">
+                Your account is all set. Let's get started.
+              </p>
+
+              <button
+                onClick={onComplete}
+                className="w-full py-4 bg-white text-black rounded-full font-bold text-base hover:bg-white/90 transition-all cursor-pointer"
+              >
+                Continue
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -430,7 +478,9 @@ export function OnboardingModal({
       >
         {step < 3
           ? "Your email will be checked against our waitlist. Waitlisted users can claim 300 points!"
-          : "Points are stored on the Sui blockchain. Your email is kept off-chain."}
+          : step === 3
+            ? "Points are stored on the Sui blockchain. Your email is kept off-chain."
+            : "You're all set. Enjoy Tovira!"}
       </div>
     </div>
   );

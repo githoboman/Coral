@@ -239,40 +239,43 @@ router.post(
       console.log(`✅ Ticket minted: ${ticketObjectId}`);
 
       // --- 4. Update user profile in Walrus to mark as waitlisted ---
-      try {
-        const um = getUserManager();
-        const blobRegistry = await minter.getCurrentBlobId();
+      //   Non-critical, fire in background — don't hold up the ticket response.
+      (async () => {
+        try {
+          const um = getUserManager();
+          const blobRegistry = await minter.getCurrentBlobId();
 
-        if (blobRegistry) {
-          const existingProfile = await um.getUserProfile(
-            blobRegistry,
-            wallet_address,
-          );
-
-          if (existingProfile) {
-            const updatedProfile = {
-              ...existingProfile,
-              is_waitlisted: true,
-              waitlist_verified_at: new Date().toISOString(),
-            };
-
-            const newBlobId = await um.addOrUpdateUser(
+          if (blobRegistry) {
+            const existingProfile = await um.getUserProfile(
               blobRegistry,
-              updatedProfile,
+              wallet_address,
             );
 
-            if (newBlobId && newBlobId !== blobRegistry) {
-              await minter.updateBlobRegistry(newBlobId);
-              console.log(`📦 BlobRegistry updated on-chain → ${newBlobId}`);
+            if (existingProfile) {
+              const updatedProfile = {
+                ...existingProfile,
+                is_waitlisted: true,
+                waitlist_verified_at: new Date().toISOString(),
+              };
+
+              const newBlobId = await um.addOrUpdateUser(
+                blobRegistry,
+                updatedProfile,
+              );
+
+              if (newBlobId && newBlobId !== blobRegistry) {
+                await minter.updateBlobRegistry(newBlobId);
+                console.log(`📦 BlobRegistry updated on-chain → ${newBlobId}`);
+              }
             }
           }
+        } catch (walrusErr) {
+          console.warn(
+            "⚠️  Walrus profile update failed (non-fatal):",
+            walrusErr,
+          );
         }
-      } catch (walrusErr) {
-        console.warn(
-          "⚠️  Walrus profile update failed (non-fatal):",
-          walrusErr,
-        );
-      }
+      })(); // ← invoked immediately, not awaited
 
       // --- 5. Return ticket ID to frontend ---
       res.json({
@@ -329,7 +332,50 @@ router.get(
     }
   },
 );
+// =======================================================================
+// GET /api/auth/check-waitlist
+//
+// Pure read — no ticket minting, no side effects.
+// Used after registration to decide whether to show the claim screen.
+//
+// Query params:
+//   email   (required)
+//
+// Response:
+//   { on_waitlist: boolean }
+// =======================================================================
+router.get(
+  "/check-waitlist",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = req.query;
 
+      if (!email || typeof email !== "string") {
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Email is required" });
+        return;
+      }
+
+      if (!WHITELIST_BLOB_ID) {
+        // No waitlist configured at all — no one is waitlisted.
+        res.json({ on_waitlist: false });
+        return;
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+      const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
+        normalizedEmail,
+        WHITELIST_BLOB_ID,
+      );
+
+      res.json({ on_waitlist: isWaitlisted });
+    } catch (error) {
+      console.error("Error in check-waitlist:", error);
+      next(error);
+    }
+  },
+);
 // =======================================================================
 // GET /api/auth/check-claim-status
 //

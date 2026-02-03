@@ -67,6 +67,8 @@ export class WalrusUserManager {
   private publisherUrl: string;
   private aggregatorUrl: string;
   private epochs: number;
+  private registryCache: { blobId: string; registry: UsersRegistry } | null =
+    null;
 
   constructor() {
     this.publisherUrl =
@@ -115,6 +117,12 @@ export class WalrusUserManager {
     blobId: string,
     maxRetries: number = 3,
   ): Promise<UsersRegistry | null> {
+    // Serve from cache if we already have this exact blob.
+    if (this.registryCache && this.registryCache.blobId === blobId) {
+      console.log(`📋 Returning cached registry for ${blobId}`);
+      return this.registryCache.registry;
+    }
+
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -139,6 +147,7 @@ export class WalrusUserManager {
         console.log(`   Version: ${registry.version}`);
         console.log(`   Total users: ${registry.total_users}`);
 
+        this.registryCache = { blobId, registry };
         return registry;
       } catch (error: any) {
         lastError = error as Error;
@@ -283,6 +292,11 @@ export class WalrusUserManager {
 
       // Upload new version
       const newBlobId = await this.uploadUsersRegistry(registry);
+
+      // Invalidate cache — next fetch must get the new blob.
+      if (newBlobId) {
+        this.registryCache = { blobId: newBlobId, registry };
+      }
 
       if (newBlobId) {
         console.log("\n✅ User registry updated!");

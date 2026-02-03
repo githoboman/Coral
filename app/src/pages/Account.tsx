@@ -4,6 +4,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -35,6 +36,8 @@ const Account = () => {
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { isOnboarded } = useAuth();
 
   // -----------------------------------------------------------------------
   // Data fetching  —  keeps the NEW file's two fixes:
@@ -96,6 +99,7 @@ const Account = () => {
     console.log("Account useEffect triggered:", {
       isAuthenticated: !!currentAccount,
       address: currentAccount?.address,
+      isOnboarded,
     });
 
     if (currentAccount?.address) {
@@ -104,7 +108,7 @@ const Account = () => {
       setLoading(false);
       setError("Please connect your wallet to view your account");
     }
-  }, [currentAccount?.address, dispatch, fetchAccountData]);
+  }, [currentAccount?.address, isOnboarded, dispatch, fetchAccountData]);
 
   // -----------------------------------------------------------------------
   // Helpers

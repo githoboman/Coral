@@ -9,6 +9,11 @@ import {
 } from "@mysten/dapp-kit";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import "react-toastify/dist/ReactToastify.css";
+import { useAppDispatch } from "@/store/hooks";
+import {
+  invalidateCache,
+  fetchLeaderboard,
+} from "@/store/slices/leaderboardSlice";
 
 interface AuthContextType {
   setIsLoginOpen: (open: boolean) => void;
@@ -47,6 +52,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const currentAccount = useCurrentAccount();
   const { mutate: disconnectWallet } = useDisconnectWallet();
   const { connectionStatus } = useCurrentWallet();
+
+  const dispatch = useAppDispatch();
 
   const isInitializing = connectionStatus === "connecting";
 
@@ -319,6 +326,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         initialEmail={userEmail}
         onSubmit={handleOnboardingSubmit}
         onComplete={() => {
+          // Claim just finished — leaderboard is stale, nuke it and refetch.
+          dispatch(invalidateCache());
+          dispatch(fetchLeaderboard());
           setIsOnboarded(true);
           setIsOnboardingOpen(false);
         }}
