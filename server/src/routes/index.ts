@@ -19,7 +19,7 @@ router.use(eventsRouter);
 router.use(waitlistRouter);
 router.use(accountRouter);
 router.use(chatRouter);
-router.use(checkinRouter);
+router.use("/checkin", checkinRouter);
 
 // GET /api/info - Server information
 router.get("/info", (_req: Request, res: Response) => {

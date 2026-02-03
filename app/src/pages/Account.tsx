@@ -1,16 +1,21 @@
+// src/pages/Account.tsx — UPDATED WITHOUT REFERRALS
+//
+// Removed referrals from stats and leaderboard
+
 import { useState, useEffect, useCallback } from "react";
-import { Trophy, Star, Users } from "lucide-react";
+import { Trophy, Users } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { CheckInCard } from "@/components/CheckInCard";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
+import {
+  fetchLeaderboard,
+  invalidateCache,
+} from "@/store/slices/leaderboardSlice";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 interface UserAccount {
   user_id: string;
   wallet_address: string;
@@ -25,9 +30,6 @@ interface UserAccount {
   created_at?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 const Account = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
@@ -39,11 +41,6 @@ const Account = () => {
 
   const { isOnboarded } = useAuth();
 
-  // -----------------------------------------------------------------------
-  // Data fetching  —  keeps the NEW file's two fixes:
-  //   1. 404 is not an error; it means "not onboarded yet"
-  //   2. claim-status is fetched in parallel and its balance is merged in
-  // -----------------------------------------------------------------------
   const fetchAccountData = useCallback(async () => {
     const addr = currentAccount?.address;
     if (!addr) return;
@@ -59,7 +56,6 @@ const Account = () => {
         ),
       ]);
 
-      // 404 = user hasn't registered yet — not a fatal error
       if (accountRes.status === 404) {
         console.log("User not found – needs to complete onboarding");
         setUserAccount(null);
@@ -75,7 +71,6 @@ const Account = () => {
 
       const data: UserAccount = await accountRes.json();
 
-      // Merge on-chain balance from claim-status (source of truth)
       if (claimRes.ok) {
         const claimData = await claimRes.json();
         if (claimData.balance != null) {
@@ -95,6 +90,30 @@ const Account = () => {
     }
   }, [currentAccount?.address]);
 
+  const handlePointsUpdated = useCallback(
+    (newBalance: number) => {
+      console.log("💰 Check-in points updated:", newBalance);
+
+      // Update local state immediately
+      setUserAccount((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          points: newBalance,
+        };
+      });
+
+      // Optionally refetch full account data to ensure consistency
+      setTimeout(() => {
+        fetchAccountData();
+        // Also refresh leaderboard since rankings may have changed
+        dispatch(invalidateCache());
+        dispatch(fetchLeaderboard());
+      }, 1000);
+    },
+    [fetchAccountData, dispatch],
+  );
+
   useEffect(() => {
     console.log("Account useEffect triggered:", {
       isAuthenticated: !!currentAccount,
@@ -110,9 +129,6 @@ const Account = () => {
     }
   }, [currentAccount?.address, isOnboarded, dispatch, fetchAccountData]);
 
-  // -----------------------------------------------------------------------
-  // Helpers
-  // -----------------------------------------------------------------------
   const truncateAddress = (address: string) => {
     if (!address) return "N/A";
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -126,9 +142,6 @@ const Account = () => {
     return "bg-gradient-to-r from-blue-500 to-blue-700";
   };
 
-  // -----------------------------------------------------------------------
-  // Loading
-  // -----------------------------------------------------------------------
   if (loading) {
     return (
       <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-screen">
@@ -137,9 +150,6 @@ const Account = () => {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // No wallet
-  // -----------------------------------------------------------------------
   if (!currentAccount) {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-6">
@@ -155,9 +165,6 @@ const Account = () => {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Error
-  // -----------------------------------------------------------------------
   if (error) {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-6">
@@ -177,9 +184,6 @@ const Account = () => {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Not onboarded yet  (404 path — prompt instead of hard error)
-  // -----------------------------------------------------------------------
   if (!userAccount) {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-6">
@@ -196,9 +200,6 @@ const Account = () => {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Main render
-  // -----------------------------------------------------------------------
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
@@ -207,17 +208,12 @@ const Account = () => {
       </div>
 
       <div className="space-y-8">
-        {/* ============================================================
-            Profile card
-            ============================================================ */}
+        {/* Profile card */}
         <div className="bg-[#151515] border border-white/10 rounded-[30px] p-4 md:p-8 relative overflow-hidden group">
-          {/* Decorative background gradient */}
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/10 to-purple-500/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
 
-          {/* Avatar + name row */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full mb-6 relative z-10 gap-6">
             <div className="flex items-start gap-6">
-              {/* Avatar */}
               <div className="rounded-2xl h-16 w-16 md:h-24 md:w-24 overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/10 shadow-xl group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
                 <img
                   src="/assets/images/pfp.png"
@@ -226,7 +222,6 @@ const Account = () => {
                 />
               </div>
 
-              {/* Name + wallet + premium badge */}
               <div className="flex flex-col justify-center gap-2">
                 <h2 className="text-3xl font-bold tracking-tight text-white/90">
                   {userAccount.username ||
@@ -240,15 +235,9 @@ const Account = () => {
                     </span>
                   </div>
                 </div>
-                {userAccount.is_premium && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-yellow-400/20 to-yellow-600/20 text-yellow-400 border border-yellow-500/20 text-xs font-bold rounded-full w-fit mt-2">
-                    <Star className="w-3 h-3 fill-yellow-400" /> PREMIUM MEMBER
-                  </span>
-                )}
               </div>
             </div>
 
-            {/* Rank badge (top-right on desktop) */}
             <div className="flex flex-col items-start md:items-end w-full md:w-auto mt-4 md:mt-0">
               {userAccount.rank && (
                 <div
@@ -261,11 +250,11 @@ const Account = () => {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-white/5 my-6" />
 
-          {/* Stats grid */}
+          {/* Stats grid - Points only, stacked on mobile, side-by-side on desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Points */}
             <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
               <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
                 Points
@@ -274,20 +263,15 @@ const Account = () => {
                 {userAccount.points.toLocaleString()}
               </p>
             </div>
-            <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
-              <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
-                Referrals
-              </p>
-              <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-purple-400 transition-colors">
-                {userAccount.referral_points.toLocaleString()}
-              </p>
+
+            {/* Check-in Card */}
+            <div className="md:col-span-1">
+              <CheckInCard onPointsUpdated={handlePointsUpdated} />
             </div>
           </div>
         </div>
 
-        {/* ============================================================
-            Leaderboard — Top 100
-            ============================================================ */}
+        {/* Leaderboard */}
         <div className="pt-4">
           <div className="flex items-center gap-3 mb-6 px-2">
             <h2 className="text-2xl font-bold">Top 100 Accounts</h2>
@@ -306,9 +290,6 @@ const Account = () => {
                     </th>
                     <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">
                       Points
-                    </th>
-                    <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden sm:table-cell">
-                      Referrals
                     </th>
                   </tr>
                 </thead>
@@ -346,18 +327,12 @@ const Account = () => {
                           {entry.points.toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4 hidden sm:table-cell">
-                        <span className="text-purple-400 font-mono font-medium">
-                          {entry.referral_points.toLocaleString()}
-                        </span>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Empty leaderboard */}
             {leaderboard.length === 0 && (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />

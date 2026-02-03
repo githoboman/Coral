@@ -1,32 +1,8 @@
-// ============================================================================
-// TicketMinter  —  FIXED
+// src/services/ticketMinter.ts — UPDATED WITH CHECK-IN SUPPORT
 //
-// ROOT CAUSE:  devInspectTransactionBlock is a *simulation* endpoint.  It
-// does NOT reliably reflect state that was committed in a *recent* transaction
-// on the same fullnode.  On testnet this lag can persist for 20+ seconds,
-// which is exactly what the polling logs showed.
-//
-// FIX STRATEGY (three layers, most reliable first):
-//
-//   1. verifyClaimByDigest(digest)          ← NEW
-//        After the user signs, pass the digest here.  It calls
-//        getTransactionBlock with showEvents:true and looks for the
-//        PointsClaimed event.  If found, the claim is 100 % confirmed
-//        and we can extract the balance right from the event — zero
-//        latency, zero guessing.
-//
-//   2. hasClaimed / getBalance              ← REWRITTEN
-//        Instead of devInspect (simulation), we now do TWO things:
-//          a) Subscribe to on-chain events via queryEvents filtered by
-//             the module and the wallet address.  This is the canonical
-//             way to read state that was just written.
-//          b) Fall back to devInspect only if no events are found (i.e.
-//             the wallet genuinely has never claimed).
-//        Both paths still normalise the address the same way.
-//
-//   3. normaliseAddress                     ← unchanged, still needed for
-//        the devInspect fallback path.
-// ============================================================================
+// Added methods:
+//   - getLastCheckin(wallet) → timestamp of last check-in (0 if never)
+//   - canCheckin(wallet) → boolean (true if cooldown passed or never checked in)
 
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
@@ -34,22 +10,25 @@ import { Transaction } from "@mysten/sui/transactions";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
 import "dotenv/config";
 
-// ---------------------------------------------------------------------------
-// Shape of the PointsClaimed event as returned by the Sui JSON-RPC layer.
-// ---------------------------------------------------------------------------
 interface PointsClaimedEvent {
   wallet_address: string;
-  amount: string; // u64 comes back as a decimal string
+  amount: string;
   reason: string;
-  new_balance: string; // u64 decimal string
+  new_balance: string;
   timestamp: string;
+}
+
+interface CheckInCompletedEvent {
+  wallet_address: string;
+  points_earned: string;
+  new_balance: string;
+  timestamp: string;
+  next_checkin_available: string;
 }
 
 export class TicketMinter {
   private client: SuiClient;
   private keypair: Ed25519Keypair;
-
-  // On-chain object IDs (set once at deploy, never change)
   private packageId: string;
   private adminCapId: string;
   private pointsRegistryId: string;
@@ -79,8 +58,8 @@ export class TicketMinter {
       !this.blobRegistryId
     ) {
       throw new Error(
-        "Missing env vars. After deploying points.move, set:\n" +
-          "  SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID",
+        "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
+          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID",
       );
     }
 
@@ -91,22 +70,14 @@ export class TicketMinter {
     console.log(`   BlobRegistry:    ${this.blobRegistryId}`);
   }
 
-  // -----------------------------------------------------------------------
-  // ADDRESS NORMALISATION  (kept for the devInspect fallback)
-  // -----------------------------------------------------------------------
   private normalizeAddress(addr: string): string {
     const hex = addr.startsWith("0x") ? addr.slice(2) : addr;
     return "0x" + hex.padStart(64, "0");
   }
 
-  // =======================================================================
-  // NEW ──  verifyClaimByDigest(digest)
-  //
-  // Call this immediately after the user's claim transaction is confirmed.
-  // It fetches the actual transaction receipt, extracts the PointsClaimed
-  // event, and returns structured proof of the claim.  No simulation, no
-  // guessing — if the tx succeeded and the event is there, the claim is real.
-  // =======================================================================
+  // =========================================================================
+  // DIGEST-BASED VERIFICATION (instant confirmation after tx)
+  // =========================================================================
   async verifyClaimByDigest(digest: string): Promise<{
     confirmed: boolean;
     balance: number;
@@ -129,35 +100,54 @@ export class TicketMinter {
         return null;
       }
 
-      // Look for our PointsClaimed event in the receipt
       const events = tx.events || [];
-      const claimEvent = events.find(
+
+      // Try PointsClaimed event first
+      let claimEvent = events.find(
         (e) => e.type === `${this.packageId}::points::PointsClaimed`,
       );
 
-      if (!claimEvent) {
-        console.warn("⚠️  No PointsClaimed event in transaction");
-        return null;
+      if (claimEvent) {
+        const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
+        console.log(`✅ Claim verified on-chain:`, data);
+
+        return {
+          confirmed: true,
+          balance: Number(data.new_balance),
+          amount: Number(data.amount),
+          timestamp: data.timestamp,
+        };
       }
 
-      const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
-      console.log(`✅ Claim verified on-chain:`, data);
+      // Try CheckInCompleted event
+      const checkinEvent = events.find(
+        (e) => e.type === `${this.packageId}::points::CheckInCompleted`,
+      );
 
-      return {
-        confirmed: true,
-        balance: Number(data.new_balance),
-        amount: Number(data.amount),
-        timestamp: data.timestamp,
-      };
+      if (checkinEvent) {
+        const data =
+          checkinEvent.parsedJson as unknown as CheckInCompletedEvent;
+        console.log(`✅ Check-in verified on-chain:`, data);
+
+        return {
+          confirmed: true,
+          balance: Number(data.new_balance),
+          amount: Number(data.points_earned),
+          timestamp: data.timestamp,
+        };
+      }
+
+      console.warn("⚠️  No claim or check-in event in transaction");
+      return null;
     } catch (error) {
       console.error("❌ verifyClaimByDigest error:", error);
       return null;
     }
   }
 
-  // =======================================================================
-  // MINT ELIGIBILITY TICKET  (admin signs, ticket transferred to user)
-  // =======================================================================
+  // =========================================================================
+  // MINT ELIGIBILITY TICKET
+  // =========================================================================
   async mintTicket(
     walletAddress: string,
     pointsAmount: number,
@@ -165,7 +155,7 @@ export class TicketMinter {
   ): Promise<string | null> {
     try {
       console.log(
-        `\n🎟️  Minting ticket → ${walletAddress} (${pointsAmount} pts)`,
+        `\n🎟️  Minting ticket → ${walletAddress} (${pointsAmount} pts, ${reason})`,
       );
 
       const tx = new Transaction();
@@ -217,9 +207,9 @@ export class TicketMinter {
     }
   }
 
-  // =======================================================================
-  // UPDATE BLOB REGISTRY  (admin signs)
-  // =======================================================================
+  // =========================================================================
+  // UPDATE BLOB REGISTRY
+  // =========================================================================
   async updateBlobRegistry(newBlobId: string): Promise<string | null> {
     try {
       console.log(`\n📦 Updating BlobRegistry → ${newBlobId}`);
@@ -259,22 +249,13 @@ export class TicketMinter {
     }
   }
 
-  // =======================================================================
+  // =========================================================================
   // READ: hasClaimed
-  //
-  // Strategy:
-  //   1. queryEvents for PointsClaimed filtered to this wallet  →  O(1) and
-  //      reflects committed state immediately.
-  //   2. If no event found, fall back to devInspect (handles the case where
-  //      the wallet truly has never claimed — there will be no event).
-  // =======================================================================
+  // =========================================================================
   async hasClaimed(walletAddress: string): Promise<boolean> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // --- Layer 1: check events (fast, reliable for recent claims) ---
-      // queryEvents doesn't support filtering by event field, so we filter
-      // client-side.  With limit:50 this is fine for <thousands of claims.
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::PointsClaimed`,
@@ -293,7 +274,6 @@ export class TicketMinter {
         }
       }
 
-      // --- Layer 2: devInspect fallback (for wallets that never claimed) ---
       console.log(
         `📝 No event found, running devInspect fallback for ${walletAddress}`,
       );
@@ -324,17 +304,13 @@ export class TicketMinter {
     }
   }
 
-  // =======================================================================
+  // =========================================================================
   // READ: getBalance
-  //
-  // Same two-layer strategy as hasClaimed.  The event carries new_balance
-  // so we can read it directly without touching the table.
-  // =======================================================================
+  // =========================================================================
   async getBalance(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // --- Layer 1: scan recent PointsClaimed events for this wallet ---
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::PointsClaimed`,
@@ -354,7 +330,6 @@ export class TicketMinter {
         }
       }
 
-      // --- Layer 2: devInspect fallback ---
       console.log(
         `📝 No event found, running devInspect fallback for balance of ${walletAddress}`,
       );
@@ -386,9 +361,96 @@ export class TicketMinter {
     }
   }
 
-  // =======================================================================
+  // =========================================================================
+  // READ: getLastCheckin — NEW METHOD
+  //
+  // Returns timestamp (ms) of last check-in, or 0 if never checked in.
+  // Uses event scan first (fast), falls back to devInspect.
+  // =========================================================================
+  async getLastCheckin(walletAddress: string): Promise<number> {
+    try {
+      const normalized = this.normalizeAddress(walletAddress);
+
+      // Try events first
+      const allEvents = await this.client.queryEvents({
+        query: {
+          MoveEventType: `${this.packageId}::points::CheckInCompleted`,
+        },
+        limit: 50,
+        order: "descending",
+      });
+
+      for (const ev of allEvents.data) {
+        const data = ev.parsedJson as unknown as CheckInCompletedEvent;
+        if (this.normalizeAddress(data.wallet_address) === normalized) {
+          const timestamp = Number(data.timestamp);
+          console.log(
+            `✅ getLastCheckin → ${timestamp} (from event for ${walletAddress})`,
+          );
+          return timestamp;
+        }
+      }
+
+      // Fallback to devInspect
+      console.log(
+        `📝 No check-in event found, running devInspect for ${walletAddress}`,
+      );
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::get_last_checkin`,
+        arguments: [
+          tx.object(this.pointsRegistryId),
+          tx.pure.string(normalized),
+        ],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: normalized,
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        const view = new DataView(new Uint8Array(bytes).buffer);
+        return Number(view.getBigUint64(0, true));
+      }
+
+      return 0;
+    } catch (error) {
+      console.error("Error in getLastCheckin:", error);
+      return 0;
+    }
+  }
+
+  // =========================================================================
+  // READ: canCheckin — NEW METHOD
+  //
+  // Returns true if user can check in now (cooldown passed or never checked in)
+  // =========================================================================
+  async canCheckin(walletAddress: string): Promise<boolean> {
+    try {
+      const lastCheckin = await this.getLastCheckin(walletAddress);
+
+      if (lastCheckin === 0) {
+        // Never checked in
+        return true;
+      }
+
+      const now = Date.now();
+      const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+      const timeSinceLast = now - lastCheckin;
+
+      return timeSinceLast >= COOLDOWN_MS;
+    } catch (error) {
+      console.error("Error in canCheckin:", error);
+      return false;
+    }
+  }
+
+  // =========================================================================
   // READ: current blob ID from on-chain BlobRegistry
-  // =======================================================================
+  // =========================================================================
   async getCurrentBlobId(): Promise<string | null> {
     try {
       const object = await this.client.getObject({
@@ -407,7 +469,6 @@ export class TicketMinter {
           return null;
         }
 
-        // Handle different possible formats
         if (typeof currentBlobId === "string") {
           currentBlobId = currentBlobId.trim();
         } else if (
@@ -425,7 +486,6 @@ export class TicketMinter {
           }
         }
 
-        // Final cleanup: remove any non-printable characters
         currentBlobId = (currentBlobId as string)
           .replace(/[^\x20-\x7E]/g, "")
           .trim();

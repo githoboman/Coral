@@ -18,11 +18,14 @@ module tovira_points::points {
     const EInvalidAmount: u64 = 3;
     const EUserNotFound: u64 = 4;
     const EUnauthorized: u64 = 5;
+    const ECheckinTooEarly: u64 = 6;
 
     // =========================================================================
     // CONSTANTS
     // =========================================================================
     const WAITLIST_POINTS: u64 = 300;
+    const CHECKIN_POINTS: u64 = 2;
+    const CHECKIN_COOLDOWN_MS: u64 = 86400000; // 24 hours in milliseconds
 
     // =========================================================================
     // CAPABILITY (admin-only for registry management, NOT for minting)
@@ -49,6 +52,8 @@ module tovira_points::points {
         waitlist_claimed: bool,
         /// Timestamp of the first claim (ms)
         claimed_at: u64,
+        /// Timestamp of last check-in (ms) - 0 means never checked in
+        last_checkin_at: u64,
     }
 
     // =========================================================================
@@ -86,6 +91,14 @@ module tovira_points::points {
         reason: String,
         new_balance: u64,
         timestamp: u64,
+    }
+
+    public struct CheckInCompleted has copy, drop {
+        wallet_address: address,
+        points_earned: u64,
+        new_balance: u64,
+        timestamp: u64,
+        next_checkin_available: u64,
     }
 
     public struct EligibilityTicketMinted has copy, drop {
@@ -180,14 +193,18 @@ module tovira_points::points {
 
         let wallet_key = address_to_string(caller);
 
-        // Check if already claimed
+        // Check if already claimed (for waitlist tickets specifically)
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow(&registry.records, wallet_key);
-            assert!(!record.waitlist_claimed, EAlreadyClaimed);
+            // Only enforce this for waitlist tickets
+            if (ticket.reason == string::utf8(b"Waitlist Bonus")) {
+                assert!(!record.waitlist_claimed, EAlreadyClaimed);
+            };
         };
 
         let amount = ticket.points_amount;
         let reason = ticket.reason;
+        let current_time = clock::timestamp_ms(clock);
 
         // Destroy the ticket
         let EligibilityTicket { id, wallet_address: _, points_amount: _, reason: _, created_at: _ } = ticket;
@@ -197,13 +214,17 @@ module tovira_points::points {
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow_mut(&mut registry.records, wallet_key);
             record.balance = record.balance + amount;
-            record.waitlist_claimed = true;
+            // Only mark waitlist_claimed for waitlist tickets
+            if (reason == string::utf8(b"Waitlist Bonus")) {
+                record.waitlist_claimed = true;
+            };
         } else {
             let record = PointsRecord {
                 wallet_address: wallet_key,
                 balance: amount,
-                waitlist_claimed: true,
-                claimed_at: clock::timestamp_ms(clock),
+                waitlist_claimed: (reason == string::utf8(b"Waitlist Bonus")),
+                claimed_at: current_time,
+                last_checkin_at: 0,
             };
             table::add(&mut registry.records, wallet_key, record);
         };
@@ -215,7 +236,78 @@ module tovira_points::points {
             amount,
             reason,
             new_balance: table::borrow(&registry.records, address_to_string(caller)).balance,
-            timestamp: clock::timestamp_ms(clock),
+            timestamp: current_time,
+        });
+    }
+
+    // =========================================================================
+    // USER: Check-in (consumes check-in ticket)
+    // =========================================================================
+    public entry fun checkin(
+        registry: &mut PointsRegistry,
+        ticket: EligibilityTicket,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let caller = tx_context::sender(ctx);
+        
+        // Ticket must belong to the caller
+        assert!(ticket.wallet_address == caller, EUnauthorized);
+        
+        // Ticket must be a check-in ticket
+        assert!(ticket.reason == string::utf8(b"Daily Check-in"), EUnauthorized);
+
+        let wallet_key = address_to_string(caller);
+        let current_time = clock::timestamp_ms(clock);
+
+        // Verify cooldown if user exists
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow(&registry.records, wallet_key);
+            if (record.last_checkin_at > 0) {
+                let time_since_last = current_time - record.last_checkin_at;
+                assert!(time_since_last >= CHECKIN_COOLDOWN_MS, ECheckinTooEarly);
+            };
+        };
+
+        // Destroy the ticket
+        let EligibilityTicket { id, wallet_address: _, points_amount, reason: _, created_at: _ } = ticket;
+        object::delete(id);
+
+        // Update or create record
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow_mut(&mut registry.records, wallet_key);
+            record.balance = record.balance + points_amount;
+            record.last_checkin_at = current_time;
+        } else {
+            let record = PointsRecord {
+                wallet_address: wallet_key,
+                balance: points_amount,
+                waitlist_claimed: false,
+                claimed_at: current_time,
+                last_checkin_at: current_time,
+            };
+            table::add(&mut registry.records, wallet_key, record);
+        };
+
+        registry.total_supply = registry.total_supply + points_amount;
+
+        let new_balance = table::borrow(&registry.records, wallet_key).balance;
+        let next_checkin = current_time + CHECKIN_COOLDOWN_MS;
+
+        event::emit(CheckInCompleted {
+            wallet_address: caller,
+            points_earned: points_amount,
+            new_balance,
+            timestamp: current_time,
+            next_checkin_available: next_checkin,
+        });
+
+        event::emit(PointsClaimed {
+            wallet_address: caller,
+            amount: points_amount,
+            reason: string::utf8(b"Daily Check-in"),
+            new_balance,
+            timestamp: current_time,
         });
     }
 
@@ -260,6 +352,28 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).waitlist_claimed
     }
 
+    /// Get last check-in timestamp (returns 0 if never checked in)
+    public fun get_last_checkin(registry: &PointsRegistry, wallet: String): u64 {
+        if (!table::contains(&registry.records, wallet)) {
+            return 0
+        };
+        table::borrow(&registry.records, wallet).last_checkin_at
+    }
+
+    /// Can user check in now? (true if never checked in or cooldown passed)
+    public fun can_checkin(registry: &PointsRegistry, wallet: String, clock: &Clock): bool {
+        if (!table::contains(&registry.records, wallet)) {
+            return true
+        };
+        let record = table::borrow(&registry.records, wallet);
+        if (record.last_checkin_at == 0) {
+            return true
+        };
+        let current_time = clock::timestamp_ms(clock);
+        let time_since_last = current_time - record.last_checkin_at;
+        time_since_last >= CHECKIN_COOLDOWN_MS
+    }
+
     /// Total supply of all minted points
     public fun get_total_supply(registry: &PointsRegistry): u64 {
         registry.total_supply
@@ -271,11 +385,10 @@ module tovira_points::points {
     }
 
     // =========================================================================
-    // HELPERS - FIXED VERSION
+    // HELPERS
     // =========================================================================
 
     /// Convert an address to its hex string representation for use as table key
-    /// FIXED: Use address::to_string() which returns proper hex format (0x...)
     fun address_to_string(addr: address): String {
         address::to_string(addr)
     }
