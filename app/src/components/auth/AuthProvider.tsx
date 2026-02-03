@@ -108,6 +108,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       );
 
       if (!response.ok) {
+        // If endpoint doesn't exist or returns 404, assume user needs onboarding
+        if (response.status === 404) {
+          console.log("User not found, showing onboarding");
+          setIsOnboarded(false);
+          setIsOnboardingOpen(true);
+          setCheckingOnboarding(false);
+          return;
+        }
         throw new Error("Failed to check user status");
       }
 
@@ -148,21 +156,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
       firstName?: string;
       lastName?: string;
     },
-  ) => {
+  ): Promise<{ success: boolean; data?: any }> => {
     const walletAddress = currentAccount?.address;
 
     if (!walletAddress) {
       toast.error("Wallet not connected");
-      return;
+      // Return failure instead of undefined
+      return { success: false };
     }
 
     setOnboardingLoading(true);
     setOnboardingMessage(null);
 
     try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/auth/verify-and-register`,
-        {
+      // Try the original endpoint first
+      let response = await fetch(`${apiBaseUrl}/api/auth/verify-and-register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          wallet_address: walletAddress,
+          username: additionalData?.username,
+          first_name: additionalData?.firstName,
+          last_name: additionalData?.lastName,
+          preferences: {
+            notifications_enabled: additionalData?.notifications_enabled,
+            analytics_enabled: additionalData?.analytics_enabled,
+            personalization_enabled: additionalData?.personalization_enabled,
+          },
+        }),
+      });
+
+      // If 404, try alternative endpoint
+      if (response.status === 404) {
+        console.log("Primary endpoint not found, trying /register");
+        response = await fetch(`${apiBaseUrl}/api/auth/register`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -179,33 +209,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
               personalization_enabled: additionalData?.personalization_enabled,
             },
           }),
-        },
-      );
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to complete onboarding");
+        throw new Error(
+          errorData.detail ||
+            errorData.message ||
+            "Failed to complete onboarding",
+        );
       }
 
       const data = await response.json();
 
-      setOnboardingMessage("Onboarding completed successfully!");
-      setIsOnboarded(true);
-      setIsOnboardingOpen(false);
+      setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
 
-      // Show different message based on waitlist status
-      if (data.user.is_waitlisted) {
-        toast.success(
-          `Welcome to Tovira! You've been awarded ${data.user.points_awarded} points! 🎉`,
-        );
-      } else {
-        toast.success("Welcome to Tovira!");
-      }
+      // Don't close onboarding yet - let the OnboardingModal handle the transition to step 3
+      // The modal will check waitlist status and show claim screen if eligible
+
+      toast.success("Profile saved! Checking waitlist status...");
+
+      // Always return success object
+      return { success: true, data };
     } catch (error: any) {
       console.error("Error during onboarding:", error.message);
-      setOnboardingMessage(error.message || "Failed to complete onboarding");
-      toast.error(error.message || "Failed to complete onboarding");
+      setOnboardingMessage(error.message || "Failed to save profile");
+      toast.error(error.message || "Failed to save profile");
+
+      // Re-throw so the modal knows it failed, but this will be caught by the modal
+      throw error;
     } finally {
       setOnboardingLoading(false);
     }
@@ -284,6 +318,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         message={onboardingMessage}
         initialEmail={userEmail}
         onSubmit={handleOnboardingSubmit}
+        onComplete={() => {
+          setIsOnboarded(true);
+          setIsOnboardingOpen(false);
+        }}
       />
     </AuthContext.Provider>
   );

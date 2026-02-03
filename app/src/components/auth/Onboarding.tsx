@@ -1,9 +1,15 @@
-// src/components/Onboarding.tsx - SIMPLIFIED (NO WAITLIST VERIFICATION)
+// src/components/Onboarding.tsx  —  FIXED: Hooks called unconditionally
+//
+// Step 1: email + username  →  "Continue"
+// Step 2: preferences       →  "Complete Setup"
+// Step 3: Claim Points (wallet-signed transaction)
+
 import { useState, useEffect, useRef } from "react";
-import { Mail } from "lucide-react";
+import { Mail, Gift, Check } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useClaimPoints } from "@/hooks/useClaimPoints";
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -18,7 +24,8 @@ interface OnboardingProps {
       personalization_enabled?: boolean;
       username?: string;
     },
-  ) => void;
+  ) => Promise<{ success: boolean; data?: any }>;
+  onComplete: () => void;
 }
 
 export function OnboardingModal({
@@ -27,8 +34,12 @@ export function OnboardingModal({
   message,
   initialEmail,
   onSubmit,
+  onComplete,
 }: OnboardingProps) {
-  const [step, setStep] = useState<1 | 2>(1);
+  // ---------------------------------------------------------------------------
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
+  // ---------------------------------------------------------------------------
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState(initialEmail || "");
   const [username, setUsername] = useState("");
   const [preferences, setPreferences] = useState({
@@ -36,19 +47,24 @@ export function OnboardingModal({
     analytics: false,
     personalization: false,
   });
+  const [profileSaved, setProfileSaved] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isEmailFromOAuth = !!initialEmail;
 
+  // Always call useClaimPoints - don't conditionally call hooks
+  const { claimPoints, claimState, reset: resetClaim } = useClaimPoints();
+
+  // ---------------------------------------------------------------------------
+  // Effects
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (initialEmail) {
-      setEmail(initialEmail);
-    }
+    if (initialEmail) setEmail(initialEmail);
   }, [initialEmail]);
 
   useGSAP(() => {
-    if (isOpen) {
+    if (isOpen && modalRef.current) {
       gsap.fromTo(
         modalRef.current,
         { opacity: 0, scale: 0.9, y: 20 },
@@ -67,23 +83,44 @@ export function OnboardingModal({
     }
   }, [step]);
 
+  // ---------------------------------------------------------------------------
+  // Early return AFTER all hooks have been called
+  // ---------------------------------------------------------------------------
   if (!isOpen) return null;
 
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
   const handleEmailNext = () => {
-    if (email.trim()) {
-      setStep(2);
+    if (email.trim()) setStep(2);
+  };
+
+  const handleFinalSubmit = async () => {
+    try {
+      // Call the parent onSubmit (saves profile locally)
+      const result = await onSubmit(email.trim(), {
+        notifications_enabled: preferences.notifications,
+        analytics_enabled: preferences.analytics,
+        personalization_enabled: preferences.personalization,
+        username: username.trim() || undefined,
+      });
+
+      if (result?.success) {
+        // Profile saved successfully
+        // Always go to claim screen - the backend will check waitlist eligibility
+        // when the user clicks "Claim Points"
+        setProfileSaved(true);
+        setStep(3);
+      }
+    } catch (error) {
+      // Error is already handled by parent
+      console.error("Failed to save profile:", error);
     }
   };
 
-  const handleFinalSubmit = () => {
-    onSubmit(email.trim(), {
-      notifications_enabled: preferences.notifications,
-      analytics_enabled: preferences.analytics,
-      personalization_enabled: preferences.personalization,
-      username: username.trim() || undefined,
-    });
-  };
-
+  // ---------------------------------------------------------------------------
+  // Reusable Switch Component
+  // ---------------------------------------------------------------------------
   const Switch = ({
     active,
     onChange,
@@ -101,6 +138,9 @@ export function OnboardingModal({
     </button>
   );
 
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
   return (
     <div className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
       <div
@@ -108,8 +148,12 @@ export function OnboardingModal({
         className="w-full max-w-[400px] bg-[#070B0F]/95 backdrop-blur-2xl border border-white/5 rounded-[32px] shadow-2xl relative overflow-hidden"
       >
         <div className="p-6" ref={contentRef}>
-          {step === 1 ? (
+          {/* ============================================================
+              STEP 1 — Email + Username
+              ============================================================ */}
+          {step === 1 && (
             <div className="flex flex-col items-center">
+              {/* Logo */}
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B7FC0D] to-[#246AFC] p-0.5 mb-6">
                 <div className="w-full h-full rounded-full bg-[#070B0F] flex items-center justify-center p-3">
                   <img
@@ -124,19 +168,20 @@ export function OnboardingModal({
                 Complete Your Profile
               </h2>
               <p className="text-white/40 text-sm text-center mb-8 font-medium">
-                Enter your email to get started. Waitlisted users get 300 bonus
-                points!
+                Enter your email to get started. Waitlisted users can claim 300
+                bonus points!
               </p>
 
               <div className="w-full space-y-5">
                 {message && (
                   <div
-                    className={`p-4 rounded-2xl text-sm font-medium ${message.includes("successfully") ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
+                    className={`p-4 rounded-2xl text-sm font-medium ${message.includes("success") ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
                   >
                     {message}
                   </div>
                 )}
 
+                {/* Email input */}
                 <div className="relative group">
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#B7FC0D] transition-colors">
                     <Mail size={20} />
@@ -154,6 +199,7 @@ export function OnboardingModal({
                   />
                 </div>
 
+                {/* Username input */}
                 <div className="relative group">
                   <input
                     type="text"
@@ -166,6 +212,7 @@ export function OnboardingModal({
                   />
                 </div>
 
+                {/* Continue button */}
                 <button
                   onClick={handleEmailNext}
                   disabled={loading || !email.trim()}
@@ -185,7 +232,12 @@ export function OnboardingModal({
                 </button>
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* ============================================================
+              STEP 2 — Preferences
+              ============================================================ */}
+          {step === 2 && (
             <div className="flex flex-col">
               <h2 className="text-[24px] font-bold text-white mb-5 tracking-tight">
                 Choose your preferences
@@ -250,15 +302,135 @@ export function OnboardingModal({
               </div>
             </div>
           )}
+
+          {/* ============================================================
+              STEP 3 — Claim Points (wallet-signed transaction)
+              ============================================================ */}
+          {step === 3 && (
+            <div className="flex flex-col items-center">
+              {/* --------------- SUCCESS STATE --------------- */}
+              {claimState.status === "success" ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mb-6">
+                    <Check size={32} className="text-green-400" />
+                  </div>
+                  <h2 className="text-[24px] font-bold text-white mb-2 text-center">
+                    Points Claimed!
+                  </h2>
+                  <p className="text-white/40 text-sm text-center mb-6">
+                    Your points have been recorded on the Sui blockchain.
+                  </p>
+                  <div className="w-full bg-[#15191C] border border-white/5 rounded-2xl p-5 text-center mb-6">
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
+                      Your Balance
+                    </p>
+                    <p className="text-3xl font-bold text-[#B7FC0D]">
+                      {claimState.balance.toLocaleString()}
+                    </p>
+                    <p className="text-white/30 text-xs mt-1">points</p>
+                  </div>
+                  <button
+                    onClick={onComplete}
+                    className="w-full py-4 bg-white text-black rounded-full font-bold text-base hover:bg-white/90 transition-all cursor-pointer"
+                  >
+                    Continue to Dashboard
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* --------------- CLAIM PROMPT --------------- */}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B7FC0D]/20 to-[#246AFC]/20 border border-[#B7FC0D]/30 flex items-center justify-center mb-6">
+                    <Gift size={28} className="text-[#B7FC0D]" />
+                  </div>
+
+                  <h2 className="text-[24px] font-bold text-white mb-2 text-center tracking-tight">
+                    Claim Your Points
+                  </h2>
+                  <p className="text-white/40 text-sm text-center mb-6 leading-relaxed">
+                    Your email is on the waitlist! Sign a transaction with your
+                    wallet to claim your reward.
+                  </p>
+
+                  {/* Points badge */}
+                  <div className="w-full bg-[#15191C] border border-[#B7FC0D]/20 rounded-2xl p-5 text-center mb-6">
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
+                      Reward
+                    </p>
+                    <p className="text-3xl font-bold text-[#B7FC0D]">300</p>
+                    <p className="text-white/30 text-xs mt-1">
+                      points · stored on Sui
+                    </p>
+                  </div>
+
+                  {/* Error banner */}
+                  {claimState.error && (
+                    <div className="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center mb-4">
+                      {claimState.error}
+                    </div>
+                  )}
+
+                  {/* Status text */}
+                  {(claimState.status === "verifying" ||
+                    claimState.status === "signing" ||
+                    claimState.status === "confirming") && (
+                    <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
+                      {claimState.status === "verifying" &&
+                        "Verifying eligibility…"}
+                      {claimState.status === "signing" &&
+                        "Check your wallet for the approval prompt…"}
+                      {claimState.status === "confirming" &&
+                        "Confirming on chain…"}
+                    </p>
+                  )}
+
+                  {/* Claim button */}
+                  <button
+                    onClick={() => claimPoints(email)}
+                    disabled={
+                      claimState.status !== "idle" &&
+                      claimState.status !== "error"
+                    }
+                    className="w-full py-4 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {claimState.status === "verifying" ||
+                    claimState.status === "signing" ||
+                    claimState.status === "confirming" ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        {claimState.status === "verifying" && "Verifying…"}
+                        {claimState.status === "signing" &&
+                          "Awaiting signature…"}
+                        {claimState.status === "confirming" && "Confirming…"}
+                      </>
+                    ) : (
+                      "Claim 300 Points"
+                    )}
+                  </button>
+
+                  {/* Skip link for users who don't want to claim right now */}
+                  {claimState.status === "idle" && (
+                    <button
+                      onClick={onComplete}
+                      className="mt-4 text-white/30 hover:text-white/60 text-xs cursor-pointer transition-colors"
+                    >
+                      Skip for now
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Footer note */}
       <div
         className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[400px] text-center text-[10px] text-white/30 font-medium leading-normal px-4 opacity-0 animate-fade-in"
         style={{ animationDelay: "0.5s", animationFillMode: "forwards" }}
       >
-        Your email will be checked against our waitlist. Waitlisted users
-        receive 300 bonus points!
+        {step < 3
+          ? "Your email will be checked against our waitlist. Waitlisted users can claim 300 points!"
+          : "Points are stored on the Sui blockchain. Your email is kept off-chain."}
       </div>
     </div>
   );

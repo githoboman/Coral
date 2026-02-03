@@ -1,31 +1,31 @@
-// ============================================================================
-// FILE 2: src/routes/waitlist.ts (FIXED)
-// ============================================================================
+// src/routes/waitlist.ts
+//
+// Optional routes for managing the waitlist directly
+// (Most waitlist operations happen via /auth endpoints)
 
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
 
 const router = Router();
 
-// CRITICAL: Store your Walrus blob ID here after migration
-// This should come from environment variables in production
+// Blob ID from environment
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
-// Initialize manager (reuse across requests)
+// -----------------------------------------------------------------------
+// Singleton manager
+// -----------------------------------------------------------------------
 let waitlistManager: WaitlistManager | null = null;
 
 function getWaitlistManager(): WaitlistManager {
-  if (!waitlistManager) {
-    const privateKey = process.env.WALRUS_PRIVATE_KEY;
-    waitlistManager = new WaitlistManager();
-  }
+  if (!waitlistManager) waitlistManager = new WaitlistManager();
   return waitlistManager;
 }
 
-/**
- * POST /api/waitlist/verify
- * Verify if email is on the waitlist
- */
+// =======================================================================
+// POST /api/waitlist/verify
+//
+// Verify if email is on the waitlist (simpler endpoint than full verify-and-issue-ticket)
+// =======================================================================
 router.post(
   "/verify",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -73,10 +73,11 @@ router.post(
   },
 );
 
-/**
- * GET /api/waitlist/info
- * Get waitlist information (without revealing emails)
- */
+// =======================================================================
+// GET /api/waitlist/info
+//
+// Get waitlist information (without revealing emails)
+// =======================================================================
 router.get(
   "/info",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {

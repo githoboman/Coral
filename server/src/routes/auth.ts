@@ -1,48 +1,51 @@
-// src/routes/auth.ts
+// src/routes/auth.ts  —  FIXED VERSION (v2)
+//
+// What changed vs the previous "FIXED VERSION":
+//
+//   check-claim-status now accepts an optional ?tx_digest= query param.
+//   When the frontend has just received a successful digest it can pass it
+//   here for instant, event-based confirmation — no devInspect, no latency.
+//
+//   When no digest is supplied (legacy polling path) it falls through to
+//   the rewritten hasClaimed / getBalance in TicketMinter which now check
+//   on-chain events FIRST and only fall back to devInspect when there are
+//   genuinely no events (i.e. the wallet has never claimed).
+
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
-import { WalrusUserManager } from "../services/walrusUserManager";
-import { PointsManager } from "../services/pointsManager";
+import { WalrusUserManager, UserProfile } from "../services/walrusUserManager";
+import { TicketMinter } from "../services/ticketMinter";
 
 const router = Router();
 
-// Blob IDs from environment
+// Blob ID for WAITLIST (this is separate from user registry!)
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
-const USER_REGISTRY_BLOB_ID = process.env.USER_REGISTRY_BLOB_ID || "";
 
-// Service managers (singleton pattern)
+// -----------------------------------------------------------------------
+// Singleton managers
+// -----------------------------------------------------------------------
 let waitlistManager: WaitlistManager | null = null;
 let userManager: WalrusUserManager | null = null;
-let pointsManager: PointsManager | null = null;
+let ticketMinter: TicketMinter | null = null;
 
 function getWaitlistManager(): WaitlistManager {
-  if (!waitlistManager) {
-    waitlistManager = new WaitlistManager();
-  }
+  if (!waitlistManager) waitlistManager = new WaitlistManager();
   return waitlistManager;
 }
-
 function getUserManager(): WalrusUserManager {
-  if (!userManager) {
-    userManager = new WalrusUserManager();
-  }
+  if (!userManager) userManager = new WalrusUserManager();
   return userManager;
 }
-
-function getPointsManager(): PointsManager {
-  if (!pointsManager) {
-    pointsManager = new PointsManager();
-  }
-  return pointsManager;
+function getTicketMinter(): TicketMinter {
+  if (!ticketMinter) ticketMinter = new TicketMinter();
+  return ticketMinter;
 }
 
-/**
- * POST /api/auth/verify-and-register
- * Verify email against waitlist and register user
- * Awards 300 points if waitlisted, 0 if not
- */
+// =======================================================================
+// POST /api/auth/register
+// =======================================================================
 router.post(
-  "/verify-and-register",
+  "/register",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const {
@@ -54,23 +57,105 @@ router.post(
         preferences,
       } = req.body;
 
-      // Validation
+      // --- validation ---
       if (!email || typeof email !== "string") {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Email is required",
-        });
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Email is required" });
         return;
       }
-
       if (!wallet_address || typeof wallet_address !== "string") {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Wallet address is required",
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Wallet address is required" });
+        return;
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+      const minter = getTicketMinter();
+      const um = getUserManager();
+
+      // --- 1. Get current blob registry ID from chain ---
+      console.log(`📝 Saving profile for: ${normalizedEmail}`);
+      const blobRegistry = await minter.getCurrentBlobId();
+
+      console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
+
+      // --- 2. Create user profile ---
+      const profile: UserProfile = {
+        email: normalizedEmail,
+        wallet_address,
+        username: username || undefined,
+        first_name: first_name || undefined,
+        last_name: last_name || undefined,
+        preferences: preferences || {},
+        is_waitlisted: false,
+        points_awarded: 0,
+        joined_at: new Date().toISOString(),
+      };
+
+      // --- 3. Save to Walrus ---
+      const newBlobId = await um.addOrUpdateUser(blobRegistry || null, profile);
+
+      if (!newBlobId) {
+        res.status(500).json({
+          error: "Internal Server Error",
+          detail: "Failed to save user profile to Walrus",
         });
         return;
       }
 
+      // --- 4. Update on-chain BlobRegistry if blob ID changed ---
+      if (newBlobId !== blobRegistry) {
+        console.log(
+          `📦 Updating BlobRegistry on-chain: ${blobRegistry} -> ${newBlobId}`,
+        );
+        await minter.updateBlobRegistry(newBlobId);
+        console.log(`✅ BlobRegistry updated on-chain → ${newBlobId}`);
+      }
+
+      console.log(`✅ Profile saved for ${wallet_address}`);
+
+      // --- 5. Return success ---
+      res.json({
+        success: true,
+        user: {
+          email: normalizedEmail,
+          wallet_address,
+          username: username || null,
+        },
+        message:
+          "Profile saved successfully. You can now check if you're eligible for points.",
+      });
+    } catch (error) {
+      console.error("Error in register:", error);
+      next(error);
+    }
+  },
+);
+
+// =======================================================================
+// POST /api/auth/verify-and-issue-ticket
+// =======================================================================
+router.post(
+  "/verify-and-issue-ticket",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email, wallet_address } = req.body;
+
+      // --- validation ---
+      if (!email || typeof email !== "string") {
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Email is required" });
+        return;
+      }
+      if (!wallet_address || typeof wallet_address !== "string") {
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Wallet address is required" });
+        return;
+      }
       if (!WHITELIST_BLOB_ID) {
         res.status(500).json({
           error: "Configuration Error",
@@ -80,103 +165,110 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
-      const managers = {
-        waitlist: getWaitlistManager(),
-        user: getUserManager(),
-        points: getPointsManager(),
-      };
+      const minter = getTicketMinter();
 
-      // Step 1: Check if email is waitlisted
-      console.log(`\n🔍 Checking waitlist status for: ${normalizedEmail}`);
-      const isWaitlisted = await managers.waitlist.isEmailWhitelisted(
-        normalizedEmail,
-        WHITELIST_BLOB_ID,
-      );
+      // --- 1. Check on-chain: has this wallet already claimed? ---
+      console.log(`\n🔍 Checking on-chain claim status for: ${wallet_address}`);
+      const alreadyClaimed = await minter.hasClaimed(wallet_address);
 
-      // Step 2: Determine points to award
-      const pointsToAward = isWaitlisted ? 300 : 0;
-      console.log(`   Waitlisted: ${isWaitlisted}`);
-      console.log(`   Points to award: ${pointsToAward}`);
-
-      // Step 3: Create user profile
-      const userProfile = managers.user.createUserProfile(
-        normalizedEmail,
-        wallet_address,
-        isWaitlisted,
-        pointsToAward,
-        {
-          username,
-          first_name,
-          last_name,
-          preferences,
-        },
-      );
-
-      // Step 4: Save user profile to Walrus
-      console.log(`\n💾 Saving user profile to Walrus...`);
-      const newRegistryBlobId = await managers.user.addOrUpdateUser(
-        USER_REGISTRY_BLOB_ID || null,
-        userProfile,
-      );
-
-      if (!newRegistryBlobId) {
-        res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to save user profile",
+      if (alreadyClaimed) {
+        res.json({
+          eligible: false,
+          already_claimed: true,
+          message: "Points already claimed for this wallet.",
         });
         return;
       }
 
-      // Step 5: Mint points on-chain (if any)
-      let txDigest: string | null = null;
-      if (pointsToAward > 0) {
-        try {
-          console.log(`\n🪙 Minting ${pointsToAward} points on-chain...`);
-          txDigest = await managers.points.mintPoints(
+      // --- 2. Check waitlist on Walrus ---
+      console.log(`🔍 Checking waitlist for: ${normalizedEmail}`);
+      const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
+        normalizedEmail,
+        WHITELIST_BLOB_ID,
+      );
+
+      if (!isWaitlisted) {
+        res.status(403).json({
+          eligible: false,
+          already_claimed: false,
+          message:
+            "Email is not on the waitlist. New users do not receive points.",
+        });
+        return;
+      }
+
+      // --- 3. Mint EligibilityTicket on-chain ---
+      console.log(`🎟️  Minting EligibilityTicket for ${wallet_address}...`);
+      const ticketObjectId = await minter.mintTicket(
+        wallet_address,
+        300,
+        "Waitlist Bonus",
+      );
+
+      if (!ticketObjectId) {
+        res.status(500).json({
+          error: "Internal Server Error",
+          detail: "Failed to mint eligibility ticket. Please try again.",
+        });
+        return;
+      }
+
+      console.log(`✅ Ticket minted: ${ticketObjectId}`);
+
+      // --- 4. Update user profile in Walrus to mark as waitlisted ---
+      try {
+        const um = getUserManager();
+        const blobRegistry = await minter.getCurrentBlobId();
+
+        if (blobRegistry) {
+          const existingProfile = await um.getUserProfile(
+            blobRegistry,
             wallet_address,
-            pointsToAward,
-            isWaitlisted ? "Waitlist Bonus" : "Welcome Bonus",
           );
-        } catch (error) {
-          console.error(
-            "⚠️  Points minting failed (continuing anyway):",
-            error,
-          );
-          // Don't fail the registration if points fail
+
+          if (existingProfile) {
+            const updatedProfile = {
+              ...existingProfile,
+              is_waitlisted: true,
+              waitlist_verified_at: new Date().toISOString(),
+            };
+
+            const newBlobId = await um.addOrUpdateUser(
+              blobRegistry,
+              updatedProfile,
+            );
+
+            if (newBlobId && newBlobId !== blobRegistry) {
+              await minter.updateBlobRegistry(newBlobId);
+              console.log(`📦 BlobRegistry updated on-chain → ${newBlobId}`);
+            }
+          }
         }
+      } catch (walrusErr) {
+        console.warn(
+          "⚠️  Walrus profile update failed (non-fatal):",
+          walrusErr,
+        );
       }
 
-      // Step 6: Log new registry blob ID (admin needs to update .env)
-      if (newRegistryBlobId !== USER_REGISTRY_BLOB_ID) {
-        console.log("\n⚠️  USER REGISTRY UPDATED!");
-        console.log(`   Update your .env file:`);
-        console.log(`   USER_REGISTRY_BLOB_ID=${newRegistryBlobId}`);
-      }
-
-      // Success response
+      // --- 5. Return ticket ID to frontend ---
       res.json({
-        success: true,
-        message: "Registration successful!",
-        user: {
-          email: normalizedEmail,
-          wallet_address,
-          is_waitlisted: isWaitlisted,
-          points_awarded: pointsToAward,
-        },
-        registry_blob_id: newRegistryBlobId,
-        tx_digest: txDigest,
+        eligible: true,
+        already_claimed: false,
+        ticket_object_id: ticketObjectId,
+        points_amount: 300,
+        message: "Eligible! Sign the claim transaction to receive your points.",
       });
     } catch (error) {
-      console.error("Error in verify-and-register:", error);
+      console.error("Error in verify-and-issue-ticket:", error);
       next(error);
     }
   },
 );
 
-/**
- * GET /api/auth/check-user
- * Check if user exists and get their profile
- */
+// =======================================================================
+// GET /api/auth/check-user
+// =======================================================================
 router.get(
   "/check-user",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -184,40 +276,105 @@ router.get(
       const { wallet_address } = req.query;
 
       if (!wallet_address || typeof wallet_address !== "string") {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Wallet address is required",
-        });
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Wallet address is required" });
         return;
       }
 
-      if (!USER_REGISTRY_BLOB_ID) {
-        res.json({
-          exists: false,
-          user: null,
-        });
+      const minter = getTicketMinter();
+      const blobId = await minter.getCurrentBlobId();
+
+      console.log(`check-user: blobId from chain = ${blobId || "null"}`);
+
+      if (!blobId) {
+        console.log("No BlobRegistry yet - user needs to register first");
+        res.json({ exists: false, user: null });
         return;
       }
 
-      const userManager = getUserManager();
-      const userProfile = await userManager.getUserProfile(
-        USER_REGISTRY_BLOB_ID,
-        wallet_address,
-      );
+      const um = getUserManager();
+      const userProfile = await um.getUserProfile(blobId, wallet_address);
 
-      if (userProfile) {
-        res.json({
-          exists: true,
-          user: userProfile,
-        });
-      } else {
-        res.json({
-          exists: false,
-          user: null,
-        });
-      }
+      res.json({
+        exists: !!userProfile,
+        user: userProfile || null,
+      });
     } catch (error) {
       console.error("Error in check-user:", error);
+      next(error);
+    }
+  },
+);
+
+// =======================================================================
+// GET /api/auth/check-claim-status
+//
+// Query params:
+//   wallet_address   (required)  – the wallet to check
+//   tx_digest        (optional)  – if the caller just signed a claim tx,
+//                                  pass its digest here for instant
+//                                  event-based confirmation.
+//
+// Response shape (unchanged, so frontend needs zero changes):
+//   { claimed: boolean, balance: number, wallet_address: string }
+// =======================================================================
+router.get(
+  "/check-claim-status",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { wallet_address, tx_digest } = req.query;
+
+      if (!wallet_address || typeof wallet_address !== "string") {
+        res
+          .status(400)
+          .json({ error: "Bad Request", detail: "Wallet address is required" });
+        return;
+      }
+
+      const minter = getTicketMinter();
+
+      // ------------------------------------------------------------------
+      // FAST PATH: caller supplied a tx digest  →  verify directly from
+      // the transaction receipt.  Zero latency, 100 % reliable.
+      // ------------------------------------------------------------------
+      if (tx_digest && typeof tx_digest === "string") {
+        console.log(
+          `\n⚡ check-claim-status: fast path via digest ${tx_digest}`,
+        );
+
+        const verification = await minter.verifyClaimByDigest(tx_digest);
+
+        if (verification?.confirmed) {
+          res.json({
+            claimed: true,
+            balance: verification.balance,
+            wallet_address,
+          });
+          return;
+        }
+
+        // Digest didn't contain the expected event — fall through to the
+        // normal read path rather than returning a hard failure.  This can
+        // happen if the digest belongs to a different tx.
+        console.warn(
+          "⚠️  Digest did not contain PointsClaimed event, falling through to normal read",
+        );
+      }
+
+      // ------------------------------------------------------------------
+      // NORMAL PATH: event scan + devInspect fallback (inside TicketMinter)
+      // ------------------------------------------------------------------
+      const claimed = await minter.hasClaimed(wallet_address);
+      const balance = await minter.getBalance(wallet_address);
+
+      res.json({
+        claimed,
+        balance,
+        wallet_address,
+      });
+    } catch (error) {
+      console.error("Error in check-claim-status:", error);
       next(error);
     }
   },
