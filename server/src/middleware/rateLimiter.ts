@@ -1,20 +1,58 @@
-import { createClient } from 'redis';
+import { createClient, RedisClientType } from 'redis';
 import { Request, Response, NextFunction } from 'express';
 
-const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
-
-redisClient.on('error', (err: Error) => console.error('Redis Client Error:', err));
-redisClient.on('connect', () => console.log('Redis Client Connected'));
-
-// Connect to Redis
-redisClient.connect().catch(console.error);
-
+const RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED !== 'false';
 const LIMIT = 4;
 const WINDOW_SECONDS = 6 * 60 * 60; // 6 hours
 
+let redisClient: RedisClientType | null = null;
+let redisConnected = false;
+
+// Only initialize Redis if rate limiting is enabled and URL is provided
+if (RATE_LIMIT_ENABLED && process.env.REDIS_URL) {
+  redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      connectTimeout: 10000,
+      reconnectStrategy: (retries) => {
+        // Stop retrying after 3 attempts
+        if (retries > 3) {
+          console.log('[RATE LIMIT] Redis connection failed after 3 retries, disabling rate limiting');
+          return false; // Stop reconnecting
+        }
+        return Math.min(retries * 1000, 5000); // Wait before retry
+      }
+    }
+  });
+
+  redisClient.on('error', (err: Error) => {
+    console.error('Redis Client Error:', err.message);
+    redisConnected = false;
+  });
+  redisClient.on('connect', () => {
+    console.log('Redis Client Connected');
+    redisConnected = true;
+  });
+  redisClient.on('end', () => {
+    console.log('Redis Client Disconnected');
+    redisConnected = false;
+  });
+
+  // Connect to Redis (don't block on failure)
+  redisClient.connect().catch((err) => {
+    console.error('Redis connection failed:', err.message);
+    redisConnected = false;
+  });
+} else {
+  console.log('[RATE LIMIT] Rate limiting disabled via RATE_LIMIT_ENABLED=false');
+}
+
 export async function rateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Skip rate limiting if disabled or Redis not connected
+  if (!RATE_LIMIT_ENABLED || !redisConnected || !redisClient) {
+    return next();
+  }
+
   const userId = req.body.user_id;
 
   if (!userId) {
@@ -67,3 +105,4 @@ export async function rateLimitMiddleware(req: Request, res: Response, next: Nex
 }
 
 export { redisClient };
+

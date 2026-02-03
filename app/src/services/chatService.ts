@@ -25,6 +25,15 @@ export interface ChatResponse {
     status: 'pending' | 'running' | 'completed' | 'failed';
     message: string;
   }>;
+  pending_action?: {
+    task_id: number;
+    action_type: string;
+    action_params: {
+      recipientAddress?: string;
+      coinType?: string;
+      amount?: string;
+    };
+  };
 }
 
 export async function sendChatMessage(data: ChatMessage): Promise<ChatResponse> {
@@ -89,3 +98,27 @@ export async function fetchChatMessages(chatId: string) {
 export function generateChatId(): string {
   return `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
+
+export interface RateLimitStatus {
+  limit: number;
+  remaining: number;
+  resetInSeconds: number | null; // seconds until reset, null if not limited
+  isLimited: boolean;
+}
+
+export async function getRateLimitStatus(userId: string): Promise<RateLimitStatus> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/rate-limit/${userId}`);
+
+    if (!response.ok) {
+      // On error, assume not limited
+      return { limit: 4, remaining: 4, resetInSeconds: null, isLimited: false };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('[ChatService] Error checking rate limit:', error);
+    return { limit: 4, remaining: 4, resetInSeconds: null, isLimited: false };
+  }
+}
+

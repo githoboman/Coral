@@ -1,8 +1,8 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import {
-  Copy, MessageSquare, User, Bell,
+  Copy,
   Settings as SettingsIcon, Wallet,
-  Plus, X, Activity, ChevronRight, Eye, EyeOff,
+  Plus, X, ChevronRight, Eye, EyeOff,
   RefreshCcw, ArrowUp, ChevronDown, Share2, Key, ShieldCheck, Mail, ArrowUpDown,
   Gamepad2, Clock, ClipboardPaste
 } from 'lucide-react';
@@ -35,18 +35,12 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
-const iconMap = {
-  messageSquare: MessageSquare,
-  activity: Activity,
-  bell: Bell,
-  clock: Clock,
-  profile: User,
-};
+
 
 interface NavItem {
   name: string;
   to: string;
-  icon: keyof typeof iconMap;
+  iconUrl: string;
   active: boolean;
 }
 
@@ -114,12 +108,12 @@ const WalletManager = ({
       return (
         <button
           onClick={toggleWallet}
-          className="fixed top-6 right-6 cursor-pointer z-[100] h-fit px-4 py-2.5 bg-[#070B0F]/80 backdrop-blur-2xl border border-white/10 rounded-full hidden md:flex items-center gap-2 text-white hover:text-[#B7FC0D] transition-all duration-300 shadow-xl"
+          className="fixed top-6 right-6 cursor-pointer z-[100] h-fit px-4 py-2.5 bg-[#070B0F]/80 backdrop-blur-2xl border border-white/10 rounded-full hidden md:flex items-center gap-2 text-white transition-all duration-300 shadow-xl"
         >
-          <div className="w-3.5 h-3.5 rounded-sm border border-white/20 flex items-center justify-center">
-            <div className="w-1.5 h-0.5 bg-white/20 rounded-full" />
+          <div className="w-4 h-4 flex items-center justify-center">
+            <img src="/assets/icons/wallet.svg" className="w-14 h-14" alt="wallet-toggle" />
           </div>
-          <span className="text-[15px] font-bold tracking-tight">${walletBalanceUSD}</span>
+          <span className="text-[15px] font-[400] tracking-tight">${walletBalanceUSD}</span>
         </button>
       );
     }
@@ -141,14 +135,14 @@ const WalletManager = ({
         className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
       >
         <div className="flex justify-between items-center w-full mb-8">
-          <button onClick={toggleSettings} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer">
+          <button onClick={toggleSettings} className="btn btn-icon btn-ghost">
             <SettingsIcon size={16} className="text-white/60" />
           </button>
           <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
             <span className="font-bold text-white text-sm">Main Account</span>
             <ChevronDown size={14} className="text-white/60" />
           </div>
-          <button onClick={toggleWallet} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer">
+          <button onClick={toggleWallet} className="btn btn-icon btn-ghost">
             <X size={16} className="text-white/60" />
           </button>
         </div>
@@ -166,14 +160,14 @@ const WalletManager = ({
 
         {/* Actions */}
         <div className="flex items-center justify-center gap-4 w-full mb-8">
-          <button onClick={() => setActiveWalletModal('deposit')} className="h-12 px-6 rounded-full bg-gradient-to-r from-[#82E131] to-[#2B87D1] flex items-center gap-2 group hover:opacity-90 transition-all shadow-lg shadow-emerald-500/10 cursor-pointer">
-            <Plus size={20} className="text-white" />
-            <span className="text-sm font-bold text-white">Deposit</span>
+          <button onClick={() => setActiveWalletModal('deposit')} className="btn btn-primary gap-2">
+            <Plus size={20} />
+            <span className="text-sm font-bold">Deposit</span>
           </button>
-          <button onClick={() => setActiveWalletModal('swap')} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5 cursor-pointer">
+          <button onClick={() => setActiveWalletModal('swap')} className="btn btn-icon btn-outline">
             <RefreshCcw size={18} className="text-white/60" />
           </button>
-          <button onClick={() => setActiveWalletModal('send')} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors border border-white/5 cursor-pointer">
+          <button onClick={() => setActiveWalletModal('send')} className="btn btn-icon btn-outline">
             <ArrowUp size={18} className="text-white/60" />
           </button>
         </div>
@@ -361,7 +355,7 @@ const WalletModalOverlay = (props: any) => {
                   placeholder="Paste recieving address..."
                   value={sendRecipient}
                   onChange={(e) => setSendRecipient(e.target.value)}
-                  className="w-full bg-white/[0.03] border border-transparent rounded-[inherit] py-4 pl-5 pr-14 text-sm text-white placeholder:text-white/20 focus:outline-none transition-all font-medium"
+                  className="input input-filled pr-14"
                 />
                 <button onClick={handlePasteRecipient} className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer">
                   <ClipboardPaste size={14} className="text-white/40" />
@@ -491,7 +485,7 @@ const WalletModalOverlay = (props: any) => {
               ))}
             </div>
 
-            <button onClick={() => setShowConfirmation(true)} className="w-full h-14 bg-[#FF5252]/10 hover:bg-[#FF5252]/20 text-[#FF5252] font-bold text-lg rounded-3xl transition-all cursor-pointer">Log out</button>
+            <button onClick={() => setShowConfirmation(true)} className="btn btn-danger btn-block btn-lg">Log out</button>
           </div>
         )}
 
@@ -505,7 +499,7 @@ const WalletModalOverlay = (props: any) => {
       {((activeWalletModal && activeWalletModal !== 'deposit') || (isSettingsOpen && showConfirmation)) && (
         <div className="mt-8 space-y-3">
           {!showConfirmation ? (
-            <button onClick={() => setShowConfirmation(true)} className="w-full h-14 bg-gradient-to-r from-[#82E131] to-[#2B87D1] text-white font-bold text-lg rounded-3xl hover:opacity-90 transition-all shadow-lg shadow-emerald-500/10 cursor-pointer">
+            <button onClick={() => setShowConfirmation(true)} className="btn btn-primary btn-block btn-lg">
               {activeWalletModal === 'send' ? 'Send' : activeWalletModal === 'swap' ? 'Swap' : ''}
             </button>
           ) : (
@@ -715,10 +709,10 @@ export default function AppLayout() {
   }, [address]);
 
   const navItems: NavItem[] = [
-    { name: 'Chats', to: '/', icon: 'messageSquare', active: location.pathname === '/' || location.pathname.startsWith('/c/') },
-    { name: 'Analysis', to: '/onchain', icon: 'activity', active: location.pathname === '/onchain' },
-    { name: 'Tasks', to: '/activity', icon: 'bell', active: location.pathname === '/activity' },
-    { name: 'Recents', to: '#', icon: 'clock', active: false },
+    { name: 'Chats', to: '/', iconUrl: '/assets/icons/edit.svg', active: location.pathname === '/' || location.pathname.startsWith('/c/') },
+    { name: 'Analysis', to: '/onchain', iconUrl: '/assets/icons/bar-chart.svg', active: location.pathname === '/onchain' },
+    { name: 'Tasks', to: '/activity', iconUrl: '/assets/icons/bell.svg', active: location.pathname === '/activity' },
+    { name: 'Leaderboard', to: '/leaderboard', iconUrl: '/assets/icons/trophy.svg', active: location.pathname === '/leaderboard' },
   ];
 
   return (
@@ -749,8 +743,8 @@ export default function AppLayout() {
           {!isDashboard && (
             <div className="md:hidden">
               <BottomNav navItems={navItems.map(item =>
-                item.name === 'Recents'
-                  ? { name: 'Profile', to: '/account', icon: 'profile' as const, active: location.pathname === '/account' }
+                item.name === 'Leaderboard'
+                  ? { name: 'Profile', to: '/account', iconUrl: '/assets/icons/f4.svg' as const, active: location.pathname === '/account' }
                   : item
               )} />
             </div>

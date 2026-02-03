@@ -109,7 +109,7 @@ export function AutoCheckIn() {
               <div className="relative p-6 pb-0">
                 <button
                   onClick={closeModal}
-                  className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
+                  className="btn btn-icon btn-ghost absolute top-4 right-4"
                 >
                   <X size={18} className="text-white/60" />
                 </button>
@@ -156,7 +156,7 @@ export function AutoCheckIn() {
                 {/* Close Button */}
                 <button
                   onClick={closeModal}
-                  className="w-full py-3 px-4 text-sm font-medium text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-colors"
+                  className="btn btn-outline btn-block"
                 >
                   Continue
                 </button>

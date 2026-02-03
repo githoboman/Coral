@@ -260,47 +260,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const handleVerifyWaitlist = async (email: string) => {
-    setOnboardingLoading(true);
-    setOnboardingMessage(null);
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/check-waitlist?email=${encodeURIComponent(email)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to verify waitlist');
-      }
-
-      const data = await response.json();
-
-      if (!data.on_waitlist) {
-        setOnboardingMessage('Your email was not found in our waitlist.');
-        toast.error('Your email was not found in our waitlist.');
-        return false;
-      }
-
-      setOnboardingMessage('Email verified successfully!');
-      return true;
-    } catch (error: any) {
-      console.error('Error verifying waitlist:', error.message);
-      setOnboardingMessage(error.message || 'Failed to verify waitlist');
-      toast.error(error.message || 'Failed to verify waitlist');
-      return false;
-    } finally {
-      setOnboardingLoading(false);
-    }
-  };
 
   const handleOnboardingSubmit = async (email: string, additionalData?: {
     notifications_enabled?: boolean;
@@ -476,7 +436,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         loading={onboardingLoading}
         message={onboardingMessage}
         initialEmail={userEmail}
-        onVerifyWaitlist={handleVerifyWaitlist}
         onSubmit={handleOnboardingSubmit}
       />
 

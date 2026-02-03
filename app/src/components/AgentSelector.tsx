@@ -1,64 +1,96 @@
-import { useState } from 'react';
-import { ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { allAgents } from '@/config/agents';
-import { ModalPortal } from '@/components/ui/ModalPortal';
+import { allAgents, getAgentConfig } from '@/config/agents';
 
 interface AgentSelectorProps {
   selectedAgentId: string;
   onAgentChange: (agentId: string) => void;
   className?: string;
+  disabled?: boolean;
+  autoOpen?: boolean;
+  location?: 'header' | 'input'; // Where the selector is placed
 }
 
-const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: AgentSelectorProps) => {
+const AgentSelector = ({
+  selectedAgentId,
+  onAgentChange,
+  className = '',
+  disabled = false,
+  autoOpen = false,
+  location = 'header'
+}: AgentSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const selectedAgent = getAgentConfig(selectedAgentId);
+
+  useEffect(() => {
+    if (autoOpen && !disabled) {
+      setIsOpen(true);
+    }
+  }, [autoOpen, disabled]);
 
   const handleAgentSelect = (agentId: string) => {
     onAgentChange(agentId);
     setIsOpen(false);
   };
 
-  return (
-    <>
+  if (disabled) {
+    return (
       <div className={className}>
-        {/* Trigger Button - Gradient Pill */}
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#8BEE1C] to-[#2B87D1] hover:opacity-90 transition-all duration-300 shadow-lg active:scale-95 group cursor-pointer"
-        >
-          <span className="text-white font-bold text-[15px]">Select agent</span>
-          <ChevronUp
-            size={18}
-            className={`text-white transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
+          <img
+            src={selectedAgent.iconUrl}
+            alt={selectedAgent.displayName}
+            className="w-5 h-5 rounded-full object-contain"
           />
-        </button>
+          <span className="font-medium text-[14px] text-white/80">{selectedAgent.displayName}</span>
+          <Lock size={12} className="text-white/30" />
+        </div>
       </div>
+    );
+  }
 
-      {/* Agent Selection Modal */}
+  return (
+    <div className={`relative ${className}`}>
+      {/* Trigger Button - Shows selected agent */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 transition-all duration-200 cursor-pointer"
+      >
+        <img
+          src={selectedAgent.iconUrl}
+          alt={selectedAgent.displayName}
+          className="cursor-pointer w-5 h-5 object-contain"
+        />
+        <span className="cursor-pointer font-medium text-[14px] text-white">{selectedAgent.displayName}</span>
+        <ChevronDown
+          size={14}
+          className={`cursor-pointer text-white/60 transition-transform duration-200 ${isOpen ? 'rotate-0' : '-rotate-90'}`}
+        />
+      </button>
+
+      {/* Dropdown Menu */}
       <AnimatePresence>
         {isOpen && (
-          <ModalPortal>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+          <>
+            {/* Invisible backdrop to close dropdown */}
+            <div
+              className="fixed inset-0 z-[199]"
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-md z-[200] cursor-pointer"
             />
 
-            {/* Modal Content - Positioned above the input area */}
+            {/* Dropdown positioned below trigger */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-[90px] right-4 md:right-8 z-[200] w-full max-w-[320px]"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className={`absolute z-[200] w-[280px] ${location === 'header'
+                ? 'top-full left-0 mt-2'
+                : 'bottom-full left-0 mb-2'
+                }`}
             >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="bg-[#070B0F]/95 backdrop-blur-2xl border border-white/10 rounded-[30px] p-4 shadow-2xl flex flex-col gap-2"
-              >
+              <div className="bg-[#00060A] border border-white/10 rounded-[30px] space-y-2 p-2 shadow-2xl">
                 {allAgents.map((agent) => {
                   const isSelected = agent.id === selectedAgentId;
 
@@ -66,49 +98,44 @@ const AgentSelector = ({ selectedAgentId, onAgentChange, className = '' }: Agent
                     <button
                       key={agent.id}
                       onClick={() => handleAgentSelect(agent.id)}
-                      className={`relative flex items-center p-2 rounded-2xl transition-all duration-300 text-left gap-3 cursor-pointer
+                      className={`relative w-full flex items-center pl-1.3 pr-2 p-1 rounded-full transition-all duration-200 text-left gap-3 cursor-pointer
                         ${isSelected
-                          ? 'bg-white/5 border border-white/10'
+                        ? 'bg-white/10 border-[2px] border-[#B7FC0D]'
                           : 'bg-transparent border border-transparent hover:bg-white/5'
                         }
                       `}
                     >
                       {/* Icon Container */}
-                      <div className="w-10 h-10 rounded-full p-1.5 bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center">
+                      <div className="w-[40px] h-[40px] bg-black p-[10px] rounded-full flex items-center justify-center flex-shrink-0">
                         <img
                           src={agent.iconUrl}
                           alt={agent.displayName}
-                          className="w-full h-full object-contain"
+                          className="w-6 h-6 object-contain"
                         />
                       </div>
 
-                      {/* Info Container */}
-                      <div className="flex-1 flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-white font-semibold text-[14px]">{agent.displayName}</span>
-                        </div>
+                      {/* Name */}
+                      <span className="w-full flex-1 text-white font-medium text-[14px]">
+                        {agent.displayName}
+                      </span>
 
-                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold 
-                          ${agent.fee > 0 ? 'bg-[#B7FC0D]/10 text-[#B7FC0D]' : 'bg-white/10 text-white/40'}
-                        `}>
+                      {/* Fee Badge */}
+                      <div className="w-[50px] flex flex-col items-center">
+                        <div className="bg-[#B7FC0D33] text-[#B7FC0D] px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0">
                           {agent.fee > 0 ? `$${agent.fee}` : 'Free'}
                         </div>
                       </div>
-
-                      {/* Selected Glow/Gradient Border Effect */}
-                      {isSelected && (
-                        <div className="absolute inset-0 rounded-2xl border border-[#B7FC0D]/30 pointer-events-none" />
-                      )}
                     </button>
                   );
                 })}
               </div>
             </motion.div>
-          </ModalPortal>
+          </>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 };
 
 export default AgentSelector;
+

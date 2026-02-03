@@ -1,5 +1,6 @@
-import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit';
-import { Plus, Fuel, X, Clock, ArrowUp, Square, Layout, ChevronDown } from 'lucide-react';
+import { useCurrentAccount, useSignPersonalMessage, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
+import { Plus, Fuel, X, ArrowUp, Square, Layout, ChevronDown } from 'lucide-react';
 import WorkflowSteps from '@/components/WorkflowSteps';
 import AgentSelector from '@/components/AgentSelector';
 import RecentChatsModal from '@/components/RecentChatsModal';
@@ -70,7 +71,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchChats, fetchChatHistory, setCurrentChat, addMessage, setMessages, setActiveArtifact, deleteChat, type Message } from '@/store/slices/chatsSlice';
 import { getAgentConfig } from '@/config/agents';
 import { type Command } from '@/config/commands';
-import { sendChatMessage } from '@/services/chatService';
+import { sendChatMessage, getRateLimitStatus, RateLimitStatus } from '@/services/chatService';
 import LinkPreview from '@/components/LinkPreview';
 
 
@@ -145,6 +146,7 @@ const MarkdownComponents = (handleOpenArtifact: any) => ({
 const Dashboard = () => {
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
   const { } = useOutletContext<LayoutContextType>();
@@ -163,11 +165,11 @@ const Dashboard = () => {
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
 
 
-  const [isFocused, setIsFocused] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [agentUsed, setAgentUsed] = useState<string>('');
   const [tempMessages, setTempMessages] = useState<Message[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('main');
+  const [autoOpenAgentSelector, setAutoOpenAgentSelector] = useState(false);
   const [feeModalDetail, setFeeModalDetail] = useState<{ agent: string; cost: number; reason: string } | null>(null);
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [isPayingGas, setIsPayingGas] = useState(false);
@@ -180,6 +182,27 @@ const Dashboard = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [workflowSteps, setWorkflowSteps] = useState<any[]>([]);
+
+  // Rate limit state
+  const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatus | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Pending transaction action state (for immediate token transfers)
+  interface PendingTxAction {
+    taskId: number;
+    recipientAddress: string;
+    amount: string;
+    coinType: string;
+  }
+  const [pendingTxAction, setPendingTxAction] = useState<PendingTxAction | null>(null);
+
+  // Format countdown as HH:MM:SS
+  const formatCountdown = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Get messages for current chat (include temp messages if no chat ID)
   const messages = currentChatId ? (messagesMap[currentChatId] || []) : tempMessages;
@@ -292,6 +315,118 @@ const Dashboard = () => {
     if (!user_id) return;
     dispatch(fetchChats({ userId: user_id, agentId: selectedAgentId !== 'main' ? selectedAgentId : undefined }));
   }, [user_id, selectedAgentId, dispatch]);
+
+
+
+  // Check rate limit status on load and after user_id changes
+  useEffect(() => {
+    if (!user_id) return;
+    getRateLimitStatus(user_id).then((status) => {
+      setRateLimitStatus(status);
+      if (status.isLimited && status.resetInSeconds) {
+        setCountdown(status.resetInSeconds);
+      }
+    });
+  }, [user_id]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          // Timer expired, refresh rate limit status
+          if (user_id) {
+            getRateLimitStatus(user_id).then((status) => {
+              setRateLimitStatus(status);
+              if (!status.isLimited) {
+                setCountdown(null);
+              }
+            });
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown, user_id]);
+
+  // Handle pending transaction execution (immediate token transfers)
+  useEffect(() => {
+    if (!pendingTxAction || !currentAccount) return;
+
+    const executePendingTransaction = async () => {
+      try {
+        console.log('[Dashboard] Executing pending transaction:', pendingTxAction);
+
+        // Build the transaction
+        const tx = new Transaction();
+
+        // Split coin and transfer
+        const [coin] = tx.splitCoins(tx.gas, [BigInt(pendingTxAction.amount)]);
+        tx.transferObjects([coin], pendingTxAction.recipientAddress);
+
+        // Execute and sign the transaction
+        const result = await signAndExecuteTransaction({
+          transaction: tx,
+        });
+
+        console.log('[Dashboard] Transaction executed:', result.digest);
+
+        // Update task status via API
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+        await fetch(`${API_BASE_URL}/api/tasks/${pendingTxAction.taskId}/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: currentAccount.address,
+            tx_digest: result.digest
+          }),
+        });
+
+        // Add success message to chat
+        const successMessage: Message = {
+          id: Date.now() + Math.random(),
+          text: `**Transaction Successful!**\n\nTransfer of ${BigInt(pendingTxAction.amount) / BigInt(1e9)} SUI to \`${pendingTxAction.recipientAddress.slice(0, 10)}...${pendingTxAction.recipientAddress.slice(-8)}\` completed.\n\n[View on Explorer](https://suiscan.xyz/mainnet/tx/${result.digest})`,
+          sender: 'ai',
+          timestamp: new Date().toLocaleTimeString(),
+          chat_id: currentChatId || undefined,
+          agentType: 'Task Manager',
+          agentId: 'task_agent',
+        };
+
+        if (currentChatId) {
+          dispatch(addMessage({ chatId: currentChatId, message: successMessage }));
+        }
+
+        setPendingTxAction(null);
+      } catch (error: any) {
+        console.error('[Dashboard] Transaction failed:', error);
+
+        // Add error message
+        const errorMessage: Message = {
+          id: Date.now() + Math.random(),
+          text: `**Transaction Failed**\n\n${error.message || 'User cancelled or transaction failed.'}`,
+          sender: 'ai',
+          timestamp: new Date().toLocaleTimeString(),
+          chat_id: currentChatId || undefined,
+          agentType: 'Task Manager',
+          agentId: 'task_agent',
+        };
+
+        if (currentChatId) {
+          dispatch(addMessage({ chatId: currentChatId, message: errorMessage }));
+        }
+
+        setPendingTxAction(null);
+      }
+    };
+
+    executePendingTransaction();
+  }, [pendingTxAction, currentAccount, signAndExecuteTransaction, currentChatId, dispatch]);
 
   // Fetch chat history from Redux
   useEffect(() => {
@@ -440,8 +575,25 @@ const Dashboard = () => {
         dispatch(addMessage({ chatId: activeChatId, message: aiMessage }));
       }
 
+      // Refresh rate limit status after successful message
+      getRateLimitStatus(user_id).then(setRateLimitStatus);
+
       setIsLoading(false);
       setWorkflowSteps([]);
+
+      // Check for pending action (immediate token transfer)
+      if (response.pending_action && response.pending_action.action_type === 'token_transfer') {
+        const { task_id, action_params } = response.pending_action;
+        console.log('[Dashboard] Pending action detected, triggering transaction:', action_params);
+
+        // Set pending transaction state to show signing modal
+        setPendingTxAction({
+          taskId: task_id,
+          recipientAddress: action_params.recipientAddress || '',
+          amount: action_params.amount || '0',
+          coinType: action_params.coinType || '0x2::sui::SUI',
+        });
+      }
     } catch (error: any) {
       console.error('Error sending message:', error);
       setIsLoading(false);
@@ -617,6 +769,10 @@ const Dashboard = () => {
   const startNewChat = useCallback(() => {
     setInput('');
 
+    // Reset agent selection state for new chat
+    setSelectedAgentId('main');
+    setAutoOpenAgentSelector(true);
+
     // Navigate to home (no chat ID)
     navigate('/');
 
@@ -714,16 +870,31 @@ const Dashboard = () => {
           {/* Recent Chats Icon - Always visible */}
           <button
             onClick={() => setIsRecentModalOpen(true)}
-            className="bg-white/10 hover:bg-white/15 text-white/80 p-4 rounded-full border border-white/10 transition-all duration-200 cursor-pointer flex items-center gap-2 pointer-events-auto"
+            className="bg-[#00060A] hover:bg-white/15 text-white/80 px-4 py-2.5 rounded-full border border-white/10 transition-all duration-200 cursor-pointer flex items-center gap-2 pointer-events-auto"
             title="Recent Chats"
           >
-            <Clock size={16} />
-            {currentChatId && chats.find(c => c.chat_id === currentChatId) && (
-              <span className="hidden md:block text-sm font-medium truncate max-w-[150px]">
-                {chats.find(c => c.chat_id === currentChatId)?.name}
-              </span>
-            )}
+            <img
+              src="/assets/icons/refresh.svg"
+              className=""
+              width={18}
+              height={18}
+              alt="Recent Chats"
+            />
+            <span className="hidden md:block text-[15px] font-[400]">Recents</span>
           </button>
+
+          {/* Agent Selector - In header position */}
+          <div className="pointer-events-auto">
+            <AgentSelector
+              selectedAgentId={selectedAgentId}
+              onAgentChange={(agentId) => {
+                setSelectedAgentId(agentId);
+                setAutoOpenAgentSelector(false);
+              }}
+              autoOpen={autoOpenAgentSelector}
+              location="header"
+            />
+          </div>
 
           {/* New Chat Button */}
           {chatId && (
@@ -1152,7 +1323,7 @@ const Dashboard = () => {
       {/* Unified Input Bar */}
       <div className="w-full flex justify-center items-end p-4 pb-6 sticky bottom-0 z-50">
         <motion.div
-          className="group relative max-w-[800px] w-full bg-[#070B0F]/90 backdrop-blur-2xl border border-white/10 flex items-center md:items-end gap-2 text-white rounded-[50px] transition-all duration-300 px-5 py-2 shadow-[0_0_40px_rgba(0,0,0,0.4)]"
+          className="group relative max-w-[800px] w-full bg-[##00060A] backdrop-blur-2xl border-[2px] border-white/20 flex items-center md:items-end gap-2 text-white rounded-[35px] transition-all duration-300 px-[16px] pr-2 pt-[3px] pb-[6px] shadow-[0_0_40px_rgba(0,0,0,0.4)]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -1167,33 +1338,28 @@ const Dashboard = () => {
               // Command menu logic skipped for brevity as it's not visual
             }}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder="Ask anything..."
-            className="flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden"
-            disabled={isLoading}
+            placeholder={rateLimitStatus?.isLimited && countdown !== null
+              ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
+              : "Ask anything..."}
+            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={isLoading || rateLimitStatus?.isLimited}
           />
 
-          {/* Buttons Group */}
-          <div className="flex items-center gap-2">
-            {/* Agent Selector Button */}
-            <div className={(isFocused && input.trim()) ? 'hidden md:block' : 'block'}>
-              <AgentSelector
-                selectedAgentId={selectedAgentId}
-                onAgentChange={(agentId) => setSelectedAgentId(agentId)}
-              />
-            </div>
+          {/* Rate limit indicator */}
+          {rateLimitStatus && !rateLimitStatus.isLimited && rateLimitStatus.remaining <= 2 && (
+            <span className="text-xs text-yellow-400/70 absolute -top-6 left-5">
+              {rateLimitStatus.remaining} message{rateLimitStatus.remaining !== 1 ? 's' : ''} remaining
+            </span>
+          )}
 
-            {/* Send Button */}
-            {(input.trim() || isLoading) && (
-              <button
-                onClick={() => (isLoading) ? handleStopGeneration() : handleSendMessage()}
-                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
-              >
-                {isLoading ? <Square size={14} fill="white" /> : <ArrowUp size={20} />}
-              </button>
-            )}
-          </div>
+          {/* Send Button */}
+
+          <button
+            onClick={() => (isLoading) ? handleStopGeneration() : handleSendMessage()}
+            className={`${(input.trim() || isLoading) && !rateLimitStatus?.isLimited ? "btn-primary" : "btn-ghost"} btn btn-icon hover:bg-white/20`}
+          >
+            {isLoading ? <Square size={14} fill="white" /> : <ArrowUp size={20} />}
+          </button>
         </motion.div>
       </div>
 

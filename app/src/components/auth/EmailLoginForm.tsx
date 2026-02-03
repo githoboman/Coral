@@ -68,7 +68,7 @@ export const EmailLoginForm: React.FC<EmailLoginFormProps> = ({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email here"
             required
-            className="w-full bg-[#ffffff]/10 border border-white/20 rounded-[40px] pl-12 pr-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-0  focus:border-[#00FF88]/10 transition-all font-medium"
+            className="input input-filled pl-12"
           />
         </div>
 
@@ -83,7 +83,7 @@ export const EmailLoginForm: React.FC<EmailLoginFormProps> = ({
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password here"
             required
-            className="w-full bg-[#ffffff]/10 border border-white/20 rounded-[40px] pl-12 pr-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-0  focus:border-[#00FF88]/10 transition-all font-medium"
+            className="input input-filled pl-12 pr-12"
           />
           <button
             type="button"
@@ -106,7 +106,7 @@ export const EmailLoginForm: React.FC<EmailLoginFormProps> = ({
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Enter your password again"
               required
-              className="w-full bg-[#ffffff]/10 border border-white/20 rounded-[40px] pl-12 pr-3 py-2.5 text-white placeholder:text-white/20 focus:outline-none focus:ring-0  focus:border-[#00FF88]/10 transition-all font-medium"
+              className="input input-filled pl-12 pr-12"
             />
             <button
               type="button"
@@ -122,9 +122,9 @@ export const EmailLoginForm: React.FC<EmailLoginFormProps> = ({
         <button
           type="submit"
           disabled={loading}
-          className="w-full relative group overflow-hidden bg-gradient-to-r from-[#2B87D1] to-[#82E131] rounded-full py-2 px-6 font-bold text-white transition-all duration-300 hover:shadow-xl hover:shadow-[#00FF88]/20 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 mt-4"
+          className="btn btn-primary btn-block mt-4 py-3"
         >
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 w-full">
             <span className="text-lg font-medium">{loading ? 'Processing...' : isSignUp ? 'Sign up' : 'Sign in'}</span>
             {!loading && <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
           </div>

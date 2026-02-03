@@ -9,7 +9,7 @@ interface OnboardingProps {
   loading: boolean;
   message: string | null;
   initialEmail?: string | null;
-  onVerifyWaitlist: (email: string) => Promise<boolean>;
+  onVerifyWaitlist?: (email: string) => Promise<boolean>; // Optional/Deprecated
   onSubmit: (email: string, additionalData?: {
     notifications_enabled?: boolean;
     analytics_enabled?: boolean;
@@ -52,10 +52,8 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
 
   const handleWaitlistVerify = async () => {
     if (email.trim()) {
-      const success = await onVerifyWaitlist(email.trim());
-      if (success) {
-        setStep(2);
-      }
+      // Direct transition to next step without server verification
+      setStep(2);
     }
   };
 
@@ -92,7 +90,7 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
               </div>
 
               <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">Complete Your Profile</h2>
-              <p className="text-white/40 text-sm text-center mb-8 font-medium">Enter your email to verify your waitlist status</p>
+              <p className="text-white/40 text-sm text-center mb-8 font-medium">Enter your email to continue</p>
 
               <div className="w-full space-y-5">
                 {message && (
@@ -123,10 +121,10 @@ export function OnboardingModal({ isOpen, loading, message, initialEmail, onVeri
                   {loading ? (
                     <>
                       <LoadingSpinner size="sm" className="border-black border-t-transparent" />
-                      Verifying...
+                      Processing...
                     </>
                   ) : (
-                    'Verify Waitlist Status'
+                    'Continue'
                   )}
                 </button>
               </div>

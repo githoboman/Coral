@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Trophy, Star, Users } from 'lucide-react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchLeaderboard } from '@/store/slices/leaderboardSlice';
+import { useAppDispatch } from '@/store/hooks';
 
 interface UserAccount {
   user_id: string;
@@ -21,7 +20,7 @@ interface UserAccount {
 const Account = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const leaderboard = useAppSelector(state => state.leaderboard.entries);
+
 
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +61,6 @@ const Account = () => {
       setError(null);
       Promise.all([
         fetchAccountData(),
-        dispatch(fetchLeaderboard())
       ]).finally(() => {
         setLoading(false);
       });
@@ -103,7 +101,7 @@ const Account = () => {
           <p className="text-red-400 text-lg">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
+            className="btn btn-danger mt-4"
           >
             Retry
           </button>
@@ -193,61 +191,6 @@ const Account = () => {
         </div>
       )}
 
-      <div className="pt-8 space-y-4">
-        <div className="flex items-center gap-3 mb-6 px-2">
-          <h2 className="text-2xl font-bold">Top 100 Accounts</h2>
-        </div>
-
-        <div className="bg-[#151515] border border-white/10 rounded-[30px] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-white/5 border-b border-white/5">
-                <tr>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Rank</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">User</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">Points</th>
-                  <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider hidden sm:table-cell">Referrals</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 text-white/80">
-                {leaderboard.map((entry) => (
-                  <tr
-                    key={entry.user_id}
-                    className={`hover:bg-white/5 transition-colors ${entry.user_id === currentAccount?.address ? 'bg-teal-500/10' : ''}`}
-                  >
-                    <td className="px-3 py-3 md:px-6 md:py-4">
-                      <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${getRankBadgeColor(entry.rank)} text-white font-bold text-sm shadow-lg`}>
-                        {entry.rank}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4">
-                      <div>
-                        <p className="font-bold text-white text-sm md:text-base">
-                          {entry.username || entry.email?.split('@')[0] || 'Anonymous'}
-                        </p>
-                        <p className="text-xs text-white/40 font-mono hidden sm:block">{truncateAddress(entry.wallet_address)}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4">
-                      <span className="text-green-400 font-mono font-medium">{entry.points.toLocaleString()}</span>
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 hidden sm:table-cell">
-                      <span className="text-purple-400 font-mono font-medium">{entry.referral_points.toLocaleString()}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {leaderboard.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No leaderboard data yet</p>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

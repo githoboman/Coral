@@ -55,41 +55,7 @@ router.get('/fetch-user', async (req: Request, res: Response, next: NextFunction
   }
 });
 
-/**
- * GET /api/check-waitlist
- * Check if email is in waitlist
- */
-router.get('/check-waitlist', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email } = req.query;
 
-    if (!email || typeof email !== 'string' || !email.trim()) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        detail: 'Email cannot be empty',
-      });
-    }
-
-    const supabase = getSupabaseClient();
-    const { data: waitlistData, error: waitlistError } = await supabase
-      .from('waitlist_emails')
-      .select('email')
-      .eq('email', email)
-      .single();
-
-    if (waitlistError && waitlistError.code !== 'PGRST116') {
-      console.error('Error checking waitlist:', waitlistError);
-      throw waitlistError;
-    }
-
-    return res.json({
-      on_waitlist: !!waitlistData,
-    });
-  } catch (error) {
-    console.error('Error in check-waitlist:', error);
-    next(error);
-  }
-});
 
 /**
  * POST /api/onboard-user
@@ -124,25 +90,6 @@ router.post('/onboard-user', validate(userOnboardSchema), async (req: Request, r
 
     const supabase = getSupabaseClient();
 
-    // Check if email is in waitlist
-    const { data: waitlistData, error: waitlistError } = await supabase
-      .from('waitlist_emails')
-      .select('email')
-      .eq('email', email)
-      .single();
-
-    if (waitlistError && waitlistError.code !== 'PGRST116') {
-      console.error('Error checking waitlist:', waitlistError);
-      throw waitlistError;
-    }
-
-    if (!waitlistData) {
-      console.warn(`Email not found in waitlist: ${email}`);
-      return res.status(404).json({
-        error: 'Not Found',
-        detail: 'Your email was not found in our waitlist.',
-      });
-    }
 
     // Check if email is already in use by another user
     const { data: existingUser, error: existingError } = await supabase

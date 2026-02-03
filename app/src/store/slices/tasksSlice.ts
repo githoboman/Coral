@@ -77,6 +77,36 @@ export const removeTask = createAsyncThunk(
   }
 );
 
+// Fetch tasks that have Web3 actions ready to execute
+export const fetchActionableTasks = createAsyncThunk(
+  'tasks/fetchActionableTasks',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const response = await taskApi.getActionableTasks(userId);
+      return response.tasks;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch actionable tasks');
+    }
+  }
+);
+
+// Confirm task action after transaction is submitted
+export const confirmAction = createAsyncThunk(
+  'tasks/confirmAction',
+  async (
+    { taskId, userId, txDigest }: { taskId: number; userId: string; txDigest: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await taskApi.confirmTaskAction(taskId, userId, txDigest);
+      return { taskId, task: result };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to confirm task action');
+    }
+  }
+);
+
+
 const tasksSlice = createSlice({
   name: 'tasks',
   initialState,
@@ -141,6 +171,16 @@ const tasksSlice = createSlice({
         state.tasks = state.tasks.filter(t => t.id !== action.payload);
       })
       .addCase(removeTask.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+      // Confirm action (update task after tx confirmed)
+      .addCase(confirmAction.fulfilled, (state, action) => {
+        const index = state.tasks.findIndex(t => t.id === action.payload.taskId);
+        if (index !== -1) {
+          state.tasks[index] = { ...state.tasks[index], ...action.payload.task };
+        }
+      })
+      .addCase(confirmAction.rejected, (state, action) => {
         state.error = action.payload as string;
       });
   },

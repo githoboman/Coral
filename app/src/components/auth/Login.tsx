@@ -118,19 +118,19 @@ export function LoginModal({ isOpen, loading, onSignIn }: LoginModalProps) {
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <button
               onClick={handleSuiSignIn}
-              className="truncate flex-1 bg-[#1A1F24] hover:bg-[#252A30] border border-white/5 rounded-full py-3 px-6 flex items-center justify-center gap-2 transition-all group font-medium cursor-pointer"
+              className="btn btn-outline flex-1 gap-2"
             >
               <img src="/assets/icons/sui.svg" className="w-4 h-4" />
-              <span className="text-white/80 text-sm">Continue with Sui</span>
+              <span className="text-sm">Continue with Sui</span>
             </button>
 
             <button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className=" flex-1 bg-[#1A1F24] hover:bg-[#252A30] border border-white/5 rounded-full py-3 px-6 flex items-center justify-center gap-2 transition-all group disabled:opacity-50 font-medium cursor-pointer"
+              className="btn btn-outline flex-1 gap-2"
             >
               <SocialIconGoogle />
-              <span className="text-white/80 text-sm">Continue with Google</span>
+              <span className="text-sm">Continue with Google</span>
             </button>
           </div>
 
