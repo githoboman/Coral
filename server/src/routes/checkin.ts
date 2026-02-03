@@ -1,12 +1,3 @@
-// src/routes/checkin.ts — ON-CHAIN CHECK-IN
-//
-// This route handles check-in logic using the same ticket-based pattern
-// as waitlist claims. Flow:
-//   1. Frontend calls POST /api/checkin/request-ticket
-//   2. Backend verifies cooldown & mints a check-in ticket on-chain
-//   3. Frontend signs transaction to consume ticket & earn 2 points
-//   4. Frontend polls GET /api/checkin/status for confirmation
-
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter } from "../services/ticketMinter";
 
@@ -19,23 +10,6 @@ function getTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-// ===========================================================================
-// GET /api/checkin/status
-//
-// Returns check-in availability status for a wallet
-//
-// Query params:
-//   wallet_address (required)
-//
-// Response:
-//   {
-//     can_checkin: boolean,
-//     last_checkin_at: number | null,  // timestamp in ms
-//     next_available_at: number | null, // timestamp in ms
-//     hours_remaining: number | null,
-//     balance: number
-//   }
-// ===========================================================================
 router.get(
   "/status",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -52,12 +26,11 @@ router.get(
 
       const minter = getTicketMinter();
 
-      // Get last check-in timestamp from on-chain
       const lastCheckinMs = await minter.getLastCheckin(wallet_address);
       const balance = await minter.getBalance(wallet_address);
 
       const now = Date.now();
-      const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+      const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
       let canCheckin = true;
       let nextAvailableMs: number | null = null;
@@ -88,24 +61,6 @@ router.get(
   },
 );
 
-// ===========================================================================
-// POST /api/checkin/request-ticket
-//
-// Mints a check-in ticket if the user is eligible (cooldown passed)
-//
-// Body:
-//   { wallet_address: string }
-//
-// Response:
-//   {
-//     success: boolean,
-//     ticket_object_id?: string,
-//     points_amount?: number,
-//     message: string,
-//     can_checkin?: boolean,
-//     hours_remaining?: number
-//   }
-// ===========================================================================
 router.post(
   "/request-ticket",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -122,7 +77,6 @@ router.post(
 
       const minter = getTicketMinter();
 
-      // Check if user can check in (cooldown verification)
       const lastCheckinMs = await minter.getLastCheckin(wallet_address);
       const now = Date.now();
       const COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -144,12 +98,11 @@ router.post(
         }
       }
 
-      // Mint check-in ticket
       console.log(`🎟️  Minting check-in ticket for ${wallet_address}...`);
 
       const ticketObjectId = await minter.mintTicket(
         wallet_address,
-        2, // CHECKIN_POINTS
+        2,
         "Daily Check-in",
       );
 

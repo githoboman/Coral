@@ -1,9 +1,3 @@
-// src/components/CheckInCard.tsx
-//
-// Daily check-in card component for the Account page
-// Shows status, allows check-in, displays countdown timer
-// Updated to match the Account page UI style
-
 import { useEffect, useState } from "react";
 import { Calendar, Check, Clock } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -17,7 +11,6 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
   const { checkin, checkinState, refetchStatus } = useCheckin(onPointsUpdated);
   const [timeDisplay, setTimeDisplay] = useState<string>("");
 
-  // Update countdown timer every minute
   useEffect(() => {
     if (
       !checkinState.canCheckin &&
@@ -43,7 +36,7 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
       };
 
       updateTimer();
-      const interval = setInterval(updateTimer, 60000); // Update every minute
+      const interval = setInterval(updateTimer, 60000);
 
       return () => clearInterval(interval);
     }
@@ -121,7 +114,7 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
         <p className="text-sm text-white/60">+2 points every 24h</p>
       </div>
 
-      {/* Status Message - compact */}
+      {/* Status Message */}
       <div className="mb-3 flex-grow">
         {checkinState.status === "success" && (
           <div className="flex items-center gap-2 text-green-400 text-sm">
@@ -169,7 +162,7 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
         <span>{buttonState.text}</span>
       </button>
 
-      {/* Last check-in info - compact */}
+      {/* Last check-in info*/}
       {checkinState.lastCheckinAt && checkinState.status !== "success" && (
         <div className="mt-2 text-center text-xs text-white/30">
           Last:{" "}

@@ -1,6 +1,3 @@
-// src/types/index.ts
-
-// ============ User Types ============
 export interface UserProfile {
   user_id: string;
   wallet_address: string | null;
@@ -38,9 +35,8 @@ export interface UserOnboardRequest {
   personalization_enabled?: boolean;
 }
 
-// ============ Task Types ============
-export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskStatus = 'pending' | 'completed' | 'cancelled' | 'in_progress';
+export type TaskPriority = "low" | "medium" | "high";
+export type TaskStatus = "pending" | "completed" | "cancelled" | "in_progress";
 
 export interface Task {
   id: number;
@@ -86,7 +82,7 @@ export interface TaskUpdateRequest {
 
 export interface TaskBulkCreateRequest {
   user_id: string;
-  tasks: Omit<TaskCreateRequest, 'user_id'>[];
+  tasks: Omit<TaskCreateRequest, "user_id">[];
 }
 
 export interface TaskListResponse {
@@ -96,7 +92,6 @@ export interface TaskListResponse {
   offset: number;
 }
 
-// ============ Event Types ============
 export interface Event {
   id: number;
   user_id: string;
@@ -146,7 +141,7 @@ export interface EventUpdateRequest {
 
 export interface EventBulkCreateRequest {
   user_id: string;
-  events: Omit<EventCreateRequest, 'user_id'>[];
+  events: Omit<EventCreateRequest, "user_id">[];
 }
 
 export interface EventListResponse {
@@ -156,13 +151,11 @@ export interface EventListResponse {
   offset: number;
 }
 
-// ============ Waitlist Types ============
 export interface WaitlistEmail {
   email: string;
   created_at?: string;
 }
 
-// ============ Account Types ============
 export interface AccountDetails {
   user_id: string;
   wallet_address: string;

@@ -1,4 +1,3 @@
-// src/routes/users.ts - UPDATED FOR WALRUS
 import { Router, Request, Response, NextFunction } from "express";
 import { WalrusUserManager } from "../services/walrusUserManager";
 
@@ -15,15 +14,11 @@ function getUserManager(): WalrusUserManager {
   return userManager;
 }
 
-/**
- * GET /api/fetch-user
- * Fetch user profile by wallet address
- */
 router.get(
   "/fetch-user",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { user_id } = req.query; // wallet_address
+      const { user_id } = req.query;
 
       if (!user_id || typeof user_id !== "string" || !user_id.trim()) {
         return res.status(400).json({
@@ -67,10 +62,6 @@ router.get(
   },
 );
 
-/**
- * POST /api/update-user
- * Update user profile
- */
 router.post(
   "/update-user",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -94,14 +85,12 @@ router.post(
 
       const manager = getUserManager();
 
-      // Get existing profile or create new one
       let userProfile = await manager.getUserProfile(
         USER_REGISTRY_BLOB_ID,
         user_id,
       );
 
       if (userProfile) {
-        // Update existing profile
         userProfile = {
           ...userProfile,
           email: email || userProfile.email,
@@ -111,7 +100,6 @@ router.post(
           preferences: preferences || userProfile.preferences,
         };
       } else {
-        // Create new profile
         userProfile = manager.createUserProfile(
           email || "",
           wallet_address || user_id,
@@ -126,7 +114,6 @@ router.post(
         );
       }
 
-      // Save to Walrus
       const newBlobId = await manager.addOrUpdateUser(
         USER_REGISTRY_BLOB_ID || null,
         userProfile,

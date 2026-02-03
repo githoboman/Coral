@@ -1,9 +1,3 @@
-// src/services/ticketMinter.ts — UPDATED WITH CHECK-IN SUPPORT
-//
-// Added methods:
-//   - getLastCheckin(wallet) → timestamp of last check-in (0 if never)
-//   - canCheckin(wallet) → boolean (true if cooldown passed or never checked in)
-
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
@@ -75,9 +69,6 @@ export class TicketMinter {
     return "0x" + hex.padStart(64, "0");
   }
 
-  // =========================================================================
-  // DIGEST-BASED VERIFICATION (instant confirmation after tx)
-  // =========================================================================
   async verifyClaimByDigest(digest: string): Promise<{
     confirmed: boolean;
     balance: number;
@@ -102,7 +93,6 @@ export class TicketMinter {
 
       const events = tx.events || [];
 
-      // Try PointsClaimed event first
       let claimEvent = events.find(
         (e) => e.type === `${this.packageId}::points::PointsClaimed`,
       );
@@ -119,7 +109,6 @@ export class TicketMinter {
         };
       }
 
-      // Try CheckInCompleted event
       const checkinEvent = events.find(
         (e) => e.type === `${this.packageId}::points::CheckInCompleted`,
       );
@@ -145,9 +134,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // MINT ELIGIBILITY TICKET
-  // =========================================================================
   async mintTicket(
     walletAddress: string,
     pointsAmount: number,
@@ -207,9 +193,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // UPDATE BLOB REGISTRY
-  // =========================================================================
   async updateBlobRegistry(newBlobId: string): Promise<string | null> {
     try {
       console.log(`\n📦 Updating BlobRegistry → ${newBlobId}`);
@@ -249,9 +232,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // READ: hasClaimed
-  // =========================================================================
   async hasClaimed(walletAddress: string): Promise<boolean> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
@@ -304,9 +284,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // READ: getBalance
-  // =========================================================================
   async getBalance(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
@@ -361,12 +338,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // READ: getLastCheckin — NEW METHOD
-  //
-  // Returns timestamp (ms) of last check-in, or 0 if never checked in.
-  // Uses event scan first (fast), falls back to devInspect.
-  // =========================================================================
   async getLastCheckin(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
@@ -391,7 +362,6 @@ export class TicketMinter {
         }
       }
 
-      // Fallback to devInspect
       console.log(
         `📝 No check-in event found, running devInspect for ${walletAddress}`,
       );
@@ -423,22 +393,16 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // READ: canCheckin — NEW METHOD
-  //
-  // Returns true if user can check in now (cooldown passed or never checked in)
-  // =========================================================================
   async canCheckin(walletAddress: string): Promise<boolean> {
     try {
       const lastCheckin = await this.getLastCheckin(walletAddress);
 
       if (lastCheckin === 0) {
-        // Never checked in
         return true;
       }
 
       const now = Date.now();
-      const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+      const COOLDOWN_MS = 24 * 60 * 60 * 1000;
       const timeSinceLast = now - lastCheckin;
 
       return timeSinceLast >= COOLDOWN_MS;
@@ -448,9 +412,6 @@ export class TicketMinter {
     }
   }
 
-  // =========================================================================
-  // READ: current blob ID from on-chain BlobRegistry
-  // =========================================================================
   async getCurrentBlobId(): Promise<string | null> {
     try {
       const object = await this.client.getObject({

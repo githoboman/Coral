@@ -1,4 +1,3 @@
-// src/types/walrus.ts - Walrus-related types
 export interface UserProfile {
   email: string;
   wallet_address: string;
@@ -19,7 +18,7 @@ export interface UsersRegistry {
   version: number;
   updated_at: string;
   total_users: number;
-  users: Record<string, UserProfile>; // wallet_address -> profile
+  users: Record<string, UserProfile>;
   description: string;
   previous_blob?: string;
 }
@@ -33,7 +32,6 @@ export interface Whitelist {
   previous_blob?: string;
 }
 
-// src/types/points.ts - Points-related types
 export interface PointsBalance {
   wallet_address: string;
   balance: number;
@@ -69,7 +67,6 @@ export interface LeaderboardEntry {
   referral_points: number;
 }
 
-// src/types/auth.ts - Auth-related types
 export interface VerifyAndRegisterRequest {
   email: string;
   wallet_address: string;

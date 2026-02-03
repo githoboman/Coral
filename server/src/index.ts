@@ -2,7 +2,6 @@ import app from "./app";
 
 const PORT = process.env.PORT || 3000;
 
-// Start server
 const server = app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
@@ -15,7 +14,6 @@ const server = app.listen(PORT, () => {
   `);
 });
 
-// Graceful shutdown
 process.on("SIGTERM", () => {
   console.log("SIGTERM signal received: closing HTTP server");
   server.close(() => {
@@ -32,7 +30,6 @@ process.on("SIGINT", () => {
   });
 });
 
-// Handle unhandled promise rejections
 process.on("unhandledRejection", (reason: Error, promise: Promise<any>) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
   server.close(() => {

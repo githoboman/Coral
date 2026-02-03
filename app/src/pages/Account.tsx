@@ -1,7 +1,3 @@
-// src/pages/Account.tsx — UPDATED WITHOUT REFERRALS
-//
-// Removed referrals from stats and leaderboard
-
 import { useState, useEffect, useCallback } from "react";
 import { Trophy, Users } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
@@ -57,7 +53,6 @@ const Account = () => {
       ]);
 
       if (accountRes.status === 404) {
-        console.log("User not found – needs to complete onboarding");
         setUserAccount(null);
         setLoading(false);
         return;
@@ -78,10 +73,8 @@ const Account = () => {
         }
       }
 
-      console.log("Account data fetched:", data);
       setUserAccount(data);
     } catch (err) {
-      console.error("Error fetching account:", err);
       setError(
         err instanceof Error ? err.message : "Failed to load account data",
       );
@@ -92,9 +85,6 @@ const Account = () => {
 
   const handlePointsUpdated = useCallback(
     (newBalance: number) => {
-      console.log("💰 Check-in points updated:", newBalance);
-
-      // Update local state immediately
       setUserAccount((prev) => {
         if (!prev) return prev;
         return {
@@ -103,10 +93,8 @@ const Account = () => {
         };
       });
 
-      // Optionally refetch full account data to ensure consistency
       setTimeout(() => {
         fetchAccountData();
-        // Also refresh leaderboard since rankings may have changed
         dispatch(invalidateCache());
         dispatch(fetchLeaderboard());
       }, 1000);
@@ -115,12 +103,6 @@ const Account = () => {
   );
 
   useEffect(() => {
-    console.log("Account useEffect triggered:", {
-      isAuthenticated: !!currentAccount,
-      address: currentAccount?.address,
-      isOnboarded,
-    });
-
     if (currentAccount?.address) {
       Promise.all([fetchAccountData(), dispatch(fetchLeaderboard())]);
     } else {
@@ -252,7 +234,7 @@ const Account = () => {
 
           <div className="h-px bg-white/5 my-6" />
 
-          {/* Stats grid - Points only, stacked on mobile, side-by-side on desktop */}
+          {/* Stats grid*/}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Points */}
             <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">

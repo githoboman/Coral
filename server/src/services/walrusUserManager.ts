@@ -1,13 +1,5 @@
-// ============================================================================
-// WalrusUserManager - Manage user profiles on Walrus (Publisher/Aggregator)
-// ============================================================================
-
 import axios from "axios";
 import "dotenv/config";
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 export interface UserProfile {
   email: string;
@@ -29,7 +21,7 @@ export interface UsersRegistry {
   version: number;
   updated_at: string;
   total_users: number;
-  users: Record<string, UserProfile>; // wallet_address -> profile
+  users: Record<string, UserProfile>;
   description: string;
   previous_blob?: string;
 }
@@ -84,13 +76,6 @@ export class WalrusUserManager {
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
-  // ==========================================================================
-  // USER PROFILE MANAGEMENT
-  // ==========================================================================
-
-  /**
-   * Create a new user profile
-   */
   createUserProfile(
     email: string,
     walletAddress: string,
@@ -110,14 +95,10 @@ export class WalrusUserManager {
     return profile;
   }
 
-  /**
-   * Fetch users registry from Walrus
-   */
   async fetchUsersRegistry(
     blobId: string,
     maxRetries: number = 3,
   ): Promise<UsersRegistry | null> {
-    // Serve from cache if we already have this exact blob.
     if (this.registryCache && this.registryCache.blobId === blobId) {
       console.log(`📋 Returning cached registry for ${blobId}`);
       return this.registryCache.registry;
@@ -170,9 +151,6 @@ export class WalrusUserManager {
     return null;
   }
 
-  /**
-   * Upload users registry to Walrus
-   */
   async uploadUsersRegistry(
     registry: UsersRegistry,
     maxRetries: number = 3,
@@ -241,9 +219,6 @@ export class WalrusUserManager {
     throw lastError || new Error("Upload failed");
   }
 
-  /**
-   * Add or update user in registry
-   */
   async addOrUpdateUser(
     currentBlobId: string | null,
     userProfile: UserProfile,
@@ -254,13 +229,11 @@ export class WalrusUserManager {
       let registry: UsersRegistry;
 
       if (currentBlobId) {
-        // Fetch existing registry
         const existing = await this.fetchUsersRegistry(currentBlobId);
         if (!existing) {
           throw new Error("Could not fetch existing registry");
         }
 
-        // Update user in registry
         registry = {
           version: existing.version + 1,
           updated_at: new Date().toISOString(),
@@ -270,7 +243,6 @@ export class WalrusUserManager {
           previous_blob: currentBlobId,
         };
 
-        // Check if user already exists
         const userExists = !!registry.users[userProfile.wallet_address];
         if (!userExists) {
           registry.total_users += 1;
@@ -278,7 +250,6 @@ export class WalrusUserManager {
 
         registry.users[userProfile.wallet_address] = userProfile;
       } else {
-        // Create new registry
         registry = {
           version: 1,
           updated_at: new Date().toISOString(),
@@ -290,10 +261,8 @@ export class WalrusUserManager {
         };
       }
 
-      // Upload new version
       const newBlobId = await this.uploadUsersRegistry(registry);
 
-      // Invalidate cache — next fetch must get the new blob.
       if (newBlobId) {
         this.registryCache = { blobId: newBlobId, registry };
       }
@@ -314,9 +283,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Get user profile by wallet address
-   */
   async getUserProfile(
     registryBlobId: string,
     walletAddress: string,
@@ -334,10 +300,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Find which wallet (if any) is already registered with this email.
-   * Returns the wallet_address string, or null if the email is free.
-   */
   async findWalletByEmail(
     registryBlobId: string,
     email: string,
@@ -361,9 +323,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Check if user exists in registry
-   */
   async userExists(
     registryBlobId: string,
     walletAddress: string,
@@ -381,9 +340,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Verify blob exists
-   */
   async verifyBlob(blobId: string): Promise<boolean> {
     try {
       await axios.head(`${this.aggregatorUrl}/v1/blobs/${blobId}`, {
@@ -395,9 +351,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Get blob URL
-   */
   getBlobUrl(blobId: string): string {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }

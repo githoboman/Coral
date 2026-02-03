@@ -1,15 +1,3 @@
-// src/hooks/useClaimPoints.ts  —  FIXED
-//
-// Changes from previous version:
-//   1. signAndExecute result.digest is captured and forwarded to pollForClaim.
-//   2. pollForClaim accepts the digest and appends it as ?tx_digest= on the
-//      FIRST poll only.  The backend's check-claim-status fast path picks it
-//      up, calls verifyClaimByDigest, and returns the confirmed balance from
-//      the actual transaction receipt — no devInspect, no latency.
-//   3. The first poll fires IMMEDIATELY (no initial interval delay).  This
-//      means the digest-based verification runs as soon as the tx is confirmed,
-//      typically resolving on the very first attempt.
-
 import { useState, useCallback, useRef } from "react";
 import {
   useCurrentAccount,
@@ -62,21 +50,14 @@ export function useClaimPoints() {
     });
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // pollForClaim  —  accepts the tx digest so the first poll can use it
-  // ---------------------------------------------------------------------------
   const pollForClaim = useCallback(
     async (wallet: string, expectedPts: number, txDigest: string) => {
       const maxAttempts = 10;
       let attempt = 0;
 
-      console.log("⏳ Polling for confirmation...");
-
       const doPoll = async () => {
         attempt++;
         try {
-          // First poll: attach digest → backend verifies via receipt (instant).
-          // Subsequent polls: omit digest → backend falls back to event scan.
           const digestParam =
             attempt === 1 ? `&tx_digest=${encodeURIComponent(txDigest)}` : "";
 
@@ -85,15 +66,11 @@ export function useClaimPoints() {
           );
           const data = await res.json();
 
-          console.log(`📊 Poll attempt ${attempt}:`, data);
-
           if (data.claimed || data.balance > 0) {
-            // ── success ──
             if (pollRef.current) {
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
-            console.log("✅ Claim confirmed on-chain!");
             setState({
               status: "success",
               ticketObjectId: null,
@@ -101,18 +78,15 @@ export function useClaimPoints() {
               error: null,
               balance: data.balance,
             });
-            return true; // signal: done
+            return true;
           }
-        } catch (_) {
-          console.log(`⚠️  Poll attempt ${attempt} failed`);
-        }
+        } catch (_) {}
 
         if (attempt >= maxAttempts) {
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
           }
-          console.log("⏰ Polling timeout - showing optimistic success");
           setState({
             status: "success",
             ticketObjectId: null,
@@ -120,13 +94,12 @@ export function useClaimPoints() {
             error: null,
             balance: expectedPts,
           });
-          return true; // signal: done
+          return true;
         }
 
-        return false; // signal: keep polling
+        return false;
       };
 
-      // Fire immediately (attempt 1 — digest fast path), then every 1.5 s.
       const done = await doPoll();
       if (done) return;
 
@@ -141,9 +114,6 @@ export function useClaimPoints() {
     [],
   );
 
-  // ---------------------------------------------------------------------------
-  // claimPoints  —  orchestrates verify → sign → poll
-  // ---------------------------------------------------------------------------
   const claimPoints = useCallback(
     async (email: string) => {
       if (!currentAccount?.address) {
@@ -155,8 +125,6 @@ export function useClaimPoints() {
         return;
       }
 
-      console.log("🎯 Starting claim process for:", currentAccount.address);
-
       setState({
         status: "verifying",
         ticketObjectId: null,
@@ -166,10 +134,6 @@ export function useClaimPoints() {
       });
 
       try {
-        // --------------------------------------------------------------
-        // Step 1: Verify email & get ticket
-        // --------------------------------------------------------------
-        console.log("📧 Verifying email:", email);
         const verifyRes = await fetch(
           `${API_BASE}/api/auth/verify-and-issue-ticket`,
           {
@@ -183,7 +147,6 @@ export function useClaimPoints() {
         );
 
         const verifyData = await verifyRes.json();
-        console.log("✅ Verification response:", verifyData);
 
         if (!verifyRes.ok || !verifyData.eligible) {
           setState((prev) => ({
@@ -197,8 +160,6 @@ export function useClaimPoints() {
         const ticketId = verifyData.ticket_object_id as string;
         const ptsAmount = verifyData.points_amount as number;
 
-        console.log("🎟️  Ticket received:", ticketId);
-
         setState((prev) => ({
           ...prev,
           status: "signing",
@@ -206,53 +167,30 @@ export function useClaimPoints() {
           pointsAmount: ptsAmount,
         }));
 
-        // --------------------------------------------------------------
-        // Step 2: Build & sign transaction
-        // --------------------------------------------------------------
         const tx = new Transaction();
-        tx.setGasBudget(10_000_000); // 0.01 SUI
-
-        console.log("🔨 Building transaction with:");
-        console.log("  Package:", PACKAGE_ID);
-        console.log("  Registry:", POINTS_REGISTRY);
-        console.log("  Ticket:", ticketId);
-        console.log("  Sender:", currentAccount.address);
+        tx.setGasBudget(10_000_000);
 
         tx.moveCall({
           target: `${PACKAGE_ID}::points::claim_waitlist_points`,
           arguments: [
-            tx.object(POINTS_REGISTRY), // &mut PointsRegistry
-            tx.object(ticketId), // EligibilityTicket (owned by caller)
-            tx.object("0x6"), // Clock
+            tx.object(POINTS_REGISTRY),
+            tx.object(ticketId),
+            tx.object("0x6"),
           ],
         });
-
-        console.log("📝 Requesting wallet signature...");
 
         const result = await signAndExecute(
           { transaction: tx },
           {
-            onSuccess: (data) => {
-              console.log("✅ Transaction successful:", data);
-            },
-            onError: (error) => {
-              console.error("❌ Transaction failed:", error);
-            },
+            onSuccess: (data) => {},
+            onError: (error) => {},
           },
         );
 
-        console.log("✅ Transaction result:", result);
-        console.log("📋 Digest:", result.digest);
-
         setState((prev) => ({ ...prev, status: "confirming" }));
 
-        // --------------------------------------------------------------
-        // Step 3: Poll — pass digest so the first poll resolves instantly
-        // --------------------------------------------------------------
         await pollForClaim(currentAccount.address, ptsAmount, result.digest);
       } catch (err: any) {
-        console.error("❌ Claim error:", err);
-
         let errorMsg = "Transaction failed. Please try again.";
         if (err?.message) {
           if (err.message.includes("User rejected")) {

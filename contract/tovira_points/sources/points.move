@@ -1,18 +1,12 @@
 #[allow(lint(public_entry), unused_const)]
 module tovira_points::points {
 
-    use sui::object::{Self, UID, ID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer;
     use sui::table::{Self, Table};
     use sui::event;
     use sui::clock::{Self, Clock};
     use std::string::{Self, String};
     use sui::address;
 
-    // =========================================================================
-    // ERROR CODES
-    // =========================================================================
     const EAlreadyClaimed: u64 = 1;
     const ENotEligible: u64 = 2;
     const EInvalidAmount: u64 = 3;
@@ -20,71 +14,43 @@ module tovira_points::points {
     const EUnauthorized: u64 = 5;
     const ECheckinTooEarly: u64 = 6;
 
-    // =========================================================================
-    // CONSTANTS
-    // =========================================================================
     const WAITLIST_POINTS: u64 = 300;
     const CHECKIN_POINTS: u64 = 2;
-    const CHECKIN_COOLDOWN_MS: u64 = 86400000; // 24 hours in milliseconds
+    const CHECKIN_COOLDOWN_MS: u64 = 86400000; 
 
-    // =========================================================================
-    // CAPABILITY (admin-only for registry management, NOT for minting)
-    // =========================================================================
     public struct AdminCap has key, store {
         id: UID,
     }
 
-    // =========================================================================
-    // POINTS REGISTRY  (shared object — one per deployment, ID never changes)
-    // =========================================================================
     public struct PointsRegistry has key {
         id: UID,
-        /// wallet_address (hex string) -> PointsRecord
         records: Table<String, PointsRecord>,
-        /// Total points ever minted across all users
         total_supply: u64,
     }
 
     public struct PointsRecord has store {
         wallet_address: String,
         balance: u64,
-        /// Has this wallet already claimed waitlist points?
         waitlist_claimed: bool,
-        /// Timestamp of the first claim (ms)
         claimed_at: u64,
-        /// Timestamp of last check-in (ms) - 0 means never checked in
         last_checkin_at: u64,
     }
 
-    // =========================================================================
-    // BLOB REGISTRY
-    // =========================================================================
     public struct BlobRegistry has key {
         id: UID,
-        /// Current Walrus blob ID for the user-profile registry
         current_blob_id: String,
-        /// Who can update it
         admin: address,
     }
 
-    // =========================================================================
-    // ELIGIBILITY TICKET
-    // =========================================================================
     public struct EligibilityTicket has key {
         id: UID,
-        /// The wallet this ticket is valid for
         wallet_address: address,
-        /// What the ticket grants
         points_amount: u64,
-        /// Reason / category
         reason: String,
-        /// When it was created (ms)
         created_at: u64,
     }
 
-    // =========================================================================
-    // EVENTS
-    // =========================================================================
+
     public struct PointsClaimed has copy, drop {
         wallet_address: address,
         amount: u64,
@@ -116,9 +82,6 @@ module tovira_points::points {
         timestamp: u64,
     }
 
-    // =========================================================================
-    // INIT
-    // =========================================================================
     fun init(ctx: &mut TxContext) {
         let deployer = tx_context::sender(ctx);
 
@@ -143,9 +106,7 @@ module tovira_points::points {
         transfer::transfer(admin_cap, deployer);
     }
 
-    // =========================================================================
-    // ADMIN: Mint an EligibilityTicket
-    // =========================================================================
+
     public entry fun mint_eligibility_ticket(
         _admin: &AdminCap,
         wallet_address: address,
@@ -177,9 +138,7 @@ module tovira_points::points {
         transfer::transfer(ticket, wallet_address);
     }
 
-    // =========================================================================
-    // USER: Claim points by consuming an EligibilityTicket
-    // =========================================================================
+
     public entry fun claim_waitlist_points(
         registry: &mut PointsRegistry,
         ticket: EligibilityTicket,
@@ -188,15 +147,12 @@ module tovira_points::points {
     ) {
         let caller = tx_context::sender(ctx);
 
-        // Ticket must belong to the caller
         assert!(ticket.wallet_address == caller, EUnauthorized);
 
         let wallet_key = address_to_string(caller);
 
-        // Check if already claimed (for waitlist tickets specifically)
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow(&registry.records, wallet_key);
-            // Only enforce this for waitlist tickets
             if (ticket.reason == string::utf8(b"Waitlist Bonus")) {
                 assert!(!record.waitlist_claimed, EAlreadyClaimed);
             };
@@ -206,15 +162,12 @@ module tovira_points::points {
         let reason = ticket.reason;
         let current_time = clock::timestamp_ms(clock);
 
-        // Destroy the ticket
         let EligibilityTicket { id, wallet_address: _, points_amount: _, reason: _, created_at: _ } = ticket;
         object::delete(id);
 
-        // Credit the points
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow_mut(&mut registry.records, wallet_key);
             record.balance = record.balance + amount;
-            // Only mark waitlist_claimed for waitlist tickets
             if (reason == string::utf8(b"Waitlist Bonus")) {
                 record.waitlist_claimed = true;
             };
@@ -240,9 +193,7 @@ module tovira_points::points {
         });
     }
 
-    // =========================================================================
-    // USER: Check-in (consumes check-in ticket)
-    // =========================================================================
+
     public entry fun checkin(
         registry: &mut PointsRegistry,
         ticket: EligibilityTicket,
@@ -251,16 +202,13 @@ module tovira_points::points {
     ) {
         let caller = tx_context::sender(ctx);
         
-        // Ticket must belong to the caller
         assert!(ticket.wallet_address == caller, EUnauthorized);
         
-        // Ticket must be a check-in ticket
         assert!(ticket.reason == string::utf8(b"Daily Check-in"), EUnauthorized);
 
         let wallet_key = address_to_string(caller);
         let current_time = clock::timestamp_ms(clock);
 
-        // Verify cooldown if user exists
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow(&registry.records, wallet_key);
             if (record.last_checkin_at > 0) {
@@ -269,11 +217,9 @@ module tovira_points::points {
             };
         };
 
-        // Destroy the ticket
         let EligibilityTicket { id, wallet_address: _, points_amount, reason: _, created_at: _ } = ticket;
         object::delete(id);
 
-        // Update or create record
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow_mut(&mut registry.records, wallet_key);
             record.balance = record.balance + points_amount;
@@ -311,9 +257,7 @@ module tovira_points::points {
         });
     }
 
-    // =========================================================================
-    // ADMIN: Update the Walrus blob ID
-    // =========================================================================
+
     public entry fun update_blob_id(
         _admin: &AdminCap,
         blob_registry: &mut BlobRegistry,
@@ -332,11 +276,8 @@ module tovira_points::points {
         });
     }
 
-    // =========================================================================
-    // READ-ONLY VIEWS
-    // =========================================================================
 
-    /// Get a user's point balance (returns 0 if not found)
+
     public fun get_balance(registry: &PointsRegistry, wallet: String): u64 {
         if (!table::contains(&registry.records, wallet)) {
             return 0
@@ -344,7 +285,6 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).balance
     }
 
-    /// Has this wallet already claimed waitlist points?
     public fun has_claimed(registry: &PointsRegistry, wallet: String): bool {
         if (!table::contains(&registry.records, wallet)) {
             return false
@@ -352,7 +292,6 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).waitlist_claimed
     }
 
-    /// Get last check-in timestamp (returns 0 if never checked in)
     public fun get_last_checkin(registry: &PointsRegistry, wallet: String): u64 {
         if (!table::contains(&registry.records, wallet)) {
             return 0
@@ -360,7 +299,6 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).last_checkin_at
     }
 
-    /// Can user check in now? (true if never checked in or cooldown passed)
     public fun can_checkin(registry: &PointsRegistry, wallet: String, clock: &Clock): bool {
         if (!table::contains(&registry.records, wallet)) {
             return true
@@ -374,21 +312,15 @@ module tovira_points::points {
         time_since_last >= CHECKIN_COOLDOWN_MS
     }
 
-    /// Total supply of all minted points
     public fun get_total_supply(registry: &PointsRegistry): u64 {
         registry.total_supply
     }
 
-    /// Current Walrus blob ID from BlobRegistry
     public fun get_current_blob_id(blob_registry: &BlobRegistry): String {
         blob_registry.current_blob_id
     }
 
-    // =========================================================================
-    // HELPERS
-    // =========================================================================
-
-    /// Convert an address to its hex string representation for use as table key
+ 
     fun address_to_string(addr: address): String {
         address::to_string(addr)
     }

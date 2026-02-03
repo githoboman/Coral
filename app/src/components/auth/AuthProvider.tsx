@@ -115,9 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       );
 
       if (!response.ok) {
-        // If endpoint doesn't exist or returns 404, assume user needs onboarding
         if (response.status === 404) {
-          console.log("User not found, showing onboarding");
           setIsOnboarded(false);
           setIsOnboardingOpen(true);
           setCheckingOnboarding(false);
@@ -129,23 +127,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const data = await response.json();
 
       if (!data.exists) {
-        // User doesn't exist, show onboarding
         setIsOnboarded(false);
         setIsOnboardingOpen(true);
       } else if (!data.user.email) {
-        // User exists but not fully onboarded
         setIsOnboarded(false);
         setIsOnboardingOpen(true);
         setUserEmail(data.user.email);
       } else {
-        // User exists and is onboarded
         setIsOnboarded(true);
         setIsOnboardingOpen(false);
         setUserEmail(data.user.email);
       }
     } catch (error: any) {
-      console.error("Error checking user status:", error.message);
-      // Default to showing onboarding on error
       setIsOnboarded(false);
       setIsOnboardingOpen(true);
     } finally {
@@ -168,7 +161,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (!walletAddress) {
       toast.error("Wallet not connected");
-      // Return failure instead of undefined
       return { success: false };
     }
 
@@ -176,7 +168,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     try {
-      // Try the original endpoint first
       let response = await fetch(`${apiBaseUrl}/api/auth/verify-and-register`, {
         method: "POST",
         headers: {
@@ -196,9 +187,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }),
       });
 
-      // If 404, try alternative endpoint
       if (response.status === 404) {
-        console.log("Primary endpoint not found, trying /register");
         response = await fetch(`${apiBaseUrl}/api/auth/register`, {
           method: "POST",
           headers: {
@@ -233,19 +222,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
 
-      // Don't close onboarding yet - let the OnboardingModal handle the transition to step 3
-      // The modal will check waitlist status and show claim screen if eligible
-
       toast.success("Profile saved! Checking waitlist status...");
 
-      // Always return success object
       return { success: true, data };
     } catch (error: any) {
-      console.error("Error during onboarding:", error.message);
       setOnboardingMessage(error.message || "Failed to save profile");
       toast.error(error.message || "Failed to save profile");
 
-      // Re-throw so the modal knows it failed, but this will be caught by the modal
       throw error;
     } finally {
       setOnboardingLoading(false);
@@ -254,10 +237,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
-      // Disconnect wallet
       disconnectWallet();
 
-      // Clear local storage
       const itemsToClear = [
         "zklogin_jwt",
         "enoki_jwt",
@@ -269,16 +250,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionStorage.removeItem(item);
       });
 
-      // Reset states
       setUserEmail(null);
       setIsOnboarded(false);
 
-      // Open login modal
       setIsLoginOpen(true);
 
       toast.success("Successfully logged out");
     } catch (error: any) {
-      console.error("Logout error:", error);
       toast.error("Failed to log out completely");
     }
   };
@@ -326,7 +304,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         initialEmail={userEmail}
         onSubmit={handleOnboardingSubmit}
         onComplete={() => {
-          // Claim just finished — leaderboard is stale, nuke it and refetch.
           dispatch(invalidateCache());
           dispatch(fetchLeaderboard());
           setIsOnboarded(true);

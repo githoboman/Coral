@@ -1,11 +1,3 @@
-// src/components/Login.tsx - FIXED VERSION
-//
-// Key fixes:
-// 1. Properly handle both Enoki (Google) and native Sui wallets
-// 2. Clear UI showing both options
-// 3. Better error handling
-// 4. Removed email/password (using wallet-only auth)
-
 import { useState, useEffect } from "react";
 import { useConnectWallet, useWallets } from "@mysten/dapp-kit";
 import { isEnokiWallet, type AuthProvider } from "@mysten/enoki";
@@ -43,7 +35,6 @@ export function LoginModal({ isOpen, loading, onSignIn }: LoginModalProps) {
   const allWallets = useWallets();
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Separate Enoki wallets from native Sui wallets
   const enokiWallets = allWallets.filter(isEnokiWallet);
   const nativeWallets = allWallets.filter((w) => !isEnokiWallet(w));
 

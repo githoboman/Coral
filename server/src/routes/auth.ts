@@ -1,16 +1,3 @@
-// src/routes/auth.ts  —  FIXED VERSION (v2)
-//
-// What changed vs the previous "FIXED VERSION":
-//
-//   check-claim-status now accepts an optional ?tx_digest= query param.
-//   When the frontend has just received a successful digest it can pass it
-//   here for instant, event-based confirmation — no devInspect, no latency.
-//
-//   When no digest is supplied (legacy polling path) it falls through to
-//   the rewritten hasClaimed / getBalance in TicketMinter which now check
-//   on-chain events FIRST and only fall back to devInspect when there are
-//   genuinely no events (i.e. the wallet has never claimed).
-
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
 import { WalrusUserManager, UserProfile } from "../services/walrusUserManager";
@@ -18,12 +5,8 @@ import { TicketMinter } from "../services/ticketMinter";
 
 const router = Router();
 
-// Blob ID for WAITLIST (this is separate from user registry!)
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
-// -----------------------------------------------------------------------
-// Singleton managers
-// -----------------------------------------------------------------------
 let waitlistManager: WaitlistManager | null = null;
 let userManager: WalrusUserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
@@ -41,9 +24,6 @@ function getTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-// =======================================================================
-// POST /api/auth/register
-// =======================================================================
 router.post(
   "/register",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -57,7 +37,6 @@ router.post(
         preferences,
       } = req.body;
 
-      // --- validation ---
       if (!email || typeof email !== "string") {
         res
           .status(400)
@@ -75,16 +54,11 @@ router.post(
       const minter = getTicketMinter();
       const um = getUserManager();
 
-      // --- 1. Get current blob registry ID from chain ---
       console.log(`📝 Saving profile for: ${normalizedEmail}`);
       const blobRegistry = await minter.getCurrentBlobId();
 
       console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
 
-      // --- 1b. Duplicate-email guard ---
-      //   An email can only ever be tied to one wallet.  If the registry
-      //   already exists and this email is already taken by a *different*
-      //   wallet, reject immediately.  Same wallet → fine (idempotent update).
       if (blobRegistry) {
         const existingWallet = await um.findWalletByEmail(
           blobRegistry,
@@ -104,7 +78,6 @@ router.post(
         }
       }
 
-      // --- 2. Create user profile ---
       const profile: UserProfile = {
         email: normalizedEmail,
         wallet_address,
@@ -117,7 +90,6 @@ router.post(
         joined_at: new Date().toISOString(),
       };
 
-      // --- 3. Save to Walrus ---
       const newBlobId = await um.addOrUpdateUser(blobRegistry || null, profile);
 
       if (!newBlobId) {
@@ -128,7 +100,6 @@ router.post(
         return;
       }
 
-      // --- 4. Update on-chain BlobRegistry if blob ID changed ---
       if (newBlobId !== blobRegistry) {
         console.log(
           `📦 Updating BlobRegistry on-chain: ${blobRegistry} -> ${newBlobId}`,
@@ -139,7 +110,6 @@ router.post(
 
       console.log(`✅ Profile saved for ${wallet_address}`);
 
-      // --- 5. Return success ---
       res.json({
         success: true,
         user: {
@@ -157,9 +127,6 @@ router.post(
   },
 );
 
-// =======================================================================
-// POST /api/auth/verify-and-issue-ticket
-// =======================================================================
 router.post(
   "/verify-and-issue-ticket",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -190,7 +157,6 @@ router.post(
       const normalizedEmail = email.toLowerCase().trim();
       const minter = getTicketMinter();
 
-      // --- 1. Check on-chain: has this wallet already claimed? ---
       console.log(`\n🔍 Checking on-chain claim status for: ${wallet_address}`);
       const alreadyClaimed = await minter.hasClaimed(wallet_address);
 
@@ -203,7 +169,6 @@ router.post(
         return;
       }
 
-      // --- 2. Check waitlist on Walrus ---
       console.log(`🔍 Checking waitlist for: ${normalizedEmail}`);
       const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
         normalizedEmail,
@@ -220,7 +185,6 @@ router.post(
         return;
       }
 
-      // --- 3. Mint EligibilityTicket on-chain ---
       console.log(`🎟️  Minting EligibilityTicket for ${wallet_address}...`);
       const ticketObjectId = await minter.mintTicket(
         wallet_address,
@@ -238,8 +202,6 @@ router.post(
 
       console.log(`✅ Ticket minted: ${ticketObjectId}`);
 
-      // --- 4. Update user profile in Walrus to mark as waitlisted ---
-      //   Non-critical, fire in background — don't hold up the ticket response.
       (async () => {
         try {
           const um = getUserManager();
@@ -275,9 +237,8 @@ router.post(
             walrusErr,
           );
         }
-      })(); // ← invoked immediately, not awaited
+      })();
 
-      // --- 5. Return ticket ID to frontend ---
       res.json({
         eligible: true,
         already_claimed: false,
@@ -292,9 +253,6 @@ router.post(
   },
 );
 
-// =======================================================================
-// GET /api/auth/check-user
-// =======================================================================
 router.get(
   "/check-user",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -332,18 +290,7 @@ router.get(
     }
   },
 );
-// =======================================================================
-// GET /api/auth/check-waitlist
-//
-// Pure read — no ticket minting, no side effects.
-// Used after registration to decide whether to show the claim screen.
-//
-// Query params:
-//   email   (required)
-//
-// Response:
-//   { on_waitlist: boolean }
-// =======================================================================
+
 router.get(
   "/check-waitlist",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -358,7 +305,6 @@ router.get(
       }
 
       if (!WHITELIST_BLOB_ID) {
-        // No waitlist configured at all — no one is waitlisted.
         res.json({ on_waitlist: false });
         return;
       }
@@ -376,18 +322,7 @@ router.get(
     }
   },
 );
-// =======================================================================
-// GET /api/auth/check-claim-status
-//
-// Query params:
-//   wallet_address   (required)  – the wallet to check
-//   tx_digest        (optional)  – if the caller just signed a claim tx,
-//                                  pass its digest here for instant
-//                                  event-based confirmation.
-//
-// Response shape (unchanged, so frontend needs zero changes):
-//   { claimed: boolean, balance: number, wallet_address: string }
-// =======================================================================
+
 router.get(
   "/check-claim-status",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -403,10 +338,6 @@ router.get(
 
       const minter = getTicketMinter();
 
-      // ------------------------------------------------------------------
-      // FAST PATH: caller supplied a tx digest  →  verify directly from
-      // the transaction receipt.  Zero latency, 100 % reliable.
-      // ------------------------------------------------------------------
       if (tx_digest && typeof tx_digest === "string") {
         console.log(
           `\n⚡ check-claim-status: fast path via digest ${tx_digest}`,
@@ -423,17 +354,11 @@ router.get(
           return;
         }
 
-        // Digest didn't contain the expected event — fall through to the
-        // normal read path rather than returning a hard failure.  This can
-        // happen if the digest belongs to a different tx.
         console.warn(
           "⚠️  Digest did not contain PointsClaimed event, falling through to normal read",
         );
       }
 
-      // ------------------------------------------------------------------
-      // NORMAL PATH: event scan + devInspect fallback (inside TicketMinter)
-      // ------------------------------------------------------------------
       const claimed = await minter.hasClaimed(wallet_address);
       const balance = await minter.getBalance(wallet_address);
 

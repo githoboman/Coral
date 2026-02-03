@@ -1,12 +1,3 @@
-// src/hooks/useCheckin.ts
-//
-// Hook for daily check-in functionality
-// Flow:
-//   1. Check status (can user check in?)
-//   2. Request ticket from backend
-//   3. Sign transaction to consume ticket
-//   4. Poll for confirmation
-
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   useCurrentAccount,
@@ -56,9 +47,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ---------------------------------------------------------------------------
-  // Fetch check-in status
-  // ---------------------------------------------------------------------------
   const fetchStatus = useCallback(async () => {
     const addr = currentAccount?.address;
     if (!addr) return;
@@ -87,7 +75,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         error: null,
       }));
     } catch (err) {
-      console.error("Error fetching check-in status:", err);
       setState((prev) => ({
         ...prev,
         status: "error",
@@ -96,20 +83,14 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }
   }, [currentAccount?.address]);
 
-  // Auto-fetch status on mount and when account changes
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
 
-  // ---------------------------------------------------------------------------
-  // Poll for confirmation
-  // ---------------------------------------------------------------------------
   const pollForConfirmation = useCallback(
     async (wallet: string, expectedPts: number, txDigest: string) => {
       const maxAttempts = 10;
       let attempt = 0;
-
-      console.log("⏳ Polling for check-in confirmation...");
 
       const doPoll = async () => {
         attempt++;
@@ -122,14 +103,11 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
           );
           const data = await res.json();
 
-          console.log(`📊 Poll attempt ${attempt}:`, data);
-
           if (data.balance > 0) {
             if (pollRef.current) {
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
-            console.log("✅ Check-in confirmed on-chain!");
 
             setState({
               status: "success",
@@ -142,26 +120,21 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               balance: data.balance,
             });
 
-            // ✅ NEW: Notify parent component
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
             }
 
-            // Refresh status after success
             setTimeout(fetchStatus, 2000);
 
             return true;
           }
-        } catch (_) {
-          console.log(`⚠️  Poll attempt ${attempt} failed`);
-        }
+        } catch (_) {}
 
         if (attempt >= maxAttempts) {
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
           }
-          console.log("⏰ Polling timeout - showing optimistic success");
 
           setState({
             status: "success",
@@ -174,7 +147,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             balance: expectedPts,
           });
 
-          // ✅ NEW: Notify parent component (optimistic)
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
           }
@@ -198,12 +170,9 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         }
       }, 1500);
     },
-    [fetchStatus, onPointsUpdated], // ✅ NEW: Add to dependencies
+    [fetchStatus, onPointsUpdated],
   );
 
-  // ---------------------------------------------------------------------------
-  // Execute check-in
-  // ---------------------------------------------------------------------------
   const checkin = useCallback(async () => {
     if (!currentAccount?.address) {
       setState((prev) => ({
@@ -223,8 +192,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       return;
     }
 
-    console.log("🎯 Starting check-in for:", currentAccount.address);
-
     setState((prev) => ({
       ...prev,
       status: "requesting",
@@ -232,9 +199,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }));
 
     try {
-      // Step 1: Request ticket from backend
-      console.log("📧 Requesting check-in ticket...");
-
       const ticketRes = await fetch(`${API_BASE}/api/checkin/request-ticket`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -244,7 +208,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       });
 
       const ticketData = await ticketRes.json();
-      console.log("✅ Ticket response:", ticketData);
 
       if (!ticketRes.ok || !ticketData.success) {
         setState((prev) => ({
@@ -259,56 +222,39 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const ticketId = ticketData.ticket_object_id as string;
       const ptsAmount = ticketData.points_amount as number;
 
-      console.log("🎟️  Ticket received:", ticketId);
-
       setState((prev) => ({
         ...prev,
         status: "signing",
       }));
 
-      // Step 2: Build & sign transaction
       const tx = new Transaction();
-      tx.setGasBudget(10_000_000); // 0.01 SUI
-
-      console.log("🔨 Building check-in transaction...");
+      tx.setGasBudget(10_000_000);
 
       tx.moveCall({
         target: `${PACKAGE_ID}::points::checkin`,
         arguments: [
           tx.object(POINTS_REGISTRY),
           tx.object(ticketId),
-          tx.object("0x6"), // Clock
+          tx.object("0x6"),
         ],
       });
-
-      console.log("📝 Requesting wallet signature...");
 
       const result = await signAndExecute(
         { transaction: tx },
         {
-          onSuccess: (data) => {
-            console.log("✅ Check-in transaction successful:", data);
-          },
-          onError: (error) => {
-            console.error("❌ Check-in transaction failed:", error);
-          },
+          onSuccess: () => {},
+          onError: () => {},
         },
       );
 
-      console.log("✅ Transaction result:", result);
-      console.log("📋 Digest:", result.digest);
-
       setState((prev) => ({ ...prev, status: "confirming" }));
 
-      // Step 3: Poll for confirmation
       await pollForConfirmation(
         currentAccount.address,
         ptsAmount,
         result.digest,
       );
     } catch (err: any) {
-      console.error("❌ Check-in error:", err);
-
       let errorMsg = "Check-in failed. Please try again.";
       if (err?.message) {
         if (err.message.includes("User rejected")) {
@@ -327,7 +273,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         error: errorMsg,
       }));
 
-      // Refresh status to get updated cooldown info
       setTimeout(fetchStatus, 1000);
     }
   }, [

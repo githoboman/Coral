@@ -1,19 +1,10 @@
-// src/routes/waitlist.ts
-//
-// Optional routes for managing the waitlist directly
-// (Most waitlist operations happen via /auth endpoints)
-
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
 
 const router = Router();
 
-// Blob ID from environment
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
-// -----------------------------------------------------------------------
-// Singleton manager
-// -----------------------------------------------------------------------
 let waitlistManager: WaitlistManager | null = null;
 
 function getWaitlistManager(): WaitlistManager {
@@ -21,11 +12,6 @@ function getWaitlistManager(): WaitlistManager {
   return waitlistManager;
 }
 
-// =======================================================================
-// POST /api/waitlist/verify
-//
-// Verify if email is on the waitlist (simpler endpoint than full verify-and-issue-ticket)
-// =======================================================================
 router.post(
   "/verify",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -73,11 +59,6 @@ router.post(
   },
 );
 
-// =======================================================================
-// GET /api/waitlist/info
-//
-// Get waitlist information (without revealing emails)
-// =======================================================================
 router.get(
   "/info",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {

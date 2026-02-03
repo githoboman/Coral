@@ -1,5 +1,3 @@
-// src/components/Onboarding.tsx
-
 import { useState, useEffect, useRef } from "react";
 import { Mail, Gift, Check } from "lucide-react";
 import gsap from "gsap";
@@ -34,9 +32,6 @@ export function OnboardingModal({
   onSubmit,
   onComplete,
 }: OnboardingProps) {
-  // ---------------------------------------------------------------------------
-  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
-  // ---------------------------------------------------------------------------
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [email, setEmail] = useState(initialEmail || "");
   const [username, setUsername] = useState("");
@@ -52,17 +47,12 @@ export function OnboardingModal({
   const contentRef = useRef<HTMLDivElement>(null);
   const isEmailFromOAuth = !!initialEmail;
 
-  // Always call useClaimPoints - don't conditionally call hooks
   const { claimPoints, claimState, reset: resetClaim } = useClaimPoints();
 
-  // ---------------------------------------------------------------------------
-  // Effects
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (initialEmail) setEmail(initialEmail);
   }, [initialEmail]);
 
-  // Auto-redirect non-waitlisted users after 2 s on the welcome screen.
   useEffect(() => {
     if (step === 4) {
       const timer = setTimeout(() => onComplete(), 2000);
@@ -90,14 +80,8 @@ export function OnboardingModal({
     }
   }, [step]);
 
-  // ---------------------------------------------------------------------------
-  // Early return AFTER all hooks have been called
-  // ---------------------------------------------------------------------------
   if (!isOpen) return null;
 
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
   const handleEmailNext = () => {
     if (email.trim()) setStep(2);
   };
@@ -114,7 +98,6 @@ export function OnboardingModal({
       if (result?.success) {
         setProfileSaved(true);
 
-        // Lightweight waitlist check — read-only, no ticket minted.
         try {
           const res = await fetch(
             `${API_BASE}/api/auth/check-waitlist?email=${encodeURIComponent(email.trim())}`,
@@ -123,26 +106,19 @@ export function OnboardingModal({
 
           if (data.on_waitlist) {
             setIsWaitlisted(true);
-            setStep(3); // → claim screen (waitlisted users only)
+            setStep(3);
           } else {
             setIsWaitlisted(false);
-            setStep(4); // → welcome screen, then auto-redirect
+            setStep(4);
           }
         } catch {
-          // If the check itself fails, don't block the user.
-          // Send them to welcome and let them continue.
           setIsWaitlisted(false);
           setStep(4);
         }
       }
-    } catch (error) {
-      console.error("Failed to save profile:", error);
-    }
+    } catch (error) {}
   };
 
-  // ---------------------------------------------------------------------------
-  // Reusable Switch Component
-  // ---------------------------------------------------------------------------
   const Switch = ({
     active,
     onChange,
@@ -160,9 +136,6 @@ export function OnboardingModal({
     </button>
   );
 
-  // ---------------------------------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------------------------------
   return (
     <div className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
       <div
@@ -170,9 +143,6 @@ export function OnboardingModal({
         className="w-full max-w-[400px] bg-[#070B0F]/95 backdrop-blur-2xl border border-white/5 rounded-[32px] shadow-2xl relative overflow-hidden"
       >
         <div className="p-6" ref={contentRef}>
-          {/* ============================================================
-              STEP 1 — Email + Username
-              ============================================================ */}
           {step === 1 && (
             <div className="flex flex-col items-center">
               {/* Logo */}
@@ -256,9 +226,6 @@ export function OnboardingModal({
             </div>
           )}
 
-          {/* ============================================================
-              STEP 2 — Preferences
-              ============================================================ */}
           {step === 2 && (
             <div className="flex flex-col">
               <h2 className="text-[24px] font-bold text-white mb-5 tracking-tight">
@@ -325,12 +292,8 @@ export function OnboardingModal({
             </div>
           )}
 
-          {/* ============================================================
-              STEP 3 — Claim Points (waitlisted users only)
-              ============================================================ */}
           {step === 3 && (
             <div className="flex flex-col items-center">
-              {/* --------------- SUCCESS STATE --------------- */}
               {claimState.status === "success" ? (
                 <>
                   <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mb-6">
@@ -360,7 +323,6 @@ export function OnboardingModal({
                 </>
               ) : (
                 <>
-                  {/* --------------- CLAIM PROMPT --------------- */}
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#B7FC0D]/20 to-[#246AFC]/20 border border-[#B7FC0D]/30 flex items-center justify-center mb-6">
                     <Gift size={28} className="text-[#B7FC0D]" />
                   </div>
@@ -429,7 +391,6 @@ export function OnboardingModal({
                     )}
                   </button>
 
-                  {/* Skip link for users who don't want to claim right now */}
                   {claimState.status === "idle" && (
                     <button
                       onClick={onComplete}
@@ -443,10 +404,6 @@ export function OnboardingModal({
             </div>
           )}
 
-          {/* ============================================================
-              STEP 4 — Welcome (non-waitlisted users)
-              Auto-redirects to dashboard after 2 seconds.
-              ============================================================ */}
           {step === 4 && (
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#B7FC0D]/20 to-[#246AFC]/20 border border-[#B7FC0D]/30 flex items-center justify-center mb-6">

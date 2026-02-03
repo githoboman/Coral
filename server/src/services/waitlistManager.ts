@@ -1,21 +1,13 @@
-// ============================================================================
-// WaitlistManager - Walrus Access Control using Publisher/Aggregator
-// ============================================================================
-
 import axios from "axios";
 import * as fs from "fs/promises";
 import * as path from "path";
 import "dotenv/config";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export interface Whitelist {
   version: number;
   created_at: string;
   total_count: number;
-  emails: string[]; // Plaintext for now
+  emails: string[];
   description: string;
   previous_blob?: string;
 }
@@ -64,7 +56,6 @@ export class WaitlistManager {
   private cachedWhitelist: Map<string, Whitelist> = new Map();
 
   constructor() {
-    // Use environment variables or defaults
     this.publisherUrl =
       process.env.WALRUS_PUBLISHER_URL ||
       "https://publisher.walrus-testnet.walrus.space";
@@ -78,14 +69,6 @@ export class WaitlistManager {
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
-  // ==========================================================================
-  // EMAIL LOADING
-  // ==========================================================================
-
-  /**
-   * Load emails from CSV file
-   * Format: email header, then one email per line
-   */
   async loadFromCSV(csvPath: string): Promise<string[]> {
     try {
       console.log(`📁 Loading emails from ${csvPath}...`);
@@ -105,7 +88,6 @@ export class WaitlistManager {
       }
 
       const emails = lines.slice(1).filter((email) => {
-        // Basic email validation
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       });
 
@@ -117,9 +99,6 @@ export class WaitlistManager {
     }
   }
 
-  /**
-   * Load emails from JSON backup
-   */
   async loadFromJSON(jsonPath: string): Promise<string[]> {
     try {
       console.log(`📁 Loading emails from ${jsonPath}...`);
@@ -139,7 +118,6 @@ export class WaitlistManager {
   createWhitelist(emails: string[], description?: string): Whitelist {
     console.log(`🔐 Creating whitelist from ${emails.length} emails...`);
 
-    // Remove duplicates and normalize
     const uniqueEmails = [
       ...new Set(emails.map((e) => e.toLowerCase().trim())),
     ];
@@ -157,9 +135,6 @@ export class WaitlistManager {
     return whitelist;
   }
 
-  /**
-   * Upload whitelist to Walrus using Publisher API
-   */
   async uploadToWalrus(
     whitelist: Whitelist,
     maxRetries: number = 3,
@@ -172,11 +147,9 @@ export class WaitlistManager {
           `📤 Uploading to Walrus (attempt ${attempt}/${maxRetries})...`,
         );
 
-        // Convert whitelist to JSON
         const whitelistJson = JSON.stringify(whitelist, null, 2);
         const whitelistBytes = new TextEncoder().encode(whitelistJson);
 
-        // Upload using Publisher API
         const response = await axios.put(
           `${this.publisherUrl}/v1/blobs`,
           whitelistJson,
@@ -231,19 +204,10 @@ export class WaitlistManager {
     throw lastError || new Error("Upload failed");
   }
 
-  // ==========================================================================
-  // WHITELIST RETRIEVAL & VERIFICATION
-  // ==========================================================================
-
-  /**
-   * Fetch whitelist from Walrus using Aggregator API
-   */
   async fetchWhitelist(
     blobId: string,
     maxRetries: number = 3,
   ): Promise<Whitelist | null> {
-    // The whitelist blob ID is static for the lifetime of the process.
-    // Cache it so every isEmailWhitelisted call doesn't re-fetch.
     const cached = this.cachedWhitelist.get(blobId);
     if (cached) {
       console.log(`📋 Returning cached whitelist for ${blobId}`);
@@ -297,9 +261,7 @@ export class WaitlistManager {
     console.error("Last error:", lastError?.message);
     return null;
   }
-  /**
-   * Check if email is whitelisted
-   */
+
   async isEmailWhitelisted(email: string, blobId: string): Promise<boolean> {
     try {
       const normalizedEmail = email.toLowerCase().trim();
@@ -325,13 +287,6 @@ export class WaitlistManager {
     }
   }
 
-  // ==========================================================================
-  // WHITELIST UPDATES
-  // ==========================================================================
-
-  /**
-   * Add new emails to existing whitelist (creates new version)
-   */
   async addEmailsToWhitelist(
     newEmails: string[],
     currentBlobId: string,
@@ -339,13 +294,11 @@ export class WaitlistManager {
     try {
       console.log(`\n➕ Adding ${newEmails.length} new emails to whitelist...`);
 
-      // Fetch current whitelist
       const currentWhitelist = await this.fetchWhitelist(currentBlobId);
       if (!currentWhitelist) {
         throw new Error("Could not fetch current whitelist");
       }
 
-      // Combine emails
       const normalizedNewEmails = newEmails.map((e) => e.toLowerCase().trim());
       const currentEmailsSet = new Set(currentWhitelist.emails);
       const combinedEmails = [...currentWhitelist.emails];
@@ -363,7 +316,6 @@ export class WaitlistManager {
         return currentBlobId;
       }
 
-      // Create updated whitelist
       const updatedWhitelist: Whitelist = {
         version: currentWhitelist.version + 1,
         created_at: new Date().toISOString(),
@@ -373,7 +325,6 @@ export class WaitlistManager {
         previous_blob: currentBlobId,
       };
 
-      // Upload new version
       const newBlobId = await this.uploadToWalrus(updatedWhitelist);
 
       if (newBlobId) {
@@ -391,30 +342,20 @@ export class WaitlistManager {
     }
   }
 
-  // ==========================================================================
-  // MIGRATION & HELPERS
-  // ==========================================================================
-
-  /**
-   * Complete migration from CSV to Walrus
-   */
   async migrateFromCSV(csvPath: string): Promise<string | null> {
     console.log("\n" + "=".repeat(70));
     console.log("WAITLIST MIGRATION: CSV → WALRUS");
     console.log("=".repeat(70));
 
-    // Step 1: Load emails
     const emails = await this.loadFromCSV(csvPath);
     if (emails.length === 0) {
       console.log("❌ No emails to migrate");
       return null;
     }
 
-    // Step 2: Create whitelist
     console.log("\n🔐 Creating whitelist...");
     const whitelist = this.createWhitelist(emails);
 
-    // Step 3: Upload to Walrus
     console.log("\n☁️  Uploading to Walrus...");
     const blobId = await this.uploadToWalrus(whitelist);
 
@@ -423,7 +364,6 @@ export class WaitlistManager {
       return null;
     }
 
-    // Step 4: Save migration record
     console.log("\n📝 Saving migration record...");
     await this.saveMigrationRecord(blobId, emails.length, whitelist.version);
 
@@ -441,9 +381,6 @@ export class WaitlistManager {
     return blobId;
   }
 
-  /**
-   * Save migration record for reference
-   */
   async saveMigrationRecord(
     blobId: string,
     emailCount: number,
@@ -469,9 +406,6 @@ export class WaitlistManager {
     console.log(`Migration record saved: ${filename}`);
   }
 
-  /**
-   * Verify blob exists
-   */
   async verifyBlob(blobId: string): Promise<boolean> {
     try {
       await axios.head(`${this.aggregatorUrl}/v1/blobs/${blobId}`, {
@@ -483,9 +417,6 @@ export class WaitlistManager {
     }
   }
 
-  /**
-   * Get blob URL
-   */
   getBlobUrl(blobId: string): string {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
