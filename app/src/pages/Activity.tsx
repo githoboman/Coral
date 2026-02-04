@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { ChevronRight, Plus, Search, Filter, Clock } from "lucide-react"
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, Plus, Search, Filter } from "lucide-react"
 import { Task, Event } from '@/hooks/taskApi'
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchTasks, createTask as createReduxTask, updateTaskStatus, removeTask } from '@/store/slices/tasksSlice';
-import { fetchEvents, createEvent as createReduxEvent, removeEvent } from '@/store/slices/eventsSlice';
+import { fetchEvents, createEvent as createReduxEvent } from '@/store/slices/eventsSlice';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -40,7 +40,6 @@ const Activity = () => {
   const tasks = useAppSelector(state => state.tasks.tasks);
   const events = useAppSelector(state => state.events.events);
 
-  const [activeTab, setActiveTab] = useState<'Tasks' | 'Calendar'>('Tasks'); // Default to Tasks for this design
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'event' | 'task'>('task');
   const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(new Date());
@@ -58,7 +57,6 @@ const Activity = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('All');
 
   // Debounce search query (300ms delay)
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -127,13 +125,8 @@ const Activity = () => {
       );
     }
 
-    if (filterType !== 'All') {
-      // Implement filters if "Filter By" dropdown has specific logic
-      // For now 'All' is default
-    }
-
     return result;
-  }, [items, debouncedSearchQuery, filterType]);
+  }, [items, debouncedSearchQuery]);
 
   // Load data from Redux
   useEffect(() => {
@@ -252,7 +245,7 @@ const Activity = () => {
 
 
   // Countdown Timer Logic
-  const [countdown, setCountdown] = useState("58:58:59");
+  const countdown = "58:58:59";
 
   // Helper to get priority color
   const getPriorityColor = (p?: string) => {
@@ -276,6 +269,16 @@ const Activity = () => {
 
   return (
     <div className="flex flex-col h-full w-full max-w-7xl mx-auto px-4 pb-6 pt-6">
+
+      {/* Error notification */}
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center gap-2 animate-slide-in">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="hover:bg-red-600 rounded p-1 transition-colors">
+            <div className="w-4 h-4 flex items-center justify-center font-bold">×</div>
+          </button>
+        </div>
+      )}
 
       {/* Top Section Cards */}
       <div className="flex flex-col md:flex-row gap-6 mb-10">

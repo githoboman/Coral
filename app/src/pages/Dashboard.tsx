@@ -149,7 +149,7 @@ const Dashboard = () => {
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
-  const { tokens = [] } = useOutletContext<LayoutContextType>();
+  useOutletContext<LayoutContextType>();
 
   // Redux state
   const dispatch = useAppDispatch();
