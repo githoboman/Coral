@@ -1,4 +1,19 @@
+import type { EncryptedData } from "../services/encryptionService";
+
 export interface UserProfile {
+  email: EncryptedData | string;
+  wallet_address: string;
+  is_waitlisted: boolean;
+  points_awarded: number;
+  joined_at: string;
+  username?: EncryptedData | string;
+  first_name?: EncryptedData | string;
+  last_name?: EncryptedData | string;
+  preferences?: EncryptedData | Record<string, any>;
+  waitlist_verified_at?: string;
+}
+
+export interface DecryptedUserProfile {
   email: string;
   wallet_address: string;
   is_waitlisted: boolean;
@@ -7,11 +22,8 @@ export interface UserProfile {
   username?: string;
   first_name?: string;
   last_name?: string;
-  preferences?: {
-    notifications_enabled?: boolean;
-    analytics_enabled?: boolean;
-    personalization_enabled?: boolean;
-  };
+  preferences?: Record<string, any>;
+  waitlist_verified_at?: string;
 }
 
 export interface UsersRegistry {
@@ -21,6 +33,13 @@ export interface UsersRegistry {
   users: Record<string, UserProfile>;
   description: string;
   previous_blob?: string;
+}
+
+export interface EncryptedDataStructure {
+  iv: string;
+  salt: string;
+  tag: string;
+  encrypted: string;
 }
 
 export interface Whitelist {
@@ -95,5 +114,5 @@ export interface VerifyAndRegisterResponse {
 
 export interface CheckUserResponse {
   exists: boolean;
-  user: UserProfile | null;
+  user: DecryptedUserProfile | null;
 }

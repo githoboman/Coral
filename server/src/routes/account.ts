@@ -39,6 +39,7 @@ router.get(
       }
 
       const um = getUserManager();
+      // getUserProfile now decrypts automatically
       const userProfile = await um.getUserProfile(blobId, user_id);
 
       if (!userProfile) {
@@ -49,13 +50,14 @@ router.get(
 
       const balance = await minter.getBalance(user_id);
 
+      // userProfile is already decrypted
       return res.json({
         user_id,
         wallet_address: userProfile.wallet_address,
-        email: userProfile.email,
-        username: userProfile.username,
-        first_name: userProfile.first_name,
-        last_name: userProfile.last_name,
+        email: userProfile.email, // Decrypted
+        username: userProfile.username, // Decrypted
+        first_name: userProfile.first_name, // Decrypted
+        last_name: userProfile.last_name, // Decrypted
         points: balance,
         referral_points: 0,
         rank: null,
@@ -86,22 +88,31 @@ router.get(
         return res.json({ leaderboard: [] });
       }
 
+      // Decrypt each profile and get points
       const usersWithPoints = await Promise.all(
-        Object.entries(registry.users).map(async ([wallet, profile]) => {
+        Object.keys(registry.users).map(async (wallet) => {
+          // Decrypt the profile
+          const decryptedProfile = await um.getUserProfile(blobId, wallet);
+          if (!decryptedProfile) {
+            return null;
+          }
+
           const balance = await minter.getBalance(wallet);
           return {
             user_id: wallet,
             wallet_address: wallet,
-            username: profile.username,
-            email: profile.email,
+            username: decryptedProfile.username, // Decrypted
+            email: decryptedProfile.email, // Decrypted
             points: balance,
             referral_points: 0,
           };
         }),
       );
 
-      const leaderboard = usersWithPoints
-        .sort((a, b) => b.points - a.points)
+      // Filter out nulls and sort
+      const validUsers = usersWithPoints.filter((u) => u !== null);
+      const leaderboard = validUsers
+        .sort((a, b) => b!.points - a!.points)
         .slice(0, 100)
         .map((user, idx) => ({ ...user, rank: idx + 1 }));
 
