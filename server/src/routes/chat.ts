@@ -6,6 +6,7 @@ import getSupabaseClient from '../config/supabase';
 import { rateLimitMiddleware, redisClient } from '../middleware/rateLimiter';
 import { awardChatPoints } from '../services/pointsService';
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { fetchBalanceDirect } from "../services/agents/tools/sui";
 
 const router = Router();
 const supabase = getSupabaseClient();
@@ -53,10 +54,18 @@ router.post('/chat', rateLimitMiddleware, async (req, res) => {
       msg.role === 'user' ? new HumanMessage(msg.content) : new AIMessage(msg.content)
     );
 
+    // Fetch balance if wallet address
+    let walletBalance = undefined;
+    if (user_id.startsWith('0x')) {
+      walletBalance = await fetchBalanceDirect(user_id);
+    }
+
     const initialState = {
       messages: [...historyMessages, new HumanMessage(message)],
       userQuery: message,
       userId: user_id,
+      walletAddress: user_id.startsWith('0x') ? user_id : undefined,
+      walletBalance,
       chatId: chat_id,
       transactionHash: transaction_hash,
       gasPaid: !!transaction_hash, // If transaction hash provided, gas is paid

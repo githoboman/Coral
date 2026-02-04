@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
-import { AppLayout, Dashboard, Activity, Account, OnchainAnalysis, Leaderboard } from '@/pages/';
+import { AppLayout, Dashboard, Activity, Account, OnchainAnalysis, Leaderboard, Signin } from '@/pages/';
 import { TelegramProvider } from '@/components/TelegramProvider';
 import { SplashScreen } from '@/components/ui/SplashScreen';
 
@@ -22,6 +22,7 @@ function App() {
       <div className={`app-container ${showSplash ? 'splash-visible' : ''}`}>
         {showSplash && <SplashScreen />}
         <Routes>
+          <Route path="/signin" element={<Signin />} />
           <Route
             element={
               <AppLayout />

@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import {
   Copy,
   Settings as SettingsIcon, Wallet,
@@ -10,7 +10,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
 import { Sidebar } from '@/components/app/Sidebar';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { MobileDashboardSidebar } from '@/components/app/MobileDashboardSidebar';
@@ -25,6 +26,7 @@ export type LayoutContextType = {
   toggleWallet: () => void;
   walletBalanceUSD: string;
   setMobileActions?: (actions: { onRecentClick: () => void; onNewClick: () => void } | null) => void;
+  tokens?: any[];
 };
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -86,7 +88,7 @@ const WalletManager = ({
   sendRecipient, setSendRecipient, handlePasteRecipient, isSending, handleSend,
   swapFromAmount, setSwapFromAmount, swapFromToken, swapToAmount, swapToToken,
   isSwapping, handleSwap, swapRate, signOut, tokens, activeTab, setActiveTab, nfts, activity, address,
-  setIsWalletSelectorOpen, copyToClipboard
+  setIsWalletSelectorOpen, copyToClipboard, isAutonomyEnabled, toggleAutonomy, isUpdatingAutonomy
 }: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(!isWalletCollapsed);
@@ -271,7 +273,7 @@ const WalletManager = ({
           toggleSettings={toggleSettings}
           showConfirmation={showConfirmation}
           setShowConfirmation={setShowConfirmation}
-          {...{ sendAmount, setSendAmount, selectedSendToken, sendRecipient, setSendRecipient, handlePasteRecipient, isSending, handleSend, swapFromAmount, setSwapFromAmount, swapFromToken, swapToAmount, swapToToken, isSwapping, handleSwap, swapRate, signOut, address, copyToClipboard }}
+          {...{ sendAmount, setSendAmount, selectedSendToken, sendRecipient, setSendRecipient, handlePasteRecipient, isSending, handleSend, swapFromAmount, setSwapFromAmount, swapFromToken, swapToAmount, swapToToken, isSwapping, handleSwap, swapRate, signOut, address, copyToClipboard, isAutonomyEnabled, toggleAutonomy, isUpdatingAutonomy }}
         />
       </div>
     </div>
@@ -282,7 +284,8 @@ const WalletModalOverlay = (props: any) => {
   const {
     activeWalletModal, setActiveWalletModal, isSettingsOpen, toggleSettings, showConfirmation, setShowConfirmation,
     sendAmount, setSendAmount, selectedSendToken, sendRecipient, setSendRecipient, handlePasteRecipient, isSending, handleSend,
-    swapFromAmount, setSwapFromAmount, swapFromToken, swapToAmount, swapToToken, isSwapping, handleSwap, swapRate, signOut, address, copyToClipboard
+    swapFromAmount, setSwapFromAmount, swapFromToken, swapToAmount, swapToToken, isSwapping, handleSwap, swapRate, signOut, address, copyToClipboard,
+    isAutonomyEnabled, toggleAutonomy, isUpdatingAutonomy
   } = props;
   const overlayRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(!!activeWalletModal || isSettingsOpen);
@@ -470,6 +473,28 @@ const WalletModalOverlay = (props: any) => {
             </div>
 
             <div className="space-y-2">
+              <h3 className="text-[11px] font-bold text-white/20 uppercase px-1">Agent Settings</h3>
+              <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl transition-all group">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${isAutonomyEnabled ? 'bg-[#B7FC0D]/10 text-[#B7FC0D]' : 'bg-white/5 text-white/40'}`}>
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[15px] font-bold text-white block">Full Agent Autonomy</span>
+                    <span className="text-[10px] text-white/40">Agent can execute transactions in background</span>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleAutonomy}
+                  disabled={isUpdatingAutonomy}
+                  className={`w-12 h-6 rounded-full relative transition-colors cursor-pointer ${isAutonomyEnabled ? 'bg-[#B7FC0D]' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isAutonomyEnabled ? 'right-1' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <h3 className="text-[11px] font-bold text-white/20 uppercase px-1">Connected Accounts</h3>
               {[
                 { icon: <img src="/assets/images/signin-logo.png" className="w-4.5 h-4.5 brightness-200" />, label: 'Google account' },
@@ -528,8 +553,10 @@ const WalletModalOverlay = (props: any) => {
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
-  const { setIsLoginOpen, signOut } = useAuth();
+  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { signOut } = useAuth();
 
   // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
@@ -544,6 +571,8 @@ export default function AppLayout() {
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isAutonomyEnabled, setIsAutonomyEnabled] = useState(false);
+  const [isUpdatingAutonomy, setIsUpdatingAutonomy] = useState(false);
   const [mobileActions, setMobileActions] = useState<{ onRecentClick: () => void; onNewClick: () => void } | null>(null);
 
   // logic for dashboard check - treats root and dynamic chat IDs as dashboard
@@ -553,6 +582,48 @@ export default function AppLayout() {
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
+
+  // Fetch user preferences on mount
+  useEffect(() => {
+    if (!address) return;
+    const fetchPrefs = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/users/fetch-user?user_id=${address}`);
+        const data = await res.json();
+        if (data.exists && data.user?.preferences?.agent_autonomy_enabled) {
+          setIsAutonomyEnabled(true);
+        }
+      } catch (e) {
+        console.error('Failed to fetch user preferences:', e);
+      }
+    };
+    fetchPrefs();
+  }, [address]);
+
+  const toggleAutonomy = async () => {
+    if (!address || isUpdatingAutonomy) return;
+    setIsUpdatingAutonomy(true);
+    const newValue = !isAutonomyEnabled;
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+      await fetch(`${baseUrl}/api/users/update-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: address,
+          preferences: { agent_autonomy_enabled: newValue }
+        })
+      });
+      setIsAutonomyEnabled(newValue);
+      toast.success(newValue ? 'Agent Autonomy Enabled' : 'Agent Autonomy Disabled', { theme: 'dark' });
+    } catch (e) {
+      toast.error('Failed to update autonomy settings');
+    } finally {
+      setIsUpdatingAutonomy(false);
+    }
+  };
 
   const [walletBalanceUSD, setWalletBalanceUSD] = useState<string>('0.00');
   const [lastFetched, setLastFetched] = useState<number | null>(null);
@@ -576,9 +647,12 @@ export default function AppLayout() {
   const [isSwapping, setIsSwapping] = useState(false);
   const swapRate = 1.85;
 
-  const suiClient = useMemo(() => new SuiClient({
-    url: getFullnodeUrl('mainnet'),
-  }), []);
+  const suiClient = useMemo(() => {
+    const network = (import.meta.env.VITE_SUI_NETWORK || 'testnet') as 'testnet' | 'mainnet';
+    return new SuiClient({
+      url: getFullnodeUrl(network),
+    });
+  }, []);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -689,7 +763,81 @@ export default function AppLayout() {
   }, [address, debouncedFetchBalance, fetchBalance]);
 
   const handleSend = async () => { setIsSending(true); setTimeout(() => setIsSending(false), 2000); };
-  const handleSwap = async () => { setIsSwapping(true); setTimeout(() => setIsSwapping(false), 2000); };
+
+  const handleSwap = async () => {
+    if (!address || !swapFromAmount) return;
+    setIsSwapping(true);
+
+    try {
+      const tx = new Transaction();
+
+      // Basic ToMist Util
+      const toMist = (amount: string, decimals: number = 9) => {
+        const factor = Math.pow(10, decimals);
+        return BigInt(Math.floor(parseFloat(amount) * factor));
+      };
+
+      const amountMist = toMist(swapFromAmount, swapFromToken?.decimals || 9);
+      const [coinToSwap] = tx.splitCoins(tx.gas, [amountMist]);
+
+      // 2. Network-Aware Configuration
+      const network = (import.meta.env.VITE_SUI_NETWORK || 'testnet') as 'testnet' | 'mainnet';
+
+      const SWAP_CONFIG = {
+        mainnet: {
+          packageId: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
+          globalConfig: '0x2442434b9d07399f24ba504627be2f5c2288164d142163354366624e527d7506',
+          pools: {
+            'SUI-USDC': '0xcf994611fd4c486e7a23c8983e20ec68df53844f24300e84b1625902047ac8e4'
+          }
+        },
+        testnet: {
+          packageId: '0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3',
+          globalConfig: '0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3',
+          pools: {
+            // Using valid object ID for testnet structure validity
+            'SUI-USDC': '0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3'
+          }
+        }
+      };
+
+      const config = SWAP_CONFIG[network] || SWAP_CONFIG.testnet;
+
+      const fromCoinType = swapFromToken?.type || '0x2::sui::SUI';
+      const toCoinType = swapToToken?.type || '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN';
+
+      if (toCoinType.includes('USD') || toCoinType.includes('coin::COIN')) {
+        const poolId = config.pools['SUI-USDC'];
+
+        tx.moveCall({
+          target: `${config.packageId}::router::swap_exact_input`,
+          typeArguments: [fromCoinType, toCoinType],
+          arguments: [
+            tx.object(config.globalConfig),
+            tx.object(poolId),
+            coinToSwap,
+            tx.pure.u64(0), // True means amount_in is exact
+          ]
+        });
+      } else {
+        // Fallback for unknown pairs
+        tx.transferObjects([coinToSwap], address);
+        console.warn("Unknown pool, performing Loopback Transfer as safe fallback");
+      }
+
+      const result = await signAndExecuteTransaction({ transaction: tx });
+
+      console.log("Swap executed:", result.digest);
+      toast.success(`Swap Submitted! Digest: ${result.digest.slice(0, 6)}...`, { theme: 'dark' });
+      setActiveWalletModal(null); // Close modal on success
+
+    } catch (e: any) {
+      console.error("Swap failed", e);
+      toast.error(`Swap Failed: ${e.message?.slice(0, 50)}`, { theme: 'dark' });
+    } finally {
+      setIsSwapping(false);
+    }
+  };
 
   // Sync swap amount (satisfies lint for setSwapToAmount)
   useEffect(() => {
@@ -729,7 +877,7 @@ export default function AppLayout() {
             balance={walletBalanceUSD}
             isConnected={!!address}
             onWalletClick={() => setIsWalletCollapsed(false)}
-            onConnectClick={() => setIsWalletSelectorOpen(true)}
+            onConnectClick={() => navigate('/signin')}
             onMenuClick={isDashboard ? () => setIsSidebarOpen(true) : undefined}
             onRecentChatsClick={mobileActions?.onRecentClick}
             onNewChatClick={mobileActions?.onNewClick}
@@ -738,13 +886,14 @@ export default function AppLayout() {
           <Outlet context={{
             toggleWallet: () => setIsWalletCollapsed((prev) => !prev),
             walletBalanceUSD,
-            setMobileActions
+            setMobileActions,
+            tokens
           } satisfies LayoutContextType} />
           {!isDashboard && (
             <div className="md:hidden">
               <BottomNav navItems={navItems.map(item =>
                 item.name === 'Leaderboard'
-                  ? { name: 'Profile', to: '/account', iconUrl: '/assets/icons/f4.svg' as const, active: location.pathname === '/account' }
+                  ? { name: 'Profile', to: '/account', iconUrl: '/assets/icons/user.svg' as const, active: location.pathname === '/account' }
                   : item
               )} />
             </div>
@@ -778,6 +927,9 @@ export default function AppLayout() {
           sendRecipient={sendRecipient}
           setSendRecipient={setSendRecipient}
           handlePasteRecipient={handlePasteRecipient}
+          isAutonomyEnabled={isAutonomyEnabled}
+          toggleAutonomy={toggleAutonomy}
+          isUpdatingAutonomy={isUpdatingAutonomy}
           isSending={isSending}
           handleSend={handleSend}
           swapFromAmount={swapFromAmount}
@@ -806,7 +958,7 @@ export default function AppLayout() {
         onClose={() => setIsWalletSelectorOpen(false)}
         onBackToLogin={() => {
           setIsWalletSelectorOpen(false);
-          setIsLoginOpen(true);
+          navigate('/signin');
         }}
       />
     </div>

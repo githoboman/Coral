@@ -14,73 +14,6 @@ function getUserManager(): WalrusUserManager {
   return userManager;
 }
 
-<<<<<<< HEAD
-
-
-/**
- * POST /api/onboard-user
- * Onboard user with email (validates against waitlist)
- */
-router.post('/onboard-user', validate(userOnboardSchema), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const {
-      user_id,
-      email,
-      username,
-      first_name,
-      last_name,
-      notifications_enabled,
-      analytics_enabled,
-      personalization_enabled
-    } = req.body as UserOnboardRequest;
-
-    if (!user_id.trim()) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        detail: 'User ID cannot be empty',
-      });
-    }
-
-    if (!email.trim()) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        detail: 'Email cannot be empty',
-      });
-    }
-
-    const supabase = getSupabaseClient();
-
-
-    // Check if email is already in use by another user
-    const { data: existingUser, error: existingError } = await supabase
-      .from('user_profiles')
-      .select('user_id')
-      .eq('email', email)
-      .single();
-
-    if (existingError && existingError.code !== 'PGRST116') {
-      console.error('Error checking existing user:', existingError);
-      throw existingError;
-    }
-
-    if (existingUser && existingUser.user_id !== user_id) {
-      console.warn(`Email already in use: ${email}`);
-      return res.status(409).json({
-        error: 'Conflict',
-        detail: 'An account with this email already exists.',
-      });
-    }
-
-    // Update user profile
-    const updateData: Partial<UserProfile> = {
-      user_id,
-      email,
-      last_active: new Date().toISOString(),
-      preferences: {
-        notifications_enabled,
-        analytics_enabled,
-        personalization_enabled
-=======
 router.get(
   "/fetch-user",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -92,7 +25,6 @@ router.get(
           error: "Bad Request",
           detail: "User ID cannot be empty",
         });
->>>>>>> f0d8db8fed36c78e646947c6fdcb93f317ca1773
       }
 
       if (!USER_REGISTRY_BLOB_ID) {

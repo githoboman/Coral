@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { AgentState } from "../types";
 import { getSupabaseClient } from "../../../config/supabase";
+import { autonomyService } from "../../autonomyService";
 import { z } from "zod";
 
 // Schema for task extraction with Web3 action support
@@ -16,18 +17,21 @@ const TaskSchema = z.object({
   missing_info: z.string().optional().describe("What critical information is missing, if any"),
 
   // Web3 action fields
-  action_type: z.enum(["reminder", "token_transfer", "dca_purchase"]).default("reminder")
-    .describe("Type of action: reminder (default), token_transfer (send tokens), or dca_purchase (recurring swap)"),
+  action_type: z.enum(["reminder", "token_transfer", "dca_purchase", "token_swap"]).default("reminder")
+    .describe("Type of action: reminder (default), token_transfer, dca_purchase, or token_swap (immediate swap)"),
   action_params: z.object({
     // Token transfer params
     recipient_address: z.string().optional().describe("Recipient wallet address for transfers (0x... format)"),
     coin_type: z.string().optional().describe("Token type to transfer, defaults to SUI"),
     amount: z.string().optional().describe("Amount to transfer in human-readable format (e.g., '10' for 10 SUI)"),
     // DCA params
-    from_coin: z.string().optional().describe("Source token for DCA swaps"),
-    to_coin: z.string().optional().describe("Target token to buy via DCA"),
+    // Generic/Shared Params
+    from_coin: z.string().optional().describe("Source token for swaps/DCA"),
+    to_coin: z.string().optional().describe("Target token for swaps/DCA"),
     amount_per_purchase: z.string().optional().describe("Amount to swap per DCA execution"),
     frequency: z.enum(["daily", "weekly", "monthly"]).optional().describe("How often to execute the DCA"),
+    // Swap params specific
+    amount_to_swap: z.string().optional().describe("Amount to swap (e.g., 'half', 'all', or '10')"),
   }).optional().describe("Parameters for the action based on action_type"),
 });
 
@@ -55,6 +59,7 @@ export async function taskNode(state: AgentState): Promise<Partial<AgentState>> 
 User Query: "${state.userQuery}"
 
 CRITICAL: Only set should_create=true if you have ALL necessary details to create a meaningful, actionable task.
+CRITICAL: If the user says "half", "all", or "my balance", set amount="half" or amount="all" specifically.
 
 === ACTION TYPES ===
 
@@ -72,6 +77,11 @@ CRITICAL: Only set should_create=true if you have ALL necessary details to creat
    - For recurring token swaps (Dollar-Cost Averaging)
    - Required: from_coin, to_coin, amount_per_purchase, frequency
    - This is for scheduled recurring purchases
+
+4. TOKEN_SWAP (action_type: "token_swap")
+   - For immediate token swaps
+   - Required: from_coin, to_coin, amount_to_swap
+   - Amount can be a number ("10") or relative ("half", "all")
 
 === VALIDATION ===
 
@@ -106,7 +116,12 @@ Current time: ${new Date().toISOString()}
 
 "Send some tokens to my friend"
 → should_create: false
-→ missing_info: "How much? What token? What's your friend's wallet address?"`;
+→ missing_info: "How much? What token? What's your friend's wallet address?"
+
+"Swap half of my SUI to USDC"
+→ action_type: "token_swap"
+→ action_params: { from_coin: "SUI", to_coin: "USDC", amount_to_swap: "half" }
+→ should_create: true`;
 
   try {
     // Extract task parameters using structured output
@@ -149,6 +164,50 @@ Current time: ${new Date().toISOString()}
         amountPerPurchase: params.amount_per_purchase,
         frequency: params.frequency,
       };
+    } else if (actionType === 'token_swap' && extraction.action_params) {
+      const params = extraction.action_params;
+      if (!params.from_coin || !params.to_coin || !params.amount_to_swap) {
+        return {
+          finalResponse: "To swap tokens, I need to know: which token to swap from, which token to get, and the amount.",
+        };
+      }
+
+      // Handle relative amounts for swaps
+      let swapAmount = params.amount_to_swap;
+      let calculatedDisplay = swapAmount;
+
+      if ((swapAmount === 'half' || swapAmount === 'all') && state.walletBalance) {
+        console.log(`[TASK NODE] Resolving relative swap amount '${swapAmount}' for user ${state.userId}`);
+        console.log(`[TASK NODE] Current balance (MIST): ${state.walletBalance.totalBalanceMist}`);
+
+        const total = BigInt(state.walletBalance.totalBalanceMist);
+        let calculatedMist = total;
+        if (swapAmount === 'half') {
+          calculatedMist = total / BigInt(2);
+        } else {
+          // Leave some for gas
+          const forGas = BigInt(1e8); // 0.1 SUI
+          calculatedMist = total > forGas ? total - forGas : BigInt(0);
+        }
+
+        const whole = calculatedMist / BigInt(1e9);
+        const frac = calculatedMist % BigInt(1e9);
+        swapAmount = frac > 0
+          ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
+          : whole.toString();
+
+        calculatedDisplay = `${swapAmount} (${params.amount_to_swap} balance)`;
+        console.log(`[TASK NODE] Resolved to: ${swapAmount}`);
+      } else if (swapAmount === 'half' || swapAmount === 'all') {
+        console.warn(`[TASK NODE] Could not resolve relative amount '${swapAmount}': No wallet balance in state.`);
+      }
+
+      actionParams = {
+        fromCoin: params.from_coin,
+        toCoin: params.to_coin,
+        amountToSwap: swapAmount,
+        calculatedDisplay: calculatedDisplay, // Store for confirmation message
+      };
     }
 
     // Create the task via Supabase
@@ -190,9 +249,16 @@ Current time: ${new Date().toISOString()}
 
     if (actionType === 'token_transfer') {
       const params = actionParams as { recipientAddress: string; amount: string; coinType: string };
-      const amountSui = (BigInt(params.amount) / BigInt(1e9)).toString();
-      confirmationMessage = `**Token Transfer Scheduled**
+      // Correctly format decimal SUI from MIST string
+      const mist = BigInt(params.amount);
+      const whole = mist / BigInt(1e9);
+      const frac = mist % BigInt(1e9);
+      const amountSui = frac > 0
+        ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
+        : whole.toString();
 
+      confirmationMessage = `**Token Transfer Scheduled**
+ 
 - Amount: ${amountSui} SUI
 - To: \`${params.recipientAddress.slice(0, 10)}...${params.recipientAddress.slice(-8)}\``;
 
@@ -212,6 +278,9 @@ Current time: ${new Date().toISOString()}
 
 Note: You'll need to approve each swap transaction when it's due.`;
 
+    } else if (actionType === 'token_swap') {
+      const params = actionParams as { fromCoin: string; toCoin: string; amountToSwap: string; calculatedDisplay?: string };
+      confirmationMessage = `**Token Swap Scheduled**\n\n- Swap: ${params.calculatedDisplay || params.amountToSwap} ${params.fromCoin}\n- Into: ${params.toCoin}\n- Rate: Market Rate\n\nPlease approve the swap transaction when prompted.`;
     } else {
       // Regular reminder/task
       confirmationMessage = `Task created: **${data.task_name}**`;
@@ -242,8 +311,26 @@ Note: You'll need to approve each swap transaction when it's due.`;
 
     console.log(`[TASK NODE] actionType=${actionType}, isImmediate=${isImmediate}, hasActionParams=${!!actionParams}`);
 
-    if (actionType === 'token_transfer' && isImmediate && actionParams) {
-      console.log('[TASK NODE] Returning pendingAction for immediate token transfer:', actionParams);
+    // CHECK FOR AUTONOMY (DELEGATION)
+    const isDelegated = state.walletAddress ? await autonomyService.isDelegated(state.walletAddress) : false;
+
+    if (isDelegated && isImmediate && actionParams && (actionType === 'token_transfer' || actionType === 'token_swap')) {
+      console.log(`[TASK NODE] Executing AUTONOMOUSLY: ${actionType}`);
+
+      let digest = "";
+      if (actionType === 'token_transfer') {
+        digest = await autonomyService.executeTokenTransfer(data.id, state.walletAddress!, actionParams as any);
+      } else {
+        digest = await autonomyService.executeTokenSwap(data.id, state.walletAddress!, actionParams as any);
+      }
+
+      return {
+        finalResponse: `${confirmationMessage}\n\n✅ **Autonomous Action Complete**\nTransaction executed in background: [View on Explorer](https://suiscan.xyz/${process.env.VITE_SUI_NETWORK || 'testnet'}/tx/${digest})`,
+      };
+    }
+
+    if ((actionType === 'token_transfer' || actionType === 'token_swap') && isImmediate && actionParams) {
+      console.log(`[TASK NODE] Returning pendingAction for immediate ${actionType}:`, actionParams);
       return {
         finalResponse: confirmationMessage,
         pendingAction: {

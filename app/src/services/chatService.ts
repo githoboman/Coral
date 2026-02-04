@@ -32,6 +32,9 @@ export interface ChatResponse {
       recipientAddress?: string;
       coinType?: string;
       amount?: string;
+      fromCoin?: string;
+      toCoin?: string;
+      amountToSwap?: string;
     };
   };
 }

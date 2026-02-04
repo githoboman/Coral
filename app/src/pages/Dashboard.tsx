@@ -149,7 +149,7 @@ const Dashboard = () => {
   const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
-  const { } = useOutletContext<LayoutContextType>();
+  const { tokens = [] } = useOutletContext<LayoutContextType>();
 
   // Redux state
   const dispatch = useAppDispatch();
@@ -190,9 +190,13 @@ const Dashboard = () => {
   // Pending transaction action state (for immediate token transfers)
   interface PendingTxAction {
     taskId: number;
-    recipientAddress: string;
-    amount: string;
-    coinType: string;
+    actionType: string;
+    recipientAddress?: string;
+    amount?: string;
+    coinType?: string;
+    fromCoin?: string;
+    toCoin?: string;
+    amountToSwap?: string;
   }
   const [pendingTxAction, setPendingTxAction] = useState<PendingTxAction | null>(null);
 
@@ -310,6 +314,40 @@ const Dashboard = () => {
     dispatch(setCurrentChat(chatId || null));
   }, [chatId, dispatch]);
 
+  // Persist current chat and its messages to localStorage for instant preloading
+  useEffect(() => {
+    if (currentChatId) {
+      localStorage.setItem('tovira_last_chat_id', currentChatId);
+
+      const chatMessages = messagesMap[currentChatId];
+      if (chatMessages && chatMessages.length > 0) {
+        localStorage.setItem(`tovira_chat_messages_${currentChatId}`, JSON.stringify(chatMessages));
+      }
+    }
+  }, [currentChatId, messagesMap]);
+
+  // Restore last chat and messages on mount if no chatId in URL
+  useEffect(() => {
+    if (!chatId && user_id) {
+      const lastChatId = localStorage.getItem('tovira_last_chat_id');
+      if (lastChatId) {
+        // Preload messages into Redux for instant display
+        const cachedMessages = localStorage.getItem(`tovira_chat_messages_${lastChatId}`);
+        if (cachedMessages) {
+          try {
+            dispatch(setMessages({
+              chatId: lastChatId,
+              messages: JSON.parse(cachedMessages)
+            }));
+          } catch (e) {
+            console.warn('Failed to parse cached messages:', e);
+          }
+        }
+        navigate(`/${lastChatId}`, { replace: true });
+      }
+    }
+  }, [user_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch chats from Redux
   useEffect(() => {
     if (!user_id) return;
@@ -358,6 +396,17 @@ const Dashboard = () => {
   useEffect(() => {
     if (!pendingTxAction || !currentAccount) return;
 
+    const toMist = (amount: string): bigint => {
+      try {
+        const cleanAmount = amount.replace(/,/g, '');
+        const num = parseFloat(cleanAmount);
+        if (isNaN(num)) return BigInt(0);
+        return BigInt(Math.floor(num * 1e9));
+      } catch {
+        return BigInt(0);
+      }
+    };
+
     const executePendingTransaction = async () => {
       try {
         console.log('[Dashboard] Executing pending transaction:', pendingTxAction);
@@ -365,9 +414,24 @@ const Dashboard = () => {
         // Build the transaction
         const tx = new Transaction();
 
-        // Split coin and transfer
-        const [coin] = tx.splitCoins(tx.gas, [BigInt(pendingTxAction.amount)]);
-        tx.transferObjects([coin], pendingTxAction.recipientAddress);
+        let description = '';
+        if (pendingTxAction.actionType === 'token_transfer') {
+          // Split coin and transfer
+          const amountMist = toMist(pendingTxAction.amount || '0');
+          const [coin] = tx.splitCoins(tx.gas, [amountMist]);
+          tx.transferObjects([coin], pendingTxAction.recipientAddress || '');
+
+          const mistValue = amountMist;
+          const whole = mistValue / BigInt(1e9);
+          const frac = mistValue % BigInt(1e9);
+          const amountSui = frac > 0
+            ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
+            : whole.toString();
+
+          description = `Transfer of ${amountSui} SUI to \`${(pendingTxAction.recipientAddress || '').slice(0, 10)}...${(pendingTxAction.recipientAddress || '').slice(-8)}\``;
+        } else if (pendingTxAction.actionType === 'token_swap') {
+
+        }
 
         // Execute and sign the transaction
         const result = await signAndExecuteTransaction({
@@ -390,7 +454,7 @@ const Dashboard = () => {
         // Add success message to chat
         const successMessage: Message = {
           id: Date.now() + Math.random(),
-          text: `**Transaction Successful!**\n\nTransfer of ${BigInt(pendingTxAction.amount) / BigInt(1e9)} SUI to \`${pendingTxAction.recipientAddress.slice(0, 10)}...${pendingTxAction.recipientAddress.slice(-8)}\` completed.\n\n[View on Explorer](https://suiscan.xyz/mainnet/tx/${result.digest})`,
+          text: `**Transaction Successful!**\n\n${description} completed.\n\n[View on Explorer](https://suiscan.xyz/${import.meta.env.VITE_SUI_NETWORK || 'testnet'}/tx/${result.digest})`,
           sender: 'ai',
           timestamp: new Date().toLocaleTimeString(),
           chat_id: currentChatId || undefined,
@@ -428,16 +492,22 @@ const Dashboard = () => {
     executePendingTransaction();
   }, [pendingTxAction, currentAccount, signAndExecuteTransaction, currentChatId, dispatch]);
 
-  // Fetch chat history from Redux
+  // Fetch chat history from Redux with background syncing
   useEffect(() => {
     if (!currentChatId || user_id === undefined) {
       return;
     }
-    setIsHistoryLoading(true);
+
+    // Only show loading spinner if we don't have messages yet
+    const hasMessages = messagesMap[currentChatId] && messagesMap[currentChatId].length > 0;
+    if (!hasMessages) {
+      setIsHistoryLoading(true);
+    }
+
     dispatch(fetchChatHistory(currentChatId)).finally(() => {
       setIsHistoryLoading(false);
     });
-  }, [currentChatId, user_id, dispatch]);
+  }, [currentChatId, user_id, dispatch, messagesMap]); // Added messagesMap as dependency to check if we have data
 
   // URL Params for Agent Selection
   const urlParams = new URLSearchParams(window.location.search);
@@ -581,17 +651,21 @@ const Dashboard = () => {
       setIsLoading(false);
       setWorkflowSteps([]);
 
-      // Check for pending action (immediate token transfer)
-      if (response.pending_action && response.pending_action.action_type === 'token_transfer') {
+      // Check for pending action (immediate token transfer or swap)
+      if (response.pending_action && (response.pending_action.action_type === 'token_transfer' || response.pending_action.action_type === 'token_swap')) {
         const { task_id, action_params } = response.pending_action;
         console.log('[Dashboard] Pending action detected, triggering transaction:', action_params);
 
         // Set pending transaction state to show signing modal
         setPendingTxAction({
           taskId: task_id,
-          recipientAddress: action_params.recipientAddress || '',
-          amount: action_params.amount || '0',
-          coinType: action_params.coinType || '0x2::sui::SUI',
+          actionType: response.pending_action.action_type || 'token_transfer',
+          recipientAddress: action_params.recipientAddress,
+          amount: action_params.amount,
+          coinType: action_params.coinType,
+          fromCoin: action_params.fromCoin,
+          toCoin: action_params.toCoin,
+          amountToSwap: action_params.amountToSwap,
         });
       }
     } catch (error: any) {
@@ -773,6 +847,9 @@ const Dashboard = () => {
     setSelectedAgentId('main');
     setAutoOpenAgentSelector(true);
 
+    // Clear last chat from localStorage so we don't redirect back
+    localStorage.removeItem('tovira_last_chat_id');
+
     // Navigate to home (no chat ID)
     navigate('/');
 
@@ -860,7 +937,11 @@ const Dashboard = () => {
   }, [setMobileActions, startNewChat]);
 
   if (isHistoryLoading && messages.length === 0) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh] w-full bg-[#070B0F]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   return (
@@ -920,7 +1001,7 @@ const Dashboard = () => {
         className="flex-1 overflow-y-auto pt-16 px-4 pb-4 custom-scrollbar relative"
       >
         <AnimatePresence mode="popLayout">
-          {messages.length === 0 && !isLoading && !isProcessingPrompt && !streamingText ? (
+          {messages.length === 0 && !isLoading && !isProcessingPrompt && !streamingText && !(!chatId && localStorage.getItem('tovira_last_chat_id')) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

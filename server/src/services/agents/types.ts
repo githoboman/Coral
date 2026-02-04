@@ -4,6 +4,11 @@ export interface AgentState {
   messages: BaseMessage[];
   userQuery: string;
   userId: string;
+  walletAddress?: string;
+  walletBalance?: {
+    totalBalanceMist: string;
+    totalBalanceSui: string;
+  };
   chatId?: string;
   intent?: string;
   targetAgent?: string;

@@ -192,6 +192,9 @@ const chatsSlice = createSlice({
     setActiveArtifact: (state, action: PayloadAction<Artifact | null>) => {
       state.activeArtifact = action.payload;
     },
+    resetChats: () => {
+      return initialState;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -238,6 +241,7 @@ export const {
   clearMessages,
   invalidateCache,
   setActiveArtifact,
+  resetChats,
 } = chatsSlice.actions;
 
 export default chatsSlice.reducer;
