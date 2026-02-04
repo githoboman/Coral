@@ -46,7 +46,7 @@ router.get(
         const isOnboarded = !!userProfile.email;
         return res.json({
           exists: true,
-          user: userProfile, // Already decrypted
+          user: userProfile,
           is_onboarded: isOnboarded,
         });
       }
@@ -86,13 +86,11 @@ router.post(
 
       const manager = getUserManager();
 
-      // getUserProfile returns DecryptedUserProfile | null
       const existingProfile = await manager.getUserProfile(
         USER_REGISTRY_BLOB_ID,
         user_id,
       );
 
-      // Create new profile (this returns UserProfile with encrypted fields)
       const updatedProfile = manager.createUserProfile(
         email || existingProfile?.email || "",
         wallet_address || user_id,
@@ -107,10 +105,9 @@ router.post(
         },
       );
 
-      // addOrUpdateUser expects UserProfile (encrypted)
       const newBlobId = await manager.addOrUpdateUser(
         USER_REGISTRY_BLOB_ID || null,
-        updatedProfile, // This is UserProfile, not DecryptedUserProfile
+        updatedProfile,
       );
 
       if (!newBlobId) {

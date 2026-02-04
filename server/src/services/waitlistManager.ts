@@ -8,7 +8,7 @@ export interface Whitelist {
   version: number;
   created_at: string;
   total_count: number;
-  email_hashes: string[]; // SHA-256 hashes instead of plaintext emails
+  email_hashes: string[];
   description: string;
   previous_blob?: string;
 }
@@ -70,18 +70,11 @@ export class WaitlistManager {
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
-  /**
-   * Hash an email using SHA-256
-   * Emails are normalized (lowercase, trimmed) before hashing
-   */
   private hashEmail(email: string): string {
     const normalized = email.toLowerCase().trim();
     return crypto.createHash("sha256").update(normalized).digest("hex");
   }
 
-  /**
-   * Hash multiple emails
-   */
   private hashEmails(emails: string[]): string[] {
     return emails.map((email) => this.hashEmail(email));
   }
@@ -135,12 +128,10 @@ export class WaitlistManager {
   createWhitelist(emails: string[], description?: string): Whitelist {
     console.log(`🔐 Creating whitelist from ${emails.length} emails...`);
 
-    // Normalize and deduplicate
     const uniqueEmails = [
       ...new Set(emails.map((e) => e.toLowerCase().trim())),
     ];
 
-    // Hash all emails
     const emailHashes = this.hashEmails(uniqueEmails);
 
     console.log(`🔒 Hashed ${uniqueEmails.length} emails with SHA-256`);
@@ -287,10 +278,6 @@ export class WaitlistManager {
     return null;
   }
 
-  /**
-   * Check if an email is whitelisted (O(n) but with hashing it's fast)
-   * This is the performance-critical path
-   */
   async isEmailWhitelisted(email: string, blobId: string): Promise<boolean> {
     try {
       const normalizedEmail = email.toLowerCase().trim();
@@ -302,7 +289,6 @@ export class WaitlistManager {
         return false;
       }
 
-      // Fast hash lookup (no decryption needed)
       const isWhitelisted = whitelist.email_hashes.includes(emailHash);
 
       if (isWhitelisted) {
@@ -318,10 +304,6 @@ export class WaitlistManager {
     }
   }
 
-  /**
-   * Add new emails to the whitelist
-   * Note: This requires the original emails, not hashes
-   */
   async addEmailsToWhitelist(
     newEmails: string[],
     currentBlobId: string,
@@ -334,11 +316,9 @@ export class WaitlistManager {
         throw new Error("Could not fetch current whitelist");
       }
 
-      // Normalize and hash new emails
       const normalizedNewEmails = newEmails.map((e) => e.toLowerCase().trim());
       const newHashes = this.hashEmails(normalizedNewEmails);
 
-      // Deduplicate against existing hashes
       const currentHashesSet = new Set(currentWhitelist.email_hashes);
       const uniqueNewHashes = newHashes.filter(
         (hash) => !currentHashesSet.has(hash),
@@ -467,9 +447,6 @@ export class WaitlistManager {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 
-  /**
-   * Helper: Check multiple emails at once (for batch operations)
-   */
   async checkMultipleEmails(
     emails: string[],
     blobId: string,

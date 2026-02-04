@@ -2,21 +2,19 @@ import axios from "axios";
 import "dotenv/config";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
 
-// User profile with encrypted PII fields
 export interface UserProfile {
-  email: EncryptedData | string; // Encrypted
-  wallet_address: string; // NOT encrypted (used for indexing)
-  is_waitlisted: boolean; // NOT encrypted
-  points_awarded: number; // NOT encrypted
-  joined_at: string; // NOT encrypted
-  username?: EncryptedData | string; // Encrypted
-  first_name?: EncryptedData | string; // Encrypted
-  last_name?: EncryptedData | string; // Encrypted
-  preferences?: EncryptedData | Record<string, any>; // Encrypted
-  waitlist_verified_at?: string; // NOT encrypted
+  email: EncryptedData | string;
+  wallet_address: string;
+  is_waitlisted: boolean;
+  points_awarded: number;
+  joined_at: string;
+  username?: EncryptedData | string;
+  first_name?: EncryptedData | string;
+  last_name?: EncryptedData | string;
+  preferences?: EncryptedData | Record<string, any>;
+  waitlist_verified_at?: string;
 }
 
-// Decrypted version for internal use
 export interface DecryptedUserProfile {
   email: string;
   wallet_address: string;
@@ -34,7 +32,7 @@ export interface UsersRegistry {
   version: number;
   updated_at: string;
   total_users: number;
-  users: Record<string, UserProfile>; // wallet_address -> encrypted profile
+  users: Record<string, UserProfile>;
   description: string;
   previous_blob?: string;
 }
@@ -90,9 +88,6 @@ export class WalrusUserManager {
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
-  /**
-   * Create a user profile with encrypted PII
-   */
   createUserProfile(
     email: string,
     walletAddress: string,
@@ -102,16 +97,14 @@ export class WalrusUserManager {
   ): UserProfile {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Encrypt PII fields
     const profile: UserProfile = {
       email: this.encryption.encrypt(normalizedEmail),
-      wallet_address: walletAddress, // NOT encrypted
-      is_waitlisted: isWaitlisted, // NOT encrypted
-      points_awarded: pointsAwarded, // NOT encrypted
-      joined_at: new Date().toISOString(), // NOT encrypted
+      wallet_address: walletAddress,
+      is_waitlisted: isWaitlisted,
+      points_awarded: pointsAwarded,
+      joined_at: new Date().toISOString(),
     };
 
-    // Encrypt optional PII fields if provided
     if (additionalData?.username) {
       profile.username = this.encryption.encrypt(additionalData.username);
     }
@@ -133,9 +126,6 @@ export class WalrusUserManager {
     return profile;
   }
 
-  /**
-   * Decrypt a user profile
-   */
   private decryptProfile(profile: UserProfile): DecryptedUserProfile {
     return {
       email: this.encryption.decryptOptional(profile.email) || "",
@@ -184,7 +174,6 @@ export class WalrusUserManager {
         console.log(`   Version: ${registry.version}`);
         console.log(`   Total users: ${registry.total_users}`);
 
-        // Cache the encrypted registry
         this.registryCache = { blobId, registry };
         return registry;
       } catch (error: any) {
@@ -307,7 +296,6 @@ export class WalrusUserManager {
           registry.total_users += 1;
         }
 
-        // Store encrypted profile
         registry.users[userProfile.wallet_address] = userProfile;
       } else {
         registry = {
@@ -343,9 +331,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Get a user profile and decrypt it
-   */
   async getUserProfile(
     registryBlobId: string,
     walletAddress: string,
@@ -361,7 +346,6 @@ export class WalrusUserManager {
         return null;
       }
 
-      // Decrypt and return
       return this.decryptProfile(encryptedProfile);
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -369,9 +353,6 @@ export class WalrusUserManager {
     }
   }
 
-  /**
-   * Find wallet by email (requires decrypting all emails)
-   */
   async findWalletByEmail(
     registryBlobId: string,
     email: string,
@@ -382,7 +363,6 @@ export class WalrusUserManager {
 
       const normalised = email.toLowerCase().trim();
 
-      // Must decrypt each email to compare
       for (const [walletAddress, encryptedProfile] of Object.entries(
         registry.users,
       )) {
