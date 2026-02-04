@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { LoginModal, LoginDrawer } from "./Login";
 import { OnboardingModal } from "./Onboarding";
 import {
   useCurrentAccount,
@@ -10,14 +9,15 @@ import {
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import "react-toastify/dist/ReactToastify.css";
 import { useAppDispatch } from "@/store/hooks";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   invalidateCache,
   fetchLeaderboard,
+  clearLeaderboard,
 } from "@/store/slices/leaderboardSlice";
+import { resetChats } from "@/store/slices/chatsSlice";
 
 interface AuthContextType {
-  setIsLoginOpen: (open: boolean) => void;
-  isLoginOpen: boolean;
   isOnboarded: boolean;
   userEmail: string | null;
   signOut: () => Promise<void>;
@@ -38,9 +38,8 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [_isMobile, setIsMobile] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [onboardingMessage, setOnboardingMessage] = useState<string | null>(
@@ -54,6 +53,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { connectionStatus } = useCurrentWallet();
 
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const isInitializing = connectionStatus === "connecting";
 
@@ -77,14 +78,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const isAuthenticated = !!currentAccount;
+    const isSigninPage = location.pathname === "/signin";
 
     if (!isAuthenticated) {
-      if (!isInitializing) {
-        setIsLoginOpen(true);
+      if (!isSigninPage && !isInitializing) {
+        navigate("/signin", { replace: true });
       }
       setIsOnboardingOpen(false);
     } else {
-      setIsLoginOpen(false);
+      // If authenticated and on signin page, redirect to home
+      if (isSigninPage) {
+        navigate("/", { replace: true });
+      }
 
       const activeId = currentAccount.address;
 
@@ -93,9 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         checkUserOnboardingStatus(activeId);
       }
     }
-
-    return;
-  }, [isInitializing, currentAccount]);
+  }, [isInitializing, currentAccount, location.pathname, navigate]);
 
   const checkUserOnboardingStatus = async (walletAddress: string) => {
     if (!walletAddress) {
@@ -212,8 +215,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const errorData = await response.json();
         throw new Error(
           errorData.detail ||
-            errorData.message ||
-            "Failed to complete onboarding",
+          errorData.message ||
+          "Failed to complete onboarding",
         );
       }
 
@@ -239,21 +242,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       disconnectWallet();
 
-      const itemsToClear = [
+      // Clear Redux stores
+      dispatch(resetChats());
+      dispatch(clearLeaderboard());
+
+      // 1. Clear specific auth items
+      const authItems = [
         "zklogin_jwt",
         "enoki_jwt",
         "id_token",
         "sui-dapp-kit:wallet-connection-info",
       ];
-      itemsToClear.forEach((item) => {
+      authItems.forEach((item) => {
         localStorage.removeItem(item);
         sessionStorage.removeItem(item);
       });
 
+      // 2. Clear all tovira-specific cached data (chats, messages, settings etc)
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('tovira_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
       setUserEmail(null);
       setIsOnboarded(false);
 
-      setIsLoginOpen(true);
+      navigate("/signin", { replace: true });
 
       toast.success("Successfully logged out");
     } catch (error: any) {
@@ -265,36 +283,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return <LoadingSpinner fullScreen />;
   }
 
-  const handleSignInSuccess = () => {
-    setIsLoginOpen(false);
-  };
-
   return (
     <AuthContext.Provider
       value={{
-        setIsLoginOpen,
-        isLoginOpen,
         isOnboarded,
         userEmail,
         signOut,
       }}
     >
       {children}
-
-      {/* Login Modal/Drawer */}
-      {isMobile ? (
-        <LoginDrawer
-          isOpen={isLoginOpen && !currentAccount}
-          loading={false}
-          onSignIn={handleSignInSuccess}
-        />
-      ) : (
-        <LoginModal
-          isOpen={isLoginOpen && !currentAccount}
-          loading={false}
-          onSignIn={handleSignInSuccess}
-        />
-      )}
 
       {/* Onboarding Modal */}
       <OnboardingModal

@@ -2,6 +2,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { AgentState } from "../types";
 import { SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { tavilySearch } from "../tools/tavily";
+import { getWalletBalance } from "../tools/sui";
 
 export async function mainNode(state: AgentState): Promise<Partial<AgentState>> {
   const llm = new ChatGoogleGenerativeAI({
@@ -18,6 +19,7 @@ Your capabilities:
 - Provide information about the Sui ecosystem
 - Help users understand crypto terminology
 - Offer general guidance on crypto topics
+- Check user wallet balances using 'get_wallet_balance' (Pass the user's wallet address if they ask about 'my funds' or 'how much I have')
 - Search the web for real-time information and latest news using the 'tavily_search' tool
 
 If the user asks for current prices, news, or recent events, USE the search tool.
@@ -31,7 +33,11 @@ Provide a helpful, informative response. Be:
 
 CRITICAL: At the very end of your response, strictly provide 2-3 short, suggestive follow-up questions that the user might want to ask next. Format them as a list.
 
-Format your response in markdown with proper formatting for readability.`;
+Format your response in markdown with proper formatting for readability.
+
+USER CONTEXT:
+- Wallet Address: ${state.walletAddress || "Not connected"}
+`;
 
   try {
     // Combine system prompt with conversation history
@@ -41,7 +47,7 @@ Format your response in markdown with proper formatting for readability.`;
     ];
 
     // Bind tools to the LLM
-    const llmWithTools = llm.bindTools([tavilySearch]);
+    const llmWithTools = llm.bindTools([tavilySearch, getWalletBalance]);
 
     // First call to the model
     const response = await llmWithTools.invoke(messages);
@@ -57,24 +63,26 @@ Format your response in markdown with proper formatting for readability.`;
           console.log(`Executing tool ${toolCall.name}:`, toolCall.args);
           const toolResult = await tavilySearch.invoke(toolCall.args as { query: string });
 
-          toolMessages.push({
-            tool_call_id: toolCall.id,
-            role: 'tool',
-            name: toolCall.name,
-            content: toolResult
-          });
+          toolMessages.push(new ToolMessage({
+            tool_call_id: toolCall.id!,
+            content: toolResult,
+          }));
+        } else if (toolCall.name === 'get_wallet_balance') {
+          console.log(`Executing tool ${toolCall.name}:`, toolCall.args);
+          const toolResult = await getWalletBalance.invoke(toolCall.args as { address: string });
+
+          toolMessages.push(new ToolMessage({
+            tool_call_id: toolCall.id!,
+            content: toolResult,
+          }));
         }
       }
 
       // Add tool results to messages and call model again
-      // Note: We need to cast response and tool messages to match LangChain types if strict typing is enforced,
-      // but for now we pass them as part of the conversation flow.
-      // We append the assistant's request (response) and the tool outputs.
-
       const finalResponse = await llmWithTools.invoke([
         ...messages,
         response,
-        ...toolMessages as any
+        ...toolMessages
       ]);
 
       return {

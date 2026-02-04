@@ -40,14 +40,14 @@ export function OnboardingModal({
     analytics: false,
     personalization: false,
   });
-  const [isWaitlisted, setIsWaitlisted] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
+  const [_isWaitlisted, setIsWaitlisted] = useState(false);
+  const [_profileSaved, setProfileSaved] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isEmailFromOAuth = !!initialEmail;
 
-  const { claimPoints, claimState, reset: resetClaim } = useClaimPoints();
+  const { claimPoints, claimState, reset: _resetClaim } = useClaimPoints();
 
   useEffect(() => {
     if (initialEmail) setEmail(initialEmail);
@@ -116,7 +116,7 @@ export function OnboardingModal({
           setStep(4);
         }
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const Switch = ({
@@ -208,7 +208,7 @@ export function OnboardingModal({
                 <button
                   onClick={handleEmailNext}
                   disabled={loading || !email.trim()}
-                  className="w-full py-3.5 bg-white text-black rounded-full font-bold text-base hover:bg-white/90 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                  className="w-full !p-4 btn btn-primary"
                 >
                   {loading ? (
                     <>
@@ -277,14 +277,14 @@ export function OnboardingModal({
                 <button
                   onClick={() => setStep(1)}
                   disabled={loading}
-                  className="px-8 py-3.5 bg-white/5 text-white rounded-full font-bold text-base hover:bg-white/10 transition-all cursor-pointer disabled:cursor-not-allowed"
+                  className=" btn btn-ghost"
                 >
                   Back
                 </button>
                 <button
                   onClick={handleFinalSubmit}
                   disabled={loading}
-                  className="flex-1 px-10 py-3.5 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
+                  className="w-full !p-4 btn btn-primary"
                 >
                   {loading ? <LoadingSpinner size="sm" /> : "Complete Setup"}
                 </button>
@@ -357,15 +357,15 @@ export function OnboardingModal({
                   {(claimState.status === "verifying" ||
                     claimState.status === "signing" ||
                     claimState.status === "confirming") && (
-                    <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
-                      {claimState.status === "verifying" &&
-                        "Verifying eligibility…"}
-                      {claimState.status === "signing" &&
-                        "Check your wallet for the approval prompt…"}
-                      {claimState.status === "confirming" &&
-                        "Confirming on chain…"}
-                    </p>
-                  )}
+                      <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
+                        {claimState.status === "verifying" &&
+                          "Verifying eligibility…"}
+                        {claimState.status === "signing" &&
+                          "Check your wallet for the approval prompt…"}
+                        {claimState.status === "confirming" &&
+                          "Confirming on chain…"}
+                      </p>
+                    )}
 
                   {/* Claim button */}
                   <button
@@ -377,8 +377,8 @@ export function OnboardingModal({
                     className="w-full py-4 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {claimState.status === "verifying" ||
-                    claimState.status === "signing" ||
-                    claimState.status === "confirming" ? (
+                      claimState.status === "signing" ||
+                      claimState.status === "confirming" ? (
                       <>
                         <LoadingSpinner size="sm" />
                         {claimState.status === "verifying" && "Verifying…"}

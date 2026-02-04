@@ -52,6 +52,9 @@ const workflow = new StateGraph<AgentState>({
     finalResponse: {
       value: (x, y) => y ?? x,
     },
+    pendingAction: {
+      value: (x, y) => y ?? x,
+    },
     error: {
       value: (x, y) => y ?? x,
     },
