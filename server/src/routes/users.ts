@@ -36,6 +36,7 @@ router.get(
       }
 
       const manager = getUserManager();
+      // getUserProfile returns DecryptedUserProfile | null
       const userProfile = await manager.getUserProfile(
         USER_REGISTRY_BLOB_ID,
         user_id,
@@ -45,7 +46,7 @@ router.get(
         const isOnboarded = !!userProfile.email;
         return res.json({
           exists: true,
-          user: userProfile,
+          user: userProfile, // Already decrypted
           is_onboarded: isOnboarded,
         });
       }
@@ -76,7 +77,7 @@ router.post(
         preferences,
       } = req.body;
 
-      if (!user_id.trim()) {
+      if (!user_id || !user_id.trim()) {
         return res.status(400).json({
           error: "Bad Request",
           detail: "User ID cannot be empty",
@@ -85,38 +86,31 @@ router.post(
 
       const manager = getUserManager();
 
-      let userProfile = await manager.getUserProfile(
+      // getUserProfile returns DecryptedUserProfile | null
+      const existingProfile = await manager.getUserProfile(
         USER_REGISTRY_BLOB_ID,
         user_id,
       );
 
-      if (userProfile) {
-        userProfile = {
-          ...userProfile,
-          email: email || userProfile.email,
-          username: username || userProfile.username,
-          first_name: first_name || userProfile.first_name,
-          last_name: last_name || userProfile.last_name,
-          preferences: preferences || userProfile.preferences,
-        };
-      } else {
-        userProfile = manager.createUserProfile(
-          email || "",
-          wallet_address || user_id,
-          false,
-          0,
-          {
-            username,
-            first_name,
-            last_name,
-            preferences,
-          },
-        );
-      }
+      // Create new profile (this returns UserProfile with encrypted fields)
+      const updatedProfile = manager.createUserProfile(
+        email || existingProfile?.email || "",
+        wallet_address || user_id,
+        existingProfile?.is_waitlisted || false,
+        existingProfile?.points_awarded || 0,
+        {
+          username: username || existingProfile?.username,
+          first_name: first_name || existingProfile?.first_name,
+          last_name: last_name || existingProfile?.last_name,
+          preferences: preferences || existingProfile?.preferences,
+          waitlist_verified_at: existingProfile?.waitlist_verified_at,
+        },
+      );
 
+      // addOrUpdateUser expects UserProfile (encrypted)
       const newBlobId = await manager.addOrUpdateUser(
         USER_REGISTRY_BLOB_ID || null,
-        userProfile,
+        updatedProfile, // This is UserProfile, not DecryptedUserProfile
       );
 
       if (!newBlobId) {
@@ -133,7 +127,7 @@ router.post(
       return res.json({
         message: "User profile updated successfully",
         user_id,
-        requires_onboarding: !userProfile.email,
+        requires_onboarding: !(email || existingProfile?.email),
         registry_blob_id: newBlobId,
       });
     } catch (error) {

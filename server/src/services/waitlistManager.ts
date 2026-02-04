@@ -1,13 +1,14 @@
 import axios from "axios";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as crypto from "crypto";
 import "dotenv/config";
 
 export interface Whitelist {
   version: number;
   created_at: string;
   total_count: number;
-  emails: string[];
+  email_hashes: string[]; // SHA-256 hashes instead of plaintext emails
   description: string;
   previous_blob?: string;
 }
@@ -64,9 +65,25 @@ export class WaitlistManager {
       "https://aggregator.walrus-testnet.walrus.space";
     this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
-    console.log("✅ WaitlistManager initialized");
+    console.log("✅ WaitlistManager initialized (with email hashing)");
     console.log(`   Publisher: ${this.publisherUrl}`);
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
+  }
+
+  /**
+   * Hash an email using SHA-256
+   * Emails are normalized (lowercase, trimmed) before hashing
+   */
+  private hashEmail(email: string): string {
+    const normalized = email.toLowerCase().trim();
+    return crypto.createHash("sha256").update(normalized).digest("hex");
+  }
+
+  /**
+   * Hash multiple emails
+   */
+  private hashEmails(emails: string[]): string[] {
+    return emails.map((email) => this.hashEmail(email));
   }
 
   async loadFromCSV(csvPath: string): Promise<string[]> {
@@ -118,20 +135,28 @@ export class WaitlistManager {
   createWhitelist(emails: string[], description?: string): Whitelist {
     console.log(`🔐 Creating whitelist from ${emails.length} emails...`);
 
+    // Normalize and deduplicate
     const uniqueEmails = [
       ...new Set(emails.map((e) => e.toLowerCase().trim())),
     ];
 
+    // Hash all emails
+    const emailHashes = this.hashEmails(uniqueEmails);
+
+    console.log(`🔒 Hashed ${uniqueEmails.length} emails with SHA-256`);
+
     const whitelist: Whitelist = {
       version: 1,
       created_at: new Date().toISOString(),
-      total_count: uniqueEmails.length,
-      emails: uniqueEmails,
-      description: description || "Waitlist - stored on Walrus",
+      total_count: emailHashes.length,
+      email_hashes: emailHashes,
+      description:
+        description || "Waitlist - emails hashed with SHA-256 on Walrus",
     };
 
     console.log("✅ Whitelist created");
     console.log(`   Total entries: ${whitelist.total_count}`);
+    console.log(`   Storage: Email hashes only (irreversible)`);
     return whitelist;
   }
 
@@ -177,7 +202,7 @@ export class WaitlistManager {
         console.log("✅ Upload successful!");
         console.log(`   Blob ID: ${blobId}`);
         console.log(`   Size: ${whitelistBytes.length} bytes`);
-        console.log(`   Emails: ${whitelist.total_count}`);
+        console.log(`   Email hashes: ${whitelist.total_count}`);
         console.log(`   Storage: ${this.epochs} epochs`);
 
         if (result.newlyCreated) {
@@ -236,7 +261,7 @@ export class WaitlistManager {
 
         console.log("✅ Whitelist fetched successfully");
         console.log(`   Version: ${whitelist.version}`);
-        console.log(`   Emails: ${whitelist.total_count}`);
+        console.log(`   Email hashes: ${whitelist.total_count}`);
 
         this.cachedWhitelist.set(blobId, whitelist);
         return whitelist;
@@ -262,9 +287,14 @@ export class WaitlistManager {
     return null;
   }
 
+  /**
+   * Check if an email is whitelisted (O(n) but with hashing it's fast)
+   * This is the performance-critical path
+   */
   async isEmailWhitelisted(email: string, blobId: string): Promise<boolean> {
     try {
       const normalizedEmail = email.toLowerCase().trim();
+      const emailHash = this.hashEmail(normalizedEmail);
 
       const whitelist = await this.fetchWhitelist(blobId);
       if (!whitelist) {
@@ -272,12 +302,13 @@ export class WaitlistManager {
         return false;
       }
 
-      const isWhitelisted = whitelist.emails.includes(normalizedEmail);
+      // Fast hash lookup (no decryption needed)
+      const isWhitelisted = whitelist.email_hashes.includes(emailHash);
 
       if (isWhitelisted) {
-        console.log(`✅ Email "${email}" is whitelisted`);
+        console.log(`✅ Email is whitelisted (hash verified)`);
       } else {
-        console.log(`❌ Email "${email}" is NOT whitelisted`);
+        console.log(`❌ Email is NOT whitelisted`);
       }
 
       return isWhitelisted;
@@ -287,6 +318,10 @@ export class WaitlistManager {
     }
   }
 
+  /**
+   * Add new emails to the whitelist
+   * Note: This requires the original emails, not hashes
+   */
   async addEmailsToWhitelist(
     newEmails: string[],
     currentBlobId: string,
@@ -299,29 +334,32 @@ export class WaitlistManager {
         throw new Error("Could not fetch current whitelist");
       }
 
+      // Normalize and hash new emails
       const normalizedNewEmails = newEmails.map((e) => e.toLowerCase().trim());
-      const currentEmailsSet = new Set(currentWhitelist.emails);
-      const combinedEmails = [...currentWhitelist.emails];
+      const newHashes = this.hashEmails(normalizedNewEmails);
 
-      let addedCount = 0;
-      for (const email of normalizedNewEmails) {
-        if (!currentEmailsSet.has(email)) {
-          combinedEmails.push(email);
-          addedCount++;
-        }
-      }
+      // Deduplicate against existing hashes
+      const currentHashesSet = new Set(currentWhitelist.email_hashes);
+      const uniqueNewHashes = newHashes.filter(
+        (hash) => !currentHashesSet.has(hash),
+      );
 
-      if (addedCount === 0) {
+      if (uniqueNewHashes.length === 0) {
         console.log("⚠️  No new emails to add (all duplicates)");
         return currentBlobId;
       }
 
+      const combinedHashes = [
+        ...currentWhitelist.email_hashes,
+        ...uniqueNewHashes,
+      ];
+
       const updatedWhitelist: Whitelist = {
         version: currentWhitelist.version + 1,
         created_at: new Date().toISOString(),
-        total_count: combinedEmails.length,
-        emails: combinedEmails,
-        description: `Updated waitlist - added ${addedCount} emails`,
+        total_count: combinedHashes.length,
+        email_hashes: combinedHashes,
+        description: `Updated waitlist - added ${uniqueNewHashes.length} email hashes`,
         previous_blob: currentBlobId,
       };
 
@@ -331,8 +369,8 @@ export class WaitlistManager {
         console.log("\n✅ Whitelist updated!");
         console.log(`   Old Blob ID: ${currentBlobId}`);
         console.log(`   New Blob ID: ${newBlobId}`);
-        console.log(`   Added: ${addedCount} emails`);
-        console.log(`   Total: ${combinedEmails.length} emails`);
+        console.log(`   Added: ${uniqueNewHashes.length} email hashes`);
+        console.log(`   Total: ${combinedHashes.length} email hashes`);
       }
 
       return newBlobId;
@@ -344,7 +382,7 @@ export class WaitlistManager {
 
   async migrateFromCSV(csvPath: string): Promise<string | null> {
     console.log("\n" + "=".repeat(70));
-    console.log("WAITLIST MIGRATION: CSV → WALRUS");
+    console.log("WAITLIST MIGRATION: CSV → WALRUS (HASHED)");
     console.log("=".repeat(70));
 
     const emails = await this.loadFromCSV(csvPath);
@@ -353,7 +391,7 @@ export class WaitlistManager {
       return null;
     }
 
-    console.log("\n🔐 Creating whitelist...");
+    console.log("\n🔐 Creating whitelist with hashed emails...");
     const whitelist = this.createWhitelist(emails);
 
     console.log("\n☁️  Uploading to Walrus...");
@@ -371,7 +409,15 @@ export class WaitlistManager {
     console.log("✅ MIGRATION COMPLETE!");
     console.log("=".repeat(70));
     console.log(`\nWhitelist Blob ID: ${blobId}`);
-    console.log(`Total Emails: ${emails.length}`);
+    console.log(`Total Emails: ${emails.length} (hashed)`);
+    console.log("\n⚠️  IMPORTANT:");
+    console.log(
+      "   - Original emails are NOT stored on Walrus (only SHA-256 hashes)",
+    );
+    console.log(
+      "   - You cannot recover the email list from the blob (irreversible)",
+    );
+    console.log("   - Keep your original CSV as backup for reference");
     console.log("\nNext Steps:");
     console.log("1. Save this Blob ID in your backend config");
     console.log("2. Update frontend to verify emails against Walrus");
@@ -390,7 +436,7 @@ export class WaitlistManager {
       migration_date: new Date().toISOString(),
       whitelist_blob_id: blobId,
       email_count: emailCount,
-      storage: "Walrus decentralized network",
+      storage: "Walrus decentralized network (emails hashed with SHA-256)",
       version,
     };
 
@@ -419,5 +465,29 @@ export class WaitlistManager {
 
   getBlobUrl(blobId: string): string {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
+  }
+
+  /**
+   * Helper: Check multiple emails at once (for batch operations)
+   */
+  async checkMultipleEmails(
+    emails: string[],
+    blobId: string,
+  ): Promise<Map<string, boolean>> {
+    const whitelist = await this.fetchWhitelist(blobId);
+    if (!whitelist) {
+      return new Map(emails.map((email) => [email, false]));
+    }
+
+    const hashSet = new Set(whitelist.email_hashes);
+    const results = new Map<string, boolean>();
+
+    for (const email of emails) {
+      const normalized = email.toLowerCase().trim();
+      const hash = this.hashEmail(normalized);
+      results.set(email, hashSet.has(hash));
+    }
+
+    return results;
   }
 }

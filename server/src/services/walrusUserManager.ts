@@ -1,7 +1,23 @@
 import axios from "axios";
 import "dotenv/config";
+import { getEncryptionService, type EncryptedData } from "./encryptionService";
 
+// User profile with encrypted PII fields
 export interface UserProfile {
+  email: EncryptedData | string; // Encrypted
+  wallet_address: string; // NOT encrypted (used for indexing)
+  is_waitlisted: boolean; // NOT encrypted
+  points_awarded: number; // NOT encrypted
+  joined_at: string; // NOT encrypted
+  username?: EncryptedData | string; // Encrypted
+  first_name?: EncryptedData | string; // Encrypted
+  last_name?: EncryptedData | string; // Encrypted
+  preferences?: EncryptedData | Record<string, any>; // Encrypted
+  waitlist_verified_at?: string; // NOT encrypted
+}
+
+// Decrypted version for internal use
+export interface DecryptedUserProfile {
   email: string;
   wallet_address: string;
   is_waitlisted: boolean;
@@ -10,18 +26,15 @@ export interface UserProfile {
   username?: string;
   first_name?: string;
   last_name?: string;
-  preferences?: {
-    notifications_enabled?: boolean;
-    analytics_enabled?: boolean;
-    personalization_enabled?: boolean;
-  };
+  preferences?: Record<string, any>;
+  waitlist_verified_at?: string;
 }
 
 export interface UsersRegistry {
   version: number;
   updated_at: string;
   total_users: number;
-  users: Record<string, UserProfile>;
+  users: Record<string, UserProfile>; // wallet_address -> encrypted profile
   description: string;
   previous_blob?: string;
 }
@@ -61,6 +74,7 @@ export class WalrusUserManager {
   private epochs: number;
   private registryCache: { blobId: string; registry: UsersRegistry } | null =
     null;
+  private encryption = getEncryptionService();
 
   constructor() {
     this.publisherUrl =
@@ -76,23 +90,65 @@ export class WalrusUserManager {
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
   }
 
+  /**
+   * Create a user profile with encrypted PII
+   */
   createUserProfile(
     email: string,
     walletAddress: string,
     isWaitlisted: boolean,
     pointsAwarded: number,
-    additionalData?: Partial<UserProfile>,
+    additionalData?: Partial<DecryptedUserProfile>,
   ): UserProfile {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Encrypt PII fields
     const profile: UserProfile = {
-      email: email.toLowerCase().trim(),
-      wallet_address: walletAddress,
-      is_waitlisted: isWaitlisted,
-      points_awarded: pointsAwarded,
-      joined_at: new Date().toISOString(),
-      ...additionalData,
+      email: this.encryption.encrypt(normalizedEmail),
+      wallet_address: walletAddress, // NOT encrypted
+      is_waitlisted: isWaitlisted, // NOT encrypted
+      points_awarded: pointsAwarded, // NOT encrypted
+      joined_at: new Date().toISOString(), // NOT encrypted
     };
 
+    // Encrypt optional PII fields if provided
+    if (additionalData?.username) {
+      profile.username = this.encryption.encrypt(additionalData.username);
+    }
+    if (additionalData?.first_name) {
+      profile.first_name = this.encryption.encrypt(additionalData.first_name);
+    }
+    if (additionalData?.last_name) {
+      profile.last_name = this.encryption.encrypt(additionalData.last_name);
+    }
+    if (additionalData?.preferences) {
+      profile.preferences = this.encryption.encryptPreferences(
+        additionalData.preferences,
+      );
+    }
+    if (additionalData?.waitlist_verified_at) {
+      profile.waitlist_verified_at = additionalData.waitlist_verified_at;
+    }
+
     return profile;
+  }
+
+  /**
+   * Decrypt a user profile
+   */
+  private decryptProfile(profile: UserProfile): DecryptedUserProfile {
+    return {
+      email: this.encryption.decryptOptional(profile.email) || "",
+      wallet_address: profile.wallet_address,
+      is_waitlisted: profile.is_waitlisted,
+      points_awarded: profile.points_awarded,
+      joined_at: profile.joined_at,
+      username: this.encryption.decryptOptional(profile.username),
+      first_name: this.encryption.decryptOptional(profile.first_name),
+      last_name: this.encryption.decryptOptional(profile.last_name),
+      preferences: this.encryption.decryptPreferences(profile.preferences),
+      waitlist_verified_at: profile.waitlist_verified_at,
+    };
   }
 
   async fetchUsersRegistry(
@@ -124,10 +180,11 @@ export class WalrusUserManager {
 
         const registry = response.data as UsersRegistry;
 
-        console.log("✅ Users registry fetched successfully");
+        console.log("✅ Users registry fetched successfully (encrypted)");
         console.log(`   Version: ${registry.version}`);
         console.log(`   Total users: ${registry.total_users}`);
 
+        // Cache the encrypted registry
         this.registryCache = { blobId, registry };
         return registry;
       } catch (error: any) {
@@ -224,7 +281,9 @@ export class WalrusUserManager {
     userProfile: UserProfile,
   ): Promise<string | null> {
     try {
-      console.log(`\n➕ Adding/updating user: ${userProfile.email}...`);
+      console.log(
+        `\n➕ Adding/updating user: ${userProfile.wallet_address}...`,
+      );
 
       let registry: UsersRegistry;
 
@@ -239,7 +298,7 @@ export class WalrusUserManager {
           updated_at: new Date().toISOString(),
           total_users: existing.total_users,
           users: { ...existing.users },
-          description: `Updated user: ${userProfile.email}`,
+          description: `Updated user: ${userProfile.wallet_address}`,
           previous_blob: currentBlobId,
         };
 
@@ -248,6 +307,7 @@ export class WalrusUserManager {
           registry.total_users += 1;
         }
 
+        // Store encrypted profile
         registry.users[userProfile.wallet_address] = userProfile;
       } else {
         registry = {
@@ -283,23 +343,35 @@ export class WalrusUserManager {
     }
   }
 
+  /**
+   * Get a user profile and decrypt it
+   */
   async getUserProfile(
     registryBlobId: string,
     walletAddress: string,
-  ): Promise<UserProfile | null> {
+  ): Promise<DecryptedUserProfile | null> {
     try {
       const registry = await this.fetchUsersRegistry(registryBlobId);
       if (!registry) {
         return null;
       }
 
-      return registry.users[walletAddress] || null;
+      const encryptedProfile = registry.users[walletAddress];
+      if (!encryptedProfile) {
+        return null;
+      }
+
+      // Decrypt and return
+      return this.decryptProfile(encryptedProfile);
     } catch (error) {
       console.error("Error fetching user profile:", error);
       return null;
     }
   }
 
+  /**
+   * Find wallet by email (requires decrypting all emails)
+   */
   async findWalletByEmail(
     registryBlobId: string,
     email: string,
@@ -310,9 +382,15 @@ export class WalrusUserManager {
 
       const normalised = email.toLowerCase().trim();
 
-      for (const profile of Object.values(registry.users)) {
-        if (profile.email.toLowerCase().trim() === normalised) {
-          return profile.wallet_address;
+      // Must decrypt each email to compare
+      for (const [walletAddress, encryptedProfile] of Object.entries(
+        registry.users,
+      )) {
+        const decryptedEmail = this.encryption.decryptOptional(
+          encryptedProfile.email,
+        );
+        if (decryptedEmail?.toLowerCase().trim() === normalised) {
+          return walletAddress;
         }
       }
 

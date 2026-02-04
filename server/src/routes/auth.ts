@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
-import { WalrusUserManager, UserProfile } from "../services/walrusUserManager";
+import { WalrusUserManager } from "../services/walrusUserManager";
 import { TicketMinter } from "../services/ticketMinter";
 
 const router = Router();
@@ -54,12 +54,13 @@ router.post(
       const minter = getTicketMinter();
       const um = getUserManager();
 
-      console.log(`📝 Saving profile for: ${normalizedEmail}`);
+      console.log(`📝 Saving profile for: ${normalizedEmail} (encrypted)`);
       const blobRegistry = await minter.getCurrentBlobId();
 
       console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
 
       if (blobRegistry) {
+        // Check for duplicate email (requires decrypting)
         const existingWallet = await um.findWalletByEmail(
           blobRegistry,
           normalizedEmail,
@@ -78,17 +79,19 @@ router.post(
         }
       }
 
-      const profile: UserProfile = {
-        email: normalizedEmail,
+      // Create encrypted profile
+      const profile = um.createUserProfile(
+        normalizedEmail,
         wallet_address,
-        username: username || undefined,
-        first_name: first_name || undefined,
-        last_name: last_name || undefined,
-        preferences: preferences || {},
-        is_waitlisted: false,
-        points_awarded: 0,
-        joined_at: new Date().toISOString(),
-      };
+        false, // is_waitlisted
+        0, // points_awarded
+        {
+          username: username || undefined,
+          first_name: first_name || undefined,
+          last_name: last_name || undefined,
+          preferences: preferences || {},
+        },
+      );
 
       const newBlobId = await um.addOrUpdateUser(blobRegistry || null, profile);
 
@@ -108,7 +111,7 @@ router.post(
         console.log(`✅ BlobRegistry updated on-chain → ${newBlobId}`);
       }
 
-      console.log(`✅ Profile saved for ${wallet_address}`);
+      console.log(`✅ Encrypted profile saved for ${wallet_address}`);
 
       res.json({
         success: true,
@@ -133,7 +136,6 @@ router.post(
     try {
       const { email, wallet_address } = req.body;
 
-      // --- validation ---
       if (!email || typeof email !== "string") {
         res
           .status(400)
@@ -202,6 +204,7 @@ router.post(
 
       console.log(`✅ Ticket minted: ${ticketObjectId}`);
 
+      // Update user profile with waitlist status (async, non-blocking)
       (async () => {
         try {
           const um = getUserManager();
@@ -214,11 +217,20 @@ router.post(
             );
 
             if (existingProfile) {
-              const updatedProfile = {
-                ...existingProfile,
-                is_waitlisted: true,
-                waitlist_verified_at: new Date().toISOString(),
-              };
+              // Re-encrypt with updated waitlist status
+              const updatedProfile = um.createUserProfile(
+                existingProfile.email,
+                existingProfile.wallet_address,
+                true, // is_waitlisted = true
+                existingProfile.points_awarded,
+                {
+                  username: existingProfile.username,
+                  first_name: existingProfile.first_name,
+                  last_name: existingProfile.last_name,
+                  preferences: existingProfile.preferences,
+                  waitlist_verified_at: new Date().toISOString(),
+                },
+              );
 
               const newBlobId = await um.addOrUpdateUser(
                 blobRegistry,
@@ -278,11 +290,12 @@ router.get(
       }
 
       const um = getUserManager();
+      // getUserProfile now returns decrypted data
       const userProfile = await um.getUserProfile(blobId, wallet_address);
 
       res.json({
         exists: !!userProfile,
-        user: userProfile || null,
+        user: userProfile || null, // Decrypted profile
       });
     } catch (error) {
       console.error("Error in check-user:", error);
