@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Trophy, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchLeaderboard } from '@/store/slices/leaderboardSlice';
