@@ -80,7 +80,7 @@ export function useClaimPoints() {
             });
             return true;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         if (attempt >= maxAttempts) {
           if (pollRef.current) {
@@ -182,8 +182,8 @@ export function useClaimPoints() {
         const result = await signAndExecute(
           { transaction: tx },
           {
-            onSuccess: (data) => {},
-            onError: (error) => {},
+            onSuccess: () => { },
+            onError: () => { },
           },
         );
 

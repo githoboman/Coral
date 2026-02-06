@@ -1,4 +1,4 @@
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   PanelLeft
 } from 'lucide-react';
@@ -27,7 +27,6 @@ export function Sidebar({ navItems }: SidebarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
