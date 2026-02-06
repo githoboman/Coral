@@ -257,6 +257,29 @@ module tovira_points::points {
         });
     }
 
+        // Internal function for other modules to award points
+    public(package) fun internal_award_points(
+        registry: &mut PointsRegistry,
+        wallet_key: String,
+        amount: u64,
+    ) {
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow_mut(&mut registry.records, wallet_key);
+            record.balance = record.balance + amount;
+        } else {
+            let record = PointsRecord {
+                wallet_address: wallet_key,
+                balance: amount,
+                waitlist_claimed: false,
+                claimed_at: 0,
+                last_checkin_at: 0,
+            };
+            table::add(&mut registry.records, wallet_key, record);
+        };
+
+        registry.total_supply = registry.total_supply + amount;
+    }
+
 
     public entry fun update_blob_id(
         _admin: &AdminCap,
