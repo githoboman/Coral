@@ -19,6 +19,41 @@ export interface Task {
   parent_task_id?: number;
   subtask_order?: number;
   points_awarded?: number;
+  // Web3 action fields
+  action_type?: 'reminder' | 'token_transfer' | 'dca_purchase';
+  action_params?: TokenTransferParams | DCAParams;
+  action_status?: 'pending' | 'ready' | 'awaiting_signature' | 'executing' | 'completed' | 'failed';
+  tx_digest?: string;
+}
+
+export interface TokenTransferParams {
+  recipientAddress: string;
+  coinType: string;
+  amount: string;
+}
+
+export interface DCAParams {
+  fromCoin: string;
+  toCoin: string;
+  amountPerPurchase: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+}
+
+export interface ActionExecuteResponse {
+  task_id: number;
+  action_type: string;
+  serialized_tx: string;
+  message: string;
+}
+
+export interface ActionConfirmResponse extends Task {
+  tx_status: 'pending' | 'success' | 'failure';
+  tx_verified: boolean;
+}
+
+export interface ActionableTasksResponse {
+  tasks: Task[];
+  total: number;
 }
 
 export interface TaskListResponse {
@@ -201,7 +236,73 @@ class TaskApiClient {
 
     return response.json();
   }
+
+  /**
+   * Get all tasks with pending Web3 actions
+   */
+  async getActionableTasks(userId: string): Promise<ActionableTasksResponse> {
+    const response = await fetch(`${this.baseUrl}/tasks/actionable?user_id=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch actionable tasks');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Build an unsigned transaction for a task action
+   */
+  async executeTaskAction(taskId: number, userId: string, walletAddress: string): Promise<ActionExecuteResponse> {
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}/execute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        wallet_address: walletAddress,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to execute task action');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Confirm task action was executed with transaction digest
+   */
+  async confirmTaskAction(taskId: number, userId: string, txDigest: string): Promise<ActionConfirmResponse> {
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        tx_digest: txDigest,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to confirm task action');
+    }
+
+    return response.json();
+  }
 }
+
 
 export interface Event {
   id?: number;

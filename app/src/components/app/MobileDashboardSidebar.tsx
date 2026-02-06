@@ -1,49 +1,21 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, User, MessageSquare, Activity, Clock, ChevronRight, Layout } from 'lucide-react';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { useEffect } from 'react';
-import { fetchChats } from '@/store/slices/chatsSlice';
+import { User, Layout } from 'lucide-react';
 
 interface MobileDashboardSidebarProps {
   navItems: Array<{
     name: string;
     to: string;
-    icon: keyof typeof iconMap;
+    iconUrl: string;
     active: boolean;
   }>;
   onClose?: () => void;
 }
 
-const iconMap = {
-  profile: User,
-  messageSquare: MessageSquare,
-  bell: Bell,
-  activity: Activity,
-  clock: Clock,
-};
-
 export function MobileDashboardSidebar({ navItems, onClose }: MobileDashboardSidebarProps) {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const currentAccount = useCurrentAccount();
-  const user_id = currentAccount?.address;
 
-  // Get chats and current chat ID from Redux
-  const chats = useAppSelector(state => state.chats.chats);
-  const currentChatId = useAppSelector(state => state.chats.currentChatId);
 
-  // Fetch chats if not already loaded
-  useEffect(() => {
-    if (user_id && chats.length === 0) {
-      dispatch(fetchChats({ userId: user_id }));
-    }
-  }, [user_id, dispatch, chats.length]);
-
-  // Sort chats by last updated
-  const sortedChats = [...chats].sort((a, b) =>
-    new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime()
-  ).slice(0, 5); // Show only 5 most recent
+  /* Recents logic removed */
 
   return (
     <div className="h-full flex flex-col bg-black text-white overflow-hidden">
@@ -75,9 +47,6 @@ export function MobileDashboardSidebar({ navItems, onClose }: MobileDashboardSid
       <nav className="flex-1 mt-6">
         <ul className="space-y-2 relative">
           {navItems.map((item) => {
-            const Icon = iconMap[item.icon] || MessageSquare;
-            const isRecents = item.name === 'Recents';
-
             return (
               <li key={item.name} className="relative">
                 {/* Active Indicator (Lime Bar) */}
@@ -88,42 +57,21 @@ export function MobileDashboardSidebar({ navItems, onClose }: MobileDashboardSid
                 <div className="px-3">
                   <Link
                     to={item.to}
-                    onClick={isRecents ? (e) => e.preventDefault() : onClose}
+                    onClick={onClose}
                     className={`group flex items-center px-5 py-4 rounded-[18px] transition-all duration-300 gap-5 cursor-pointer relative ${item.active
                       ? 'bg-[#1C1C1E] text-white'
                       : 'text-white/60 hover:text-white'
                       }`}
                   >
-                    <Icon
-                      className={`flex-shrink-0 ${item.active ? 'text-white' : 'text-white/60 group-hover:text-white'
-                        } transition-colors duration-200`}
-                      size={24}
+                    <img
+                      src={item.iconUrl}
+                      alt={item.name}
+                      className={`flex-shrink-0 w-6 h-6 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
                     />
                     <div className="flex-1 flex items-center justify-between">
                       <span className="text-[20px] font-medium tracking-tight leading-none">{item.name}</span>
-                      {isRecents && (
-                        <ChevronRight size={18} className="text-white/40" />
-                      )}
                     </div>
                   </Link>
-
-                  {/* Sub-items for Recents */}
-                  {isRecents && sortedChats.length > 0 && (
-                    <div className="mt-4 ml-12 space-y-5">
-                      {sortedChats.map((chat) => (
-                        <button
-                          key={chat.chat_id}
-                          onClick={() => {
-                            navigate(`/${chat.chat_id}`);
-                            onClose?.();
-                          }}
-                          className={`w-full text-left transition-colors cursor-pointer text-[17px] font-medium tracking-tight truncate ${chat.chat_id === currentChatId ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                        >
-                          {chat.name || "Untitled Chat"}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </li>
             );

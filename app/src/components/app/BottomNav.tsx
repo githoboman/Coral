@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Home, Bell, User, Users, MessageSquare, Activity, Clock } from 'lucide-react';
+
 import { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -8,20 +8,10 @@ interface BottomNavProps {
   navItems: Array<{
     name: string;
     to: string;
-    icon: keyof typeof iconMap;
+    iconUrl: string;
     active: boolean;
   }>;
 }
-
-const iconMap = {
-  home: Home,
-  profile: User,
-  users: Users,
-  messageSquare: MessageSquare,
-  bell: Bell,
-  activity: Activity,
-  clock: Clock,
-};
 
 export function BottomNav({ navItems }: BottomNavProps) {
   const navRef = useRef<HTMLDivElement>(null);
@@ -38,7 +28,6 @@ export function BottomNav({ navItems }: BottomNavProps) {
       <div className="safe-area-inset-bottom">
         <nav className="flex items-center justify-around px-2 py-3">
           {navItems.map((item) => {
-            const Icon = iconMap[item.icon] || Home;
             return (
               <Link
                 key={item.name}
@@ -48,10 +37,10 @@ export function BottomNav({ navItems }: BottomNavProps) {
                   : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
               >
-                <Icon
-                  className={`flex-shrink-0 ${item.active ? 'text-[#00FF88]' : 'group-hover:text-[#00FF88]'
-                    } transition-colors duration-200`}
-                  size={20}
+                <img
+                  src={item.iconUrl}
+                  alt={item.name}
+                  className={`flex-shrink-0 w-5 h-5 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
                 />
                 <span className="text-[10px] font-medium">{item.name}</span>
               </Link>

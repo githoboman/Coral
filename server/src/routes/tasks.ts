@@ -479,4 +479,229 @@ router.get('/tasks/stats/:user_id', async (req: Request, res: Response, next: Ne
   }
 });
 
+/**
+ * POST /api/tasks/:task_id/execute
+ * Build an unsigned transaction for a task action
+ * Returns serialized PTB for frontend to sign with wallet
+ */
+router.post('/tasks/:task_id/execute', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id, wallet_address } = req.body;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    if (!wallet_address || typeof wallet_address !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'wallet_address is required' });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Get the task with action details
+    const { data: task, error: fetchError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (!task) {
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    // Check if task has an executable action
+    if (!task.action_type || task.action_type === 'reminder') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        detail: 'This task does not have an executable action'
+      });
+    }
+
+    // Check if action is already completed
+    if (task.action_status === 'completed') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        detail: 'This action has already been executed',
+        tx_digest: task.tx_digest
+      });
+    }
+
+    // Import action executor dynamically to avoid circular deps
+    const { actionExecutor } = await import('../services/tasks/actionExecutor.js');
+
+    let result;
+    if (task.action_type === 'token_transfer') {
+      result = await actionExecutor.buildTransferTransaction(
+        task.action_params,
+        wallet_address
+      );
+    } else if (task.action_type === 'dca_purchase') {
+      result = await actionExecutor.buildDCATransaction(
+        task.action_params,
+        wallet_address
+      );
+    } else {
+      return res.status(400).json({
+        error: 'Bad Request',
+        detail: `Unknown action type: ${task.action_type}`
+      });
+    }
+
+    if (!result.success) {
+      // Update action status to reflect the error
+      await supabase
+        .from('tasks')
+        .update({
+          action_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', task_id);
+
+      return res.status(400).json({
+        error: 'Transaction Build Failed',
+        detail: result.error
+      });
+    }
+
+    // Update action status to awaiting signature
+    await supabase
+      .from('tasks')
+      .update({
+        action_status: 'awaiting_signature',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', task_id);
+
+    console.log(`Built transaction for task ${task_id} (${task.action_type})`);
+
+    return res.json({
+      task_id: parseInt(task_id, 10),
+      action_type: task.action_type,
+      serialized_tx: result.serializedTx,
+      message: 'Transaction ready for signing'
+    });
+  } catch (error) {
+    console.error('Error in execute task action:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/tasks/:task_id/confirm
+ * Confirm that a task action was executed successfully
+ */
+router.post('/tasks/:task_id/confirm', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { task_id } = req.params;
+    const { user_id, tx_digest } = req.body;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    if (!tx_digest || typeof tx_digest !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'tx_digest is required' });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Verify task exists and belongs to user
+    const { data: task, error: fetchError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw fetchError;
+    }
+
+    if (!task) {
+      return res.status(404).json({ error: 'Not Found', detail: 'Task not found' });
+    }
+
+    // Optionally verify the transaction on-chain
+    const { actionExecutor } = await import('../services/tasks/actionExecutor.js');
+    const txStatus = await actionExecutor.getTransactionStatus(tx_digest);
+
+    // Update task with transaction result
+    const { data, error } = await supabase
+      .from('tasks')
+      .update({
+        status: txStatus.status === 'success' ? 'completed' : 'pending',
+        action_status: txStatus.status === 'success' ? 'completed' : 'failed',
+        tx_digest: tx_digest,
+        completion_date: txStatus.status === 'success' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', task_id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Failed to confirm task action: ${task_id}`, error);
+      return res.status(500).json({ error: 'Internal Server Error', detail: 'Failed to update task' });
+    }
+
+    console.log(`Task action confirmed: ${task_id} tx: ${tx_digest} status: ${txStatus.status}`);
+
+    return res.json({
+      ...data,
+      tx_status: txStatus.status,
+      tx_verified: txStatus.success
+    });
+  } catch (error) {
+    console.error('Error in confirm task action:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/tasks/actionable
+ * Get all tasks with pending actions for a user
+ */
+router.get('/tasks/actionable', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id || typeof user_id !== 'string') {
+      return res.status(400).json({ error: 'Bad Request', detail: 'user_id is required' });
+    }
+
+    const supabase = getSupabaseClient();
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user_id)
+      .neq('action_type', 'reminder')
+      .in('action_status', ['pending', 'ready', 'awaiting_signature'])
+      .or(`due_date.is.null,due_date.lte.${now}`)
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`Retrieved ${data?.length || 0} actionable tasks for user: ${user_id}`);
+
+    return res.json({
+      tasks: data || [],
+      total: data?.length || 0
+    });
+  } catch (error) {
+    console.error('Error in get actionable tasks:', error);
+    next(error);
+  }
+});
+
 export default router;
