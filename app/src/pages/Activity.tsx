@@ -101,15 +101,18 @@ const Activity = () => {
     // for now we'll just segment by Status: Completed (Green) | Priority: High (Red) | Others (Gray)?
     // Or just Completed (Green) | Pending (Gray) | Overdue (Red)
 
-    // Let's use: Green = Completed, Red = High Priority Pending, Gray = Other Pending
-    const highPriorityPending = taskList.filter(t => !t.completed && t.priority === 'high').length;
-    const otherPending = pendingTasks - highPriorityPending;
+    // Let's use: Green = Completed (Low), Orange = Completed (Medium), Red = Completed (High), Gray = Pending
+    const completedHigh = taskList.filter(t => t.completed && t.priority === 'high').length;
+    const completedMedium = taskList.filter(t => t.completed && t.priority === 'medium').length;
+    const completedLow = taskList.filter(t => t.completed && (t.priority === 'low' || !t.priority)).length;
 
     return {
       totalTasks,
       completedTasks,
-      highPriorityPending,
-      otherPending,
+      pendingTasks,
+      completedHigh,
+      completedMedium,
+      completedLow,
     };
   }, [items]);
 
@@ -330,49 +333,69 @@ const Activity = () => {
           </div>
 
           {/* Progress Bar Container */}
-          <div className="w-full h-12 bg-[#1A1A1A] rounded-full p-1.5 flex relative">
-            {/* Green Segment (Completed) */}
-            {stats.completedTasks > 0 && (
+          <div className="w-full h-12 bg-[#1A1A1A] rounded-full p-1.5 flex relative z-0">
+            {/* Green Segment (Completed Low Priority) */}
+            {stats.completedLow > 0 && (
               <div
-                className="h-full bg-[#00C853] rounded-l-full relative group transition-all duration-500 hover:brightness-110"
-                style={{ width: `${(stats.completedTasks / stats.totalTasks) * 100}%`, borderTopRightRadius: stats.completedTasks === stats.totalTasks ? '9999px' : '0', borderBottomRightRadius: stats.completedTasks === stats.totalTasks ? '9999px' : '0' }}
+                className={`h-full bg-[#00C853] rounded-full relative flex items-center justify-end px-3 transition-all duration-500 hover:brightness-110 z-30 ${(stats.completedMedium > 0 || stats.completedHigh > 0 || stats.pendingTasks > 0) ? '-mr-8' : ''
+                  }`}
+                style={{
+                  width: (stats.completedMedium > 0 || stats.completedHigh > 0 || stats.pendingTasks > 0)
+                    ? `calc(${(stats.completedLow / stats.totalTasks) * 100}% + 32px)`
+                    : `${(stats.completedLow / stats.totalTasks) * 100}%`
+                }}
               >
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-black font-bold text-sm">
-                  {stats.completedTasks}
+                <span className="text-black font-bold text-xs sm:text-sm relative z-40">
+                  {stats.completedLow}
                 </span>
               </div>
             )}
 
-            {/* Red Segment (High Priority Pending) */}
-            {stats.highPriorityPending > 0 && (
+            {/* Orange-Brown Segment (Completed Medium Priority) */}
+            {stats.completedMedium > 0 && (
               <div
-                className="h-full bg-[#D32F2F] relative group transition-all duration-500 hover:brightness-110"
+                className={`h-full bg-[#FFAA00] rounded-full relative flex items-center justify-end px-3 transition-all duration-500 hover:brightness-110 z-20 ${(stats.completedHigh > 0 || stats.pendingTasks > 0) ? '-mr-8' : ''
+                  }`}
                 style={{
-                  width: `${(stats.highPriorityPending / stats.totalTasks) * 100}%`,
-                  borderTopLeftRadius: stats.completedTasks === 0 ? '9999px' : '0',
-                  borderBottomLeftRadius: stats.completedTasks === 0 ? '9999px' : '0',
-                  borderTopRightRadius: stats.otherPending === 0 ? '9999px' : '0',
-                  borderBottomRightRadius: stats.otherPending === 0 ? '9999px' : '0'
+                  width: (stats.completedHigh > 0 || stats.pendingTasks > 0)
+                    ? `calc(${(stats.completedMedium / stats.totalTasks) * 100}% + 32px)`
+                    : `${(stats.completedMedium / stats.totalTasks) * 100}%`
                 }}
               >
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white font-bold text-sm">
-                  {stats.highPriorityPending}
+                <span className="text-black font-bold text-xs sm:text-sm relative z-40">
+                  {stats.completedMedium}
+                </span>
+              </div>
+            )}
+
+            {/* Red Segment (Completed High Priority) */}
+            {stats.completedHigh > 0 && (
+              <div
+                className={`h-full bg-[#D32F2F] rounded-full relative flex items-center justify-end px-3 transition-all duration-500 hover:brightness-110 z-10 ${(stats.pendingTasks > 0) ? '-mr-8' : ''
+                  }`}
+                style={{
+                  width: (stats.pendingTasks > 0)
+                    ? `calc(${(stats.completedHigh / stats.totalTasks) * 100}% + 32px)`
+                    : `${(stats.completedHigh / stats.totalTasks) * 100}%`
+                }}
+              >
+                <span className="text-white font-bold text-xs sm:text-sm relative z-40">
+                  {stats.completedHigh}
                 </span>
               </div>
             )}
 
             {/* Gray Segment (Other Pending/Remaining) */}
-            {stats.otherPending > 0 && (
+            {stats.pendingTasks > 0 && (
               <div
-                className="h-full bg-[#424242] rounded-r-full relative group transition-all duration-500 hover:brightness-110 flex-1"
-                style={{
-                  borderTopLeftRadius: (stats.completedTasks === 0 && stats.highPriorityPending === 0) ? '9999px' : '0',
-                  borderBottomLeftRadius: (stats.completedTasks === 0 && stats.highPriorityPending === 0) ? '9999px' : '0',
-                }}
+                className="h-full bg-[#424242] rounded-full relative flex-1 flex items-center justify-end px-4 transition-all duration-500 hover:brightness-110 z-0"
               >
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 font-medium text-sm">
-                  Tap to view pending tasks &nbsp; <span className="text-white font-bold">{stats.otherPending}</span>
-                </span>
+                <div className="relative z-40 flex items-center gap-2">
+                  <span className="text-white/60 font-medium text-[10px] sm:text-xs hidden md:inline truncate">
+                    Tap to view pending tasks
+                  </span>
+                  <span className="text-white font-bold text-sm">{stats.pendingTasks}</span>
+                </div>
               </div>
             )}
             {stats.totalTasks === 0 && (
@@ -472,78 +495,80 @@ const Activity = () => {
       </div>
 
       {/* Creation/View Detail Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            {selectedItem ? (
-              // View Mode
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <h3 className="text-xl font-bold text-white pr-8">{selectedItem.title}</h3>
-                  <button onClick={closeModal} className="text-white/40 hover:text-white"><ChevronRight className="rotate-90" /></button>
-                </div>
-                <div className="space-y-4 mb-8 text-white/70 text-sm">
-                  {selectedItem.desc && <p className="bg-white/5 p-4 rounded-xl">{selectedItem.desc}</p>}
-                  <div className="flex gap-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getPriorityColor(selectedItem.priority)}`}>
-                      {getPriorityLabel(selectedItem.priority)}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/5 text-white/60 border border-white/5">
-                      {selectedItem.dueDate ? new Date(selectedItem.dueDate).toLocaleDateString() : 'No date'}
-                    </span>
+      {
+        isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+              {selectedItem ? (
+                // View Mode
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-xl font-bold text-white pr-8">{selectedItem.title}</h3>
+                    <button onClick={closeModal} className="text-white/40 hover:text-white"><ChevronRight className="rotate-90" /></button>
                   </div>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => deleteItem(selectedItem.id)}
-                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-bold transition-colors"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={closeModal}
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-bold transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Create Mode
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-6">Create New Task</h3>
-                <form onSubmit={handleAddSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Task Name</label>
-                    <input name="title" autoFocus className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Enter task name..." required />
-                  </div>
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Description</label>
-                    <textarea name="desc" rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Add details..." />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Priority</label>
-                      <select name="priority" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors appearance-none cursor-pointer">
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="low">Low</option>
-                      </select>
+                  <div className="space-y-4 mb-8 text-white/70 text-sm">
+                    {selectedItem.desc && <p className="bg-white/5 p-4 rounded-xl">{selectedItem.desc}</p>}
+                    <div className="flex gap-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getPriorityColor(selectedItem.priority)}`}>
+                        {getPriorityLabel(selectedItem.priority)}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/5 text-white/60 border border-white/5">
+                        {selectedItem.dueDate ? new Date(selectedItem.dueDate).toLocaleDateString() : 'No date'}
+                      </span>
                     </div>
-                    {/* Hidden or automated date field for now since UI doesn't explicitly ask for it in creation but API needs it */}
                   </div>
-                  <div className="flex justify-end gap-3 pt-4">
-                    <button type="button" onClick={closeModal} className="px-5 py-2.5 rounded-xl text-white/60 hover:text-white font-bold transition-colors">Cancel</button>
-                    <button type="submit" className="px-6 py-2.5 rounded-xl bg-[#246AFC] hover:bg-[#1a55cc] text-white font-bold transition-colors shadow-lg shadow-blue-500/20">Create Task</button>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => deleteItem(selectedItem.id)}
+                      className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-bold transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={closeModal}
+                      className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-bold transition-colors"
+                    >
+                      Close
+                    </button>
                   </div>
-                </form>
-              </div>
-            )}
+                </div>
+              ) : (
+                // Create Mode
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-white mb-6">Create New Task</h3>
+                  <form onSubmit={handleAddSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Task Name</label>
+                      <input name="title" autoFocus className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Enter task name..." required />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Description</label>
+                      <textarea name="desc" rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Add details..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Priority</label>
+                        <select name="priority" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors appearance-none cursor-pointer">
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                          <option value="low">Low</option>
+                        </select>
+                      </div>
+                      {/* Hidden or automated date field for now since UI doesn't explicitly ask for it in creation but API needs it */}
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                      <button type="button" onClick={closeModal} className="px-5 py-2.5 rounded-xl text-white/60 hover:text-white font-bold transition-colors">Cancel</button>
+                      <button type="submit" className="px-6 py-2.5 rounded-xl bg-[#246AFC] hover:bg-[#1a55cc] text-white font-bold transition-colors shadow-lg shadow-blue-500/20">Create Task</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-    </div>
+    </div >
   );
 }
 

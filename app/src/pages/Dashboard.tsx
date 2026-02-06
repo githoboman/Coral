@@ -1,6 +1,7 @@
 import { useCurrentAccount, useSignPersonalMessage, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { Plus, Fuel, X, ArrowUp, Square, Layout, ChevronDown } from 'lucide-react';
+import { Plus, Fuel, X, ArrowUp, Square, Layout, ChevronDown, Check } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
 import WorkflowSteps from '@/components/WorkflowSteps';
 import AgentSelector from '@/components/AgentSelector';
 import RecentChatsModal from '@/components/RecentChatsModal';
@@ -164,6 +165,9 @@ const Dashboard = () => {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
 
+  // Interaction UX State
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, 'like' | 'dislike' | null>>({});
 
   const [streamingText, setStreamingText] = useState('');
   const [agentUsed, setAgentUsed] = useState<string>('');
@@ -861,6 +865,27 @@ const Dashboard = () => {
     handleSendMessage(title);
   };
 
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleFeedback = (id: string, type: 'like' | 'dislike') => {
+    setFeedback(prev => {
+      const current = prev[id];
+      // Toggle off if clicking same type, otherwise switch to new type
+      if (current === type) {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      }
+      return { ...prev, [id]: type };
+    });
+    // Log for now, would connect to backend API here
+    console.log(`User ${type}d message ${id}`);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle command menu navigation
     if (showCommandMenu && filteredCommands.length > 0) {
@@ -938,7 +963,7 @@ const Dashboard = () => {
 
   if (isHistoryLoading && messages.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[100dvh] w-full bg-[#070B0F]">
+      <div className="flex items-center justify-center min-h-[100dvh] w-full bg-transparent">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -1046,7 +1071,7 @@ const Dashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'} group`}
                 >
-                  <div className={`md:max-w-[85%] overflow-hidden ${message.sender === 'user' ? 'bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl md:w-auto md:ml-auto w-fit' : ''}`}>
+                  <div className={`md:max-w-[85%] overflow-hidden ${message.sender === 'user' ? 'bg-[#326AFD] text-white rounded-[30px] px-5 py-2.5 shadow-xl md:w-auto md:ml-auto w-fit' : ''}`}>
                     {message.sender === 'ai' && (
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
                         <img
@@ -1124,31 +1149,35 @@ const Dashboard = () => {
                     {
                       message.sender === 'user' && (
                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(message.text);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Copy message"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setInput(message.text);
-                              textareaRef.current?.focus();
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Edit message"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
+                          <Tooltip content={copiedId === String(message.id) ? "Copied!" : "Copy message"}>
+                            <button
+                              onClick={() => handleCopy(message.text, String(message.id))}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              {copiedId === String(message.id) ? (
+                                <Check size={14} className="text-green-400" />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                              )}
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Edit message">
+                            <button
+                              onClick={() => {
+                                setInput(message.text);
+                                textareaRef.current?.focus();
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              </svg>
+                            </button>
+                          </Tooltip>
                         </div>
                       )
                     }
@@ -1160,83 +1189,114 @@ const Dashboard = () => {
                           {/* Variation Navigation */}
                           {message.variations && message.variations.length > 1 && (
                             <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded bg-white/5 border border-white/10">
-                              <button
-                                onClick={() => navigateVariation(message, 'prev')}
-                                disabled={(message.currentVariationIndex ?? 0) === 0}
-                                className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                title="Previous variation"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
-                                  <path d="M15 18l-6-6 6-6"></path>
-                                </svg>
-                              </button>
+                              <Tooltip content="Previous response">
+                                <button
+                                  onClick={() => navigateVariation(message, 'prev')}
+                                  disabled={(message.currentVariationIndex ?? 0) === 0}
+                                  className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
+                                    <path d="M15 18l-6-6 6-6"></path>
+                                  </svg>
+                                </button>
+                              </Tooltip>
                               <span className="text-[10px] text-white/40 font-mono min-w-[30px] text-center">
                                 {(message.currentVariationIndex ?? 0) + 1}/{message.variations.length}
                               </span>
-                              <button
-                                onClick={() => navigateVariation(message, 'next')}
-                                disabled={(message.currentVariationIndex ?? 0) === message.variations.length - 1}
-                                className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                title="Next variation"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
-                                  <path d="M9 18l6-6-6-6"></path>
-                                </svg>
-                              </button>
+                              <Tooltip content="Next response">
+                                <button
+                                  onClick={() => navigateVariation(message, 'next')}
+                                  disabled={(message.currentVariationIndex ?? 0) === message.variations.length - 1}
+                                  className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
+                                    <path d="M9 18l6-6-6-6"></path>
+                                  </svg>
+                                </button>
+                              </Tooltip>
                             </div>
                           )}
 
-                          <button
-                            onClick={() => {
-                              const textToCopy = message.variations
-                                ? message.variations[message.currentVariationIndex ?? 0]
-                                : message.text;
-                              navigator.clipboard.writeText(textToCopy);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Copy response"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              console.log('Liked message:', message.id);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Like response"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-blue-400">
-                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              console.log('Disliked message:', message.id);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Dislike response"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-red-400">
-                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => {
-                              regenerateMessage(message);
-                            }}
-                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Retry"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                              <path d="M21 2v6h-6"></path>
-                              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                              <path d="M3 22v-6h6"></path>
-                              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                            </svg>
-                          </button>
+                          <Tooltip content={copiedId === String(message.id) ? "Copied!" : "Copy response"}>
+                            <button
+                              onClick={() => {
+                                const textToCopy = message.variations
+                                  ? message.variations[message.currentVariationIndex ?? 0]
+                                  : message.text;
+                                handleCopy(textToCopy, String(message.id));
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              {copiedId === String(message.id) ? (
+                                <Check size={14} className="text-green-400" />
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                              )}
+                            </button>
+                          </Tooltip>
+
+                          <Tooltip content="Like response">
+                            <button
+                              onClick={() => handleFeedback(String(message.id), 'like')}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill={feedback[String(message.id)] === 'like' ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`transition-colors ${feedback[String(message.id)] === 'like' ? 'text-blue-400' : 'text-white/40 hover:text-blue-400'}`}
+                              >
+                                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                              </svg>
+                            </button>
+                          </Tooltip>
+
+                          <Tooltip content="Dislike response">
+                            <button
+                              onClick={() => handleFeedback(String(message.id), 'dislike')}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill={feedback[String(message.id)] === 'dislike' ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className={`transition-colors ${feedback[String(message.id)] === 'dislike' ? 'text-red-400' : 'text-white/40 hover:text-red-400'}`}
+                              >
+                                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                              </svg>
+                            </button>
+                          </Tooltip>
+
+                          <Tooltip content="Regenerate response">
+                            <button
+                              onClick={() => {
+                                regenerateMessage(message);
+                              }}
+                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
+                                <path d="M21 2v6h-6"></path>
+                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                                <path d="M3 22v-6h6"></path>
+                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                              </svg>
+                            </button>
+                          </Tooltip>
                         </div>
                       )
                     }
@@ -1313,7 +1373,7 @@ const Dashboard = () => {
                         <img
                           src={getAgentConfig(selectedAgentId).iconUrl}
                           alt="Agent"
-                          className="w-10 h-10 rounded-full object-cover animate-pulse opacity-80"
+                          className="w-8 h-8 object-cover animate-pulse opacity-80"
                         />
                       </div>
                       <span className="text-md text-white/60 font-medium">Thinking...</span>
