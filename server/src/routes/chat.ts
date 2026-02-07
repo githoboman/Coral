@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { agentGraph } from '../services/agents/graph';
+import { agentGraph } from '../services/agents/agent-graph';
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { ChatRequest, ChatResponse } from '../services/agents/types';
 import getSupabaseClient from '../config/supabase';

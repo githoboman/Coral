@@ -6,6 +6,7 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "strict": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
@@ -15,7 +16,6 @@
     "experimentalSpecifierResolution": "node"
   },
   "include": [
-    "src/**/*",
-    "scripts/**/*"
+    "src/**/*"
   ]
 }
