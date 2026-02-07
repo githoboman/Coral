@@ -2,10 +2,11 @@
   "compilerOptions": {
     "skipLibCheck": true,
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "strict": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
@@ -15,7 +16,6 @@
     "experimentalSpecifierResolution": "node"
   },
   "include": [
-    "src/**/*",
-    "scripts/**/*"
+    "src/**/*"
   ]
 }
