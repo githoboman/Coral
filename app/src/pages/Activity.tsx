@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Plus, Search, Filter } from "lucide-react";
-import { Task, Event } from "@/hooks/taskApi";
+import { Task, type Event } from "@/hooks/taskApi";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -13,7 +13,7 @@ import {
   fetchEvents,
   createEvent as createReduxEvent,
 } from "@/store/slices/eventsSlice";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
@@ -113,13 +113,7 @@ const Activity = () => {
     const taskList = items.filter((i) => i.type === "task");
     const totalTasks = taskList.length;
     const completedTasks = taskList.filter((t) => t.completed).length;
-    // Assuming 'failed' isn't explicitly tracked yet, using pending low/high as filler for now or just calculating breakdown
     const pendingTasks = taskList.filter((t) => !t.completed).length;
-    // Fake 'failed' or 'high priority pending' for the red bar logic if needed,
-    // for now we'll just segment by Status: Completed (Green) | Priority: High (Red) | Others (Gray)?
-    // Or just Completed (Green) | Pending (Gray) | Overdue (Red)
-
-    // Let's use: Green = Completed, Red = High Priority Pending, Gray = Other Pending
     const highPriorityPending = taskList.filter(
       (t) => !t.completed && t.priority === "high",
     ).length;
@@ -135,7 +129,7 @@ const Activity = () => {
 
   // Filtered items
   const filteredItems = useMemo(() => {
-    let result = items.filter((i) => i.type === "task"); // Only tasks for the main list
+    let result = items.filter((i) => i.type === "task");
 
     if (debouncedSearchQuery) {
       const q = debouncedSearchQuery.toLowerCase();
@@ -149,16 +143,25 @@ const Activity = () => {
     return result;
   }, [items, debouncedSearchQuery]);
 
-  // Load data from Redux
+  // Load data from Redux - OPTIMIZED
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
+      return;
+    }
 
+    // Start loading immediately
     setLoadingStates((prev) => ({ ...prev, initialLoad: true }));
+
+    // Load tasks and events in parallel
     Promise.all([
       dispatch(fetchTasks(userId)),
       dispatch(fetchEvents(userId)),
     ]).finally(() => {
-      setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
+      // Quick transition out of loading state
+      setTimeout(() => {
+        setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
+      }, 100);
     });
   }, [userId, dispatch]);
 
@@ -168,6 +171,7 @@ const Activity = () => {
     setSelectedItem(null);
     setIsModalOpen(true);
   };
+
   const openViewModal = (item: Item) => {
     setSelectedItem(item);
     setSelectedDateForModal(null);
@@ -197,7 +201,7 @@ const Activity = () => {
         12,
         0,
         0,
-        0, // Has been set to noon to avoid timezone issues
+        0,
       );
 
       if (modalMode === "event") {
@@ -272,7 +276,6 @@ const Activity = () => {
     try {
       setLoadingStates((prev) => ({ ...prev, deleting: true }));
       setError(null);
-      // Assuming tasks for now based on UI context
       await dispatch(removeTask({ taskId: id, userId }));
       closeModal();
     } catch (err) {
@@ -326,7 +329,6 @@ const Activity = () => {
           "tasks",
         );
 
-        // Step 1: Request ticket from backend
         const response = await fetch(
           `${API_BASE_URL}/api/task-points/request-claim`,
           {
@@ -347,7 +349,6 @@ const Activity = () => {
         const data = await response.json();
         const { ticket_object_id } = data;
 
-        // ✅ VALIDATION: Ensure ticket_object_id exists and is valid
         if (!ticket_object_id || typeof ticket_object_id !== "string") {
           console.error("[CLAIM] Invalid ticket object ID received:", data);
           throw new Error("Failed to mint claim ticket. Please try again.");
@@ -355,10 +356,8 @@ const Activity = () => {
 
         console.log("[CLAIM] Got ticket:", ticket_object_id);
 
-        // Step 2: Sign transaction to claim points
         const tx = new Transaction();
 
-        // Ensure all environment variables are set
         const packageId = import.meta.env.VITE_SUI_PACKAGE_ID;
         const taskPointsRegistryId = import.meta.env
           .VITE_SUI_TASK_POINTS_REGISTRY_ID;
@@ -376,7 +375,7 @@ const Activity = () => {
             tx.object(taskPointsRegistryId),
             tx.object(pointsRegistryId),
             tx.object(ticket_object_id),
-            tx.object("0x6"), // Clock
+            tx.object("0x6"),
           ],
         });
 
@@ -385,20 +384,20 @@ const Activity = () => {
 
         console.log("[CLAIM] Transaction successful:", result.digest);
 
-        // Step 3: Confirm claim on backend (updates Walrus)
         await confirmTaskClaim(
           currentAccount.address,
           claimable.claimable_tasks,
         );
 
-        // Step 4: Refresh claimable tasks
+        // 🔥 EMIT POINTS UPDATE EVENT
+        window.dispatchEvent(new Event("pointsUpdated"));
+
         const refreshResponse = await fetch(
           `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
         );
         const refreshData = await refreshResponse.json();
         setClaimable(refreshData);
 
-        // Success message
         alert(
           `🎉 Successfully claimed ${claimable.total_claimable_points} points!\n\nTransaction: ${result.digest.slice(0, 10)}...`,
         );
@@ -407,7 +406,6 @@ const Activity = () => {
       } catch (error: any) {
         console.error("[CLAIM] Claim failed:", error);
 
-        // More detailed error message
         let errorMessage = "Failed to claim points. ";
 
         if (error.message?.includes("ticket")) {
@@ -470,27 +468,26 @@ const Activity = () => {
     );
   };
 
-  // Helper to get priority color
   const getPriorityColor = (p?: string) => {
     switch (p) {
       case "high":
-        return "bg-[#3E1A1A] text-[#FF4444] border-[#FF4444]/20"; // Red-ish
+        return "bg-[#3E1A1A] text-[#FF4444] border-[#FF4444]/20";
       case "medium":
-        return "bg-[#3A2E14] text-[#FFAA00] border-[#FFAA00]/20"; // Orange-ish
+        return "bg-[#3A2E14] text-[#FFAA00] border-[#FFAA00]/20";
       case "low":
-        return "bg-[#143A22] text-[#00FF88] border-[#00FF88]/20"; // Green-ish
+        return "bg-[#143A22] text-[#00FF88] border-[#00FF88]/20";
       default:
         return "bg-white/5 text-white/60 border-white/5";
     }
   };
 
-  // Helper for priority display text
   const getPriorityLabel = (p?: string) => {
     return p ? p.charAt(0).toUpperCase() + p.slice(1) : "Normal";
   };
 
+  // Show skeleton while loading
   if (!userId || loadingStates.initialLoad) {
-    return <LoadingSpinner fullScreen text="Loading your tasks..." />;
+    return <ActivitySkeleton />;
   }
 
   return (
@@ -514,7 +511,6 @@ const Activity = () => {
       <div className="flex flex-col md:flex-row gap-6 mb-10">
         {/* Countdown Card - Left */}
         <div className="w-full md:w-[280px] bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 flex flex-col justify-between relative overflow-hidden group">
-          {/* Glow effect */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#246AFC]/10 blur-[50px] rounded-full pointer-events-none" />
 
           <div>
@@ -538,7 +534,6 @@ const Activity = () => {
 
         {/* Stats & Progress Card - Right */}
         <div className="flex-1 bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 relative overflow-hidden">
-          {/* Glow effect */}
           <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#B7FC0D]/5 blur-[60px] rounded-full pointer-events-none" />
 
           <div className="flex justify-between items-start mb-6">
@@ -560,7 +555,6 @@ const Activity = () => {
 
           {/* Progress Bar Container */}
           <div className="w-full h-12 bg-[#1A1A1A] rounded-full p-1.5 flex relative">
-            {/* Green Segment (Completed) */}
             {stats.completedTasks > 0 && (
               <div
                 className="h-full bg-[#00C853] rounded-l-full relative group transition-all duration-500 hover:brightness-110"
@@ -578,7 +572,6 @@ const Activity = () => {
               </div>
             )}
 
-            {/* Red Segment (High Priority Pending) */}
             {stats.highPriorityPending > 0 && (
               <div
                 className="h-full bg-[#D32F2F] relative group transition-all duration-500 hover:brightness-110"
@@ -600,7 +593,6 @@ const Activity = () => {
               </div>
             )}
 
-            {/* Gray Segment (Other Pending/Remaining) */}
             {stats.otherPending > 0 && (
               <div
                 className="h-full bg-[#424242] rounded-r-full relative group transition-all duration-500 hover:brightness-110 flex-1"
@@ -643,7 +635,6 @@ const Activity = () => {
         </h2>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Filter Dropdown */}
           <div className="relative">
             <button className="flex items-center gap-2 bg-[#0A0A0A] border border-white/10 px-4 py-2.5 rounded-full text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all min-w-[120px] justify-between">
               <span>Filter by</span>
@@ -651,7 +642,6 @@ const Activity = () => {
             </button>
           </div>
 
-          {/* Search Bar */}
           <div className="relative flex-1 md:w-[300px]">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
@@ -668,7 +658,7 @@ const Activity = () => {
         </div>
       </div>
 
-      {/* Task List - The Container */}
+      {/* Task List */}
       <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 lg:p-8 min-h-[400px]">
         {filteredItems.length > 0 ? (
           <div className="space-y-0">
@@ -678,7 +668,6 @@ const Activity = () => {
                 className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 rounded-xl`}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  {/* Checkbox */}
                   <button
                     onClick={() => toggleTaskComplete(item.id)}
                     className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${item.completed ? "bg-[#246AFC] border-[#246AFC]" : "border-white/20 hover:border-white/40"}`}
@@ -688,7 +677,6 @@ const Activity = () => {
                     )}
                   </button>
 
-                  {/* Title */}
                   <span
                     className={`text-[16px] font-medium truncate ${item.completed ? "text-white/30 line-through" : "text-white/80"}`}
                   >
@@ -696,21 +684,17 @@ const Activity = () => {
                   </span>
                 </div>
 
-                {/* Right Actions */}
                 <div className="flex items-center gap-8 md:gap-12 flex-shrink-0 ml-4">
-                  {/* Priority */}
                   <span
                     className={`px-3 py-1 rounded-full text-[11px] font-bold border capitalize min-w-[80px] text-center ${getPriorityColor(item.priority)}`}
                   >
                     {getPriorityLabel(item.priority)}
                   </span>
 
-                  {/* Timer - Mocked since we don't have task-specific active durations yet */}
                   <div className="hidden md:flex items-center gap-2 text-white/80 font-mono text-sm">
                     <span>59:59:59</span>
                   </div>
 
-                  {/* View Details */}
                   <button
                     onClick={() => openViewModal(item)}
                     className="flex items-center gap-1 text-[11px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-wider group-hover/btn:translate-x-1"
@@ -740,7 +724,6 @@ const Activity = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
             {selectedItem ? (
-              // View Mode
               <div className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <h3 className="text-xl font-bold text-white pr-8">
@@ -788,7 +771,6 @@ const Activity = () => {
                 </div>
               </div>
             ) : (
-              // Create Mode
               <div className="p-6">
                 <h3 className="text-lg font-bold text-white mb-6">
                   Create New Task
@@ -831,7 +813,6 @@ const Activity = () => {
                         <option value="low">Low</option>
                       </select>
                     </div>
-                    {/* Hidden or automated date field for now since UI doesn't explicitly ask for it in creation but API needs it */}
                   </div>
                   <div className="flex justify-end gap-3 pt-4">
                     <button

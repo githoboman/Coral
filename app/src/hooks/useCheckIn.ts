@@ -22,10 +22,10 @@ export type CheckinStatus =
 export interface CheckinState {
   status: CheckinStatus;
   canCheckin: boolean;
-  lastCheckinDate: string | null; // YYYY-MM-DD
-  lastCheckinAt: number | null; // Timestamp (for backward compat)
-  nextAvailableAt: number | null; // Midnight timestamp
-  hoursRemaining: number | null; // Hours until midnight
+  lastCheckinDate: string | null;
+  lastCheckinAt: number | null;
+  nextAvailableAt: number | null;
+  hoursRemaining: number | null;
   pointsEarned: number;
   error: string | null;
   balance: number;
@@ -65,9 +65,8 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get timezone offset in minutes
   const getTimezoneOffset = useCallback(() => {
-    return new Date().getTimezoneOffset() * -1; // Convert to positive offset
+    return new Date().getTimezoneOffset() * -1;
   }, []);
 
   const fetchStatus = useCallback(async () => {
@@ -94,8 +93,8 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         canCheckin: data.can_checkin,
         lastCheckinDate: data.last_checkin_date,
         lastCheckinAt: data.last_checkin_at,
-        nextAvailableAt: data.next_available_at, // This is midnight timestamp
-        hoursRemaining: data.hours_remaining, // Hours until midnight
+        nextAvailableAt: data.next_available_at,
+        hoursRemaining: data.hours_remaining,
         balance: data.balance,
         currentStreak: data.current_streak || 0,
         totalCheckins: data.total_checkins || 0,
@@ -147,17 +146,21 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               status: "success",
               canCheckin: false,
               lastCheckinAt: Date.now(),
-              nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000, // Approximate
+              nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000,
               hoursRemaining: 24,
               pointsEarned: expectedPts,
               error: null,
               balance: data.balance,
               currentStreak: prev.nextStreak,
+              totalCheckins: prev.totalCheckins + 1, // Increment total check-ins
             }));
 
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
             }
+
+            // 🔥 EMIT POINTS UPDATE EVENT
+            window.dispatchEvent(new Event("pointsUpdated"));
 
             setTimeout(fetchStatus, 2000);
 
@@ -179,11 +182,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             error: null,
             balance: prev.balance + expectedPts,
             currentStreak: prev.nextStreak,
+            totalCheckins: prev.totalCheckins + 1, // Increment total check-ins
           }));
 
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
           }
+
+          // 🔥 EMIT POINTS UPDATE EVENT even on timeout
+          window.dispatchEvent(new Event("pointsUpdated"));
 
           setTimeout(fetchStatus, 2000);
 
@@ -293,7 +300,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         result.digest,
       );
 
-      // Show milestone celebration if applicable
       if (isMilestone) {
         console.log(
           `🎉 Milestone reached! Earned ${ptsAmount} points (${ptsAmount - milestoneBonus} base + ${milestoneBonus} bonus)`,

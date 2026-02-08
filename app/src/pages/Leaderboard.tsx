@@ -3,14 +3,35 @@ import { Trophy, Users } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
+import { LeaderboardSkeleton } from "@/components/ui/SkeletonLoader";
 
 const Leaderboard = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const leaderboard = useAppSelector((state) => state.leaderboard.entries);
+  const { entries: leaderboard, loading } = useAppSelector(
+    (state) => state.leaderboard,
+  );
 
   useEffect(() => {
-    dispatch(fetchLeaderboard());
+    // Initial fetch (respects cache)
+    dispatch(fetchLeaderboard(false));
+
+    // Auto-refresh every 30 seconds (respects cache - only fetches if cache expired)
+    const pollInterval = setInterval(() => {
+      dispatch(fetchLeaderboard(false));
+    }, 30000);
+
+    // Listen for points updates from other components (bypass cache for immediate update)
+    const handlePointsUpdate = () => {
+      dispatch(fetchLeaderboard(true)); // forceRefresh = true
+    };
+
+    window.addEventListener("pointsUpdated", handlePointsUpdate);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("pointsUpdated", handlePointsUpdate);
+    };
   }, [dispatch]);
 
   const truncateAddress = (address: string) => {
@@ -26,14 +47,29 @@ const Leaderboard = () => {
     return "bg-gradient-to-r from-blue-500 to-blue-700";
   };
 
+  // Show skeleton on initial load
+  if (loading && leaderboard.length === 0) {
+    return <LeaderboardSkeleton />;
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Leaderboard</h1>
-        <p className="text-white/60 mt-2">
-          Top performers in the Tovira ecosystem
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Leaderboard</h1>
+            <p className="text-white/60 mt-2">
+              Top performers in the Tovira ecosystem
+            </p>
+          </div>
+          {loading && leaderboard.length > 0 && (
+            <div className="flex items-center gap-2 text-white/40 text-sm">
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              Updating...
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-[#151515] border border-white/10 rounded-[30px] overflow-hidden">
@@ -96,7 +132,7 @@ const Leaderboard = () => {
           </table>
         </div>
 
-        {leaderboard.length === 0 && (
+        {leaderboard.length === 0 && !loading && (
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">No leaderboard data yet</p>

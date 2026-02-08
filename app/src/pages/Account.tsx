@@ -115,6 +115,19 @@ const Account = () => {
 
           {/* Streak Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {/* Points Balance */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div>
+                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                    Total Points
+                  </p>
+                  <p className="text-white text-2xl font-bold">
+                    {checkinState.balance.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
             {/* Current Streak */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-3">
@@ -152,30 +165,12 @@ const Account = () => {
                 </div>
               </div>
             </div>
-
-            {/* Points Balance */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
-                    Total Points
-                  </p>
-                  <p className="text-white text-2xl font-bold">
-                    {checkinState.balance.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Milestone Progress */}
           <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <Trophy className="w-6 h-6 text-yellow-400" />
                 <div>
                   <p className="text-white font-bold text-lg">Next Milestone</p>
                   <p className="text-white/60 text-sm">
@@ -188,7 +183,7 @@ const Account = () => {
                 <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
                   Bonus Reward
                 </p>
-                <p className="text-yellow-400 text-2xl font-bold">+5 pts</p>
+                <p className="text-green-400 text-2xl font-bold">+5 pts</p>
               </div>
             </div>
 
@@ -222,7 +217,7 @@ const Account = () => {
                         checkinState.currentStreak >= milestone
                           ? "bg-green-500/20 border-green-500/50 text-green-400"
                           : milestone === checkinState.nextMilestone
-                            ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400 animate-pulse"
+                            ? "bg-green-500/20 border-green-500/50 text-green-400 animate-pulse"
                             : "bg-white/5 border-white/10 text-white/40"
                       }
                     `}

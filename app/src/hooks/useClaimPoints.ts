@@ -78,6 +78,10 @@ export function useClaimPoints() {
               error: null,
               balance: data.balance,
             });
+
+            // 🔥 EMIT POINTS UPDATE EVENT
+            window.dispatchEvent(new Event("pointsUpdated"));
+
             return true;
           }
         } catch (_) {}
@@ -94,6 +98,10 @@ export function useClaimPoints() {
             error: null,
             balance: expectedPts,
           });
+
+          // 🔥 EMIT POINTS UPDATE EVENT even on timeout
+          window.dispatchEvent(new Event("pointsUpdated"));
+
           return true;
         }
 
