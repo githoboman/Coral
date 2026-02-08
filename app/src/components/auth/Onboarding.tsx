@@ -116,7 +116,7 @@ export function OnboardingModal({
           setStep(4);
         }
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const Switch = ({
@@ -160,7 +160,7 @@ export function OnboardingModal({
                 Complete Your Profile
               </h2>
               <p className="text-white/40 text-sm text-center mb-8 font-medium">
-                Enter your email to get started. Waitlisted users can claim 300
+                Enter your email to get started. Waitlisted users can claim 100
                 bonus points!
               </p>
 
@@ -340,7 +340,7 @@ export function OnboardingModal({
                     <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
                       Reward
                     </p>
-                    <p className="text-3xl font-bold text-[#B7FC0D]">300</p>
+                    <p className="text-3xl font-bold text-[#B7FC0D]">100</p>
                     <p className="text-white/30 text-xs mt-1">
                       points · stored on Sui
                     </p>
@@ -357,15 +357,15 @@ export function OnboardingModal({
                   {(claimState.status === "verifying" ||
                     claimState.status === "signing" ||
                     claimState.status === "confirming") && (
-                      <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
-                        {claimState.status === "verifying" &&
-                          "Verifying eligibility…"}
-                        {claimState.status === "signing" &&
-                          "Check your wallet for the approval prompt…"}
-                        {claimState.status === "confirming" &&
-                          "Confirming on chain…"}
-                      </p>
-                    )}
+                    <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
+                      {claimState.status === "verifying" &&
+                        "Verifying eligibility…"}
+                      {claimState.status === "signing" &&
+                        "Check your wallet for the approval prompt…"}
+                      {claimState.status === "confirming" &&
+                        "Confirming on chain…"}
+                    </p>
+                  )}
 
                   {/* Claim button */}
                   <button
@@ -377,8 +377,8 @@ export function OnboardingModal({
                     className="w-full py-4 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {claimState.status === "verifying" ||
-                      claimState.status === "signing" ||
-                      claimState.status === "confirming" ? (
+                    claimState.status === "signing" ||
+                    claimState.status === "confirming" ? (
                       <>
                         <LoadingSpinner size="sm" />
                         {claimState.status === "verifying" && "Verifying…"}
@@ -387,7 +387,7 @@ export function OnboardingModal({
                         {claimState.status === "confirming" && "Confirming…"}
                       </>
                     ) : (
-                      "Claim 300 Points"
+                      "Claim 100 Points"
                     )}
                   </button>
 
@@ -434,7 +434,7 @@ export function OnboardingModal({
         style={{ animationDelay: "0.5s", animationFillMode: "forwards" }}
       >
         {step < 3
-          ? "Your email will be checked against our waitlist. Waitlisted users can claim 300 points!"
+          ? "Your email will be checked against our waitlist. Waitlisted users can claim 100 points!"
           : step === 3
             ? "Points are stored on the Sui blockchain. Your email is kept off-chain."
             : "You're all set. Enjoy Tovira!"}

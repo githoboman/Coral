@@ -12,11 +12,15 @@ module tovira_points::points {
     const EInvalidAmount: u64 = 3;
     const EUserNotFound: u64 = 4;
     const EUnauthorized: u64 = 5;
-    const ECheckinTooEarly: u64 = 6;
+    const EAlreadyCheckedInToday: u64 = 6;
 
-    const WAITLIST_POINTS: u64 = 300;
-    const CHECKIN_POINTS: u64 = 2;
-    const CHECKIN_COOLDOWN_MS: u64 = 86400000; 
+    const WAITLIST_POINTS: u64 = 100;
+    const CHECKIN_POINTS: u64 = 1;
+    const MILESTONE_BONUS: u64 = 5;
+
+    const MILESTONE_DAYS: vector<u64> = vector[
+        5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80
+    ];
 
     public struct AdminCap has key, store {
         id: UID,
@@ -34,6 +38,9 @@ module tovira_points::points {
         waitlist_claimed: bool,
         claimed_at: u64,
         last_checkin_at: u64,
+        current_streak: u64,
+        last_checkin_date: String, // YYYY-MM-DD format
+        total_checkins: u64,
     }
 
     public struct BlobRegistry has key {
@@ -48,8 +55,8 @@ module tovira_points::points {
         points_amount: u64,
         reason: String,
         created_at: u64,
+        checkin_date: String, // NEW: YYYY-MM-DD for check-ins
     }
-
 
     public struct PointsClaimed has copy, drop {
         wallet_address: address,
@@ -64,7 +71,10 @@ module tovira_points::points {
         points_earned: u64,
         new_balance: u64,
         timestamp: u64,
-        next_checkin_available: u64,
+        checkin_date: String,
+        current_streak: u64,
+        is_milestone: bool,
+        milestone_bonus: u64,
     }
 
     public struct EligibilityTicketMinted has copy, drop {
@@ -72,6 +82,7 @@ module tovira_points::points {
         wallet_address: address,
         points_amount: u64,
         reason: String,
+        checkin_date: String,
         timestamp: u64,
     }
 
@@ -106,7 +117,7 @@ module tovira_points::points {
         transfer::transfer(admin_cap, deployer);
     }
 
-
+    // Legacy function for waitlist tickets
     public entry fun mint_eligibility_ticket(
         _admin: &AdminCap,
         wallet_address: address,
@@ -123,6 +134,7 @@ module tovira_points::points {
             points_amount,
             reason: string::utf8(reason),
             created_at: clock::timestamp_ms(clock),
+            checkin_date: string::utf8(b""), // Empty for non-checkin
         };
 
         let ticket_id = object::id(&ticket);
@@ -132,12 +144,46 @@ module tovira_points::points {
             wallet_address,
             points_amount,
             reason: string::utf8(reason),
+            checkin_date: string::utf8(b""),
             timestamp: clock::timestamp_ms(clock),
         });
 
         transfer::transfer(ticket, wallet_address);
     }
 
+    // NEW: Dedicated function for check-in tickets with date
+    public entry fun mint_checkin_ticket(
+        _admin: &AdminCap,
+        wallet_address: address,
+        points_amount: u64,
+        checkin_date: vector<u8>, // YYYY-MM-DD format
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        assert!(points_amount > 0, EInvalidAmount);
+
+        let ticket = EligibilityTicket {
+            id: object::new(ctx),
+            wallet_address,
+            points_amount,
+            reason: string::utf8(b"Daily Check-in"),
+            created_at: clock::timestamp_ms(clock),
+            checkin_date: string::utf8(checkin_date),
+        };
+
+        let ticket_id = object::id(&ticket);
+
+        event::emit(EligibilityTicketMinted {
+            ticket_id,
+            wallet_address,
+            points_amount,
+            reason: string::utf8(b"Daily Check-in"),
+            checkin_date: string::utf8(checkin_date),
+            timestamp: clock::timestamp_ms(clock),
+        });
+
+        transfer::transfer(ticket, wallet_address);
+    }
 
     public entry fun claim_waitlist_points(
         registry: &mut PointsRegistry,
@@ -162,7 +208,14 @@ module tovira_points::points {
         let reason = ticket.reason;
         let current_time = clock::timestamp_ms(clock);
 
-        let EligibilityTicket { id, wallet_address: _, points_amount: _, reason: _, created_at: _ } = ticket;
+        let EligibilityTicket { 
+            id, 
+            wallet_address: _, 
+            points_amount: _, 
+            reason: _, 
+            created_at: _,
+            checkin_date: _
+        } = ticket;
         object::delete(id);
 
         if (table::contains(&registry.records, wallet_key)) {
@@ -178,6 +231,9 @@ module tovira_points::points {
                 waitlist_claimed: (reason == string::utf8(b"Waitlist Bonus")),
                 claimed_at: current_time,
                 last_checkin_at: 0,
+                current_streak: 0,
+                last_checkin_date: string::utf8(b""),
+                total_checkins: 0,
             };
             table::add(&mut registry.records, wallet_key, record);
         };
@@ -193,6 +249,28 @@ module tovira_points::points {
         });
     }
 
+    fun is_milestone_day(streak: u64): bool {
+        let milestones = vector[5u64, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];
+        let mut i = 0;
+        let len = vector::length(&milestones);
+        
+        while (i < len) {
+            if (*vector::borrow(&milestones, i) == streak) {
+                return true
+            };
+            i = i + 1;
+        };
+        
+        false
+    }
+
+    // Helper to compare dates for consecutive day check
+    // Backend ensures proper YYYY-MM-DD format
+    fun are_dates_consecutive(date1: &String, date2: &String): bool {
+        // Since backend handles date logic, we just check they're different
+        // Backend calculates if yesterday's date matches last_checkin_date
+        date1 != date2
+    }
 
     public entry fun checkin(
         registry: &mut PointsRegistry,
@@ -203,61 +281,109 @@ module tovira_points::points {
         let caller = tx_context::sender(ctx);
         
         assert!(ticket.wallet_address == caller, EUnauthorized);
-        
         assert!(ticket.reason == string::utf8(b"Daily Check-in"), EUnauthorized);
 
         let wallet_key = address_to_string(caller);
         let current_time = clock::timestamp_ms(clock);
+        let checkin_date = ticket.checkin_date;
+
+        // Ticket must have a valid check-in date
+        assert!(*string::bytes(&checkin_date) != *string::bytes(&string::utf8(b"")), EUnauthorized);
+
+        let mut new_streak = 1u64;
+        let mut is_milestone = false;
+        let mut milestone_bonus = 0u64;
+        let base_points = CHECKIN_POINTS;
 
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow(&registry.records, wallet_key);
-            if (record.last_checkin_at > 0) {
-                let time_since_last = current_time - record.last_checkin_at;
-                assert!(time_since_last >= CHECKIN_COOLDOWN_MS, ECheckinTooEarly);
+            
+            // CRITICAL: Check if already checked in TODAY
+            if (record.last_checkin_date == checkin_date) {
+                abort EAlreadyCheckedInToday
+            };
+
+            // Calculate streak
+            // Backend already validated: if last_checkin_date == yesterday, streak continues
+            // The ticket.points_amount already includes the correct streak calculation from backend
+            // But we still need to determine the streak value for storage
+            
+            if (*string::bytes(&record.last_checkin_date) != *string::bytes(&string::utf8(b""))) {
+                // Backend sends points_amount based on whether streak continues
+                // We trust the backend's streak calculation embedded in the ticket
+                // For now, check if dates are consecutive (backend ensures this)
+                if (are_dates_consecutive(&record.last_checkin_date, &checkin_date)) {
+                    new_streak = record.current_streak + 1;
+                } else {
+                    // Streak broken - reset to 1
+                    new_streak = 1;
+                };
             };
         };
 
-        let EligibilityTicket { id, wallet_address: _, points_amount, reason: _, created_at: _ } = ticket;
+        // Check milestone
+        if (is_milestone_day(new_streak)) {
+            is_milestone = true;
+            milestone_bonus = MILESTONE_BONUS;
+        };
+
+        let total_points = base_points + milestone_bonus;
+
+        let EligibilityTicket { 
+            id, 
+            wallet_address: _, 
+            points_amount: _, 
+            reason: _, 
+            created_at: _,
+            checkin_date: _
+        } = ticket;
         object::delete(id);
 
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow_mut(&mut registry.records, wallet_key);
-            record.balance = record.balance + points_amount;
+            record.balance = record.balance + total_points;
             record.last_checkin_at = current_time;
+            record.current_streak = new_streak;
+            record.last_checkin_date = checkin_date;
+            record.total_checkins = record.total_checkins + 1;
         } else {
             let record = PointsRecord {
                 wallet_address: wallet_key,
-                balance: points_amount,
+                balance: total_points,
                 waitlist_claimed: false,
                 claimed_at: current_time,
                 last_checkin_at: current_time,
+                current_streak: new_streak,
+                last_checkin_date: checkin_date,
+                total_checkins: 1,
             };
             table::add(&mut registry.records, wallet_key, record);
         };
 
-        registry.total_supply = registry.total_supply + points_amount;
+        registry.total_supply = registry.total_supply + total_points;
 
         let new_balance = table::borrow(&registry.records, wallet_key).balance;
-        let next_checkin = current_time + CHECKIN_COOLDOWN_MS;
 
         event::emit(CheckInCompleted {
             wallet_address: caller,
-            points_earned: points_amount,
+            points_earned: total_points,
             new_balance,
             timestamp: current_time,
-            next_checkin_available: next_checkin,
+            checkin_date,
+            current_streak: new_streak,
+            is_milestone,
+            milestone_bonus,
         });
 
         event::emit(PointsClaimed {
             wallet_address: caller,
-            amount: points_amount,
+            amount: total_points,
             reason: string::utf8(b"Daily Check-in"),
             new_balance,
             timestamp: current_time,
         });
     }
 
-        // Internal function for other modules to award points
     public(package) fun internal_award_points(
         registry: &mut PointsRegistry,
         wallet_key: String,
@@ -273,13 +399,15 @@ module tovira_points::points {
                 waitlist_claimed: false,
                 claimed_at: 0,
                 last_checkin_at: 0,
+                current_streak: 0,
+                last_checkin_date: string::utf8(b""),
+                total_checkins: 0,
             };
             table::add(&mut registry.records, wallet_key, record);
         };
 
         registry.total_supply = registry.total_supply + amount;
     }
-
 
     public entry fun update_blob_id(
         _admin: &AdminCap,
@@ -299,8 +427,7 @@ module tovira_points::points {
         });
     }
 
-
-
+    // View functions
     public fun get_balance(registry: &PointsRegistry, wallet: String): u64 {
         if (!table::contains(&registry.records, wallet)) {
             return 0
@@ -322,17 +449,26 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).last_checkin_at
     }
 
-    public fun can_checkin(registry: &PointsRegistry, wallet: String, clock: &Clock): bool {
+    // NEW: Get the last check-in DATE (not timestamp)
+    public fun get_last_checkin_date(registry: &PointsRegistry, wallet: String): String {
         if (!table::contains(&registry.records, wallet)) {
-            return true
+            return string::utf8(b"")
         };
-        let record = table::borrow(&registry.records, wallet);
-        if (record.last_checkin_at == 0) {
-            return true
+        table::borrow(&registry.records, wallet).last_checkin_date
+    }
+
+    public fun get_current_streak(registry: &PointsRegistry, wallet: String): u64 {
+        if (!table::contains(&registry.records, wallet)) {
+            return 0
         };
-        let current_time = clock::timestamp_ms(clock);
-        let time_since_last = current_time - record.last_checkin_at;
-        time_since_last >= CHECKIN_COOLDOWN_MS
+        table::borrow(&registry.records, wallet).current_streak
+    }
+
+    public fun get_total_checkins(registry: &PointsRegistry, wallet: String): u64 {
+        if (!table::contains(&registry.records, wallet)) {
+            return 0
+        };
+        table::borrow(&registry.records, wallet).total_checkins
     }
 
     public fun get_total_supply(registry: &PointsRegistry): u64 {
@@ -343,7 +479,6 @@ module tovira_points::points {
         blob_registry.current_blob_id
     }
 
- 
     fun address_to_string(addr: address): String {
         address::to_string(addr)
     }

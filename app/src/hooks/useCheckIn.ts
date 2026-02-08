@@ -22,12 +22,21 @@ export type CheckinStatus =
 export interface CheckinState {
   status: CheckinStatus;
   canCheckin: boolean;
-  lastCheckinAt: number | null;
-  nextAvailableAt: number | null;
-  hoursRemaining: number | null;
+  lastCheckinDate: string | null; // YYYY-MM-DD
+  lastCheckinAt: number | null; // Timestamp (for backward compat)
+  nextAvailableAt: number | null; // Midnight timestamp
+  hoursRemaining: number | null; // Hours until midnight
   pointsEarned: number;
   error: string | null;
   balance: number;
+  currentStreak: number;
+  totalCheckins: number;
+  nextStreak: number;
+  streakWillReset: boolean;
+  nextCheckinPoints: number;
+  nextIsMilestone: boolean;
+  nextMilestone: number;
+  daysToNextMilestone: number;
 }
 
 export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
@@ -37,15 +46,29 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const [state, setState] = useState<CheckinState>({
     status: "idle",
     canCheckin: false,
+    lastCheckinDate: null,
     lastCheckinAt: null,
     nextAvailableAt: null,
     hoursRemaining: null,
     pointsEarned: 0,
     error: null,
     balance: 0,
+    currentStreak: 0,
+    totalCheckins: 0,
+    nextStreak: 1,
+    streakWillReset: false,
+    nextCheckinPoints: 1,
+    nextIsMilestone: false,
+    nextMilestone: 5,
+    daysToNextMilestone: 5,
   });
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get timezone offset in minutes
+  const getTimezoneOffset = useCallback(() => {
+    return new Date().getTimezoneOffset() * -1; // Convert to positive offset
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     const addr = currentAccount?.address;
@@ -54,8 +77,9 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     setState((prev) => ({ ...prev, status: "checking" }));
 
     try {
+      const timezoneOffset = getTimezoneOffset();
       const res = await fetch(
-        `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}`,
+        `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}&timezone_offset=${timezoneOffset}`,
       );
 
       if (!res.ok) {
@@ -68,10 +92,19 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         ...prev,
         status: data.can_checkin ? "idle" : "cooldown",
         canCheckin: data.can_checkin,
+        lastCheckinDate: data.last_checkin_date,
         lastCheckinAt: data.last_checkin_at,
-        nextAvailableAt: data.next_available_at,
-        hoursRemaining: data.hours_remaining,
+        nextAvailableAt: data.next_available_at, // This is midnight timestamp
+        hoursRemaining: data.hours_remaining, // Hours until midnight
         balance: data.balance,
+        currentStreak: data.current_streak || 0,
+        totalCheckins: data.total_checkins || 0,
+        nextStreak: data.next_streak || 1,
+        streakWillReset: data.streak_will_reset || false,
+        nextCheckinPoints: data.next_checkin_points || 1,
+        nextIsMilestone: data.next_is_milestone || false,
+        nextMilestone: data.next_milestone || 5,
+        daysToNextMilestone: data.days_to_next_milestone || 5,
         error: null,
       }));
     } catch (err) {
@@ -81,7 +114,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         error: err instanceof Error ? err.message : "Failed to fetch status",
       }));
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, getTimezoneOffset]);
 
   useEffect(() => {
     fetchStatus();
@@ -109,16 +142,18 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               pollRef.current = null;
             }
 
-            setState({
+            setState((prev) => ({
+              ...prev,
               status: "success",
               canCheckin: false,
               lastCheckinAt: Date.now(),
-              nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000,
+              nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000, // Approximate
               hoursRemaining: 24,
               pointsEarned: expectedPts,
               error: null,
               balance: data.balance,
-            });
+              currentStreak: prev.nextStreak,
+            }));
 
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
@@ -136,16 +171,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             pollRef.current = null;
           }
 
-          setState({
+          setState((prev) => ({
+            ...prev,
             status: "success",
             canCheckin: false,
-            lastCheckinAt: Date.now(),
-            nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000,
-            hoursRemaining: 24,
             pointsEarned: expectedPts,
             error: null,
-            balance: expectedPts,
-          });
+            balance: prev.balance + expectedPts,
+            currentStreak: prev.nextStreak,
+          }));
 
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
@@ -187,7 +221,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       setState((prev) => ({
         ...prev,
         status: "error",
-        error: `Please wait ${state.hoursRemaining} more hours before checking in again.`,
+        error: `You've already checked in today. Next check-in available at midnight (in ${state.hoursRemaining}h).`,
       }));
       return;
     }
@@ -199,11 +233,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }));
 
     try {
+      const timezoneOffset = getTimezoneOffset();
       const ticketRes = await fetch(`${API_BASE}/api/checkin/request-ticket`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet_address: currentAccount.address,
+          timezone_offset: timezoneOffset,
         }),
       });
 
@@ -221,6 +257,8 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
       const ticketId = ticketData.ticket_object_id as string;
       const ptsAmount = ticketData.points_amount as number;
+      const isMilestone = ticketData.is_milestone as boolean;
+      const milestoneBonus = ticketData.milestone_bonus as number;
 
       setState((prev) => ({
         ...prev,
@@ -254,14 +292,21 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         ptsAmount,
         result.digest,
       );
+
+      // Show milestone celebration if applicable
+      if (isMilestone) {
+        console.log(
+          `🎉 Milestone reached! Earned ${ptsAmount} points (${ptsAmount - milestoneBonus} base + ${milestoneBonus} bonus)`,
+        );
+      }
     } catch (err: any) {
       let errorMsg = "Check-in failed. Please try again.";
       if (err?.message) {
         if (err.message.includes("User rejected")) {
           errorMsg = "Transaction was cancelled.";
-        } else if (err.message.includes("MoveAbort")) {
+        } else if (err.message.includes("EAlreadyCheckedInToday")) {
           errorMsg =
-            "Check-in cooldown not passed yet. Please try again later.";
+            "You've already checked in today. Next check-in available at midnight.";
         } else {
           errorMsg = err.message;
         }
@@ -283,6 +328,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     signAndExecute,
     pollForConfirmation,
     fetchStatus,
+    getTimezoneOffset,
   ]);
 
   const reset = useCallback(() => {

@@ -18,13 +18,18 @@ export interface UserProfile {
   // Chat system
   chat_registry_blob_id?: string;
 
-  // Task system (ADD THIS)
+  // Task system
   task_registry_blob_id?: string;
 
   // Task points tracking
   tasks_created_today?: number;
   tasks_claimed_today?: number;
   last_task_reset_date?: string;
+
+  // Check-in streak tracking
+  current_streak?: number;
+  last_checkin_date?: string;
+  total_checkins?: number;
 
   // Subscription
   subscription_tier?: number;
@@ -48,12 +53,18 @@ export interface DecryptedUserProfile {
   // Chat system
   chat_registry_blob_id?: string;
 
-  task_registry_blob_id?: string; // ADD THIS
+  // Task system
+  task_registry_blob_id?: string;
 
   // Task points tracking
   tasks_created_today?: number;
   tasks_claimed_today?: number;
   last_task_reset_date?: string;
+
+  // Check-in streak tracking
+  current_streak?: number;
+  last_checkin_date?: string;
+  total_checkins?: number;
 
   // Subscription
   subscription_tier?: number;
@@ -162,6 +173,11 @@ export class WalrusUserManager {
       profile.chat_registry_blob_id = additionalData.chat_registry_blob_id;
     }
 
+    // Task system
+    if (additionalData?.task_registry_blob_id) {
+      profile.task_registry_blob_id = additionalData.task_registry_blob_id;
+    }
+
     // Task tracking
     if (additionalData?.tasks_created_today !== undefined) {
       profile.tasks_created_today = additionalData.tasks_created_today;
@@ -171,6 +187,17 @@ export class WalrusUserManager {
     }
     if (additionalData?.last_task_reset_date) {
       profile.last_task_reset_date = additionalData.last_task_reset_date;
+    }
+
+    // Check-in streak tracking
+    if (additionalData?.current_streak !== undefined) {
+      profile.current_streak = additionalData.current_streak;
+    }
+    if (additionalData?.last_checkin_date) {
+      profile.last_checkin_date = additionalData.last_checkin_date;
+    }
+    if (additionalData?.total_checkins !== undefined) {
+      profile.total_checkins = additionalData.total_checkins;
     }
 
     // Subscription
@@ -206,10 +233,18 @@ export class WalrusUserManager {
       // Chat system
       chat_registry_blob_id: profile.chat_registry_blob_id,
 
+      // Task system
+      task_registry_blob_id: profile.task_registry_blob_id,
+
       // Task tracking
       tasks_created_today: profile.tasks_created_today || 0,
       tasks_claimed_today: profile.tasks_claimed_today || 0,
       last_task_reset_date: profile.last_task_reset_date,
+
+      // Check-in streak tracking
+      current_streak: profile.current_streak || 0,
+      last_checkin_date: profile.last_checkin_date,
+      total_checkins: profile.total_checkins || 0,
 
       // Subscription
       subscription_tier: profile.subscription_tier || 0,

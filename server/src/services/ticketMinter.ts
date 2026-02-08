@@ -17,7 +17,10 @@ interface CheckInCompletedEvent {
   points_earned: string;
   new_balance: string;
   timestamp: string;
-  next_checkin_available: string;
+  checkin_date: string; // NEW
+  current_streak: string;
+  is_milestone: boolean;
+  milestone_bonus: string;
 }
 
 export class TicketMinter {
@@ -134,6 +137,7 @@ export class TicketMinter {
     }
   }
 
+  // Legacy function for waitlist tickets
   async mintTicket(
     walletAddress: string,
     pointsAmount: number,
@@ -189,6 +193,74 @@ export class TicketMinter {
       return null;
     } catch (error) {
       console.error("❌ mintTicket error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * NEW: Mint check-in ticket with specific date
+   * This ensures the ticket is valid only for the specified date
+   */
+  async mintCheckinTicket(
+    walletAddress: string,
+    pointsAmount: number,
+    checkinDate: string, // YYYY-MM-DD format
+  ): Promise<string | null> {
+    try {
+      console.log(
+        `\n🎟️  Minting check-in ticket → ${walletAddress} for ${checkinDate} (${pointsAmount} pts)`,
+      );
+
+      const tx = new Transaction();
+      const dateBytes = Array.from(new TextEncoder().encode(checkinDate));
+
+      tx.moveCall({
+        target: `${this.packageId}::points::mint_checkin_ticket`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.pure.address(walletAddress),
+          tx.pure.u64(pointsAmount),
+          tx.pure.vector("u8", dateBytes),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        },
+      });
+
+      if (result.effects?.status?.status !== "success") {
+        console.error(
+          "❌ Check-in ticket mint failed:",
+          result.effects?.status?.error,
+        );
+        return null;
+      }
+
+      const created = result.effects?.created;
+      if (created && created.length > 0) {
+        const ticketRef = created[0];
+        const ticketId =
+          typeof ticketRef === "string"
+            ? ticketRef
+            : (ticketRef as any).reference?.objectId ||
+              (ticketRef as any).objectId;
+
+        console.log(
+          `✅ Check-in ticket minted: ${ticketId}  tx=${result.digest}`,
+        );
+        return ticketId;
+      }
+
+      console.warn("⚠️  Tx succeeded but no created object found");
+      return null;
+    } catch (error) {
+      console.error("❌ mintCheckinTicket error:", error);
       throw error;
     }
   }
@@ -342,7 +414,6 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // Try events first
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -393,22 +464,149 @@ export class TicketMinter {
     }
   }
 
-  async canCheckin(walletAddress: string): Promise<boolean> {
+  /**
+   * NEW: Get the last check-in DATE (not timestamp)
+   * Returns YYYY-MM-DD format or empty string
+   */
+  async getLastCheckinDate(walletAddress: string): Promise<string> {
     try {
-      const lastCheckin = await this.getLastCheckin(walletAddress);
+      const normalized = this.normalizeAddress(walletAddress);
 
-      if (lastCheckin === 0) {
-        return true;
+      // Try events first
+      const allEvents = await this.client.queryEvents({
+        query: {
+          MoveEventType: `${this.packageId}::points::CheckInCompleted`,
+        },
+        limit: 50,
+        order: "descending",
+      });
+
+      for (const ev of allEvents.data) {
+        const data = ev.parsedJson as unknown as CheckInCompletedEvent;
+        if (this.normalizeAddress(data.wallet_address) === normalized) {
+          console.log(
+            `✅ getLastCheckinDate → ${data.checkin_date} (from event for ${walletAddress})`,
+          );
+          return data.checkin_date;
+        }
       }
 
-      const now = Date.now();
-      const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-      const timeSinceLast = now - lastCheckin;
+      // Fallback to contract query
+      console.log(
+        `📝 No check-in event found, running devInspect for date of ${walletAddress}`,
+      );
+      const tx = new Transaction();
 
-      return timeSinceLast >= COOLDOWN_MS;
+      tx.moveCall({
+        target: `${this.packageId}::points::get_last_checkin_date`,
+        arguments: [
+          tx.object(this.pointsRegistryId),
+          tx.pure.string(normalized),
+        ],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: normalized,
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        // Decode string from bytes
+        const dateStr = new TextDecoder().decode(new Uint8Array(bytes));
+        return dateStr.trim();
+      }
+
+      return "";
     } catch (error) {
-      console.error("Error in canCheckin:", error);
-      return false;
+      console.error("Error in getLastCheckinDate:", error);
+      return "";
+    }
+  }
+
+  async getCurrentStreak(walletAddress: string): Promise<number> {
+    try {
+      const normalized = this.normalizeAddress(walletAddress);
+
+      const allEvents = await this.client.queryEvents({
+        query: {
+          MoveEventType: `${this.packageId}::points::CheckInCompleted`,
+        },
+        limit: 50,
+        order: "descending",
+      });
+
+      for (const ev of allEvents.data) {
+        const data = ev.parsedJson as unknown as CheckInCompletedEvent;
+        if (this.normalizeAddress(data.wallet_address) === normalized) {
+          const streak = Number(data.current_streak);
+          console.log(
+            `✅ getCurrentStreak → ${streak} (from event for ${walletAddress})`,
+          );
+          return streak;
+        }
+      }
+
+      console.log(
+        `📝 No check-in event found, running devInspect for streak of ${walletAddress}`,
+      );
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::get_current_streak`,
+        arguments: [
+          tx.object(this.pointsRegistryId),
+          tx.pure.string(normalized),
+        ],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: normalized,
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        const view = new DataView(new Uint8Array(bytes).buffer);
+        return Number(view.getBigUint64(0, true));
+      }
+
+      return 0;
+    } catch (error) {
+      console.error("Error in getCurrentStreak:", error);
+      return 0;
+    }
+  }
+
+  async getTotalCheckins(walletAddress: string): Promise<number> {
+    try {
+      const normalized = this.normalizeAddress(walletAddress);
+
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::get_total_checkins`,
+        arguments: [
+          tx.object(this.pointsRegistryId),
+          tx.pure.string(normalized),
+        ],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: normalized,
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        const view = new DataView(new Uint8Array(bytes).buffer);
+        return Number(view.getBigUint64(0, true));
+      }
+
+      return 0;
+    } catch (error) {
+      console.error("Error in getTotalCheckins:", error);
+      return 0;
     }
   }
 
@@ -465,95 +663,6 @@ export class TicketMinter {
     } catch (error) {
       console.error("Error reading BlobRegistry:", error);
       return null;
-    }
-  }
-
-  async mintTaskClaimTicket(
-    walletAddress: string,
-    taskCount: number,
-  ): Promise<string | null> {
-    try {
-      const pointsAmount = taskCount * 2;
-
-      console.log(
-        `\n🎟️  Minting task claim ticket → ${walletAddress} (${taskCount} tasks, ${pointsAmount} pts)`,
-      );
-
-      const tx = new Transaction();
-
-      tx.moveCall({
-        target: `${this.packageId}::task_points::mint_task_claim_ticket`,
-        arguments: [
-          tx.object(this.adminCapId),
-          tx.pure.address(walletAddress),
-          tx.pure.u64(taskCount),
-          tx.object("0x6"),
-        ],
-      });
-
-      const result = await this.client.signAndExecuteTransaction({
-        signer: this.keypair,
-        transaction: tx,
-        options: {
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true, // ← CRITICAL: Add this
-        },
-      });
-
-      if (result.effects?.status?.status !== "success") {
-        console.error(
-          "❌ Task claim ticket mint failed:",
-          result.effects?.status?.error,
-        );
-        return null;
-      }
-
-      // Method 1: Try objectChanges first (most reliable)
-      if (result.objectChanges) {
-        const createdObject = result.objectChanges.find(
-          (change: any) => change.type === "created",
-        );
-
-        if (createdObject && (createdObject as any).objectId) {
-          const ticketId = (createdObject as any).objectId;
-          console.log(
-            `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
-          );
-          return ticketId;
-        }
-      }
-
-      // Method 2: Fallback to effects.created
-      const created = result.effects?.created;
-      if (created && created.length > 0) {
-        const ticketRef = created[0];
-
-        let ticketId: string | undefined;
-
-        if (typeof ticketRef === "string") {
-          ticketId = ticketRef;
-        } else if (ticketRef && typeof ticketRef === "object") {
-          ticketId =
-            (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId ||
-            (ticketRef as any).digest;
-        }
-
-        if (ticketId) {
-          console.log(
-            `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
-          );
-          return ticketId;
-        }
-      }
-
-      console.error("⚠️  Tx succeeded but no ticket object ID found");
-      console.error("Result structure:", JSON.stringify(result, null, 2));
-      return null;
-    } catch (error) {
-      console.error("❌ mintTaskClaimTicket error:", error);
-      throw error;
     }
   }
 }

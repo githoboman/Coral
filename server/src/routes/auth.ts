@@ -190,7 +190,7 @@ router.post(
       console.log(`🎟️  Minting EligibilityTicket for ${wallet_address}...`);
       const ticketObjectId = await minter.mintTicket(
         wallet_address,
-        300,
+        100,
         "Waitlist Bonus",
       );
 

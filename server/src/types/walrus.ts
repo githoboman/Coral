@@ -11,6 +11,28 @@ export interface UserProfile {
   last_name?: EncryptedData | string;
   preferences?: EncryptedData | Record<string, any>;
   waitlist_verified_at?: string;
+
+  // Chat system
+  chat_registry_blob_id?: string;
+
+  // Task system
+  task_registry_blob_id?: string;
+
+  // Task points tracking
+  tasks_created_today?: number;
+  tasks_claimed_today?: number;
+  last_task_reset_date?: string;
+
+  // Check-in streak tracking
+  current_streak?: number;
+  last_checkin_date?: string;
+  total_checkins?: number;
+
+  // Subscription
+  subscription_tier?: number;
+  subscription_expires_at?: string;
+  daily_prompts_used?: number;
+  last_prompt_date?: string;
 }
 
 export interface DecryptedUserProfile {
@@ -24,6 +46,28 @@ export interface DecryptedUserProfile {
   last_name?: string;
   preferences?: Record<string, any>;
   waitlist_verified_at?: string;
+
+  // Chat system
+  chat_registry_blob_id?: string;
+
+  // Task system
+  task_registry_blob_id?: string;
+
+  // Task points tracking
+  tasks_created_today?: number;
+  tasks_claimed_today?: number;
+  last_task_reset_date?: string;
+
+  // Check-in streak tracking
+  current_streak?: number;
+  last_checkin_date?: string;
+  total_checkins?: number;
+
+  // Subscription
+  subscription_tier?: number;
+  subscription_expires_at?: string;
+  daily_prompts_used?: number;
+  last_prompt_date?: string;
 }
 
 export interface UsersRegistry {
@@ -74,6 +118,8 @@ export interface AccountDetails {
   rank?: number;
   is_premium: boolean;
   created_at: string;
+  current_streak?: number;
+  total_checkins?: number;
 }
 
 export interface LeaderboardEntry {
