@@ -467,4 +467,93 @@ export class TicketMinter {
       return null;
     }
   }
+
+  async mintTaskClaimTicket(
+    walletAddress: string,
+    taskCount: number,
+  ): Promise<string | null> {
+    try {
+      const pointsAmount = taskCount * 2;
+
+      console.log(
+        `\n🎟️  Minting task claim ticket → ${walletAddress} (${taskCount} tasks, ${pointsAmount} pts)`,
+      );
+
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::task_points::mint_task_claim_ticket`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.pure.address(walletAddress),
+          tx.pure.u64(taskCount),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true, // ← CRITICAL: Add this
+        },
+      });
+
+      if (result.effects?.status?.status !== "success") {
+        console.error(
+          "❌ Task claim ticket mint failed:",
+          result.effects?.status?.error,
+        );
+        return null;
+      }
+
+      // Method 1: Try objectChanges first (most reliable)
+      if (result.objectChanges) {
+        const createdObject = result.objectChanges.find(
+          (change: any) => change.type === "created",
+        );
+
+        if (createdObject && (createdObject as any).objectId) {
+          const ticketId = (createdObject as any).objectId;
+          console.log(
+            `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
+          );
+          return ticketId;
+        }
+      }
+
+      // Method 2: Fallback to effects.created
+      const created = result.effects?.created;
+      if (created && created.length > 0) {
+        const ticketRef = created[0];
+
+        let ticketId: string | undefined;
+
+        if (typeof ticketRef === "string") {
+          ticketId = ticketRef;
+        } else if (ticketRef && typeof ticketRef === "object") {
+          ticketId =
+            (ticketRef as any).reference?.objectId ||
+            (ticketRef as any).objectId ||
+            (ticketRef as any).digest;
+        }
+
+        if (ticketId) {
+          console.log(
+            `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
+          );
+          return ticketId;
+        }
+      }
+
+      console.error("⚠️  Tx succeeded but no ticket object ID found");
+      console.error("Result structure:", JSON.stringify(result, null, 2));
+      return null;
+    } catch (error) {
+      console.error("❌ mintTaskClaimTicket error:", error);
+      throw error;
+    }
+  }
 }

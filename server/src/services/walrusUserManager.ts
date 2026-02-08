@@ -1,3 +1,4 @@
+// server/src/services/walrusUserManager.ts
 import axios from "axios";
 import "dotenv/config";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
@@ -13,6 +14,23 @@ export interface UserProfile {
   last_name?: EncryptedData | string;
   preferences?: EncryptedData | Record<string, any>;
   waitlist_verified_at?: string;
+
+  // Chat system
+  chat_registry_blob_id?: string;
+
+  // Task system (ADD THIS)
+  task_registry_blob_id?: string;
+
+  // Task points tracking
+  tasks_created_today?: number;
+  tasks_claimed_today?: number;
+  last_task_reset_date?: string;
+
+  // Subscription
+  subscription_tier?: number;
+  subscription_expires_at?: string;
+  daily_prompts_used?: number;
+  last_prompt_date?: string;
 }
 
 export interface DecryptedUserProfile {
@@ -26,6 +44,22 @@ export interface DecryptedUserProfile {
   last_name?: string;
   preferences?: Record<string, any>;
   waitlist_verified_at?: string;
+
+  // Chat system
+  chat_registry_blob_id?: string;
+
+  task_registry_blob_id?: string; // ADD THIS
+
+  // Task points tracking
+  tasks_created_today?: number;
+  tasks_claimed_today?: number;
+  last_task_reset_date?: string;
+
+  // Subscription
+  subscription_tier?: number;
+  subscription_expires_at?: string;
+  daily_prompts_used?: number;
+  last_prompt_date?: string;
 }
 
 export interface UsersRegistry {
@@ -123,6 +157,36 @@ export class WalrusUserManager {
       profile.waitlist_verified_at = additionalData.waitlist_verified_at;
     }
 
+    // Chat system
+    if (additionalData?.chat_registry_blob_id) {
+      profile.chat_registry_blob_id = additionalData.chat_registry_blob_id;
+    }
+
+    // Task tracking
+    if (additionalData?.tasks_created_today !== undefined) {
+      profile.tasks_created_today = additionalData.tasks_created_today;
+    }
+    if (additionalData?.tasks_claimed_today !== undefined) {
+      profile.tasks_claimed_today = additionalData.tasks_claimed_today;
+    }
+    if (additionalData?.last_task_reset_date) {
+      profile.last_task_reset_date = additionalData.last_task_reset_date;
+    }
+
+    // Subscription
+    if (additionalData?.subscription_tier !== undefined) {
+      profile.subscription_tier = additionalData.subscription_tier;
+    }
+    if (additionalData?.subscription_expires_at) {
+      profile.subscription_expires_at = additionalData.subscription_expires_at;
+    }
+    if (additionalData?.daily_prompts_used !== undefined) {
+      profile.daily_prompts_used = additionalData.daily_prompts_used;
+    }
+    if (additionalData?.last_prompt_date) {
+      profile.last_prompt_date = additionalData.last_prompt_date;
+    }
+
     return profile;
   }
 
@@ -138,6 +202,20 @@ export class WalrusUserManager {
       last_name: this.encryption.decryptOptional(profile.last_name),
       preferences: this.encryption.decryptPreferences(profile.preferences),
       waitlist_verified_at: profile.waitlist_verified_at,
+
+      // Chat system
+      chat_registry_blob_id: profile.chat_registry_blob_id,
+
+      // Task tracking
+      tasks_created_today: profile.tasks_created_today || 0,
+      tasks_claimed_today: profile.tasks_claimed_today || 0,
+      last_task_reset_date: profile.last_task_reset_date,
+
+      // Subscription
+      subscription_tier: profile.subscription_tier || 0,
+      subscription_expires_at: profile.subscription_expires_at,
+      daily_prompts_used: profile.daily_prompts_used || 0,
+      last_prompt_date: profile.last_prompt_date,
     };
   }
 

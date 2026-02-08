@@ -21,7 +21,7 @@ export interface AgentState {
   error?: string;
   // For immediate task execution
   pendingAction?: {
-    taskId: number;
+    taskId: string;
     actionType: string;
     actionParams: any;
   };
@@ -29,23 +29,23 @@ export interface AgentState {
 
 export interface WorkflowStep {
   step: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   message: string;
 }
 
 export enum AgentType {
-  RESEARCH = 'research_agent',
-  TASK = 'task_agent',
-  ALERT = 'alert_agent',
-  MAIN = 'main',
+  RESEARCH = "research_agent",
+  TASK = "task_agent",
+  ALERT = "alert_agent",
+  MAIN = "main",
 }
 
 export enum IntentType {
-  RESEARCH = 'research',
-  TASK = 'task',
-  ALERT = 'alert',
-  CHAT = 'chat',
-  UNKNOWN = 'unknown',
+  RESEARCH = "research",
+  TASK = "task",
+  ALERT = "alert",
+  CHAT = "chat",
+  UNKNOWN = "unknown",
 }
 
 export interface RouterResponse {
@@ -63,7 +63,7 @@ export interface ChatRequest {
   chat_id?: string;
   transaction_hash?: string; // Gas payment transaction hash
   history?: Array<{
-    role: 'user' | 'assistant';
+    role: "user" | "assistant";
     content: string;
   }>;
 }
@@ -78,7 +78,7 @@ export interface ChatResponse {
   points_awarded?: number;
   // For immediate task execution - frontend should trigger signing
   pending_action?: {
-    task_id: number;
+    task_id: string;
     action_type: string;
     action_params: any;
   };
@@ -86,22 +86,22 @@ export interface ChatResponse {
 
 // Task Action Types for Web3 Automation
 export enum TaskActionType {
-  REMINDER = 'reminder',
-  TOKEN_TRANSFER = 'token_transfer',
-  DCA_PURCHASE = 'dca_purchase',
+  REMINDER = "reminder",
+  TOKEN_TRANSFER = "token_transfer",
+  DCA_PURCHASE = "dca_purchase",
 }
 
 export interface TokenTransferParams {
   recipientAddress: string;
-  coinType: string;       // e.g., "0x2::sui::SUI"
-  amount: string;         // In base units (MIST for SUI)
+  coinType: string; // e.g., "0x2::sui::SUI"
+  amount: string; // In base units (MIST for SUI)
 }
 
 export interface DCAParams {
-  fromCoin: string;       // e.g., "0x2::sui::SUI"
-  toCoin: string;         // e.g., "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN" (USDC)
+  fromCoin: string; // e.g., "0x2::sui::SUI"
+  toCoin: string; // e.g., "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN" (USDC)
   amountPerPurchase: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: "daily" | "weekly" | "monthly";
   nextExecutionDate?: string;
 }
 
@@ -110,7 +110,13 @@ export type TaskActionParams = TokenTransferParams | DCAParams;
 export interface TaskAction {
   type: TaskActionType;
   params: TaskActionParams;
-  status: 'pending' | 'ready' | 'awaiting_signature' | 'executing' | 'completed' | 'failed';
+  status:
+    | "pending"
+    | "ready"
+    | "awaiting_signature"
+    | "executing"
+    | "completed"
+    | "failed";
   txDigest?: string;
   error?: string;
   lastExecutedAt?: string;

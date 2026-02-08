@@ -1,17 +1,19 @@
-import { Router } from 'express';
-import { agentGraph } from '../services/agents/graph';
+// server/src/routes/chat.ts
+import { Router } from "express";
+import { agentGraph } from "../services/agents/graph";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import { ChatRequest, ChatResponse } from '../services/agents/types';
-import getSupabaseClient from '../config/supabase';
-import { rateLimitMiddleware, redisClient } from '../middleware/rateLimiter';
-import { awardChatPoints } from '../services/pointsService';
+import { ChatRequest, ChatResponse } from "../services/agents/types";
+import {
+  unifiedRateLimitMiddleware,
+  trackMessageUsage,
+} from "../middleware/unifiedRateLimiter";
+import { awardChatPoints } from "../services/pointsService";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { fetchBalanceDirect } from "../services/agents/tools/sui";
+import { getChatStorageService } from "../services/chatStorageService";
 
 const router = Router();
-const supabase = getSupabaseClient();
 
-// LLM for generating chat titles
 const titleModel = new ChatGoogleGenerativeAI({
   model: "gemini-2.0-flash",
   temperature: 0.3,
@@ -19,8 +21,11 @@ const titleModel = new ChatGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-// Generate a concise, descriptive chat title using LLM
-async function generateChatTitle(userMessage: string, aiResponse: string): Promise<string> {
+// Generate chat title
+async function generateChatTitle(
+  userMessage: string,
+  aiResponse: string,
+): Promise<string> {
   try {
     const prompt = `Generate a short, concise title (3-6 words max) for this chat. No quotes, no punctuation at end.
 
@@ -33,261 +38,249 @@ Title:`;
     const title = (result.content as string).trim().substring(0, 50);
     return title || userMessage.substring(0, 50);
   } catch (error) {
-    console.error('Error generating chat title:', error);
+    console.error("Error generating chat title:", error);
     return userMessage.substring(0, 50);
   }
 }
 
-// Main chat endpoint
-router.post('/chat', rateLimitMiddleware, async (req, res) => {
-  console.log('[CHAT ROUTE] POST /chat endpoint hit!');
-  console.log('[CHAT ROUTE] Request body:', req.body);
+// Main chat endpoint - Use unified rate limiter
+router.post("/chat", unifiedRateLimitMiddleware, async (req, res) => {
+  console.log("[CHAT ROUTE] POST /chat endpoint hit!");
+
   try {
-    const { user_id, message, chat_id, agent_id, transaction_hash }: ChatRequest = req.body;
+    const {
+      user_id,
+      message,
+      chat_id,
+      agent_id,
+      transaction_hash,
+    }: ChatRequest = req.body;
 
     if (!user_id || !message) {
-      return res.status(400).json({ error: 'user_id and message are required' });
+      return res
+        .status(400)
+        .json({ error: "user_id and message are required" });
     }
 
-    // Initialize state
-    const historyMessages = (req.body.history || []).map((msg: any) =>
-      msg.role === 'user' ? new HumanMessage(msg.content) : new AIMessage(msg.content)
-    );
+    // Validate user_id format (Sui address)
+    if (!user_id.startsWith("0x") || user_id.length !== 66) {
+      return res.status(400).json({ error: "Invalid wallet address format" });
+    }
 
-    // Fetch balance if wallet address
+    // Get chat storage service
+    const chatStorage = getChatStorageService();
+
+    // Fetch wallet balance if needed
     let walletBalance = undefined;
-    if (user_id.startsWith('0x')) {
+    if (user_id.startsWith("0x")) {
       walletBalance = await fetchBalanceDirect(user_id);
+    }
+
+    // Load chat history if chat_id provided
+    let historyMessages: any[] = [];
+    if (chat_id) {
+      const messages = await chatStorage.getMessages(chat_id);
+      historyMessages = messages.map((msg) =>
+        msg.sender === "user"
+          ? new HumanMessage(msg.text)
+          : new AIMessage(msg.text),
+      );
+    } else if (req.body.history) {
+      historyMessages = req.body.history.map((msg: any) =>
+        msg.role === "user"
+          ? new HumanMessage(msg.content)
+          : new AIMessage(msg.content),
+      );
     }
 
     const initialState = {
       messages: [...historyMessages, new HumanMessage(message)],
       userQuery: message,
       userId: user_id,
-      walletAddress: user_id.startsWith('0x') ? user_id : undefined,
+      walletAddress: user_id.startsWith("0x") ? user_id : undefined,
       walletBalance,
       chatId: chat_id,
       transactionHash: transaction_hash,
-      gasPaid: !!transaction_hash, // If transaction hash provided, gas is paid
+      gasPaid: !!transaction_hash,
     };
 
-    console.log('[CHAT ROUTE] Initial state:', {
-      hasTransactionHash: !!transaction_hash,
-      gasPaid: !!transaction_hash,
-    });
-
-    // Run the graph
+    // Run agent graph
     const result = await agentGraph.invoke(initialState);
 
-    // Generate chat_id if not provided
+    // Create new chat if needed
     let activeChatId = chat_id;
     if (!activeChatId) {
-      // Generate smart title using LLM
-      const chatTitle = await generateChatTitle(message, result.finalResponse as string || '');
+      const chatTitle = await generateChatTitle(
+        message,
+        (result.finalResponse as string) || "",
+      );
 
-      // Create new chat
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          user_id,
-          name: chatTitle,
-          agent_id: agent_id || 'main',
-        })
-        .select('chat_id')
-        .single();
+      const { chatId: newChatId, registryBlobId } =
+        await chatStorage.createChat(user_id, chatTitle, agent_id || "main");
 
-      if (chatError) {
-        console.error('Error creating chat:', chatError);
-        return res.status(500).json({ error: 'Failed to create chat' });
-      }
+      activeChatId = newChatId;
 
-      activeChatId = newChat.chat_id;
+      console.log(
+        `✅ New chat created: ${newChatId}, Registry: ${registryBlobId}`,
+      );
     }
 
-    // Save user message
-    await supabase.from('chat_messages').insert({
-      chat_id: activeChatId,
-      user_id,
-      query: message,
-      sender: 'user',
+    // Save messages to Walrus
+    await chatStorage.addMessage(activeChatId, user_id, {
+      id: `${Date.now()}_user`,
+      text: message,
+      sender: "user",
+      timestamp: new Date().toISOString(),
     });
 
-    // Save AI response
-    await supabase.from('chat_messages').insert({
-      chat_id: activeChatId,
-      user_id,
-      query: result.finalResponse || 'No response generated',
-      sender: 'ai',
+    await chatStorage.addMessage(activeChatId, user_id, {
+      id: `${Date.now()}_ai`,
+      text: (result.finalResponse as string) || "No response generated",
+      sender: "ai",
+      timestamp: new Date().toISOString(),
+      agentType: result.targetAgent as string,
+      agentId: agent_id || "main",
     });
 
-    // Update chat last_updated
-    await supabase
-      .from('chats')
-      .update({ last_updated: new Date().toISOString() })
-      .eq('chat_id', activeChatId);
+    // ✅ Track usage AFTER successful response
+    if ((req as any).shouldTrackUsage) {
+      await trackMessageUsage(user_id);
+    }
 
-    // Award chat points (max 5/day)
+    // Award chat points
     const pointsResult = await awardChatPoints(user_id);
 
-    const pendingAction = result.pendingAction as { taskId: number; actionType: string; actionParams: any } | undefined;
-    console.log('[CHAT ROUTE] pendingAction from result:', pendingAction);
+    const pendingAction = result.pendingAction as
+      | { taskId: string; actionType: string; actionParams: any }
+      | undefined;
 
     const response: ChatResponse = {
-      response: (result.finalResponse as string) || 'No response generated',
-      agent_used: (result.targetAgent as string) || 'main',
+      response: (result.finalResponse as string) || "No response generated",
+      agent_used: (result.targetAgent as string) || "main",
       chat_id: activeChatId as string,
       requires_fee: result.requiresFee as boolean | undefined,
       estimated_cost: result.estimatedCost as number | undefined,
       workflow_steps: result.workflowSteps as any,
       points_awarded: pointsResult.points_awarded,
-      pending_action: pendingAction ? {
-        task_id: pendingAction.taskId,
-        action_type: pendingAction.actionType,
-        action_params: pendingAction.actionParams,
-      } : undefined,
+      pending_action: pendingAction
+        ? {
+            task_id: pendingAction.taskId,
+            action_type: pendingAction.actionType,
+            action_params: pendingAction.actionParams,
+          }
+        : undefined,
     };
 
     res.json(response);
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error("Chat error:", error);
     res.status(500).json({
-      error: 'Failed to process message',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: "Failed to process message",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });
 
-// Streaming endpoint (SSE)
-router.post('/chat/stream', async (req, res) => {
-  try {
-    const { user_id, message, chat_id }: ChatRequest = req.body;
-
-    if (!user_id || !message) {
-      return res.status(400).json({ error: 'user_id and message are required' });
-    }
-
-    // Set up SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-
-    const initialState = {
-      messages: [new HumanMessage(message)],
-      userQuery: message,
-      userId: user_id,
-      chatId: chat_id,
-    };
-
-    // Stream the graph execution
-    const stream = await agentGraph.stream(initialState);
-
-    for await (const chunk of stream) {
-      // Send each chunk as SSE
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error) {
-    console.error('Streaming error:', error);
-    res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
-    res.end();
-  }
-});
-
-// Get chat history
-router.get('/chats/:userId', async (req, res) => {
+// Get chat history for user
+router.get("/chats/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { agentId } = req.query;
 
-    let query = supabase
-      .from('chats')
-      .select('*')
-      .eq('user_id', userId)
-      .order('last_updated', { ascending: false });
-
-    if (agentId) {
-      query = query.eq('agent_id', agentId);
+    if (!userId.startsWith("0x") || userId.length !== 66) {
+      return res.status(400).json({ error: "Invalid wallet address format" });
     }
 
-    const { data: chats, error } = await query;
-
-    if (error) {
-      console.error('Error fetching chats:', error);
-      return res.status(500).json({ error: 'Failed to fetch chats' });
-    }
+    const chatStorage = getChatStorageService();
+    const chats = await chatStorage.getChatList(userId);
 
     res.json(chats);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to fetch chats' });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to fetch chats" });
   }
 });
 
 // Get messages for a chat
-router.get('/chats/:chatId/messages', async (req, res) => {
+router.get("/chats/:chatId/messages", async (req, res) => {
   try {
     const { chatId } = req.params;
+    const { user_id } = req.query;
 
-    const { data: messages, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('chat_id', chatId)
-      .order('timestamp', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching messages:', error);
-      return res.status(500).json({ error: 'Failed to fetch messages' });
+    if (!user_id || typeof user_id !== "string") {
+      return res.status(400).json({ error: "user_id is required" });
     }
+
+    if (!user_id.startsWith("0x") || user_id.length !== 66) {
+      return res.status(400).json({ error: "Invalid wallet address format" });
+    }
+
+    const chatStorage = getChatStorageService();
+    const messages = await chatStorage.getMessages(chatId);
 
     res.json(messages);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to fetch messages' });
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to fetch messages" });
   }
 });
 
-// Get rate limit status for a user
-router.get('/rate-limit/:userId', async (req, res) => {
+// Delete chat
+router.delete("/chats/:chatId", async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { user_id } = req.query;
+
+    if (!user_id || typeof user_id !== "string") {
+      return res.status(400).json({ error: "user_id is required" });
+    }
+
+    if (!user_id.startsWith("0x") || user_id.length !== 66) {
+      return res.status(400).json({ error: "Invalid wallet address format" });
+    }
+
+    const chatStorage = getChatStorageService();
+    const success = await chatStorage.deleteChat(user_id, chatId);
+
+    if (!success) {
+      return res.status(500).json({ error: "Failed to delete chat" });
+    }
+
+    res.json({ message: "Chat deleted successfully" });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to delete chat" });
+  }
+});
+
+// Get message usage status
+router.get("/message-usage/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const LIMIT = 4;
-    const key = `ratelimit:${userId}`;
-
-    // If Redis not available, return unlimited
-    if (!redisClient || !redisClient.isOpen) {
-      return res.json({
-        limit: LIMIT,
-        remaining: LIMIT,
-        resetIn: null,
-        isLimited: false
-      });
+    if (!userId.startsWith("0x") || userId.length !== 66) {
+      return res.status(400).json({ error: "Invalid wallet address format" });
     }
 
-    const current = await redisClient.get(key);
-    const count = current ? parseInt(current) : 0;
-    const ttl = count > 0 ? await redisClient.ttl(key) : 0;
+    const { getSubscriptionService } =
+      await import("../services/subscriptionService");
+    const subscriptionService = getSubscriptionService();
+
+    const stats = await subscriptionService.getPromptsRemaining(userId);
 
     res.json({
-      limit: LIMIT,
-      remaining: Math.max(0, LIMIT - count),
-      resetInSeconds: count >= LIMIT ? ttl : null, // seconds for countdown
-      isLimited: count >= LIMIT
+      ...stats,
+      reset_at: "midnight UTC",
     });
   } catch (error) {
-    console.error('Error checking rate limit:', error);
-    // On error, assume not limited
+    console.error("Error checking message usage:", error);
     res.json({
-      limit: 4,
-      remaining: 4,
-      resetIn: null,
-      isLimited: false
+      used: 0,
+      limit: 2,
+      remaining: 2,
+      tier: 0,
+      reset_at: "midnight UTC",
     });
   }
 });
 
 export default router;
-
