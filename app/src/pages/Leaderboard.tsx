@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Trophy, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
@@ -23,6 +23,7 @@ const Leaderboard = () => {
 
     // Listen for points updates from other components (bypass cache for immediate update)
     const handlePointsUpdate = () => {
+      console.log("🔄 Points updated - refreshing leaderboard immediately");
       dispatch(fetchLeaderboard(true)); // forceRefresh = true
     };
 

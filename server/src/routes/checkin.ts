@@ -18,21 +18,45 @@ function getUserManager(): WalrusUserManager {
 }
 
 // ============================================================================
+// IN-MEMORY CACHE FOR STATUS REQUESTS
+// ============================================================================
+interface StatusCache {
+  data: any;
+  timestamp: number;
+}
+
+const statusCache = new Map<string, StatusCache>();
+const CACHE_TTL = 3000; // 3 seconds
+
+function getCachedStatus(walletAddress: string): any | null {
+  const cached = statusCache.get(walletAddress);
+  if (!cached) return null;
+
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_TTL) {
+    statusCache.delete(walletAddress);
+    return null;
+  }
+
+  return cached.data;
+}
+
+function setCachedStatus(walletAddress: string, data: any): void {
+  statusCache.set(walletAddress, {
+    data,
+    timestamp: Date.now(),
+  });
+}
+
+// ============================================================================
 // DATE UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Get user's current date in their timezone
- * @param timezoneOffset - Offset in minutes (e.g., -300 for EST)
- * @returns Date string in YYYY-MM-DD format
- */
 function getUserDate(timezoneOffset: number): string {
   const now = new Date();
-  // Apply timezone offset
   const userMs = now.getTime() + timezoneOffset * 60000;
   const userDate = new Date(userMs);
 
-  // Extract YYYY-MM-DD
   const year = userDate.getUTCFullYear();
   const month = String(userDate.getUTCMonth() + 1).padStart(2, "0");
   const day = String(userDate.getUTCDate()).padStart(2, "0");
@@ -40,15 +64,11 @@ function getUserDate(timezoneOffset: number): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Get yesterday's date in user's timezone
- */
 function getYesterdayDate(timezoneOffset: number): string {
   const now = new Date();
   const userMs = now.getTime() + timezoneOffset * 60000;
   const userDate = new Date(userMs);
 
-  // Subtract one day
   userDate.setUTCDate(userDate.getUTCDate() - 1);
 
   const year = userDate.getUTCFullYear();
@@ -58,34 +78,15 @@ function getYesterdayDate(timezoneOffset: number): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Get midnight timestamp in user's timezone
- * This is when the next check-in becomes available
- */
 function getMidnightTimestamp(timezoneOffset: number): number {
   const now = new Date();
   const userMs = now.getTime() + timezoneOffset * 60000;
   const userDate = new Date(userMs);
 
-  // Set to start of next day in UTC context
   userDate.setUTCHours(0, 0, 0, 0);
   userDate.setUTCDate(userDate.getUTCDate() + 1);
 
-  // Convert back to actual UTC timestamp
   return userDate.getTime() - timezoneOffset * 60000;
-}
-
-/**
- * Check if two dates are consecutive calendar days
- */
-function areDatesConsecutive(date1: string, date2: string): boolean {
-  const d1 = new Date(date1 + "T00:00:00Z");
-  const d2 = new Date(date2 + "T00:00:00Z");
-
-  const diffMs = d2.getTime() - d1.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  return diffDays === 1;
 }
 
 // ============================================================================
@@ -142,24 +143,49 @@ router.get(
         return;
       }
 
+      // Check cache first
+      const cached = getCachedStatus(wallet_address);
+      if (cached) {
+        console.log(
+          `💨 Serving cached status for ${wallet_address.substring(0, 10)}...`,
+        );
+        res.json(cached);
+        return;
+      }
+
       const timezoneOffset = timezone_offset
         ? parseInt(timezone_offset as string)
         : 0;
       const minter = getTicketMinter();
 
-      // Get user's current data
-      const lastCheckinDate = await minter.getLastCheckinDate(wallet_address);
-      const currentStreak = await minter.getCurrentStreak(wallet_address);
-      const totalCheckins = await minter.getTotalCheckins(wallet_address);
-      const balance = await minter.getBalance(wallet_address);
-      const checkinFee = await minter.getCheckinFee(); // NEW: Get current fee
+      // Parallel fetch for better performance
+      const [lastCheckinDate, currentStreak, balance, checkinFee] =
+        await Promise.all([
+          minter.getLastCheckinDate(wallet_address),
+          minter.getCurrentStreak(wallet_address),
+          minter.getBalance(wallet_address),
+          minter.getCheckinFee(),
+        ]);
 
-      // Calculate dates in user's timezone
+      // Get total check-ins - try multiple methods
+      let totalCheckins = 0;
+      try {
+        totalCheckins = await minter.getTotalCheckins(wallet_address);
+        console.log(
+          `📊 Total check-ins for ${wallet_address.substring(0, 10)}: ${totalCheckins}`,
+        );
+      } catch (error) {
+        console.warn(
+          `⚠️  Error fetching total_checkins, using current_streak as fallback:`,
+          error,
+        );
+        // Fallback: use current streak as approximation
+        totalCheckins = currentStreak;
+      }
+
       const userDateToday = getUserDate(timezoneOffset);
       const yesterdayDate = getYesterdayDate(timezoneOffset);
 
-      // Determine if user can check in
-      // Rule: Can check in if last_checkin_date !== today's date
       const canCheckin = lastCheckinDate !== userDateToday;
 
       let nextAvailableMs: number | null = null;
@@ -168,37 +194,30 @@ router.get(
       let nextStreak = 1;
 
       if (!canCheckin) {
-        // Already checked in today - next available at midnight
         const midnightMs = getMidnightTimestamp(timezoneOffset);
         const now = Date.now();
         const timeRemainingMs = midnightMs - now;
         hoursRemaining = Math.ceil(timeRemainingMs / (1000 * 60 * 60));
         nextAvailableMs = midnightMs;
-        nextStreak = currentStreak + 1; // Will continue if they check in tomorrow
+        nextStreak = currentStreak + 1;
       } else {
-        // Can check in now
         if (lastCheckinDate) {
-          // Check if streak will continue or reset
           if (lastCheckinDate === yesterdayDate) {
-            // Last check-in was yesterday - streak continues
             nextStreak = currentStreak + 1;
             streakWillReset = false;
           } else {
-            // Last check-in was NOT yesterday - streak will reset
             nextStreak = 1;
-            streakWillReset = currentStreak > 0; // Only show warning if they had a streak
+            streakWillReset = currentStreak > 0;
           }
         } else {
-          // First time checking in
           nextStreak = 1;
           streakWillReset = false;
         }
       }
 
-      // Calculate points for next check-in
       const pointsInfo = calculateCheckinPoints(nextStreak);
 
-      res.json({
+      const response = {
         can_checkin: canCheckin,
         last_checkin_date: lastCheckinDate || null,
         last_checkin_at: lastCheckinDate
@@ -215,8 +234,13 @@ router.get(
         next_is_milestone: pointsInfo.isMilestone,
         next_milestone: pointsInfo.nextMilestone,
         days_to_next_milestone: pointsInfo.nextMilestone - nextStreak,
-        checkin_fee: checkinFee, // NEW: Return current fee
-      });
+        checkin_fee: checkinFee,
+      };
+
+      // Cache the response
+      setCachedStatus(wallet_address, response);
+
+      res.json(response);
     } catch (error) {
       console.error("Error in checkin/status:", error);
       next(error);
@@ -242,19 +266,19 @@ router.post(
         return;
       }
 
+      // Clear cache on ticket request
+      statusCache.delete(wallet_address);
+
       const timezoneOffset = timezone_offset || 0;
       const minter = getTicketMinter();
 
-      // Get user's current data
       const lastCheckinDate = await minter.getLastCheckinDate(wallet_address);
       const currentStreak = await minter.getCurrentStreak(wallet_address);
-      const checkinFee = await minter.getCheckinFee(); // NEW: Get current fee
+      const checkinFee = await minter.getCheckinFee();
 
-      // Calculate dates
       const userDateToday = getUserDate(timezoneOffset);
       const yesterdayDate = getYesterdayDate(timezoneOffset);
 
-      // Check if already checked in today
       if (lastCheckinDate === userDateToday) {
         const midnightMs = getMidnightTimestamp(timezoneOffset);
         const now = Date.now();
@@ -269,21 +293,20 @@ router.post(
         return;
       }
 
-      // Calculate next streak
       let nextStreak = 1;
       if (lastCheckinDate) {
         if (lastCheckinDate === yesterdayDate) {
-          // Consecutive day - streak continues
           nextStreak = currentStreak + 1;
         } else {
-          // Streak broken - reset to 1
           nextStreak = 1;
         }
       }
 
       const pointsInfo = calculateCheckinPoints(nextStreak);
 
-      console.log(`🎟️  Minting check-in ticket for ${wallet_address}...`);
+      console.log(
+        `🎟️  Minting check-in ticket for ${wallet_address.substring(0, 10)}...`,
+      );
       console.log(`   Date: ${userDateToday}`);
       console.log(`   Current streak: ${currentStreak} → Next: ${nextStreak}`);
       console.log(
@@ -294,7 +317,6 @@ router.post(
         `   Fee: ${checkinFee} MIST (${(checkinFee / 1_000_000_000).toFixed(3)} SUI)`,
       );
 
-      // Mint check-in ticket with date
       const ticketObjectId = await minter.mintCheckinTicket(
         wallet_address,
         pointsInfo.totalPoints,
@@ -364,7 +386,7 @@ router.post(
         is_milestone: pointsInfo.isMilestone,
         new_streak: nextStreak,
         next_milestone: pointsInfo.nextMilestone,
-        checkin_fee: checkinFee, // NEW: Return fee amount
+        checkin_fee: checkinFee,
         message: pointsInfo.isMilestone
           ? `🎉 Milestone! Check in to claim ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus) and reach day ${nextStreak}! Fee: ${(checkinFee / 1_000_000_000).toFixed(3)} SUI`
           : `Check in to claim ${pointsInfo.totalPoints} point${pointsInfo.totalPoints !== 1 ? "s" : ""} and continue your ${nextStreak}-day streak! Fee: ${(checkinFee / 1_000_000_000).toFixed(3)} SUI`,

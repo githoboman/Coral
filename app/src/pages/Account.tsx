@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { Flame, Trophy, Calendar, Coins } from "lucide-react";
+import { SkeletonBox } from "@/components/ui/SkeletonLoader";
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
   const { checkin, checkinState, refetchStatus } = useCheckin();
   const [showMilestoneAnimation, setShowMilestoneAnimation] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     if (checkinState.status === "success" && checkinState.nextIsMilestone) {
@@ -14,6 +16,15 @@ const Account = () => {
       setTimeout(() => setShowMilestoneAnimation(false), 3000);
     }
   }, [checkinState.status, checkinState.nextIsMilestone]);
+
+  // Mark as loaded once we have data
+  useEffect(() => {
+    if (checkinState.status !== "checking" && checkinState.status !== "idle") {
+      setIsInitialLoad(false);
+    } else if (checkinState.balance > 0 || checkinState.totalCheckins > 0) {
+      setIsInitialLoad(false);
+    }
+  }, [checkinState]);
 
   const getMilestoneProgress = () => {
     const { currentStreak, nextMilestone, daysToNextMilestone } = checkinState;
@@ -34,6 +45,63 @@ const Account = () => {
   };
 
   const { progress, daysRemaining } = getMilestoneProgress();
+
+  // Show skeleton during initial load
+  if (isInitialLoad && checkinState.status === "checking") {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 py-6">
+        {/* Header Skeleton */}
+        <div className="mb-8">
+          <SkeletonBox className="h-9 w-32 mb-2" />
+          <SkeletonBox className="h-5 w-96" />
+        </div>
+
+        {/* Daily Check-in Card Skeleton */}
+        <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div className="flex-1">
+              <SkeletonBox className="h-8 w-48 mb-2" />
+              <SkeletonBox className="h-5 w-96" />
+            </div>
+            <SkeletonBox className="h-14 w-40 rounded-full" />
+          </div>
+
+          {/* Streak Stats Row Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white/5 border border-white/10 rounded-2xl p-6"
+              >
+                <div className="flex items-center gap-3">
+                  <SkeletonBox className="w-10 h-10 rounded-full" />
+                  <div className="flex-1">
+                    <SkeletonBox className="h-3 w-24 mb-2" />
+                    <SkeletonBox className="h-7 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Milestone Progress Skeleton */}
+          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1">
+                <SkeletonBox className="h-6 w-40 mb-2" />
+                <SkeletonBox className="h-4 w-64" />
+              </div>
+              <div className="text-right">
+                <SkeletonBox className="h-3 w-20 mb-2" />
+                <SkeletonBox className="h-7 w-16" />
+              </div>
+            </div>
+            <SkeletonBox className="h-4 w-full rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
@@ -79,7 +147,7 @@ const Account = () => {
                     : `Ready to earn ${checkinState.nextCheckinPoints} point${checkinState.nextCheckinPoints > 1 ? "s" : ""}!`
                   : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
               </p>
-              {/* NEW: Show fee */}
+              {/* Show fee */}
               {checkinState.canCheckin && (
                 <p className="text-white/40 text-xs mt-1 flex items-center gap-1">
                   <Coins className="w-3 h-3" />
@@ -235,7 +303,7 @@ const Account = () => {
                         checkinState.currentStreak >= milestone
                           ? "bg-green-500/20 border-green-500/50 text-green-400"
                           : milestone === checkinState.nextMilestone
-                            ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400 animate-pulse"
+                            ? "bg-green-500/20 border-green-500/50 text-green-400 animate-pulse"
                             : "bg-white/5 border-white/10 text-white/40"
                       }
                     `}

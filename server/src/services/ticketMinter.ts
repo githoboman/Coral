@@ -1,4 +1,6 @@
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+// FIXED VERSION - Key changes marked with // FIX:
+
+import { EventId, SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
@@ -30,7 +32,7 @@ export class TicketMinter {
   private adminCapId: string;
   private pointsRegistryId: string;
   private blobRegistryId: string;
-  private feeConfigId: string; // NEW
+  private feeConfigId: string;
 
   constructor() {
     const network = process.env.SUI_NETWORK || "testnet";
@@ -48,7 +50,7 @@ export class TicketMinter {
     this.adminCapId = process.env.SUI_ADMIN_CAP_ID || "";
     this.pointsRegistryId = process.env.SUI_POINTS_REGISTRY_ID || "";
     this.blobRegistryId = process.env.SUI_BLOB_REGISTRY_ID || "";
-    this.feeConfigId = process.env.SUI_FEE_CONFIG_ID || ""; // NEW
+    this.feeConfigId = process.env.SUI_FEE_CONFIG_ID || "";
 
     if (
       !this.packageId ||
@@ -76,7 +78,14 @@ export class TicketMinter {
     return "0x" + hex.padStart(64, "0");
   }
 
-  // NEW: Get current check-in fee
+  // FIX: New method to convert address to Move's format (no leading zeros)
+  private toMoveAddressFormat(addr: string): string {
+    const normalized = this.normalizeAddress(addr);
+    const withoutPrefix = normalized.slice(2);
+    const withoutLeadingZeros = withoutPrefix.replace(/^0+/, "") || "0";
+    return "0x" + withoutLeadingZeros;
+  }
+
   async getCheckinFee(): Promise<number> {
     try {
       const tx = new Transaction();
@@ -102,14 +111,13 @@ export class TicketMinter {
       }
 
       console.warn("⚠️  Could not read fee, using default");
-      return 2_000_000; // Default: 0.002 SUI
+      return 2_000_000;
     } catch (error) {
       console.error("❌ Error in getCheckinFee:", error);
       return 2_000_000;
     }
   }
 
-  // NEW: Update check-in fee (admin only)
   async updateCheckinFee(newFee: number): Promise<string | null> {
     try {
       console.log(
@@ -147,7 +155,6 @@ export class TicketMinter {
     }
   }
 
-  // NEW: Set fee treasury address (admin only)
   async setFeeTreasury(treasuryAddress: string): Promise<string | null> {
     try {
       console.log(`\n🏦 Setting fee treasury → ${treasuryAddress}`);
@@ -183,7 +190,6 @@ export class TicketMinter {
     }
   }
 
-  // NEW: Get fee treasury address
   async getFeeTreasury(): Promise<string | null> {
     try {
       const tx = new Transaction();
@@ -276,7 +282,6 @@ export class TicketMinter {
     }
   }
 
-  // Legacy function for waitlist tickets
   async mintTicket(
     walletAddress: string,
     pointsAmount: number,
@@ -336,14 +341,10 @@ export class TicketMinter {
     }
   }
 
-  /**
-   * Mint check-in ticket with specific date
-   * This ensures the ticket is valid only for the specified date
-   */
   async mintCheckinTicket(
     walletAddress: string,
     pointsAmount: number,
-    checkinDate: string, // YYYY-MM-DD format
+    checkinDate: string,
   ): Promise<string | null> {
     try {
       console.log(
@@ -470,12 +471,12 @@ export class TicketMinter {
       );
       const tx = new Transaction();
 
+      // FIX: Use Move address format
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
+
       tx.moveCall({
         target: `${this.packageId}::points::has_claimed`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.client.devInspectTransactionBlock({
@@ -523,12 +524,12 @@ export class TicketMinter {
       );
       const tx = new Transaction();
 
+      // FIX: Use Move address format
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
+
       tx.moveCall({
         target: `${this.packageId}::points::get_balance`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.client.devInspectTransactionBlock({
@@ -577,12 +578,12 @@ export class TicketMinter {
       );
       const tx = new Transaction();
 
+      // FIX: Use Move address format
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
+
       tx.moveCall({
         target: `${this.packageId}::points::get_last_checkin`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.client.devInspectTransactionBlock({
@@ -603,15 +604,10 @@ export class TicketMinter {
     }
   }
 
-  /**
-   * Get the last check-in DATE (not timestamp)
-   * Returns YYYY-MM-DD format or empty string
-   */
   async getLastCheckinDate(walletAddress: string): Promise<string> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // Try events first
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -630,18 +626,17 @@ export class TicketMinter {
         }
       }
 
-      // Fallback to contract query
       console.log(
         `📝 No check-in event found, running devInspect for date of ${walletAddress}`,
       );
       const tx = new Transaction();
 
+      // FIX: Use Move address format
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
+
       tx.moveCall({
         target: `${this.packageId}::points::get_last_checkin_date`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.client.devInspectTransactionBlock({
@@ -651,7 +646,6 @@ export class TicketMinter {
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
-        // Decode string from bytes
         const dateStr = new TextDecoder().decode(new Uint8Array(bytes));
         return dateStr.trim();
       }
@@ -691,12 +685,12 @@ export class TicketMinter {
       );
       const tx = new Transaction();
 
+      // FIX: Use Move address format
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
+
       tx.moveCall({
         target: `${this.packageId}::points::get_current_streak`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.client.devInspectTransactionBlock({
@@ -717,31 +711,131 @@ export class TicketMinter {
     }
   }
 
+  /**
+   * FINAL FIX: Get total number of check-ins for a wallet
+   * Fixed to properly fall through strategies when contract returns 0
+   */
   async getTotalCheckins(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
+      const moveAddr = this.toMoveAddressFormat(walletAddress);
 
-      const tx = new Transaction();
+      // Strategy 1: Try the contract's get_total_checkins function
+      try {
+        const tx = new Transaction();
 
-      tx.moveCall({
-        target: `${this.packageId}::points::get_total_checkins`,
-        arguments: [
-          tx.object(this.pointsRegistryId),
-          tx.pure.string(normalized),
-        ],
-      });
+        tx.moveCall({
+          target: `${this.packageId}::points::get_total_checkins`,
+          arguments: [
+            tx.object(this.pointsRegistryId),
+            tx.pure.string(moveAddr),
+          ],
+        });
 
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
-        transactionBlock: tx,
-      });
+        const result = await this.client.devInspectTransactionBlock({
+          sender: normalized,
+          transactionBlock: tx,
+        });
 
-      if (result.results?.[0]?.returnValues?.[0]) {
-        const [bytes] = result.results[0].returnValues[0];
-        const view = new DataView(new Uint8Array(bytes).buffer);
-        return Number(view.getBigUint64(0, true));
+        if (result.results?.[0]?.returnValues?.[0]) {
+          const [bytes] = result.results[0].returnValues[0];
+          const view = new DataView(new Uint8Array(bytes).buffer);
+          const total = Number(view.getBigUint64(0, true));
+
+          // FIX: Only return if > 0, otherwise fall through to event counting
+          if (total > 0) {
+            console.log(
+              `✅ getTotalCheckins (contract) → ${total} for ${walletAddress.substring(0, 10)}...`,
+            );
+            return total;
+          }
+
+          console.log(
+            `📝 Contract returned 0, falling back to event counting for ${walletAddress.substring(0, 10)}...`,
+          );
+        }
+      } catch (contractError) {
+        console.warn(
+          `⚠️  Contract call failed for getTotalCheckins:`,
+          contractError,
+        );
       }
 
+      // Strategy 2: Count ALL CheckInCompleted events for this wallet
+      try {
+        console.log(
+          `📊 Counting check-in events for ${walletAddress.substring(0, 10)}...`,
+        );
+
+        let count = 0;
+        let cursor: EventId | null = null;
+        let hasMore = true;
+        let pagesChecked = 0;
+        const MAX_PAGES = 100; // Safety limit
+
+        // Count events as we paginate through ALL pages
+        while (hasMore && pagesChecked < MAX_PAGES) {
+          const eventsPage = await this.client.queryEvents({
+            query: {
+              MoveEventType: `${this.packageId}::points::CheckInCompleted`,
+            },
+            limit: 50,
+            order: "descending",
+            cursor: cursor || undefined,
+          });
+
+          // Count matching events in this page
+          for (const ev of eventsPage.data) {
+            const data = ev.parsedJson as unknown as CheckInCompletedEvent;
+            if (this.normalizeAddress(data.wallet_address) === normalized) {
+              count++;
+            }
+          }
+
+          pagesChecked++;
+
+          // Check if there are more pages
+          if (eventsPage.hasNextPage && eventsPage.nextCursor) {
+            cursor = eventsPage.nextCursor;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        if (count > 0) {
+          console.log(
+            `✅ getTotalCheckins (events) → ${count} for ${walletAddress.substring(0, 10)}... (checked ${pagesChecked} pages)`,
+          );
+          return count;
+        }
+
+        console.log(
+          `⚠️  No check-in events found after checking ${pagesChecked} pages`,
+        );
+      } catch (eventError) {
+        console.warn(
+          `⚠️  Event counting failed for getTotalCheckins:`,
+          eventError,
+        );
+      }
+
+      // Strategy 3: Use current streak as minimum estimate
+      try {
+        const streak = await this.getCurrentStreak(walletAddress);
+        if (streak > 0) {
+          console.log(
+            `⚠️  Using streak (${streak}) as total_checkins estimate for ${walletAddress.substring(0, 10)}...`,
+          );
+          return streak;
+        }
+      } catch (streakError) {
+        console.warn(`⚠️  Streak fallback failed:`, streakError);
+      }
+
+      // Strategy 4: Return 0 if all else fails
+      console.log(
+        `📝 No check-ins found for ${walletAddress.substring(0, 10)}...`,
+      );
       return 0;
     } catch (error) {
       console.error("Error in getTotalCheckins:", error);

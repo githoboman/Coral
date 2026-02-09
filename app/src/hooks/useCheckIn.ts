@@ -38,7 +38,7 @@ export interface CheckinState {
   nextIsMilestone: boolean;
   nextMilestone: number;
   daysToNextMilestone: number;
-  checkinFee: number; // NEW: in MIST
+  checkinFee: number;
 }
 
 export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
@@ -46,7 +46,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [state, setState] = useState<CheckinState>({
-    status: "idle",
+    status: "checking", // Start in checking state
     canCheckin: false,
     lastCheckinDate: null,
     lastCheckinAt: null,
@@ -63,10 +63,11 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     nextIsMilestone: false,
     nextMilestone: 5,
     daysToNextMilestone: 5,
-    checkinFee: 2_000_000, // Default: 0.002 SUI
+    checkinFee: 2_000_000,
   });
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const getTimezoneOffset = useCallback(() => {
     return new Date().getTimezoneOffset() * -1;
@@ -74,7 +75,17 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
   const fetchStatus = useCallback(async () => {
     const addr = currentAccount?.address;
-    if (!addr) return;
+    if (!addr) {
+      setState((prev) => ({ ...prev, status: "idle" }));
+      return;
+    }
+
+    // Cancel any pending requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
 
     setState((prev) => ({ ...prev, status: "checking" }));
 
@@ -82,6 +93,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const timezoneOffset = getTimezoneOffset();
       const res = await fetch(
         `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}&timezone_offset=${timezoneOffset}`,
+        { signal: abortControllerRef.current.signal },
       );
 
       if (!res.ok) {
@@ -107,10 +119,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         nextIsMilestone: data.next_is_milestone || false,
         nextMilestone: data.next_milestone || 5,
         daysToNextMilestone: data.days_to_next_milestone || 5,
-        checkinFee: data.checkin_fee || 2_000_000, // NEW
+        checkinFee: data.checkin_fee || 2_000_000,
         error: null,
       }));
-    } catch (err) {
+    } catch (err: any) {
+      // Ignore abort errors
+      if (err.name === "AbortError") {
+        return;
+      }
+
       setState((prev) => ({
         ...prev,
         status: "error",
@@ -119,8 +136,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }
   }, [currentAccount?.address, getTimezoneOffset]);
 
+  // Fetch immediately on mount and when account changes
   useEffect(() => {
     fetchStatus();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [fetchStatus]);
 
   const pollForConfirmation = useCallback(
@@ -268,7 +292,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const ptsAmount = ticketData.points_amount as number;
       const isMilestone = ticketData.is_milestone as boolean;
       const milestoneBonus = ticketData.milestone_bonus as number;
-      const checkinFee = ticketData.checkin_fee as number; // NEW
+      const checkinFee = ticketData.checkin_fee as number;
 
       setState((prev) => ({
         ...prev,
@@ -278,17 +302,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const tx = new Transaction();
       tx.setGasBudget(10_000_000);
 
-      // NEW: Split SUI for check-in fee from gas coin
       const [feeCoin] = tx.splitCoins(tx.gas, [checkinFee]);
 
-      // Call check-in with fee payment
       tx.moveCall({
         target: `${PACKAGE_ID}::points::checkin`,
         arguments: [
           tx.object(POINTS_REGISTRY),
           tx.object(ticketId),
-          tx.object(FEE_CONFIG), // NEW: Fee config
-          feeCoin, // NEW: Payment
+          tx.object(FEE_CONFIG),
+          feeCoin,
           tx.object("0x6"),
         ],
       });
