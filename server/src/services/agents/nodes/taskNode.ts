@@ -1,53 +1,100 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { AgentState } from "../types";
-import { getSupabaseClient } from "../../../config/supabase";
+import { getTaskStorageService } from "../../taskStorageService";
 import { autonomyService } from "../../autonomyService";
 import { z } from "zod";
 
 // Schema for task extraction with Web3 action support
 const TaskSchema = z.object({
   task_name: z.string().describe("Short, clear name for the task"),
-  description: z.string().optional().describe("Detailed description of what needs to be done"),
-  due_date: z.string().optional().describe("ISO 8601 date-time when task is due"),
-  priority: z.enum(["low", "medium", "high"]).default("medium").describe("Task priority level"),
-  is_recurring: z.boolean().default(false).describe("Whether this is a recurring task"),
-  reminder_times: z.array(z.string()).optional().describe("Array of ISO 8601 date-times for reminders"),
+  description: z
+    .string()
+    .optional()
+    .describe("Detailed description of what needs to be done"),
+  due_date: z
+    .string()
+    .optional()
+    .describe("ISO 8601 date-time when task is due"),
+  priority: z
+    .enum(["low", "medium", "high"])
+    .default("medium")
+    .describe("Task priority level"),
+  is_recurring: z
+    .boolean()
+    .default(false)
+    .describe("Whether this is a recurring task"),
+  reminder_times: z
+    .array(z.string())
+    .optional()
+    .describe("Array of ISO 8601 date-times for reminders"),
   tags: z.array(z.string()).optional().describe("Tags to categorize the task"),
-  should_create: z.boolean().describe("Whether to actually create this task or just provide information"),
-  missing_info: z.string().optional().describe("What critical information is missing, if any"),
+  should_create: z
+    .boolean()
+    .describe(
+      "Whether to actually create this task or just provide information",
+    ),
+  missing_info: z
+    .string()
+    .optional()
+    .describe("What critical information is missing, if any"),
 
   // Web3 action fields
-  action_type: z.enum(["reminder", "token_transfer", "dca_purchase", "token_swap"]).default("reminder")
-    .describe("Type of action: reminder (default), token_transfer, dca_purchase, or token_swap (immediate swap)"),
-  action_params: z.object({
-    // Token transfer params
-    recipient_address: z.string().optional().describe("Recipient wallet address for transfers (0x... format)"),
-    coin_type: z.string().optional().describe("Token type to transfer, defaults to SUI"),
-    amount: z.string().optional().describe("Amount to transfer in human-readable format (e.g., '10' for 10 SUI)"),
-    // DCA params
-    // Generic/Shared Params
-    from_coin: z.string().optional().describe("Source token for swaps/DCA"),
-    to_coin: z.string().optional().describe("Target token for swaps/DCA"),
-    amount_per_purchase: z.string().optional().describe("Amount to swap per DCA execution"),
-    frequency: z.enum(["daily", "weekly", "monthly"]).optional().describe("How often to execute the DCA"),
-    // Swap params specific
-    amount_to_swap: z.string().optional().describe("Amount to swap (e.g., 'half', 'all', or '10')"),
-  }).optional().describe("Parameters for the action based on action_type"),
+  action_type: z
+    .enum(["reminder", "token_transfer", "dca_purchase", "token_swap"])
+    .default("reminder")
+    .describe(
+      "Type of action: reminder (default), token_transfer, dca_purchase, or token_swap (immediate swap)",
+    ),
+  action_params: z
+    .object({
+      recipient_address: z
+        .string()
+        .optional()
+        .describe("Recipient wallet address for transfers (0x... format)"),
+      coin_type: z
+        .string()
+        .optional()
+        .describe("Token type to transfer, defaults to SUI"),
+      amount: z
+        .string()
+        .optional()
+        .describe(
+          "Amount to transfer in human-readable format (e.g., '10' for 10 SUI)",
+        ),
+      from_coin: z.string().optional().describe("Source token for swaps/DCA"),
+      to_coin: z.string().optional().describe("Target token for swaps/DCA"),
+      amount_per_purchase: z
+        .string()
+        .optional()
+        .describe("Amount to swap per DCA execution"),
+      frequency: z
+        .enum(["daily", "weekly", "monthly"])
+        .optional()
+        .describe("How often to execute the DCA"),
+      amount_to_swap: z
+        .string()
+        .optional()
+        .describe("Amount to swap (e.g., 'half', 'all', or '10')"),
+    })
+    .optional()
+    .describe("Parameters for the action based on action_type"),
 });
 
 type TaskExtraction = z.infer<typeof TaskSchema>;
 
 // Helper to convert human-readable amount to MIST (1 SUI = 1e9 MIST)
-function toMist(amount: string): string {
+function toMist(amount: string): bigint {
   try {
     const num = parseFloat(amount);
-    return (BigInt(Math.floor(num * 1e9))).toString();
+    return BigInt(Math.floor(num * 1e9));
   } catch {
-    return "0";
+    return BigInt(0);
   }
 }
 
-export async function taskNode(state: AgentState): Promise<Partial<AgentState>> {
+export async function taskNode(
+  state: AgentState,
+): Promise<Partial<AgentState>> {
   const llm = new ChatGoogleGenerativeAI({
     model: process.env.LLM_MODEL || "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,
@@ -126,7 +173,9 @@ Current time: ${new Date().toISOString()}
   try {
     // Extract task parameters using structured output
     const structuredLlm = llm.withStructuredOutput(TaskSchema);
-    const extraction = await structuredLlm.invoke(extractionPrompt) as TaskExtraction;
+    const extraction = (await structuredLlm.invoke(
+      extractionPrompt,
+    )) as TaskExtraction;
 
     // If missing critical information, ask for it
     if (!extraction.should_create) {
@@ -137,25 +186,32 @@ Current time: ${new Date().toISOString()}
 
     // Build action_params for database storage
     let actionParams = null;
-    const actionType = extraction.action_type || 'reminder';
+    const actionType = extraction.action_type || "reminder";
 
-    if (actionType === 'token_transfer' && extraction.action_params) {
+    if (actionType === "token_transfer" && extraction.action_params) {
       const params = extraction.action_params;
       if (!params.recipient_address) {
         return {
-          finalResponse: "I need the recipient's wallet address to set up this transfer. What's the Sui address you want to send to?",
+          finalResponse:
+            "I need the recipient's wallet address to set up this transfer. What's the Sui address you want to send to?",
         };
       }
       actionParams = {
         recipientAddress: params.recipient_address,
         coinType: params.coin_type || "0x2::sui::SUI",
-        amount: toMist(params.amount || "0"),
+        amount: toMist(params.amount || "0").toString(), // Convert bigint to string for storage
       };
-    } else if (actionType === 'dca_purchase' && extraction.action_params) {
+    } else if (actionType === "dca_purchase" && extraction.action_params) {
       const params = extraction.action_params;
-      if (!params.from_coin || !params.to_coin || !params.amount_per_purchase || !params.frequency) {
+      if (
+        !params.from_coin ||
+        !params.to_coin ||
+        !params.amount_per_purchase ||
+        !params.frequency
+      ) {
         return {
-          finalResponse: "For DCA setup, I need: what token to spend, what token to buy, how much per purchase, and how often (daily/weekly/monthly).",
+          finalResponse:
+            "For DCA setup, I need: what token to spend, what token to buy, how much per purchase, and how often (daily/weekly/monthly).",
         };
       }
       actionParams = {
@@ -164,112 +220,127 @@ Current time: ${new Date().toISOString()}
         amountPerPurchase: params.amount_per_purchase,
         frequency: params.frequency,
       };
-    } else if (actionType === 'token_swap' && extraction.action_params) {
+    } else if (actionType === "token_swap" && extraction.action_params) {
       const params = extraction.action_params;
       if (!params.from_coin || !params.to_coin || !params.amount_to_swap) {
         return {
-          finalResponse: "To swap tokens, I need to know: which token to swap from, which token to get, and the amount.",
+          finalResponse:
+            "To swap tokens, I need to know: which token to swap from, which token to get, and the amount.",
         };
       }
 
-      // Handle relative amounts for swaps
       let swapAmount = params.amount_to_swap;
       let calculatedDisplay = swapAmount;
 
-      if ((swapAmount === 'half' || swapAmount === 'all') && state.walletBalance) {
-        console.log(`[TASK NODE] Resolving relative swap amount '${swapAmount}' for user ${state.userId}`);
-        console.log(`[TASK NODE] Current balance (MIST): ${state.walletBalance.totalBalanceMist}`);
+      if (
+        (swapAmount === "half" || swapAmount === "all") &&
+        state.walletBalance
+      ) {
+        console.log(
+          `[TASK NODE] Resolving relative swap amount '${swapAmount}' for user ${state.userId}`,
+        );
+        console.log(
+          `[TASK NODE] Current balance (MIST): ${state.walletBalance.totalBalanceMist}`,
+        );
 
         const total = BigInt(state.walletBalance.totalBalanceMist);
         let calculatedMist = total;
-        if (swapAmount === 'half') {
+        if (swapAmount === "half") {
           calculatedMist = total / BigInt(2);
         } else {
-          // Leave some for gas
-          const forGas = BigInt(1e8); // 0.1 SUI
+          const forGas = BigInt(1e8);
           calculatedMist = total > forGas ? total - forGas : BigInt(0);
         }
 
         const whole = calculatedMist / BigInt(1e9);
         const frac = calculatedMist % BigInt(1e9);
-        swapAmount = frac > 0
-          ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
-          : whole.toString();
+        swapAmount =
+          frac > 0
+            ? `${whole}.${frac.toString().padStart(9, "0").replace(/0+$/, "")}`
+            : whole.toString();
 
         calculatedDisplay = `${swapAmount} (${params.amount_to_swap} balance)`;
         console.log(`[TASK NODE] Resolved to: ${swapAmount}`);
-      } else if (swapAmount === 'half' || swapAmount === 'all') {
-        console.warn(`[TASK NODE] Could not resolve relative amount '${swapAmount}': No wallet balance in state.`);
+      } else if (swapAmount === "half" || swapAmount === "all") {
+        console.warn(
+          `[TASK NODE] Could not resolve relative amount '${swapAmount}': No wallet balance in state.`,
+        );
       }
 
       actionParams = {
         fromCoin: params.from_coin,
         toCoin: params.to_coin,
         amountToSwap: swapAmount,
-        calculatedDisplay: calculatedDisplay, // Store for confirmation message
+        calculatedDisplay: calculatedDisplay,
       };
     }
 
-    // Create the task via Supabase
-    const supabase = getSupabaseClient();
+    // ✅ OPTIMIZATION: Use Walrus storage directly (no Supabase)
+    const taskStorage = getTaskStorageService();
 
-    const taskRecord = {
-      user_id: state.userId,
+    const result = await taskStorage.createTask(state.userId, {
       task_name: extraction.task_name,
-      description: extraction.description || null,
-      due_date: extraction.due_date || null,
+      description: extraction.description,
+      due_date: extraction.due_date,
       priority: extraction.priority,
-      status: 'pending',
+      status: "pending",
       tags: extraction.tags || [],
-      is_recurring: extraction.is_recurring,
-      reminder_times: extraction.reminder_times || [],
       action_type: actionType,
       action_params: actionParams,
-      action_status: actionType !== 'reminder' ? 'pending' : null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+      action_status: actionType !== "reminder" ? "pending" : undefined,
+    });
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert(taskRecord)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Failed to create task:', error);
+    if (!result) {
+      console.error("Failed to create task in Walrus");
       return {
-        finalResponse: "I encountered an error while creating your task. Please try again or contact support if the issue persists.",
-        error: error.message,
+        finalResponse:
+          "I encountered an error while creating your task. Please try again or contact support if the issue persists.",
+      };
+    }
+
+    const task = await taskStorage.getTask(state.userId, result.taskId);
+
+    if (!task) {
+      return {
+        finalResponse:
+          "Task was created but could not be retrieved. Please check your tasks page.",
       };
     }
 
     // Generate confirmation message based on action type
-    let confirmationMessage = '';
+    let confirmationMessage = "";
 
-    if (actionType === 'token_transfer') {
-      const params = actionParams as { recipientAddress: string; amount: string; coinType: string };
-      // Correctly format decimal SUI from MIST string
+    if (actionType === "token_transfer") {
+      const params = actionParams as {
+        recipientAddress: string;
+        amount: string;
+        coinType: string;
+      };
       const mist = BigInt(params.amount);
       const whole = mist / BigInt(1e9);
       const frac = mist % BigInt(1e9);
-      const amountSui = frac > 0
-        ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
-        : whole.toString();
+      const amountSui =
+        frac > 0
+          ? `${whole}.${frac.toString().padStart(9, "0").replace(/0+$/, "")}`
+          : whole.toString();
 
       confirmationMessage = `**Token Transfer Scheduled**
  
 - Amount: ${amountSui} SUI
 - To: \`${params.recipientAddress.slice(0, 10)}...${params.recipientAddress.slice(-8)}\``;
 
-      if (data.due_date) {
-        const dueDate = new Date(data.due_date);
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date);
         confirmationMessage += `\n- When: ${dueDate.toLocaleString()}`;
       }
       confirmationMessage += `\n\nWhen it's time, you'll be prompted to sign the transaction with your wallet.`;
-
-    } else if (actionType === 'dca_purchase') {
-      const params = actionParams as { fromCoin: string; toCoin: string; amountPerPurchase: string; frequency: string };
+    } else if (actionType === "dca_purchase") {
+      const params = actionParams as {
+        fromCoin: string;
+        toCoin: string;
+        amountPerPurchase: string;
+        frequency: string;
+      };
       confirmationMessage = `**DCA Schedule Created**
 
 - Buy: ${params.toCoin}
@@ -277,64 +348,89 @@ Current time: ${new Date().toISOString()}
 - Status: Pending (DCA execution coming soon)
 
 Note: You'll need to approve each swap transaction when it's due.`;
-
-    } else if (actionType === 'token_swap') {
-      const params = actionParams as { fromCoin: string; toCoin: string; amountToSwap: string; calculatedDisplay?: string };
+    } else if (actionType === "token_swap") {
+      const params = actionParams as {
+        fromCoin: string;
+        toCoin: string;
+        amountToSwap: string;
+        calculatedDisplay?: string;
+      };
       confirmationMessage = `**Token Swap Scheduled**\n\n- Swap: ${params.calculatedDisplay || params.amountToSwap} ${params.fromCoin}\n- Into: ${params.toCoin}\n- Rate: Market Rate\n\nPlease approve the swap transaction when prompted.`;
     } else {
-      // Regular reminder/task
-      confirmationMessage = `Task created: **${data.task_name}**`;
+      confirmationMessage = `Task created: **${task.task_name}**`;
 
-      if (data.due_date) {
-        const dueDate = new Date(data.due_date);
+      if (task.due_date) {
+        const dueDate = new Date(task.due_date);
         confirmationMessage += `\n- Due: ${dueDate.toLocaleString()}`;
       }
 
-      if (data.priority !== 'medium') {
-        confirmationMessage += `\n- Priority: ${data.priority}`;
+      if (task.priority !== "medium") {
+        confirmationMessage += `\n- Priority: ${task.priority}`;
       }
 
-      if (data.is_recurring) {
-        confirmationMessage += `\n- Recurring: Yes`;
-      }
-
-      if (data.description) {
-        confirmationMessage += `\n- Details: ${data.description}`;
+      if (task.description) {
+        confirmationMessage += `\n- Details: ${task.description}`;
       }
     }
 
-    console.log(`Task created: ${data.id} (${actionType}) for user: ${state.userId}`);
+    console.log(
+      `Task created: ${task.id} (${actionType}) for user: ${state.userId}`,
+    );
 
     // For token transfers with immediate/near-immediate due date, return pendingAction
-    const isImmediate = !data.due_date ||
-      (new Date(data.due_date).getTime() - Date.now() < 60000); // Within 1 minute
+    const isImmediate =
+      !task.due_date || new Date(task.due_date).getTime() - Date.now() < 60000;
 
-    console.log(`[TASK NODE] actionType=${actionType}, isImmediate=${isImmediate}, hasActionParams=${!!actionParams}`);
+    console.log(
+      `[TASK NODE] actionType=${actionType}, isImmediate=${isImmediate}, hasActionParams=${!!actionParams}`,
+    );
 
     // CHECK FOR AUTONOMY (DELEGATION)
-    const isDelegated = state.walletAddress ? await autonomyService.isDelegated(state.walletAddress) : false;
+    const isDelegated = state.walletAddress
+      ? await autonomyService.isDelegated(state.walletAddress)
+      : false;
 
-    if (isDelegated && isImmediate && actionParams && (actionType === 'token_transfer' || actionType === 'token_swap')) {
+    if (
+      isDelegated &&
+      isImmediate &&
+      actionParams &&
+      (actionType === "token_transfer" || actionType === "token_swap")
+    ) {
       console.log(`[TASK NODE] Executing AUTONOMOUSLY: ${actionType}`);
 
       let digest = "";
-      if (actionType === 'token_transfer') {
-        digest = await autonomyService.executeTokenTransfer(data.id, state.walletAddress!, actionParams as any);
+      if (actionType === "token_transfer") {
+        digest = await autonomyService.executeTokenTransfer(
+          Number(task.id),
+          state.walletAddress!,
+          actionParams as any,
+        );
       } else {
-        digest = await autonomyService.executeTokenSwap(data.id, state.walletAddress!, actionParams as any);
+        digest = await autonomyService.executeTokenSwap(
+          Number(task.id),
+          state.walletAddress!,
+          actionParams as any,
+        );
       }
 
       return {
-        finalResponse: `${confirmationMessage}\n\n✅ **Autonomous Action Complete**\nTransaction executed in background: [View on Explorer](https://suiscan.xyz/${process.env.VITE_SUI_NETWORK || 'testnet'}/tx/${digest})`,
+        finalResponse: `${confirmationMessage}\n\n✅ **Autonomous Action Complete**\nTransaction executed in background: [View on Explorer](https://suiscan.xyz/${process.env.VITE_SUI_NETWORK || "testnet"}/tx/${digest})`,
       };
     }
 
-    if ((actionType === 'token_transfer' || actionType === 'token_swap') && isImmediate && actionParams) {
-      console.log(`[TASK NODE] Returning pendingAction for immediate ${actionType}:`, actionParams);
+    if (
+      (actionType === "token_transfer" || actionType === "token_swap") &&
+      isImmediate &&
+      actionParams
+    ) {
+      console.log(
+        `[TASK NODE] Returning pendingAction for immediate ${actionType}:`,
+        actionParams,
+      );
       return {
         finalResponse: confirmationMessage,
         pendingAction: {
-          taskId: data.id,
+          taskId: task.id,
           actionType: actionType,
           actionParams: actionParams,
         },
@@ -345,10 +441,11 @@ Note: You'll need to approve each swap transaction when it's due.`;
       finalResponse: confirmationMessage,
     };
   } catch (error) {
-    console.error('Task node error:', error);
+    console.error("Task node error:", error);
     return {
-      finalResponse: "I apologize, but I encountered an error while processing your task request. Please try again.",
-      error: error instanceof Error ? error.message : 'Unknown error',
+      finalResponse:
+        "I apologize, but I encountered an error while processing your task request. Please try again.",
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

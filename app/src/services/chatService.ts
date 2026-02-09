@@ -1,15 +1,17 @@
+// src/services/chatService.ts
+import axios from "axios";
 
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 export interface ChatMessage {
   user_id: string;
   message: string;
-  agent_id?: string;
   chat_id?: string;
-  transaction_hash?: string; // Gas payment transaction hash
+  agent_id?: string;
+  transaction_hash?: string;
   history?: Array<{
-    role: 'user' | 'assistant';
+    role: "user" | "assistant";
     content: string;
   }>;
 }
@@ -20,108 +22,114 @@ export interface ChatResponse {
   chat_id: string;
   requires_fee?: boolean;
   estimated_cost?: number;
-  workflow_steps?: Array<{
-    step: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
-    message: string;
-  }>;
+  workflow_steps?: any[];
+  points_awarded?: number;
   pending_action?: {
     task_id: number;
     action_type: string;
-    action_params: {
-      recipientAddress?: string;
-      coinType?: string;
-      amount?: string;
-      fromCoin?: string;
-      toCoin?: string;
-      amountToSwap?: string;
-    };
+    action_params: any;
   };
-}
-
-export async function sendChatMessage(data: ChatMessage): Promise<ChatResponse> {
-  const url = `${API_BASE_URL}/api/chat`;
-  console.log('[ChatService] Sending message to:', url);
-  console.log('[ChatService] Request data:', { ...data, message: data.message.substring(0, 50) + '...' });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  console.log('[ChatService] Response status:', response.status, response.statusText);
-
-  if (!response.ok) {
-    let errorData;
-    try {
-      errorData = await response.json();
-    } catch {
-      const errorText = await response.text();
-      errorData = { message: errorText };
-    }
-
-    console.error('[ChatService] Error response:', errorData);
-
-    // Create error with response data for rate limiting
-    const error: any = new Error(errorData.message || `Chat API error: ${response.statusText}`);
-    error.response = {
-      status: response.status,
-      data: errorData
-    };
-    throw error;
-  }
-
-  return response.json();
-}
-
-export async function fetchChats(userId: string) {
-  const response = await fetch(`${API_BASE_URL}/api/chats/${userId}`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch chats: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-export async function fetchChatMessages(chatId: string) {
-  const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch messages: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-// Helper to generate chat ID (for local state before server creates one)
-export function generateChatId(): string {
-  return `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 export interface RateLimitStatus {
   limit: number;
   remaining: number;
-  resetInSeconds: number | null; // seconds until reset, null if not limited
+  resetInSeconds: number | null;
   isLimited: boolean;
 }
 
-export async function getRateLimitStatus(userId: string): Promise<RateLimitStatus> {
+export interface TaskPromptStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+  tier: number;
+}
+
+/**
+ * Send a chat message to the backend
+ */
+export async function sendChatMessage(
+  data: ChatMessage,
+): Promise<ChatResponse> {
+  const response = await axios.post(`${API_BASE_URL}/api/chat`, data);
+  return response.data;
+}
+
+/**
+ * Get rate limit status for a user
+ */
+export async function getRateLimitStatus(
+  userId: string,
+): Promise<RateLimitStatus> {
+  const response = await axios.get(`${API_BASE_URL}/api/rate-limit/${userId}`);
+  return response.data;
+}
+
+/**
+ * Get task prompt usage status for a user
+ */
+export async function getTaskPromptStatus(
+  userId: string,
+): Promise<TaskPromptStatus> {
+  const response = await axios.get(
+    `${API_BASE_URL}/api/task-prompts/${userId}`,
+  );
+  return response.data;
+}
+
+/**
+ * Track task creation for points (fire-and-forget)
+ * Call this immediately after a task is created via the task agent
+ */
+export async function trackTaskCreation(userId: string): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/rate-limit/${userId}`);
-
-    if (!response.ok) {
-      // On error, assume not limited
-      return { limit: 4, remaining: 4, resetInSeconds: null, isLimited: false };
-    }
-
-    return response.json();
+    await axios.post(`${API_BASE_URL}/api/task-points/track-creation`, {
+      user_id: userId,
+    });
+    console.log("[TASK TRACKING] Task creation tracked successfully");
   } catch (error) {
-    console.error('[ChatService] Error checking rate limit:', error);
-    return { limit: 4, remaining: 4, resetInSeconds: null, isLimited: false };
+    console.error("[TASK TRACKING] Failed to track task creation:", error);
+    // Don't throw - task creation should succeed even if tracking fails
   }
 }
 
+/**
+ * Get claimable task points
+ */
+export async function getClaimableTaskPoints(userId: string) {
+  const response = await axios.get(
+    `${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`,
+  );
+  return response.data;
+}
+
+/**
+ * Request a task claim ticket from backend
+ */
+export async function requestTaskClaimTicket(
+  userId: string,
+  taskCount: number,
+) {
+  const response = await axios.post(
+    `${API_BASE_URL}/api/task-points/request-claim`,
+    {
+      user_id: userId,
+      task_count: taskCount,
+    },
+  );
+  return response.data;
+}
+
+/**
+ * Confirm task points claim after on-chain transaction
+ */
+export async function confirmTaskClaim(userId: string, taskCount: number) {
+  const response = await axios.post(
+    `${API_BASE_URL}/api/task-points/confirm-claim`,
+    {
+      user_id: userId,
+      task_count: taskCount,
+    },
+  );
+  return response.data;
+}

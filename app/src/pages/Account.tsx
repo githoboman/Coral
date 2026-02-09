@@ -1,182 +1,102 @@
-import { useState, useEffect, useCallback } from "react";
-import { Trophy, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { CheckInCard } from "@/components/CheckInCard";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  fetchLeaderboard,
-  invalidateCache,
-} from "@/store/slices/leaderboardSlice";
-import { useAuth } from "@/components/auth/AuthProvider";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-
-interface UserAccount {
-  user_id: string;
-  wallet_address: string;
-  email?: string;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
-  points: number;
-  referral_points: number;
-  rank: number | null;
-  is_premium: boolean;
-  created_at?: string;
-}
+import { useCheckin } from "@/hooks/useCheckIn";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumBadge } from "@/components/PremiumBadge";
+import { Flame, Trophy, Calendar, Crown, ArrowRight } from "lucide-react";
+import { SkeletonBox } from "@/components/ui/SkeletonLoader";
+import { useNavigate } from "react-router-dom";
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
-  const dispatch = useAppDispatch();
-  const leaderboard = useAppSelector((state) => state.leaderboard.entries);
-
-  const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const { isOnboarded } = useAuth();
-
-  const fetchAccountData = useCallback(async () => {
-    const addr = currentAccount?.address;
-    if (!addr) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [accountRes, claimRes] = await Promise.all([
-        fetch(`${API_BASE}/api/account/${encodeURIComponent(addr)}`),
-        fetch(
-          `${API_BASE}/api/auth/check-claim-status?wallet_address=${encodeURIComponent(addr)}`,
-        ),
-      ]);
-
-      if (accountRes.status === 404) {
-        setUserAccount(null);
-        setLoading(false);
-        return;
-      }
-
-      if (!accountRes.ok) {
-        throw new Error(
-          `Failed to fetch account: ${accountRes.status} ${accountRes.statusText}`,
-        );
-      }
-
-      const data: UserAccount = await accountRes.json();
-
-      if (claimRes.ok) {
-        const claimData = await claimRes.json();
-        if (claimData.balance != null) {
-          data.points = claimData.balance;
-        }
-      }
-
-      setUserAccount(data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load account data",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [currentAccount?.address]);
-
-  const handlePointsUpdated = useCallback(
-    (newBalance: number) => {
-      setUserAccount((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          points: newBalance,
-        };
-      });
-
-      setTimeout(() => {
-        fetchAccountData();
-        dispatch(invalidateCache());
-        dispatch(fetchLeaderboard());
-      }, 1000);
-    },
-    [fetchAccountData, dispatch],
-  );
+  const navigate = useNavigate();
+  const { checkin, checkinState, refetchStatus } = useCheckin();
+  const { subscriptionState } = useSubscription();
+  const [showMilestoneAnimation, setShowMilestoneAnimation] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
-    if (currentAccount?.address) {
-      Promise.all([fetchAccountData(), dispatch(fetchLeaderboard())]);
-    } else {
-      setLoading(false);
-      setError("Please connect your wallet to view your account");
+    if (checkinState.status === "success" && checkinState.nextIsMilestone) {
+      setShowMilestoneAnimation(true);
+      setTimeout(() => setShowMilestoneAnimation(false), 3000);
     }
-  }, [currentAccount?.address, isOnboarded, dispatch, fetchAccountData]);
+  }, [checkinState.status, checkinState.nextIsMilestone]);
 
-  const truncateAddress = (address: string) => {
-    if (!address) return "N/A";
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  useEffect(() => {
+    if (checkinState.status !== "checking" && checkinState.status !== "idle") {
+      setIsInitialLoad(false);
+    } else if (checkinState.balance > 0 || checkinState.totalCheckins > 0) {
+      setIsInitialLoad(false);
+    }
+  }, [checkinState]);
+
+  const getMilestoneProgress = () => {
+    const { currentStreak, nextMilestone, daysToNextMilestone } = checkinState;
+    const progress = ((currentStreak / nextMilestone) * 100).toFixed(0);
+    return { progress, daysRemaining: daysToNextMilestone };
   };
 
-  const getRankBadgeColor = (rank: number) => {
-    if (rank === 1) return "bg-gradient-to-r from-yellow-400 to-yellow-600";
-    if (rank === 2) return "bg-gradient-to-r from-gray-300 to-gray-500";
-    if (rank === 3) return "bg-gradient-to-r from-orange-400 to-orange-600";
-    if (rank <= 10) return "bg-gradient-to-r from-purple-500 to-purple-700";
-    return "bg-gradient-to-r from-blue-500 to-blue-700";
+  const getStreakColor = (streak: number) => {
+    if (streak >= 80) return "from-purple-500 to-pink-500";
+    if (streak >= 50) return "from-orange-500 to-red-500";
+    if (streak >= 30) return "from-yellow-500 to-orange-500";
+    if (streak >= 10) return "from-green-500 to-emerald-500";
+    return "from-blue-500 to-cyan-500";
   };
 
-  if (loading) {
-    return (
-      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Loading account..." />
-      </div>
-    );
-  }
+  const { progress, daysRemaining } = getMilestoneProgress();
 
-  if (!currentAccount) {
+  if (isInitialLoad && checkinState.status === "checking") {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-6">
+        {/* Header Skeleton */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">My Account</h1>
+          <SkeletonBox className="h-9 w-32 mb-2" />
+          <SkeletonBox className="h-5 w-96" />
         </div>
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
-          <p className="text-red-400 text-lg">
-            Please connect your wallet to view your account
-          </p>
-        </div>
-      </div>
-    );
-  }
 
-  if (error) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">My Account</h1>
-        </div>
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 text-center">
-          <p className="text-red-400 text-lg">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors text-white"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+        {/* Daily Check-in Card Skeleton */}
+        <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div className="flex-1">
+              <SkeletonBox className="h-8 w-48 mb-2" />
+              <SkeletonBox className="h-5 w-96" />
+            </div>
+            <SkeletonBox className="h-14 w-40 rounded-full" />
+          </div>
 
-  if (!userAccount) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">My Account</h1>
-        </div>
-        <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
-          <p className="text-white/60 mb-2">No account data available</p>
-          <p className="text-white/40 text-sm">
-            Complete onboarding to create your account
-          </p>
+          {/* Streak Stats Row Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-white/5 border border-white/10 rounded-2xl p-6"
+              >
+                <div className="flex items-center gap-3">
+                  <SkeletonBox className="w-10 h-10 rounded-full" />
+                  <div className="flex-1">
+                    <SkeletonBox className="h-3 w-24 mb-2" />
+                    <SkeletonBox className="h-7 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Milestone Progress Skeleton */}
+          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex-1">
+                <SkeletonBox className="h-6 w-40 mb-2" />
+                <SkeletonBox className="h-4 w-64" />
+              </div>
+              <div className="text-right">
+                <SkeletonBox className="h-3 w-20 mb-2" />
+                <SkeletonBox className="h-7 w-16" />
+              </div>
+            </div>
+            <SkeletonBox className="h-4 w-full rounded-full" />
+          </div>
         </div>
       </div>
     );
@@ -184,144 +104,273 @@ const Account = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">My Account</h1>
-      </div>
-
-      <div className="space-y-8">
-        {/* Profile card */}
-        <div className="bg-[#151515] border border-white/10 rounded-[30px] p-4 md:p-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/10 to-purple-500/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
-
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full mb-6 relative z-10 gap-6">
-            <div className="flex items-start gap-6">
-              <div className="rounded-2xl h-16 w-16 md:h-24 md:w-24 overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] border border-white/10 shadow-xl group-hover:scale-105 transition-transform duration-300 flex-shrink-0">
-                <img
-                  src="/assets/images/pfp.png"
-                  alt="User"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-
-              <div className="flex flex-col justify-center gap-2">
-                <h2 className="text-3xl font-bold tracking-tight text-white/90">
-                  {userAccount.username ||
-                    userAccount.email?.split("@")[0] ||
-                    "Anonymous"}
-                </h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors">
-                    <span className="font-mono text-sm text-white/40">
-                      {truncateAddress(userAccount.wallet_address)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-start md:items-end w-full md:w-auto mt-4 md:mt-0">
-              {userAccount.rank && (
-                <div
-                  className={`${getRankBadgeColor(userAccount.rank)} text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-blue-900/20`}
-                >
-                  <Trophy className="w-5 h-5" />
-                  Rank #{userAccount.rank}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="h-px bg-white/5 my-6" />
-
-          {/* Stats grid*/}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Points */}
-            <div className="bg-white/5 rounded-xl p-5 border border-white/5 hover:border-white/10 transition-colors group/stat">
-              <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-1">
-                Points
-              </p>
-              <p className="text-2xl font-bold font-mono text-white group-hover/stat:text-green-400 transition-colors">
-                {userAccount.points.toLocaleString()}
-              </p>
-            </div>
-
-            {/* Check-in Card */}
-            <div className="md:col-span-1">
-              <CheckInCard onPointsUpdated={handlePointsUpdated} />
-            </div>
+      {/* Milestone Celebration Animation */}
+      {showMilestoneAnimation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-8 text-center animate-in zoom-in-95 duration-500">
+            <Trophy className="w-20 h-20 mx-auto mb-4 text-white animate-bounce" />
+            <h2 className="text-3xl font-bold text-white mb-2">
+              🎉 Milestone Reached!
+            </h2>
+            <p className="text-white/90 text-lg">
+              {checkinState.currentStreak} Day Streak - Earned{" "}
+              {checkinState.pointsEarned} Points!
+            </p>
           </div>
         </div>
+      )}
 
-        {/* Leaderboard */}
-        <div className="pt-4">
-          <div className="flex items-center gap-3 mb-6 px-2">
-            <h2 className="text-2xl font-bold">Top 100 Accounts</h2>
-          </div>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Account</h1>
+        <p className="text-white/60 mt-2">
+          Manage your daily check-ins and track your progress
+        </p>
+      </div>
 
-          <div className="bg-[#151515] border border-white/10 rounded-[30px] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-white/5 border-b border-white/5">
-                  <tr>
-                    <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">
-                      Rank
-                    </th>
-                    <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-3 py-3 md:px-6 md:py-4 text-left text-xs font-bold text-white/40 uppercase tracking-wider">
-                      Points
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-white/80">
-                  {leaderboard.map((entry) => (
-                    <tr
-                      key={entry.user_id}
-                      className={`hover:bg-white/5 transition-colors ${
-                        entry.user_id === currentAccount?.address
-                          ? "bg-teal-500/10"
-                          : ""
-                      }`}
-                    >
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div
-                          className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${getRankBadgeColor(entry.rank)} text-white font-bold text-sm shadow-lg`}
-                        >
-                          {entry.rank}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div>
-                          <p className="font-bold text-white text-sm md:text-base">
-                            {entry.username ||
-                              entry.email?.split("@")[0] ||
-                              "Anonymous"}
-                          </p>
-                          <p className="text-xs text-white/40 font-mono hidden sm:block">
-                            {truncateAddress(entry.wallet_address)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className="text-green-400 font-mono font-medium">
-                          {entry.points.toLocaleString()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* Premium Status Card */}
+      {subscriptionState.isPremium && (
+        <div className="mb-6">
+          <PremiumBadge
+            variant="large"
+            daysRemaining={subscriptionState.daysRemaining}
+            showExpiry={true}
+          />
+        </div>
+      )}
+
+      {/* Upgrade CTA (if not premium) */}
+      {!subscriptionState.isPremium && (
+        <div
+          className="mb-6  border border-blue-500/20 rounded-[30px] p-6 relative overflow-hidden group cursor-pointer hover:border-blue-500/40 transition-all duration-300"
+          onClick={() => navigate("/subscription")}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r  via-blue-500/5 to-transparent group-hover:via-blue-500/10 transition-all duration-500" />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg mb-1">
+                  Upgrade to Premium
+                </h3>
+                <p className="text-white/60 text-sm">
+                  Get 5 daily prompts, priority access, and more for just 2
+                  SUI/month
+                </p>
+              </div>
             </div>
 
-            {leaderboard.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400">No leaderboard data yet</p>
-              </div>
-            )}
+            <button className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-black font-bold text-sm flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg">
+              Upgrade
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* Daily Check-in Card */}
+      <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6 relative overflow-hidden">
+        {/* Glow effect */}
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Daily Check-in
+              </h2>
+              <p className="text-white/60 text-sm">
+                {checkinState.canCheckin
+                  ? checkinState.streakWillReset
+                    ? "⚠️ Your streak will reset! Check in now to continue."
+                    : `Ready to earn ${checkinState.nextCheckinPoints} point${checkinState.nextCheckinPoints > 1 ? "s" : ""}!`
+                  : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
+              </p>
+            </div>
+
+            <button
+              onClick={checkin}
+              disabled={
+                !checkinState.canCheckin ||
+                checkinState.status === "requesting" ||
+                checkinState.status === "signing" ||
+                checkinState.status === "confirming"
+              }
+              className={`
+                px-8 py-4 rounded-full font-bold text-sm transition-all
+                ${
+                  checkinState.canCheckin && checkinState.status === "idle"
+                    ? checkinState.nextIsMilestone
+                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black shadow-lg shadow-yellow-500/30 animate-pulse"
+                      : "bg-[#246AFC] hover:bg-[#1a55cc] text-white shadow-lg shadow-blue-500/20"
+                    : "bg-white/10 text-white/40 cursor-not-allowed"
+                }
+              `}
+            >
+              {checkinState.status === "requesting" && "Requesting..."}
+              {checkinState.status === "signing" && "Sign Transaction..."}
+              {checkinState.status === "confirming" && "Confirming..."}
+              {checkinState.status === "success" && "✓ Checked In!"}
+              {checkinState.status === "idle" && checkinState.canCheckin && (
+                <>
+                  {checkinState.nextIsMilestone ? "🎯 " : ""}
+                  Check In
+                  {checkinState.nextIsMilestone && " for Milestone!"}
+                </>
+              )}
+              {checkinState.status === "cooldown" &&
+                `Wait ${checkinState.hoursRemaining}h`}
+              {checkinState.status === "error" && "Try Again"}
+            </button>
+          </div>
+
+          {/* Error Message */}
+          {checkinState.error && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+              <p className="text-red-400 text-sm">{checkinState.error}</p>
+            </div>
+          )}
+
+          {/* Streak Stats Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {/* Points Balance */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div>
+                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                    Total Points
+                  </p>
+                  <p className="text-white text-2xl font-bold">
+                    {checkinState.balance.toLocaleString()}
+                    {subscriptionState.isPremium && (
+                      <PremiumBadge variant="inline" />
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Current Streak */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className={`w-10 h-10 rounded-full bg-gradient-to-br ${getStreakColor(checkinState.currentStreak)} flex items-center justify-center`}
+                >
+                  <Flame className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                    Current Streak
+                  </p>
+                  <p className="text-white text-2xl font-bold">
+                    {checkinState.currentStreak}
+                    <span className="text-white/40 text-sm ml-1">days</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Check-ins */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                    Total Check-ins
+                  </p>
+                  <p className="text-white text-2xl font-bold">
+                    {checkinState.totalCheckins}
+                    <span className="text-white/40 text-sm ml-1">times</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Milestone Progress */}
+          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-white font-bold text-lg">Next Milestone</p>
+                  <p className="text-white/60 text-sm">
+                    {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} until{" "}
+                    {checkinState.nextMilestone}-day milestone
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
+                  Bonus Reward
+                </p>
+                <p className="text-green-400 text-2xl font-bold">+5 pts</p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative w-full h-4 bg-white/5 rounded-full overflow-hidden">
+              <div
+                className={`absolute top-0 left-0 h-full bg-gradient-to-r ${getStreakColor(checkinState.currentStreak)} transition-all duration-500 rounded-full`}
+                style={{ width: `${progress}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 animate-pulse" />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white text-xs font-bold drop-shadow-lg">
+                  {checkinState.currentStreak} / {checkinState.nextMilestone}
+                </span>
+              </div>
+            </div>
+
+            {/* Upcoming Milestones */}
+            <div className="mt-6 pt-6 border-t border-white/5">
+              <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">
+                Upcoming Milestones
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((milestone) => (
+                  <div
+                    key={milestone}
+                    className={`
+                      px-3 py-1.5 rounded-full text-xs font-bold border transition-all
+                      ${
+                        checkinState.currentStreak >= milestone
+                          ? "bg-green-500/20 border-green-500/50 text-green-400"
+                          : milestone === checkinState.nextMilestone
+                            ? "bg-green-500/20 border-green-500/50 text-green-400 animate-pulse"
+                            : "bg-white/5 border-white/10 text-white/40"
+                      }
+                    `}
+                  >
+                    {checkinState.currentStreak >= milestone && "✓ "}
+                    {milestone} days
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Streak Reset Warning */}
+          {checkinState.streakWillReset && checkinState.canCheckin && (
+            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 text-xl">⚠️</span>
+              </div>
+              <div>
+                <p className="text-red-400 font-bold text-sm">
+                  Streak at Risk!
+                </p>
+                <p className="text-red-400/80 text-xs">
+                  You haven't checked in for more than 24 hours. Check in now to
+                  prevent losing your {checkinState.currentStreak}-day streak!
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -329,4 +378,3 @@ const Account = () => {
 };
 
 export default Account;
-export { Account };

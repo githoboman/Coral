@@ -28,6 +28,13 @@ router.get(
           .json({ error: "Bad Request", detail: "User ID cannot be empty" });
       }
 
+      if (!user_id.startsWith("0x") || user_id.length !== 66) {
+        return res.status(400).json({
+          error: "Bad Request",
+          detail: "Invalid wallet address format",
+        });
+      }
+
       const minter = getTicketMinter();
 
       const blobId = await minter.getCurrentBlobId();
@@ -39,7 +46,6 @@ router.get(
       }
 
       const um = getUserManager();
-      // getUserProfile now decrypts automatically
       const userProfile = await um.getUserProfile(blobId, user_id);
 
       if (!userProfile) {
@@ -50,19 +56,22 @@ router.get(
 
       const balance = await minter.getBalance(user_id);
 
-      // userProfile is already decrypted
       return res.json({
         user_id,
         wallet_address: userProfile.wallet_address,
-        email: userProfile.email, // Decrypted
-        username: userProfile.username, // Decrypted
-        first_name: userProfile.first_name, // Decrypted
-        last_name: userProfile.last_name, // Decrypted
+        email: userProfile.email,
+        username: userProfile.username,
+        first_name: userProfile.first_name,
+        last_name: userProfile.last_name,
         points: balance,
         referral_points: 0,
         rank: null,
-        is_premium: false,
+        is_premium: userProfile.subscription_tier === 1,
+        subscription_tier: userProfile.subscription_tier || 0,
+        subscription_expires_at: userProfile.subscription_expires_at,
         created_at: userProfile.joined_at,
+        tasks_created_today: userProfile.tasks_created_today || 0,
+        tasks_claimed_today: userProfile.tasks_claimed_today || 0,
       });
     } catch (error) {
       console.error("Error fetching account:", error);
@@ -88,33 +97,52 @@ router.get(
         return res.json({ leaderboard: [] });
       }
 
-      // Decrypt each profile and get points
+      console.log(`[LEADERBOARD] Processing ${registry.total_users} users`);
+
       const usersWithPoints = await Promise.all(
         Object.keys(registry.users).map(async (wallet) => {
-          // Decrypt the profile
-          const decryptedProfile = await um.getUserProfile(blobId, wallet);
-          if (!decryptedProfile) {
+          try {
+            const decryptedProfile = await um.getUserProfile(blobId, wallet);
+            if (!decryptedProfile) {
+              return null;
+            }
+
+            const balance = await minter.getBalance(wallet);
+
+            return {
+              user_id: wallet,
+              wallet_address: wallet,
+              username:
+                decryptedProfile.username ||
+                `User ${wallet.substring(0, 6)}...`,
+              email: decryptedProfile.email,
+              points: balance,
+              referral_points: 0,
+            };
+          } catch (error) {
+            console.error(`Error processing user ${wallet}:`, error);
             return null;
           }
-
-          const balance = await minter.getBalance(wallet);
-          return {
-            user_id: wallet,
-            wallet_address: wallet,
-            username: decryptedProfile.username, // Decrypted
-            email: decryptedProfile.email, // Decrypted
-            points: balance,
-            referral_points: 0,
-          };
         }),
       );
 
-      // Filter out nulls and sort
-      const validUsers = usersWithPoints.filter((u) => u !== null);
+      const validUsers = usersWithPoints.filter(
+        (u) => u !== null && u.points > 0,
+      );
+
       const leaderboard = validUsers
         .sort((a, b) => b!.points - a!.points)
         .slice(0, 100)
-        .map((user, idx) => ({ ...user, rank: idx + 1 }));
+        .map((user, idx) => ({
+          rank: idx + 1,
+          user_id: user!.user_id,
+          wallet_address: user!.wallet_address,
+          username: user!.username,
+          points: user!.points,
+          referral_points: user!.referral_points,
+        }));
+
+      console.log(`[LEADERBOARD] Returning ${leaderboard.length} users`);
 
       return res.json({ leaderboard });
     } catch (error) {

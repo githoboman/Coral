@@ -7,6 +7,10 @@ import { Transaction } from "@mysten/sui/transactions";
 
 const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
 const POINTS_REGISTRY = import.meta.env.VITE_POINTS_REGISTRY_ID || "";
+const FEE_CONFIG = import.meta.env.VITE_FEE_CONFIG_ID || "";
+const SUBSCRIPTION_REGISTRY =
+  import.meta.env.VITE_SUI_SUBSCRIPTION_REGISTRY_ID || "";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export type CheckinStatus =
@@ -22,12 +26,22 @@ export type CheckinStatus =
 export interface CheckinState {
   status: CheckinStatus;
   canCheckin: boolean;
+  lastCheckinDate: string | null;
   lastCheckinAt: number | null;
   nextAvailableAt: number | null;
   hoursRemaining: number | null;
   pointsEarned: number;
   error: string | null;
   balance: number;
+  currentStreak: number;
+  totalCheckins: number;
+  nextStreak: number;
+  streakWillReset: boolean;
+  nextCheckinPoints: number;
+  nextIsMilestone: boolean;
+  nextMilestone: number;
+  daysToNextMilestone: number;
+  checkinFee: number;
 }
 
 export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
@@ -35,27 +49,53 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [state, setState] = useState<CheckinState>({
-    status: "idle",
+    status: "checking",
     canCheckin: false,
+    lastCheckinDate: null,
     lastCheckinAt: null,
     nextAvailableAt: null,
     hoursRemaining: null,
     pointsEarned: 0,
     error: null,
     balance: 0,
+    currentStreak: 0,
+    totalCheckins: 0,
+    nextStreak: 1,
+    streakWillReset: false,
+    nextCheckinPoints: 1,
+    nextIsMilestone: false,
+    nextMilestone: 5,
+    daysToNextMilestone: 5,
+    checkinFee: 2_000_000,
   });
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const getTimezoneOffset = useCallback(() => {
+    return new Date().getTimezoneOffset() * -1;
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     const addr = currentAccount?.address;
-    if (!addr) return;
+    if (!addr) {
+      setState((prev) => ({ ...prev, status: "idle" }));
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
 
     setState((prev) => ({ ...prev, status: "checking" }));
 
     try {
+      const timezoneOffset = getTimezoneOffset();
       const res = await fetch(
-        `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}`,
+        `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}&timezone_offset=${timezoneOffset}`,
+        { signal: abortControllerRef.current.signal },
       );
 
       if (!res.ok) {
@@ -68,23 +108,43 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         ...prev,
         status: data.can_checkin ? "idle" : "cooldown",
         canCheckin: data.can_checkin,
+        lastCheckinDate: data.last_checkin_date,
         lastCheckinAt: data.last_checkin_at,
         nextAvailableAt: data.next_available_at,
         hoursRemaining: data.hours_remaining,
         balance: data.balance,
+        currentStreak: data.current_streak || 0,
+        totalCheckins: data.total_checkins || 0,
+        nextStreak: data.next_streak || 1,
+        streakWillReset: data.streak_will_reset || false,
+        nextCheckinPoints: data.next_checkin_points || 1,
+        nextIsMilestone: data.next_is_milestone || false,
+        nextMilestone: data.next_milestone || 5,
+        daysToNextMilestone: data.days_to_next_milestone || 5,
+        checkinFee: data.checkin_fee || 2_000_000,
         error: null,
       }));
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        return;
+      }
+
       setState((prev) => ({
         ...prev,
         status: "error",
         error: err instanceof Error ? err.message : "Failed to fetch status",
       }));
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, getTimezoneOffset]);
 
   useEffect(() => {
     fetchStatus();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [fetchStatus]);
 
   const pollForConfirmation = useCallback(
@@ -109,7 +169,8 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               pollRef.current = null;
             }
 
-            setState({
+            setState((prev) => ({
+              ...prev,
               status: "success",
               canCheckin: false,
               lastCheckinAt: Date.now(),
@@ -118,11 +179,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               pointsEarned: expectedPts,
               error: null,
               balance: data.balance,
-            });
+              currentStreak: prev.nextStreak,
+              totalCheckins: prev.totalCheckins + 1,
+            }));
 
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
             }
+
+            window.dispatchEvent(new Event("pointsUpdated"));
 
             setTimeout(fetchStatus, 2000);
 
@@ -136,20 +201,22 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             pollRef.current = null;
           }
 
-          setState({
+          setState((prev) => ({
+            ...prev,
             status: "success",
             canCheckin: false,
-            lastCheckinAt: Date.now(),
-            nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000,
-            hoursRemaining: 24,
             pointsEarned: expectedPts,
             error: null,
-            balance: expectedPts,
-          });
+            balance: prev.balance + expectedPts,
+            currentStreak: prev.nextStreak,
+            totalCheckins: prev.totalCheckins + 1,
+          }));
 
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
           }
+
+          window.dispatchEvent(new Event("pointsUpdated"));
 
           setTimeout(fetchStatus, 2000);
 
@@ -187,7 +254,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       setState((prev) => ({
         ...prev,
         status: "error",
-        error: `Please wait ${state.hoursRemaining} more hours before checking in again.`,
+        error: `You've already checked in today. Next check-in available at midnight (in ${state.hoursRemaining}h).`,
       }));
       return;
     }
@@ -199,11 +266,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }));
 
     try {
+      const timezoneOffset = getTimezoneOffset();
       const ticketRes = await fetch(`${API_BASE}/api/checkin/request-ticket`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet_address: currentAccount.address,
+          timezone_offset: timezoneOffset,
         }),
       });
 
@@ -221,6 +290,9 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
       const ticketId = ticketData.ticket_object_id as string;
       const ptsAmount = ticketData.points_amount as number;
+      const isMilestone = ticketData.is_milestone as boolean;
+      const milestoneBonus = ticketData.milestone_bonus as number;
+      const checkinFee = ticketData.checkin_fee as number;
 
       setState((prev) => ({
         ...prev,
@@ -230,11 +302,16 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const tx = new Transaction();
       tx.setGasBudget(10_000_000);
 
+      const [feeCoin] = tx.splitCoins(tx.gas, [checkinFee]);
+
       tx.moveCall({
         target: `${PACKAGE_ID}::points::checkin`,
         arguments: [
           tx.object(POINTS_REGISTRY),
+          tx.object(SUBSCRIPTION_REGISTRY),
           tx.object(ticketId),
+          tx.object(FEE_CONFIG),
+          feeCoin,
           tx.object("0x6"),
         ],
       });
@@ -254,14 +331,24 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         ptsAmount,
         result.digest,
       );
+
+      if (isMilestone) {
+      }
     } catch (err: any) {
       let errorMsg = "Check-in failed. Please try again.";
       if (err?.message) {
         if (err.message.includes("User rejected")) {
           errorMsg = "Transaction was cancelled.";
-        } else if (err.message.includes("MoveAbort")) {
+        } else if (err.message.includes("EAlreadyCheckedInToday")) {
           errorMsg =
-            "Check-in cooldown not passed yet. Please try again later.";
+            "You've already checked in today. Next check-in available at midnight.";
+        } else if (
+          err.message.includes("Insufficient") ||
+          err.message.includes("InsufficientCoinBalance")
+        ) {
+          errorMsg = `Insufficient SUI balance. You need at least ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI for the check-in fee plus gas.`;
+        } else if (err.message.includes("EInsufficientPayment")) {
+          errorMsg = `Check-in fee payment failed. Required: ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI`;
         } else {
           errorMsg = err.message;
         }
@@ -280,9 +367,11 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     state.canCheckin,
     state.status,
     state.hoursRemaining,
+    state.checkinFee,
     signAndExecute,
     pollForConfirmation,
     fetchStatus,
+    getTimezoneOffset,
   ]);
 
   const reset = useCallback(() => {

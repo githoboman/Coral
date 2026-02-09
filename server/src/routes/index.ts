@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import authRouter from "./auth"; // NEW
+import authRouter from "./auth";
 import usersRouter from "./users";
 import tasksRouter from "./tasks";
 import eventsRouter from "./events";
@@ -7,6 +7,8 @@ import waitlistRouter from "./waitlist";
 import accountRouter from "./account";
 import chatRouter from "./chat";
 import checkinRouter from "./checkin";
+import taskPointsRouter from "./taskPoints";
+import subscriptionRoutes from "./subscription";
 
 const router = Router();
 
@@ -18,11 +20,13 @@ router.use(waitlistRouter);
 router.use(accountRouter);
 router.use(chatRouter);
 router.use("/checkin", checkinRouter);
+router.use("/task-points", taskPointsRouter);
+router.use("/subscription", subscriptionRoutes);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
     name: "Tovira Express Server",
-    version: "2.0.0",
+    version: "3.0.0",
     description:
       "Express TypeScript server for Tovira - Powered by Walrus + Sui",
     timestamp: new Date().toISOString(),
@@ -39,6 +43,11 @@ router.get("/info", (_req: Request, res: Response) => {
         "POST /api/tasks/:task_id/complete",
         "GET /api/tasks/stats/:user_id",
       ],
+      taskPoints: [
+        "GET /api/task-points/claimable",
+        "POST /api/task-points/request-claim",
+        "GET /api/task-points/stats/:user_id",
+      ],
       events: [
         "POST /api/events",
         "POST /api/events/bulk",
@@ -49,18 +58,18 @@ router.get("/info", (_req: Request, res: Response) => {
         "GET /api/events/stats/:user_id",
       ],
       waitlist: ["POST /api/waitlist/verify", "GET /api/waitlist/info"],
-      account: [
-        "GET /api/account/:user_id",
-        "GET /api/leaderboard",
-        "POST /api/add-points/:user_id",
-      ],
+      account: ["GET /api/account/:user_id", "GET /api/leaderboard"],
       chat: [
         "POST /api/chat",
-        "POST /api/chat/stream",
         "GET /api/chats/:userId",
         "GET /api/chats/:chatId/messages",
+        "DELETE /api/chats/:chatId",
+        "GET /api/task-prompts/:userId",
       ],
+      checkin: ["GET /api/checkin/status", "POST /api/checkin/request-ticket"],
     },
+    storage: "Walrus (Encrypted)",
+    blockchain: "Sui",
   });
 });
 

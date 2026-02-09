@@ -78,6 +78,9 @@ export function useClaimPoints() {
               error: null,
               balance: data.balance,
             });
+
+            window.dispatchEvent(new Event("pointsUpdated"));
+
             return true;
           }
         } catch (_) { }
@@ -94,6 +97,9 @@ export function useClaimPoints() {
             error: null,
             balance: expectedPts,
           });
+
+          window.dispatchEvent(new Event("pointsUpdated"));
+
           return true;
         }
 

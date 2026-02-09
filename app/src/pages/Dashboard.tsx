@@ -1,14 +1,25 @@
-import { useCurrentAccount, useSignPersonalMessage, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
-import { Transaction } from '@mysten/sui/transactions';
-import { Plus, Fuel, X, ArrowUp, Square, Layout, ChevronDown, Check } from 'lucide-react';
-import { Tooltip } from '@/components/ui/Tooltip';
-import WorkflowSteps from '@/components/WorkflowSteps';
-import AgentSelector from '@/components/AgentSelector';
-import RecentChatsModal from '@/components/RecentChatsModal';
-import ArtifactPanel from '@/components/ArtifactPanel';
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import {
+  useCurrentAccount,
+  useSignPersonalMessage,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
+import {
+  Plus,
+  Fuel,
+  X,
+  ArrowUp,
+  Square,
+  Layout,
+  ChevronDown,
+} from "lucide-react";
+import WorkflowSteps from "@/components/WorkflowSteps";
+import AgentSelector from "@/components/AgentSelector";
+import RecentChatsModal from "@/components/RecentChatsModal";
+import ArtifactPanel from "@/components/ArtifactPanel";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -16,18 +27,21 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/atom-one-dark.css";
-import { LayoutContextType } from './Layout';
+import { LayoutContextType } from "./Layout";
+import { trackTaskCreation } from "@/services/chatService";
 
 // Define custom Sui Move language for rehype-highlight
 const moveLanguage = (hljs: any) => {
   return {
-    name: 'Move',
+    name: "Move",
     case_insensitive: false,
     keywords: {
-      keyword: 'public native friend entry fun struct use module const script has as mut copy drop store key if else return abort break continue loop while let move',
-      literal: 'true false',
-      type: 'u8 u16 u32 u64 u128 u256 bool address vector signer UID TxContext Coin Balance Option String',
-      built_in: 'transfer public_transfer object new share_object freeze_object delete init mint burn'
+      keyword:
+        "public native friend entry fun struct use module const script has as mut copy drop store key if else return abort break continue loop while let move",
+      literal: "true false",
+      type: "u8 u16 u32 u64 u128 u256 bool address vector signer UID TxContext Coin Balance Option String",
+      built_in:
+        "transfer public_transfer object new share_object freeze_object delete init mint burn",
     },
     contains: [
       hljs.C_LINE_COMMENT_MODE,
@@ -35,22 +49,23 @@ const moveLanguage = (hljs: any) => {
       hljs.QUOTE_STRING_MODE,
       hljs.NUMBER_MODE,
       {
-        className: 'title.function',
+        className: "title.function",
         begin: /public\s+(entry\s+)?fun\s+/,
         end: /\s*\(/,
         excludeBegin: true,
         excludeEnd: true,
-        relevance: 0
+        relevance: 0,
       },
       {
-        className: 'type',
+        className: "type",
         begin: /:\s*/,
         end: /\s*(=|;|\)|,)/,
         excludeBegin: true,
         excludeEnd: true,
-        keywords: 'u8 u16 u32 u64 u128 u256 bool address vector signer UID TxContext Coin Balance Option String'
-      }
-    ]
+        keywords:
+          "u8 u16 u32 u64 u128 u256 bool address vector signer UID TxContext Coin Balance Option String",
+      },
+    ],
   };
 };
 // hljs core import removed
@@ -65,51 +80,106 @@ import rust from "highlight.js/lib/languages/rust";
 
 // Define custom Sui Move language
 
-
-import { ModalPortal } from '@/components/ui/ModalPortal';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchChats, fetchChatHistory, setCurrentChat, addMessage, setMessages, setActiveArtifact, deleteChat, type Message } from '@/store/slices/chatsSlice';
-import { getAgentConfig } from '@/config/agents';
-import { type Command } from '@/config/commands';
-import { sendChatMessage, getRateLimitStatus, RateLimitStatus } from '@/services/chatService';
-import LinkPreview from '@/components/LinkPreview';
-
-
-
-
-
-
-
+import { ModalPortal } from "@/components/ui/ModalPortal";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  fetchChats,
+  fetchChatHistory,
+  setCurrentChat,
+  addMessage,
+  setMessages,
+  setActiveArtifact,
+  deleteChat,
+  type Message,
+} from "@/store/slices/chatsSlice";
+import { getAgentConfig } from "@/config/agents";
+import { type Command } from "@/config/commands";
+import {
+  sendChatMessage,
+  getRateLimitStatus,
+  RateLimitStatus,
+} from "@/services/chatService";
+import LinkPreview from "@/components/LinkPreview";
 
 // Custom Markdown Components (Gemini Style)
 const MarkdownComponents = (handleOpenArtifact: any) => ({
-  h1: ({ node, ...props }: any) => <h1 className="text-2xl font-semibold mb-4 mt-6 text-white pb-2" {...props} />,
-  h2: ({ node, ...props }: any) => <h2 className="text-lg font-semibold mb-3 mt-5 text-white" {...props} />,
-  h3: ({ node, ...props }: any) => <h3 className="text-base font-semibold mb-2 mt-4 text-white/90" {...props} />,
-  h4: ({ node, ...props }: any) => <h4 className="text-sm font-semibold mb-2 mt-3 text-white/80" {...props} />,
-  p: ({ node, ...props }: any) => <p className="leading-7 mb-4 text-gray-300 last:mb-0 break-words" {...props} />,
-  ul: ({ node, ...props }: any) => <ul className="list-disc list-outside ml-5 mb-4 space-y-1 text-gray-300" {...props} />,
-  ol: ({ node, ...props }: any) => <ol className="list-decimal list-outside ml-5 mb-4 space-y-1 text-gray-300" {...props} />,
-  li: ({ node, ...props }: any) => <li className="pl-1 break-words" {...props} />,
-  blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-white/20 pl-4 py-1 my-4 text-gray-400 italic break-words" {...props} />,
-  a: ({ node, ...props }: any) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors break-words" target="_blank" rel="noopener noreferrer" {...props} />,
+  h1: ({ node, ...props }: any) => (
+    <h1
+      className="text-2xl font-semibold mb-4 mt-6 text-white pb-2"
+      {...props}
+    />
+  ),
+  h2: ({ node, ...props }: any) => (
+    <h2 className="text-lg font-semibold mb-3 mt-5 text-white" {...props} />
+  ),
+  h3: ({ node, ...props }: any) => (
+    <h3
+      className="text-base font-semibold mb-2 mt-4 text-white/90"
+      {...props}
+    />
+  ),
+  h4: ({ node, ...props }: any) => (
+    <h4 className="text-sm font-semibold mb-2 mt-3 text-white/80" {...props} />
+  ),
+  p: ({ node, ...props }: any) => (
+    <p
+      className="leading-7 mb-4 text-gray-300 last:mb-0 break-words"
+      {...props}
+    />
+  ),
+  ul: ({ node, ...props }: any) => (
+    <ul
+      className="list-disc list-outside ml-5 mb-4 space-y-1 text-gray-300"
+      {...props}
+    />
+  ),
+  ol: ({ node, ...props }: any) => (
+    <ol
+      className="list-decimal list-outside ml-5 mb-4 space-y-1 text-gray-300"
+      {...props}
+    />
+  ),
+  li: ({ node, ...props }: any) => (
+    <li className="pl-1 break-words" {...props} />
+  ),
+  blockquote: ({ node, ...props }: any) => (
+    <blockquote
+      className="border-l-2 border-white/20 pl-4 py-1 my-4 text-gray-400 italic break-words"
+      {...props}
+    />
+  ),
+  a: ({ node, ...props }: any) => (
+    <a
+      className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors break-words"
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    />
+  ),
   pre: ({ children }: any) => <>{children}</>,
   code: ({ node, className, children, ...props }: any) => {
-    const match = /language-(\w+)/.exec(className || '')
-    const isInline = !match && !String(children).includes('\n')
+    const match = /language-(\w+)/.exec(className || "");
+    const isInline = !match && !String(children).includes("\n");
     return isInline ? (
-      <code className="bg-white/10 text-white/90 px-1.5 py-0.5 rounded text-[13px] font-mono border border-white/5 break-all" {...props}>
+      <code
+        className="bg-white/10 text-white/90 px-1.5 py-0.5 rounded text-[13px] font-mono border border-white/5 break-all"
+        {...props}
+      >
         {children}
       </code>
     ) : (
       <div className="rounded-xl overflow-hidden bg-white/5 border border-white/10 my-4 w-full max-w-full">
         {match && (
           <div className="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-white/5">
-            <span className="text-xs text-gray-400 font-medium font-sans">{match[1].charAt(0).toUpperCase() + match[1].slice(1)}</span>
+            <span className="text-xs text-gray-400 font-medium font-sans">
+              {match[1].charAt(0).toUpperCase() + match[1].slice(1)}
+            </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handleOpenArtifact(String(children), 'code', match[1])}
+                onClick={() =>
+                  handleOpenArtifact(String(children), "code", match[1])
+                }
                 className="p-1.5 hover:bg-white/10 rounded-md transition-colors text-gray-400 hover:text-white cursor-pointer"
                 title="Open as Artifact"
               >
@@ -121,7 +191,17 @@ const MarkdownComponents = (handleOpenArtifact: any) => ({
                 title="Copy code"
               >
                 <span className="sr-only">Copy</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                 </svg>
@@ -130,51 +210,80 @@ const MarkdownComponents = (handleOpenArtifact: any) => ({
           </div>
         )}
         <div className="overflow-x-auto w-full">
-          <code className={`${className} block text-sm p-4 font-mono leading-relaxed min-w-0`} {...props}>
+          <code
+            className={`${className} block text-sm p-4 font-mono leading-relaxed min-w-0`}
+            {...props}
+          >
             {children}
           </code>
         </div>
       </div>
-    )
+    );
   },
-  table: ({ node, ...props }: any) => <div className="overflow-x-auto my-6 rounded-lg border border-white/10 w-full"><table className="w-full text-left border-collapse bg-white/5" {...props} /></div>,
-  th: ({ node, ...props }: any) => <th className="bg-white/10 p-3 font-semibold text-white/90 border-b border-white/10 text-sm whitespace-nowrap" {...props} />,
-  td: ({ node, ...props }: any) => <td className="p-3 border-b border-white/5 text-gray-300 text-sm whitespace-nowrap" {...props} />,
-  hr: ({ node, ...props }: any) => <hr className="border-white/10 my-8" {...props} />,
-  img: ({ node, ...props }: any) => <img className="rounded-lg my-4 max-w-full h-auto border border-white/10" {...props} alt={props.alt || ''} />,
+  table: ({ node, ...props }: any) => (
+    <div className="overflow-x-auto my-6 rounded-lg border border-white/10 w-full">
+      <table
+        className="w-full text-left border-collapse bg-white/5"
+        {...props}
+      />
+    </div>
+  ),
+  th: ({ node, ...props }: any) => (
+    <th
+      className="bg-white/10 p-3 font-semibold text-white/90 border-b border-white/10 text-sm whitespace-nowrap"
+      {...props}
+    />
+  ),
+  td: ({ node, ...props }: any) => (
+    <td
+      className="p-3 border-b border-white/5 text-gray-300 text-sm whitespace-nowrap"
+      {...props}
+    />
+  ),
+  hr: ({ node, ...props }: any) => (
+    <hr className="border-white/10 my-8" {...props} />
+  ),
+  img: ({ node, ...props }: any) => (
+    <img
+      className="rounded-lg my-4 max-w-full h-auto border border-white/10"
+      {...props}
+      alt={props.alt || ""}
+    />
+  ),
 });
 
 const Dashboard = () => {
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
-  const { mutateAsync: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
   const { chatId } = useParams<{ chatId?: string }>();
   const navigate = useNavigate();
   useOutletContext<LayoutContextType>();
 
   // Redux state
   const dispatch = useAppDispatch();
-  const chats = useAppSelector(state => state.chats.chats);
-  const currentChatId = useAppSelector(state => state.chats.currentChatId);
-  const messagesMap = useAppSelector(state => state.chats.messages);
-  const activeArtifact = useAppSelector(state => state.chats.activeArtifact);
+  const chats = useAppSelector((state) => state.chats.chats);
+  const currentChatId = useAppSelector((state) => state.chats.currentChatId);
+  const messagesMap = useAppSelector((state) => state.chats.messages);
+  const activeArtifact = useAppSelector((state) => state.chats.activeArtifact);
 
   // Local state
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
 
-  // Interaction UX State
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<Record<string, 'like' | 'dislike' | null>>({});
-
-  const [streamingText, setStreamingText] = useState('');
-  const [agentUsed, setAgentUsed] = useState<string>('');
+  const [streamingText, setStreamingText] = useState("");
+  const [agentUsed, setAgentUsed] = useState<string>("");
   const [tempMessages, setTempMessages] = useState<Message[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('main');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("main");
   const [autoOpenAgentSelector, setAutoOpenAgentSelector] = useState(false);
-  const [feeModalDetail, setFeeModalDetail] = useState<{ agent: string; cost: number; reason: string } | null>(null);
+  const [feeModalDetail, setFeeModalDetail] = useState<{
+    agent: string;
+    cost: number;
+    reason: string;
+  } | null>(null);
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [isPayingGas, setIsPayingGas] = useState(false);
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
@@ -188,12 +297,13 @@ const Dashboard = () => {
   const [workflowSteps, setWorkflowSteps] = useState<any[]>([]);
 
   // Rate limit state
-  const [rateLimitStatus, setRateLimitStatus] = useState<RateLimitStatus | null>(null);
+  const [rateLimitStatus, setRateLimitStatus] =
+    useState<RateLimitStatus | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   // Pending transaction action state (for immediate token transfers)
   interface PendingTxAction {
-    taskId: number;
+    taskId: string;
     actionType: string;
     recipientAddress?: string;
     amount?: string;
@@ -202,26 +312,29 @@ const Dashboard = () => {
     toCoin?: string;
     amountToSwap?: string;
   }
-  const [pendingTxAction, setPendingTxAction] = useState<PendingTxAction | null>(null);
+  const [pendingTxAction, setPendingTxAction] =
+    useState<PendingTxAction | null>(null);
 
   // Format countdown as HH:MM:SS
   const formatCountdown = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Get messages for current chat (include temp messages if no chat ID)
-  const messages = currentChatId ? (messagesMap[currentChatId] || []) : tempMessages;
+  const messages = currentChatId
+    ? messagesMap[currentChatId] || []
+    : tempMessages;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const user_id = currentAccount?.address || '';
+  const user_id = currentAccount?.address || "";
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   // Regenerate the last AI message without resending user message
@@ -229,8 +342,13 @@ const Dashboard = () => {
     if (isLoading || !user_id) return;
 
     // Find the user message that prompted this AI response
-    const messageIndex = messages.findIndex(m => m.id === messageToRegenerate.id);
-    const userMessage = messages.slice(0, messageIndex).reverse().find(m => m.sender === 'user');
+    const messageIndex = messages.findIndex(
+      (m) => m.id === messageToRegenerate.id,
+    );
+    const userMessage = messages
+      .slice(0, messageIndex)
+      .reverse()
+      .find((m) => m.sender === "user");
 
     if (!userMessage) return;
 
@@ -242,7 +360,7 @@ const Dashboard = () => {
         user_id,
         message: userMessage.text,
         chat_id: currentChatId || chatId,
-        agent_id: selectedAgentId !== 'main' ? selectedAgentId : undefined,
+        agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
       });
 
       setIsProcessingPrompt(false);
@@ -265,33 +383,38 @@ const Dashboard = () => {
 
       if (currentChatId) {
         // Update the message in Redux with the new variation
-        const updatedMessages = messages.map(m =>
-          m.id === messageToRegenerate.id ? updatedMessage : m
+        const updatedMessages = messages.map((m) =>
+          m.id === messageToRegenerate.id ? updatedMessage : m,
         );
-        dispatch(setMessages({ chatId: currentChatId, messages: updatedMessages }));
+        dispatch(
+          setMessages({ chatId: currentChatId, messages: updatedMessages }),
+        );
       } else {
-        setTempMessages(prev =>
-          prev.map(m => m.id === messageToRegenerate.id ? updatedMessage : m)
+        setTempMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageToRegenerate.id ? updatedMessage : m,
+          ),
         );
       }
 
       setIsLoading(false);
       setWorkflowSteps([]);
     } catch (error) {
-      console.error('Error regenerating message:', error);
+      console.error("Error regenerating message:", error);
       setIsLoading(false);
       setIsProcessingPrompt(false);
     }
   };
 
   // Navigate between message variations
-  const navigateVariation = (message: Message, direction: 'prev' | 'next') => {
+  const navigateVariation = (message: Message, direction: "prev" | "next") => {
     if (!message.variations) return;
 
     const currentIndex = message.currentVariationIndex ?? 0;
-    const newIndex = direction === 'next'
-      ? Math.min(currentIndex + 1, message.variations.length - 1)
-      : Math.max(currentIndex - 1, 0);
+    const newIndex =
+      direction === "next"
+        ? Math.min(currentIndex + 1, message.variations.length - 1)
+        : Math.max(currentIndex - 1, 0);
 
     const updatedMessage: Message = {
       ...message,
@@ -299,13 +422,15 @@ const Dashboard = () => {
     };
 
     if (currentChatId) {
-      const updatedMessages = messages.map(m =>
-        m.id === message.id ? updatedMessage : m
+      const updatedMessages = messages.map((m) =>
+        m.id === message.id ? updatedMessage : m,
       );
-      dispatch(setMessages({ chatId: currentChatId, messages: updatedMessages }));
+      dispatch(
+        setMessages({ chatId: currentChatId, messages: updatedMessages }),
+      );
     } else {
-      setTempMessages(prev =>
-        prev.map(m => m.id === message.id ? updatedMessage : m)
+      setTempMessages((prev) =>
+        prev.map((m) => (m.id === message.id ? updatedMessage : m)),
       );
     }
   };
@@ -321,11 +446,14 @@ const Dashboard = () => {
   // Persist current chat and its messages to localStorage for instant preloading
   useEffect(() => {
     if (currentChatId) {
-      localStorage.setItem('tovira_last_chat_id', currentChatId);
+      localStorage.setItem("tovira_last_chat_id", currentChatId);
 
       const chatMessages = messagesMap[currentChatId];
       if (chatMessages && chatMessages.length > 0) {
-        localStorage.setItem(`tovira_chat_messages_${currentChatId}`, JSON.stringify(chatMessages));
+        localStorage.setItem(
+          `tovira_chat_messages_${currentChatId}`,
+          JSON.stringify(chatMessages),
+        );
       }
     }
   }, [currentChatId, messagesMap]);
@@ -333,18 +461,22 @@ const Dashboard = () => {
   // Restore last chat and messages on mount if no chatId in URL
   useEffect(() => {
     if (!chatId && user_id) {
-      const lastChatId = localStorage.getItem('tovira_last_chat_id');
+      const lastChatId = localStorage.getItem("tovira_last_chat_id");
       if (lastChatId) {
         // Preload messages into Redux for instant display
-        const cachedMessages = localStorage.getItem(`tovira_chat_messages_${lastChatId}`);
+        const cachedMessages = localStorage.getItem(
+          `tovira_chat_messages_${lastChatId}`,
+        );
         if (cachedMessages) {
           try {
-            dispatch(setMessages({
-              chatId: lastChatId,
-              messages: JSON.parse(cachedMessages)
-            }));
+            dispatch(
+              setMessages({
+                chatId: lastChatId,
+                messages: JSON.parse(cachedMessages),
+              }),
+            );
           } catch (e) {
-            console.warn('Failed to parse cached messages:', e);
+            console.warn("Failed to parse cached messages:", e);
           }
         }
         navigate(`/${lastChatId}`, { replace: true });
@@ -355,10 +487,13 @@ const Dashboard = () => {
   // Fetch chats from Redux
   useEffect(() => {
     if (!user_id) return;
-    dispatch(fetchChats({ userId: user_id, agentId: selectedAgentId !== 'main' ? selectedAgentId : undefined }));
+    dispatch(
+      fetchChats({
+        userId: user_id,
+        agentId: selectedAgentId !== "main" ? selectedAgentId : undefined,
+      }),
+    );
   }, [user_id, selectedAgentId, dispatch]);
-
-
 
   // Check rate limit status on load and after user_id changes
   useEffect(() => {
@@ -402,7 +537,7 @@ const Dashboard = () => {
 
     const toMist = (amount: string): bigint => {
       try {
-        const cleanAmount = amount.replace(/,/g, '');
+        const cleanAmount = amount.replace(/,/g, "");
         const num = parseFloat(cleanAmount);
         if (isNaN(num)) return BigInt(0);
         return BigInt(Math.floor(num * 1e9));
@@ -413,28 +548,31 @@ const Dashboard = () => {
 
     const executePendingTransaction = async () => {
       try {
-        console.log('[Dashboard] Executing pending transaction:', pendingTxAction);
+        console.log(
+          "[Dashboard] Executing pending transaction:",
+          pendingTxAction,
+        );
 
         // Build the transaction
         const tx = new Transaction();
 
-        let description = '';
-        if (pendingTxAction.actionType === 'token_transfer') {
+        let description = "";
+        if (pendingTxAction.actionType === "token_transfer") {
           // Split coin and transfer
-          const amountMist = toMist(pendingTxAction.amount || '0');
+          const amountMist = toMist(pendingTxAction.amount || "0");
           const [coin] = tx.splitCoins(tx.gas, [amountMist]);
-          tx.transferObjects([coin], pendingTxAction.recipientAddress || '');
+          tx.transferObjects([coin], pendingTxAction.recipientAddress || "");
 
           const mistValue = amountMist;
           const whole = mistValue / BigInt(1e9);
           const frac = mistValue % BigInt(1e9);
-          const amountSui = frac > 0
-            ? `${whole}.${frac.toString().padStart(9, '0').replace(/0+$/, '')}`
-            : whole.toString();
+          const amountSui =
+            frac > 0
+              ? `${whole}.${frac.toString().padStart(9, "0").replace(/0+$/, "")}`
+              : whole.toString();
 
-          description = `Transfer of ${amountSui} SUI to \`${(pendingTxAction.recipientAddress || '').slice(0, 10)}...${(pendingTxAction.recipientAddress || '').slice(-8)}\``;
-        } else if (pendingTxAction.actionType === 'token_swap') {
-
+          description = `Transfer of ${amountSui} SUI to \`${(pendingTxAction.recipientAddress || "").slice(0, 10)}...${(pendingTxAction.recipientAddress || "").slice(-8)}\``;
+        } else if (pendingTxAction.actionType === "token_swap") {
         }
 
         // Execute and sign the transaction
@@ -442,51 +580,59 @@ const Dashboard = () => {
           transaction: tx,
         });
 
-        console.log('[Dashboard] Transaction executed:', result.digest);
+        console.log("[Dashboard] Transaction executed:", result.digest);
 
         // Update task status via API
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-        await fetch(`${API_BASE_URL}/api/tasks/${pendingTxAction.taskId}/confirm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: currentAccount.address,
-            tx_digest: result.digest
-          }),
-        });
+        const API_BASE_URL =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        await fetch(
+          `${API_BASE_URL}/api/tasks/${pendingTxAction.taskId}/confirm`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: currentAccount.address,
+              tx_digest: result.digest,
+            }),
+          },
+        );
 
         // Add success message to chat
         const successMessage: Message = {
           id: Date.now() + Math.random(),
-          text: `**Transaction Successful!**\n\n${description} completed.\n\n[View on Explorer](https://suiscan.xyz/${import.meta.env.VITE_SUI_NETWORK || 'testnet'}/tx/${result.digest})`,
-          sender: 'ai',
+          text: `**Transaction Successful!**\n\n${description} completed.\n\n[View on Explorer](https://suiscan.xyz/${import.meta.env.VITE_SUI_NETWORK || "testnet"}/tx/${result.digest})`,
+          sender: "ai",
           timestamp: new Date().toLocaleTimeString(),
           chat_id: currentChatId || undefined,
-          agentType: 'Task Manager',
-          agentId: 'task_agent',
+          agentType: "Task Manager",
+          agentId: "task_agent",
         };
 
         if (currentChatId) {
-          dispatch(addMessage({ chatId: currentChatId, message: successMessage }));
+          dispatch(
+            addMessage({ chatId: currentChatId, message: successMessage }),
+          );
         }
 
         setPendingTxAction(null);
       } catch (error: any) {
-        console.error('[Dashboard] Transaction failed:', error);
+        console.error("[Dashboard] Transaction failed:", error);
 
         // Add error message
         const errorMessage: Message = {
           id: Date.now() + Math.random(),
-          text: `**Transaction Failed**\n\n${error.message || 'User cancelled or transaction failed.'}`,
-          sender: 'ai',
+          text: `**Transaction Failed**\n\n${error.message || "User cancelled or transaction failed."}`,
+          sender: "ai",
           timestamp: new Date().toLocaleTimeString(),
           chat_id: currentChatId || undefined,
-          agentType: 'Task Manager',
-          agentId: 'task_agent',
+          agentType: "Task Manager",
+          agentId: "task_agent",
         };
 
         if (currentChatId) {
-          dispatch(addMessage({ chatId: currentChatId, message: errorMessage }));
+          dispatch(
+            addMessage({ chatId: currentChatId, message: errorMessage }),
+          );
         }
 
         setPendingTxAction(null);
@@ -494,7 +640,13 @@ const Dashboard = () => {
     };
 
     executePendingTransaction();
-  }, [pendingTxAction, currentAccount, signAndExecuteTransaction, currentChatId, dispatch]);
+  }, [
+    pendingTxAction,
+    currentAccount,
+    signAndExecuteTransaction,
+    currentChatId,
+    dispatch,
+  ]);
 
   // Fetch chat history from Redux with background syncing
   useEffect(() => {
@@ -503,7 +655,8 @@ const Dashboard = () => {
     }
 
     // Only show loading spinner if we don't have messages yet
-    const hasMessages = messagesMap[currentChatId] && messagesMap[currentChatId].length > 0;
+    const hasMessages =
+      messagesMap[currentChatId] && messagesMap[currentChatId].length > 0;
     if (!hasMessages) {
       setIsHistoryLoading(true);
     }
@@ -515,15 +668,15 @@ const Dashboard = () => {
 
   // URL Params for Agent Selection
   const urlParams = new URLSearchParams(window.location.search);
-  const agentParam = urlParams.get('agent');
+  const agentParam = urlParams.get("agent");
 
   useEffect(() => {
     if (agentParam) {
       // Map param to AgentType values
       const idMap: { [key: string]: string } = {
-        'research-1': 'research_agent',
-        'task-1': 'task_agent',
-        'alert-1': 'alert_agent'
+        "research-1": "research_agent",
+        "task-1": "task_agent",
+        "alert-1": "alert_agent",
       };
       const mappedId = idMap[agentParam] || agentParam;
 
@@ -534,7 +687,7 @@ const Dashboard = () => {
         // Reset chat state for new agent
         setTempMessages([]);
         dispatch(setCurrentChat(null));
-        navigate('/?agent=' + agentParam);
+        navigate("/?agent=" + agentParam);
       }
     }
   }, [agentParam, selectedAgentId, dispatch, navigate]);
@@ -545,12 +698,12 @@ const Dashboard = () => {
 
     // Check if user is authenticated
     if (!user_id) {
-      console.error('User not authenticated');
+      console.error("User not authenticated");
       return;
     }
 
     // Handle command execution
-    if (query.trim().startsWith('/')) {
+    if (query.trim().startsWith("/")) {
       handleCommand(query.trim());
       return;
     }
@@ -558,19 +711,19 @@ const Dashboard = () => {
     const userMessage: Message = {
       id: Date.now() + Math.random(),
       text: query,
-      sender: 'user',
+      sender: "user",
       timestamp: new Date().toLocaleTimeString(),
       chat_id: chatId || currentChatId || undefined,
     };
 
-    setInput('');
+    setInput("");
     setIsLoading(true);
 
     // Initial message addition (to temp or current chat)
     if (currentChatId) {
       dispatch(addMessage({ chatId: currentChatId, message: userMessage }));
     } else {
-      setTempMessages(prev => [...prev, userMessage]);
+      setTempMessages((prev) => [...prev, userMessage]);
     }
 
     try {
@@ -578,21 +731,23 @@ const Dashboard = () => {
       setIsProcessingPrompt(true);
 
       // Get last 5 messages for history context
-      const history = messages
-        .slice(-5)
-        .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant' as 'user' | 'assistant',
-          content: msg.sender === 'ai' && msg.variations
+      const history = messages.slice(-5).map((msg) => ({
+        role:
+          msg.sender === "user"
+            ? "user"
+            : ("assistant" as "user" | "assistant"),
+        content:
+          msg.sender === "ai" && msg.variations
             ? msg.variations[msg.currentVariationIndex ?? 0]
-            : msg.text
-        }));
+            : msg.text,
+      }));
 
       // Call real API
       const response = await sendChatMessage({
         user_id,
         message: query,
         chat_id: currentChatId || chatId,
-        agent_id: selectedAgentId !== 'main' ? selectedAgentId : undefined,
+        agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
         history,
       });
 
@@ -607,7 +762,7 @@ const Dashboard = () => {
         setFeeModalDetail({
           agent: response.agent_used,
           cost: response.estimated_cost,
-          reason: 'Deep research and analysis'
+          reason: "Deep research and analysis",
         });
         return; // Stop here and wait for user to sign - don't add any messages
       }
@@ -615,6 +770,12 @@ const Dashboard = () => {
       // Handle workflow steps if present (for research agent)
       if (response.workflow_steps && response.workflow_steps.length > 0) {
         setWorkflowSteps(response.workflow_steps);
+      }
+
+      if (response.agent_used === "task_agent" && user_id) {
+        trackTaskCreation(user_id).catch((err) =>
+          console.error("[TASK TRACKING] Failed:", err),
+        );
       }
 
       // Handle routing to chat if new
@@ -625,8 +786,13 @@ const Dashboard = () => {
 
         // Migrate temp messages to Redux
         const allMessages = [...tempMessages, userMessage];
-        allMessages.forEach(msg => {
-          dispatch(addMessage({ chatId: activeChatId!, message: { ...msg, chat_id: activeChatId } }));
+        allMessages.forEach((msg) => {
+          dispatch(
+            addMessage({
+              chatId: activeChatId!,
+              message: { ...msg, chat_id: activeChatId },
+            }),
+          );
         });
 
         // Small delay to ensure state update before clearing temp
@@ -638,7 +804,7 @@ const Dashboard = () => {
       const aiMessage: Message = {
         id: Date.now() + Math.random(),
         text: response.response,
-        sender: 'ai',
+        sender: "ai",
         timestamp: new Date().toLocaleTimeString(),
         chat_id: activeChatId || undefined,
         agentType: getAgentConfig(response.agent_used).displayName,
@@ -656,14 +822,21 @@ const Dashboard = () => {
       setWorkflowSteps([]);
 
       // Check for pending action (immediate token transfer or swap)
-      if (response.pending_action && (response.pending_action.action_type === 'token_transfer' || response.pending_action.action_type === 'token_swap')) {
+      if (
+        response.pending_action &&
+        (response.pending_action.action_type === "token_transfer" ||
+          response.pending_action.action_type === "token_swap")
+      ) {
         const { task_id, action_params } = response.pending_action;
-        console.log('[Dashboard] Pending action detected, triggering transaction:', action_params);
+        console.log(
+          "[Dashboard] Pending action detected, triggering transaction:",
+          action_params,
+        );
 
         // Set pending transaction state to show signing modal
         setPendingTxAction({
-          taskId: task_id,
-          actionType: response.pending_action.action_type || 'token_transfer',
+          taskId: task_id.toString(),
+          actionType: response.pending_action.action_type || "token_transfer",
           recipientAddress: action_params.recipientAddress,
           amount: action_params.amount,
           coinType: action_params.coinType,
@@ -673,12 +846,12 @@ const Dashboard = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       setIsLoading(false);
       setIsProcessingPrompt(false);
 
       // Determine error message
-      let errorText = 'Sorry, I encountered an error. Please try again.';
+      let errorText = "Sorry, I encountered an error. Please try again.";
 
       // Handle rate limit error
       if (error.response?.status === 429) {
@@ -690,14 +863,14 @@ const Dashboard = () => {
       const errorMessage: Message = {
         id: Date.now() + Math.random(),
         text: errorText,
-        sender: 'ai',
+        sender: "ai",
         timestamp: new Date().toLocaleTimeString(),
       };
 
       if (currentChatId) {
         dispatch(addMessage({ chatId: currentChatId, message: errorMessage }));
       } else {
-        setTempMessages(prev => [...prev, errorMessage]);
+        setTempMessages((prev) => [...prev, errorMessage]);
       }
     }
   };
@@ -706,7 +879,7 @@ const Dashboard = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       setIsLoading(false);
-      setStreamingText('');
+      setStreamingText("");
       setIsProcessingPrompt(false);
     }
   };
@@ -714,23 +887,23 @@ const Dashboard = () => {
   const handleCommand = (command: string) => {
     const cmd = command.toLowerCase();
 
-    if (cmd === '/clear') {
+    if (cmd === "/clear") {
       // Clear chat logic
-      console.log('Clear chat');
-    } else if (cmd === '/new') {
+      console.log("Clear chat");
+    } else if (cmd === "/new") {
       startNewChat();
-    } else if (cmd === '/help') {
+    } else if (cmd === "/help") {
       // Show help
-      console.log('Show help');
+      console.log("Show help");
     }
 
-    setInput('');
+    setInput("");
     setShowCommandMenu(false);
   };
 
   const confirmFee = async () => {
     if (!pendingQuery || !feeModalDetail || !currentAccount?.address) {
-      console.error('Missing required data for signature');
+      console.error("Missing required data for signature");
       return;
     }
 
@@ -746,7 +919,7 @@ const Dashboard = () => {
         message: new TextEncoder().encode(message),
       });
 
-      console.log('Message signed successfully:', signature);
+      console.log("Message signed successfully:", signature);
 
       // Clear fee modal
       setFeeModalDetail(null);
@@ -757,20 +930,22 @@ const Dashboard = () => {
         setIsLoading(true);
         setIsProcessingPrompt(true);
 
-        const history = messages
-          .slice(-5)
-          .map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant' as 'user' | 'assistant',
-            content: msg.sender === 'ai' && msg.variations
+        const history = messages.slice(-5).map((msg) => ({
+          role:
+            msg.sender === "user"
+              ? "user"
+              : ("assistant" as "user" | "assistant"),
+          content:
+            msg.sender === "ai" && msg.variations
               ? msg.variations[msg.currentVariationIndex ?? 0]
-              : msg.text
-          }));
+              : msg.text,
+        }));
 
         const response = await sendChatMessage({
           user_id: currentAccount.address,
           message: pendingQuery,
           chat_id: currentChatId || chatId,
-          agent_id: selectedAgentId !== 'main' ? selectedAgentId : undefined,
+          agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
           transaction_hash: signature, // Send signature as "transaction hash"
           history,
         });
@@ -786,8 +961,13 @@ const Dashboard = () => {
         if (!currentChatId && !chatId) {
           dispatch(setCurrentChat(activeChatId));
           const allMessages = [...tempMessages];
-          allMessages.forEach(msg => {
-            dispatch(addMessage({ chatId: activeChatId!, message: { ...msg, chat_id: activeChatId } }));
+          allMessages.forEach((msg) => {
+            dispatch(
+              addMessage({
+                chatId: activeChatId!,
+                message: { ...msg, chat_id: activeChatId },
+              }),
+            );
           });
           setTempMessages([]);
           navigate(`/${activeChatId}`);
@@ -796,7 +976,7 @@ const Dashboard = () => {
         const aiMessage: Message = {
           id: Date.now() + Math.random(),
           text: response.response,
-          sender: 'ai',
+          sender: "ai",
           timestamp: new Date().toLocaleTimeString(),
           chat_id: activeChatId || undefined,
           agentType: getAgentConfig(response.agent_used).displayName,
@@ -811,19 +991,19 @@ const Dashboard = () => {
         setWorkflowSteps([]);
         setPendingQuery(null);
       } catch (error) {
-        console.error('Error executing research after signing:', error);
+        console.error("Error executing research after signing:", error);
         setIsLoading(false);
         setIsProcessingPrompt(false);
       }
     } catch (error: any) {
-      console.error('Message signing failed:', error);
+      console.error("Message signing failed:", error);
       setIsPayingGas(false);
-      alert('Signing failed: ' + error.message);
+      alert("Signing failed: " + error.message);
     }
   };
 
   const cancelFee = () => {
-    console.log('Fee cancelled');
+    console.log("Fee cancelled");
     setFeeModalDetail(null);
     setPendingQuery(null);
     setIsPayingGas(false);
@@ -833,29 +1013,35 @@ const Dashboard = () => {
     dispatch(setActiveArtifact(null));
   };
 
-  const handleOpenArtifact = (content: string, type: 'code' | 'markdown' | 'react', title?: string) => {
-    dispatch(setActiveArtifact({
-      id: Date.now().toString(),
-      type,
-      title: title || 'Artifact',
-      content,
-      isOpen: true,
-      language: title
-    }));
+  const handleOpenArtifact = (
+    content: string,
+    type: "code" | "markdown" | "react",
+    title?: string,
+  ) => {
+    dispatch(
+      setActiveArtifact({
+        id: Date.now().toString(),
+        type,
+        title: title || "Artifact",
+        content,
+        isOpen: true,
+        language: title,
+      }),
+    );
   };
 
   const startNewChat = useCallback(() => {
-    setInput('');
+    setInput("");
 
     // Reset agent selection state for new chat
-    setSelectedAgentId('main');
+    setSelectedAgentId("main");
     setAutoOpenAgentSelector(true);
 
     // Clear last chat from localStorage so we don't redirect back
-    localStorage.removeItem('tovira_last_chat_id');
+    localStorage.removeItem("tovira_last_chat_id");
 
     // Navigate to home (no chat ID)
-    navigate('/');
+    navigate("/");
 
     // Clear current chat in Redux
     dispatch(setCurrentChat(null));
@@ -889,26 +1075,26 @@ const Dashboard = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle command menu navigation
     if (showCommandMenu && filteredCommands.length > 0) {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedCommandIndex((prev) =>
-          prev < filteredCommands.length - 1 ? prev + 1 : 0
+          prev < filteredCommands.length - 1 ? prev + 1 : 0,
         );
         return;
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedCommandIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredCommands.length - 1
+          prev > 0 ? prev - 1 : filteredCommands.length - 1,
         );
         return;
-      } else if (e.key === 'Enter' && !e.shiftKey) {
+      } else if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         const selectedCmd = filteredCommands[selectedCommandIndex];
-        setInput(selectedCmd.label + ' ');
+        setInput(selectedCmd.label + " ");
         setShowCommandMenu(false);
         setSelectedCommandIndex(0);
         return;
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         setShowCommandMenu(false);
         setSelectedCommandIndex(0);
@@ -917,18 +1103,16 @@ const Dashboard = () => {
     }
 
     // Regular send on Enter
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
-
-
   useEffect(() => {
     if (textareaRef.current) {
       const el = textareaRef.current;
-      el.style.height = 'auto';
+      el.style.height = "auto";
       el.style.height = `${el.scrollHeight}px`;
     }
   }, [input]);
@@ -936,14 +1120,18 @@ const Dashboard = () => {
   // Close command menu on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (showCommandMenu && textareaRef.current && !textareaRef.current.contains(e.target as Node)) {
+      if (
+        showCommandMenu &&
+        textareaRef.current &&
+        !textareaRef.current.contains(e.target as Node)
+      ) {
         setShowCommandMenu(false);
         setSelectedCommandIndex(0);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showCommandMenu]);
 
   const { setMobileActions } = useOutletContext<LayoutContextType>();
@@ -953,7 +1141,7 @@ const Dashboard = () => {
     if (setMobileActions) {
       setMobileActions({
         onRecentClick: () => setIsRecentModalOpen(true),
-        onNewClick: startNewChat
+        onNewClick: startNewChat,
       });
     }
     return () => {
@@ -986,7 +1174,9 @@ const Dashboard = () => {
               height={18}
               alt="Recent Chats"
             />
-            <span className="hidden md:block text-[15px] font-[400]">Recents</span>
+            <span className="hidden md:block text-[15px] font-[400]">
+              Recents
+            </span>
           </button>
 
           {/* Agent Selector - In header position */}
@@ -1020,13 +1210,18 @@ const Dashboard = () => {
         ref={scrollContainerRef}
         onScroll={(e) => {
           const target = e.target as HTMLDivElement;
-          const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+          const isNearBottom =
+            target.scrollHeight - target.scrollTop - target.clientHeight < 100;
           setShowScrollButton(!isNearBottom);
         }}
         className="flex-1 overflow-y-auto pt-16 px-4 pb-4 custom-scrollbar relative"
       >
         <AnimatePresence mode="popLayout">
-          {messages.length === 0 && !isLoading && !isProcessingPrompt && !streamingText && !(!chatId && localStorage.getItem('tovira_last_chat_id')) ? (
+          {messages.length === 0 &&
+          !isLoading &&
+          !isProcessingPrompt &&
+          !streamingText &&
+          !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1037,29 +1232,34 @@ const Dashboard = () => {
               <div className="relative mb-6">
                 <div className="w-24 h-24 rounded-full p-0.5 bg-gradient-to-br from-[#B7FC0D] to-[#246AFC] shadow-[0_0_30px_rgba(183,252,13,0.15)]">
                   <div className="w-full h-full rounded-full bg-[#070B0F] flex items-center justify-center overflow-hidden">
-                    <img src="/assets/images/signin-logo.png" alt="Tovira Logo" className="w-12 h-12 object-contain" />
+                    <img
+                      src="/assets/images/signin-logo.png"
+                      alt="Tovira Logo"
+                      className="w-12 h-12 object-contain"
+                    />
                   </div>
                 </div>
               </div>
 
-              <h2 className="text-[32px] font-bold text-white mb-4">
-                Tovira
-              </h2>
+              <h2 className="text-[32px] font-bold text-white mb-4">Tovira</h2>
 
               <p className="text-white/90 font-medium text-base max-w-md mb-8 leading-relaxed px-4">
-                Your AI assistant for anything web3! Ask me about crypto, DeFi or the Sui ecosystem.
+                Your AI assistant for anything web3! Ask me about crypto, DeFi
+                or the Sui ecosystem.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl px-4 w-full">
-                {getAgentConfig(selectedAgentId).suggestions.map((suggestion, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-5 py-3 rounded-[40px] bg-[#ffffff]/5 hover:bg-[#ffffff]/10 border border-white/20 text-white/70 hover:text-white transition-all duration-300 text-[14px] text-center font-medium shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+                {getAgentConfig(selectedAgentId).suggestions.map(
+                  (suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="px-5 py-3 rounded-[40px] bg-[#ffffff]/5 hover:bg-[#ffffff]/10 border border-white/20 text-white/70 hover:text-white transition-all duration-300 text-[14px] text-center font-medium shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                    >
+                      {suggestion}
+                    </button>
+                  ),
+                )}
               </div>
             </motion.div>
           ) : (
@@ -1069,27 +1269,400 @@ const Dashboard = () => {
                   key={message.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'} group`}
+                  className={`flex flex-col ${message.sender === "user" ? "items-end" : "items-start"} group`}
                 >
-                  <div className={`md:max-w-[85%] overflow-hidden ${message.sender === 'user' ? 'bg-[#326AFD] text-white rounded-[30px] px-5 py-2.5 shadow-xl md:w-auto md:ml-auto w-fit' : ''}`}>
-                    {message.sender === 'ai' && (
+                  <div
+                    className={`md:max-w-[85%] overflow-hidden ${message.sender === "user" ? "bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl md:w-auto md:ml-auto w-fit" : ""}`}
+                  >
+                    {message.sender === "ai" && (
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
                         <img
-                          src={getAgentConfig(message.agentId || 'main').iconUrl}
-                          alt={getAgentConfig(message.agentId || 'main').displayName}
+                          src={
+                            getAgentConfig(message.agentId || "main").iconUrl
+                          }
+                          alt={
+                            getAgentConfig(message.agentId || "main")
+                              .displayName
+                          }
                           className="w-6 h-6 rounded-full object-cover"
                         />
-                        <span>{message.agentType?.toUpperCase() || 'TOVIRA'}</span>
+                        <span>
+                          {message.agentType?.toUpperCase() || "TOVIRA"}
+                        </span>
                       </div>
                     )}
                     <div className="w-full text-gray-200 break-words">
-                      {message.sender === 'user' ? (
-                        <p className="text-[15px] break-all leading-relaxed m-0">{message.text}</p>
+                      {message.sender === "user" ? (
+                        <p className="text-[15px] break-all leading-relaxed m-0">
+                          {message.text}
+                        </p>
                       ) : (
                         <>
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm, remarkMath]}
-                            rehypePlugins={[[rehypeHighlight, {
+                            rehypePlugins={[
+                              [
+                                rehypeHighlight,
+                                {
+                                  languages: {
+                                    move: moveLanguage,
+                                    sui: moveLanguage,
+                                    javascript,
+                                    typescript,
+                                    python,
+                                    bash,
+                                    json,
+                                    rust,
+                                  },
+                                },
+                              ],
+                              rehypeKatex,
+                            ]}
+                            components={MarkdownComponents(handleOpenArtifact)}
+                          >
+                            {(() => {
+                              const messageText = String(
+                                message.variations
+                                  ? message.variations[
+                                      message.currentVariationIndex ?? 0
+                                    ]
+                                  : message.text || "",
+                              );
+
+                              // Extract URLs that will have preview cards
+                              const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+                              const urls = messageText.match(urlRegex) || [];
+                              const previewUrls = urls
+                                .slice(0, 3)
+                                .map((url) => url.replace(/[.,;!?]+$/, ""));
+
+                              // Remove preview URLs and their markdown links from the message text
+                              let cleanedText = messageText;
+                              previewUrls.forEach((url) => {
+                                // Remove entire markdown list item line: - [Title](URL) or * [Title](URL)
+                                const listItemRegex = new RegExp(
+                                  `^[\\s]*[-*]\\s*\\[([^\\]]+)\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)\\s*$`,
+                                  "gm",
+                                );
+                                cleanedText = cleanedText.replace(
+                                  listItemRegex,
+                                  "",
+                                );
+                                // Remove markdown link format: [Title](URL)
+                                const markdownLinkRegex = new RegExp(
+                                  `\\[([^\\]]+)\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
+                                  "g",
+                                );
+                                cleanedText = cleanedText.replace(
+                                  markdownLinkRegex,
+                                  "",
+                                );
+                                // Also remove standalone URL
+                                cleanedText = cleanedText.replace(url, "");
+                              });
+
+                              return cleanedText;
+                            })()}
+                          </ReactMarkdown>
+                          {message.sender === "ai" &&
+                            (() => {
+                              const messageText = String(
+                                message.variations
+                                  ? message.variations[
+                                      message.currentVariationIndex ?? 0
+                                    ]
+                                  : message.text || "",
+                              );
+                              const urlRegex = /(https?:\/\/[^\s\)]+)/g;
+                              const urls = messageText.match(urlRegex) || [];
+                              return urls
+                                .slice(0, 3)
+                                .map((url, idx) => (
+                                  <LinkPreview
+                                    key={`${message.id}-${idx}`}
+                                    url={url.replace(/[.,;!?]+$/, "")}
+                                  />
+                                ));
+                            })()}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {/* Timestamp and Actions */}
+                  <div
+                    className={`flex items-center gap-2 mt-1 px-1 ${message.sender === "user" ? "justify-end mr-1" : "ml-1"}`}
+                  >
+                    {/* User Message Actions (hover) */}
+                    {message.sender === "user" && (
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(message.text);
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Copy message"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-white/80"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            ></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setInput(message.text);
+                            textareaRef.current?.focus();
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Edit message"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-white/80"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* AI Message Actions (always visible) */}
+                    {message.sender === "ai" && (
+                      <div className="flex items-center gap-1.5">
+                        {/* Variation Navigation */}
+                        {message.variations &&
+                          message.variations.length > 1 && (
+                            <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded bg-white/5 border border-white/10">
+                              <button
+                                onClick={() =>
+                                  navigateVariation(message, "prev")
+                                }
+                                disabled={
+                                  (message.currentVariationIndex ?? 0) === 0
+                                }
+                                className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                title="Previous variation"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="text-white/60"
+                                >
+                                  <path d="M15 18l-6-6 6-6"></path>
+                                </svg>
+                              </button>
+                              <span className="text-[10px] text-white/40 font-mono min-w-[30px] text-center">
+                                {(message.currentVariationIndex ?? 0) + 1}/
+                                {message.variations.length}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  navigateVariation(message, "next")
+                                }
+                                disabled={
+                                  (message.currentVariationIndex ?? 0) ===
+                                  message.variations.length - 1
+                                }
+                                className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                title="Next variation"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="text-white/60"
+                                >
+                                  <path d="M9 18l6-6-6-6"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+
+                        <button
+                          onClick={() => {
+                            const textToCopy = message.variations
+                              ? message.variations[
+                                  message.currentVariationIndex ?? 0
+                                ]
+                              : message.text;
+                            navigator.clipboard.writeText(textToCopy);
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Copy response"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-white/80"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            ></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => {
+                            console.log("Liked message:", message.id);
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Like response"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-blue-400"
+                          >
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => {
+                            console.log("Disliked message:", message.id);
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Dislike response"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-red-400"
+                          >
+                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => {
+                            regenerateMessage(message);
+                          }}
+                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Retry"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-white/40 hover:text-white/80"
+                          >
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                            <path d="M3 22v-6h6"></path>
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+
+                    <span className="text-[10px] text-white/20">
+                      {message.timestamp}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* Streaming Workflow Steps */}
+              {workflowSteps.length > 0 && (
+                <div className="max-w-[85%] mx-auto w-full">
+                  <WorkflowSteps steps={workflowSteps} />
+                </div>
+              )}
+
+              {/* Streaming Text */}
+              {streamingText && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-start"
+                >
+                  <div className="w-full md:max-w-[85%] overflow-hidden">
+                    <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
+                      <img
+                        src={getAgentConfig(agentUsed).iconUrl}
+                        alt={getAgentConfig(agentUsed).displayName}
+                        className="w-4 h-4 rounded-full object-cover"
+                      />
+                      <span>
+                        {getAgentConfig(agentUsed).displayName.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="prose prose-invert prose-sm max-w-none break-words">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[
+                          [
+                            rehypeHighlight,
+                            {
                               languages: {
                                 move: moveLanguage,
                                 sui: moveLanguage,
@@ -1098,300 +1671,52 @@ const Dashboard = () => {
                                 python,
                                 bash,
                                 json,
-                                rust
-                              }
-                            }], rehypeKatex]}
-                            components={MarkdownComponents(handleOpenArtifact)}
-                          >
-                            {(() => {
-                              const messageText = String(message.variations
-                                ? message.variations[message.currentVariationIndex ?? 0]
-                                : message.text || '');
-
-                              // Extract URLs that will have preview cards
-                              const urlRegex = /(https?:\/\/[^\s\)]+)/g;
-                              const urls = messageText.match(urlRegex) || [];
-                              const previewUrls = urls.slice(0, 3).map(url => url.replace(/[.,;!?]+$/, ''));
-
-                              // Remove preview URLs and their markdown links from the message text
-                              let cleanedText = messageText;
-                              previewUrls.forEach(url => {
-                                // Remove entire markdown list item line: - [Title](URL) or * [Title](URL)
-                                const listItemRegex = new RegExp(`^[\\s]*[-*]\\s*\\[([^\\]]+)\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\s*$`, 'gm');
-                                cleanedText = cleanedText.replace(listItemRegex, '');
-                                // Remove markdown link format: [Title](URL)
-                                const markdownLinkRegex = new RegExp(`\\[([^\\]]+)\\]\\(${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'g');
-                                cleanedText = cleanedText.replace(markdownLinkRegex, '');
-                                // Also remove standalone URL
-                                cleanedText = cleanedText.replace(url, '');
-                              });
-
-                              return cleanedText;
-                            })()}
-                          </ReactMarkdown>
-                          {message.sender === 'ai' && (() => {
-                            const messageText = String(message.variations
-                              ? message.variations[message.currentVariationIndex ?? 0]
-                              : message.text || '');
-                            const urlRegex = /(https?:\/\/[^\s\)]+)/g;
-                            const urls = messageText.match(urlRegex) || [];
-                            return urls.slice(0, 3).map((url, idx) => (
-                              <LinkPreview key={`${message.id}-${idx}`} url={url.replace(/[.,;!?]+$/, '')} />
-                            ));
-                          })()}
-                        </>
-                      )}
+                                rust,
+                              },
+                            },
+                          ],
+                          rehypeKatex,
+                        ]}
+                        components={MarkdownComponents(handleOpenArtifact)}
+                      >
+                        {streamingText}
+                      </ReactMarkdown>
                     </div>
                   </div>
-                  {/* Timestamp and Actions */}
-                  <div className={`flex items-center gap-2 mt-1 px-1 ${message.sender === 'user' ? 'justify-end mr-1' : 'ml-1'}`}>
-                    {/* User Message Actions (hover) */}
-                    {
-                      message.sender === 'user' && (
-                        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <Tooltip content={copiedId === String(message.id) ? "Copied!" : "Copy message"}>
-                            <button
-                              onClick={() => handleCopy(message.text, String(message.id))}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              {copiedId === String(message.id) ? (
-                                <Check size={14} className="text-green-400" />
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                              )}
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Edit message">
-                            <button
-                              onClick={() => {
-                                setInput(message.text);
-                                textareaRef.current?.focus();
-                              }}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                              </svg>
-                            </button>
-                          </Tooltip>
-                        </div>
-                      )
-                    }
-
-                    {/* AI Message Actions (always visible) */}
-                    {
-                      message.sender === 'ai' && (
-                        <div className="flex items-center gap-1.5">
-                          {/* Variation Navigation */}
-                          {message.variations && message.variations.length > 1 && (
-                            <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded bg-white/5 border border-white/10">
-                              <Tooltip content="Previous response">
-                                <button
-                                  onClick={() => navigateVariation(message, 'prev')}
-                                  disabled={(message.currentVariationIndex ?? 0) === 0}
-                                  className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
-                                    <path d="M15 18l-6-6 6-6"></path>
-                                  </svg>
-                                </button>
-                              </Tooltip>
-                              <span className="text-[10px] text-white/40 font-mono min-w-[30px] text-center">
-                                {(message.currentVariationIndex ?? 0) + 1}/{message.variations.length}
-                              </span>
-                              <Tooltip content="Next response">
-                                <button
-                                  onClick={() => navigateVariation(message, 'next')}
-                                  disabled={(message.currentVariationIndex ?? 0) === message.variations.length - 1}
-                                  className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/60">
-                                    <path d="M9 18l6-6-6-6"></path>
-                                  </svg>
-                                </button>
-                              </Tooltip>
-                            </div>
-                          )}
-
-                          <Tooltip content={copiedId === String(message.id) ? "Copied!" : "Copy response"}>
-                            <button
-                              onClick={() => {
-                                const textToCopy = message.variations
-                                  ? message.variations[message.currentVariationIndex ?? 0]
-                                  : message.text;
-                                handleCopy(textToCopy, String(message.id));
-                              }}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              {copiedId === String(message.id) ? (
-                                <Check size={14} className="text-green-400" />
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                              )}
-                            </button>
-                          </Tooltip>
-
-                          <Tooltip content="Like response">
-                            <button
-                              onClick={() => handleFeedback(String(message.id), 'like')}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill={feedback[String(message.id)] === 'like' ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className={`transition-colors ${feedback[String(message.id)] === 'like' ? 'text-blue-400' : 'text-white/40 hover:text-blue-400'}`}
-                              >
-                                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                              </svg>
-                            </button>
-                          </Tooltip>
-
-                          <Tooltip content="Dislike response">
-                            <button
-                              onClick={() => handleFeedback(String(message.id), 'dislike')}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill={feedback[String(message.id)] === 'dislike' ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                className={`transition-colors ${feedback[String(message.id)] === 'dislike' ? 'text-red-400' : 'text-white/40 hover:text-red-400'}`}
-                              >
-                                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                              </svg>
-                            </button>
-                          </Tooltip>
-
-                          <Tooltip content="Regenerate response">
-                            <button
-                              onClick={() => {
-                                regenerateMessage(message);
-                              }}
-                              className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 hover:text-white/80">
-                                <path d="M21 2v6h-6"></path>
-                                <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                                <path d="M3 22v-6h6"></path>
-                                <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                              </svg>
-                            </button>
-                          </Tooltip>
-                        </div>
-                      )
-                    }
-
-                    < span className="text-[10px] text-white/20" >
-                      {message.timestamp}
-                    </span>
-                  </div>
-
-                </motion.div >
-              ))}
-
-              {/* Streaming Workflow Steps */}
-              {
-                workflowSteps.length > 0 && (
-                  <div className="max-w-[85%] mx-auto w-full">
-                    <WorkflowSteps steps={workflowSteps} />
-                  </div>
-                )
-              }
-
-              {/* Streaming Text */}
-              {
-                streamingText && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col items-start"
-                  >
-                    <div className="w-full md:max-w-[85%] overflow-hidden">
-                      <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
-                        <img
-                          src={getAgentConfig(agentUsed).iconUrl}
-                          alt={getAgentConfig(agentUsed).displayName}
-                          className="w-4 h-4 rounded-full object-cover"
-                        />
-                        <span>{getAgentConfig(agentUsed).displayName.toUpperCase()}</span>
-                      </div>
-                      <div className="prose prose-invert prose-sm max-w-none break-words">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[[rehypeHighlight, {
-                            languages: {
-                              move: moveLanguage,
-                              sui: moveLanguage,
-                              javascript,
-                              typescript,
-                              python,
-                              bash,
-                              json,
-                              rust
-                            }
-                          }], rehypeKatex]}
-                          components={MarkdownComponents(handleOpenArtifact)}
-                        >
-                          {streamingText}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  </motion.div>
-                )
-              }
+                </motion.div>
+              )}
 
               {/* Thinking State */}
-              {
-                isProcessingPrompt && !streamingText && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col items-start w-full"
-                  >
-                    <div className="flex items-center gap-1 px-4 py-3 max-w-[85%]">
-                      <div className="relative">
-                        <img
-                          src={getAgentConfig(selectedAgentId).iconUrl}
-                          alt="Agent"
-                          className="w-8 h-8 object-cover animate-pulse opacity-80"
-                        />
-                      </div>
-                      <span className="text-md text-white/60 font-medium">Thinking...</span>
+              {isProcessingPrompt && !streamingText && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-start w-full"
+                >
+                  <div className="flex items-center gap-1 px-4 py-3 max-w-[85%]">
+                    <div className="relative">
+                      <img
+                        src={getAgentConfig(selectedAgentId).iconUrl}
+                        alt="Agent"
+                        className="w-10 h-10 rounded-full object-cover animate-pulse opacity-80"
+                      />
                     </div>
-                  </motion.div>
-                )
-              }
+                    <span className="text-md text-white/60 font-medium">
+                      Thinking...
+                    </span>
+                  </div>
+                </motion.div>
+              )}
               <div ref={messagesEndRef} />
-            </div >
+            </div>
           )}
-        </AnimatePresence >
+        </AnimatePresence>
 
         {/* Scroll to Bottom Button */}
-
-      </div >
+      </div>
 
       {/* Fee Modal - Rendered via Portal at document.body */}
-      < AnimatePresence mode="wait" >
+      <AnimatePresence mode="wait">
         {feeModalDetail && (
           <ModalPortal>
             <motion.div
@@ -1412,18 +1737,32 @@ const Dashboard = () => {
                   <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center">
                     <Fuel size={20} />
                   </div>
-                  <button onClick={cancelFee} className="text-white/40 hover:text-white transition-colors cursor-pointer">
+                  <button
+                    onClick={cancelFee}
+                    className="text-white/40 hover:text-white transition-colors cursor-pointer"
+                  >
                     <X size={20} />
                   </button>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-2">Signature Required</h3>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Signature Required
+                </h3>
                 <p className="text-white/60 text-sm mb-4">
-                  The <strong>{feeModalDetail.agent === 'research_agent' ? 'Research' : 'Task'} Agent</strong> requires your signature to proceed.
+                  The{" "}
+                  <strong>
+                    {feeModalDetail.agent === "research_agent"
+                      ? "Research"
+                      : "Task"}{" "}
+                    Agent
+                  </strong>{" "}
+                  requires your signature to proceed.
                 </p>
 
                 <div className="bg-black/40 rounded-lg p-3 mb-6 flex justify-between items-center">
-                  <span className="text-sm text-white/50">{feeModalDetail.reason}</span>
+                  <span className="text-sm text-white/50">
+                    {feeModalDetail.reason}
+                  </span>
                   <span className="text-emerald-400 font-mono font-bold text-lg">
                     {feeModalDetail.cost} SUI
                   </span>
@@ -1444,14 +1783,30 @@ const Dashboard = () => {
                   >
                     {isPayingGas ? (
                       <>
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin h-4 w-4"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
                         Signing...
                       </>
                     ) : (
-                      'Sign & Approve'
+                      "Sign & Approve"
                     )}
                   </button>
                 </div>
@@ -1459,7 +1814,7 @@ const Dashboard = () => {
             </motion.div>
           </ModalPortal>
         )}
-      </AnimatePresence >
+      </AnimatePresence>
 
       {/* Unified Input Bar */}
       <div className="w-full flex justify-center items-end p-4 pb-6 sticky bottom-0 z-50">
@@ -1479,27 +1834,38 @@ const Dashboard = () => {
               // Command menu logic skipped for brevity as it's not visual
             }}
             onKeyDown={handleKeyDown}
-            placeholder={rateLimitStatus?.isLimited && countdown !== null
-              ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
-              : "Ask anything..."}
-            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited ? 'opacity-50 cursor-not-allowed' : ''}`}
+            placeholder={
+              rateLimitStatus?.isLimited && countdown !== null
+                ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
+                : "Ask anything..."
+            }
+            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited ? "opacity-50 cursor-not-allowed" : ""}`}
             disabled={isLoading || rateLimitStatus?.isLimited}
           />
 
           {/* Rate limit indicator */}
-          {rateLimitStatus && !rateLimitStatus.isLimited && rateLimitStatus.remaining <= 2 && (
-            <span className="text-xs text-yellow-400/70 absolute -top-6 left-5">
-              {rateLimitStatus.remaining} message{rateLimitStatus.remaining !== 1 ? 's' : ''} remaining
-            </span>
-          )}
+          {rateLimitStatus &&
+            !rateLimitStatus.isLimited &&
+            rateLimitStatus.remaining <= 2 && (
+              <span className="text-xs text-yellow-400/70 absolute -top-6 left-5">
+                {rateLimitStatus.remaining} message
+                {rateLimitStatus.remaining !== 1 ? "s" : ""} remaining
+              </span>
+            )}
 
           {/* Send Button */}
 
           <button
-            onClick={() => (isLoading) ? handleStopGeneration() : handleSendMessage()}
+            onClick={() =>
+              isLoading ? handleStopGeneration() : handleSendMessage()
+            }
             className={`${(input.trim() || isLoading) && !rateLimitStatus?.isLimited ? "btn-primary" : "btn-ghost"} btn btn-icon hover:bg-white/20`}
           >
-            {isLoading ? <Square size={14} fill="white" /> : <ArrowUp size={20} />}
+            {isLoading ? (
+              <Square size={14} fill="white" />
+            ) : (
+              <ArrowUp size={20} />
+            )}
           </button>
         </motion.div>
       </div>
@@ -1514,15 +1880,15 @@ const Dashboard = () => {
             onClick={scrollToBottom}
             className="fixed bottom-24 right-6 p-3 bg-[#1d1d1d]/95 backdrop-blur-xl border border-white/20 rounded-full shadow-2xl hover:bg-white/10 transition-colors z-[60] cursor-pointer"
           >
-            <ChevronDown size={20} className="text-white hover:scale-110 transition-transform duration-200" />
+            <ChevronDown
+              size={20}
+              className="text-white hover:scale-110 transition-transform duration-200"
+            />
           </motion.button>
         )}
       </AnimatePresence>
       {/* Artifact Panel */}
-      <ArtifactPanel
-        artifact={activeArtifact}
-        onClose={handleCloseArtifact}
-      />
+      <ArtifactPanel artifact={activeArtifact} onClose={handleCloseArtifact} />
 
       {/* Recent Chats Modal */}
       <RecentChatsModal
@@ -1541,7 +1907,7 @@ const Dashboard = () => {
           dispatch(deleteChat(chatId));
           // If the deleted chat was the current chat, navigate to home
           if (chatId === currentChatId) {
-            navigate('/');
+            navigate("/");
           }
         }}
       />
