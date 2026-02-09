@@ -6,6 +6,8 @@ module tovira_points::points {
     use sui::clock::{Self, Clock};
     use std::string::{Self, String};
     use sui::address;
+    use sui::coin::{Self, Coin};
+    use sui::sui::SUI;
 
     const EAlreadyClaimed: u64 = 1;
     const ENotEligible: u64 = 2;
@@ -13,6 +15,7 @@ module tovira_points::points {
     const EUserNotFound: u64 = 4;
     const EUnauthorized: u64 = 5;
     const EAlreadyCheckedInToday: u64 = 6;
+    const EInsufficientPayment: u64 = 7;
 
     const WAITLIST_POINTS: u64 = 100;
     const CHECKIN_POINTS: u64 = 1;
@@ -46,6 +49,14 @@ module tovira_points::points {
     public struct BlobRegistry has key {
         id: UID,
         current_blob_id: String,
+        admin: address,
+    }
+
+    // NEW: Check-in fee configuration
+    public struct CheckinFeeConfig has key {
+        id: UID,
+        fee_amount: u64, // in MIST (0.002 SUI = 2_000_000 MIST)
+        treasury_recipient: address, // SubscriptionRegistry address
         admin: address,
     }
 
@@ -93,6 +104,26 @@ module tovira_points::points {
         timestamp: u64,
     }
 
+    // NEW: Check-in fee events
+    public struct CheckinFeeCollected has copy, drop {
+        wallet_address: address,
+        fee_amount: u64,
+        timestamp: u64,
+    }
+
+    public struct FeeUpdated has copy, drop {
+        old_fee: u64,
+        new_fee: u64,
+        admin: address,
+        timestamp: u64,
+    }
+
+    public struct FeeTreasurySet has copy, drop {
+        treasury_address: address,
+        admin: address,
+        timestamp: u64,
+    }
+
     fun init(ctx: &mut TxContext) {
         let deployer = tx_context::sender(ctx);
 
@@ -108,13 +139,74 @@ module tovira_points::points {
             admin: deployer,
         };
 
+        // NEW: Create fee config with default 0.002 SUI
+        let fee_config = CheckinFeeConfig {
+            id: object::new(ctx),
+            fee_amount: 2_000_000, // 0.002 SUI
+            treasury_recipient: @0x0, // Will be set by admin after deployment
+            admin: deployer,
+        };
+
         let admin_cap = AdminCap {
             id: object::new(ctx),
         };
 
         transfer::share_object(registry);
         transfer::share_object(blob_registry);
+        transfer::share_object(fee_config); // NEW
         transfer::transfer(admin_cap, deployer);
+    }
+
+    // NEW: Update check-in fee amount
+    public entry fun update_checkin_fee(
+        _admin_cap: &AdminCap,
+        fee_config: &mut CheckinFeeConfig,
+        new_fee: u64,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let caller = tx_context::sender(ctx);
+        assert!(caller == fee_config.admin, EUnauthorized);
+
+        let old_fee = fee_config.fee_amount;
+        fee_config.fee_amount = new_fee;
+
+        event::emit(FeeUpdated {
+            old_fee,
+            new_fee,
+            admin: caller,
+            timestamp: clock::timestamp_ms(clock),
+        });
+    }
+
+    // NEW: Set treasury recipient address
+    public entry fun set_fee_treasury(
+        _admin_cap: &AdminCap,
+        fee_config: &mut CheckinFeeConfig,
+        treasury_address: address,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let caller = tx_context::sender(ctx);
+        assert!(caller == fee_config.admin, EUnauthorized);
+        
+        fee_config.treasury_recipient = treasury_address;
+
+        event::emit(FeeTreasurySet {
+            treasury_address,
+            admin: caller,
+            timestamp: clock::timestamp_ms(clock),
+        });
+    }
+
+    // NEW: Get current check-in fee
+    public fun get_checkin_fee(fee_config: &CheckinFeeConfig): u64 {
+        fee_config.fee_amount
+    }
+
+    // NEW: Get treasury recipient address
+    public fun get_fee_treasury(fee_config: &CheckinFeeConfig): address {
+        fee_config.treasury_recipient
     }
 
     // Legacy function for waitlist tickets
@@ -272,9 +364,12 @@ module tovira_points::points {
         date1 != date2
     }
 
+    // UPDATED: Check-in with fee payment
     public entry fun checkin(
         registry: &mut PointsRegistry,
         ticket: EligibilityTicket,
+        fee_config: &CheckinFeeConfig,
+        mut payment: Coin<SUI>, // NEW: Payment for check-in
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
@@ -290,6 +385,32 @@ module tovira_points::points {
         // Ticket must have a valid check-in date
         assert!(*string::bytes(&checkin_date) != *string::bytes(&string::utf8(b"")), EUnauthorized);
 
+        // NEW: Collect check-in fee
+        let fee_amount = fee_config.fee_amount;
+        let payment_value = coin::value(&payment);
+        
+        assert!(payment_value >= fee_amount, EInsufficientPayment);
+
+        // Split the exact fee amount
+        let fee_coin = coin::split(&mut payment, fee_amount, ctx);
+        
+        // Return any excess to user
+        if (coin::value(&payment) > 0) {
+            transfer::public_transfer(payment, caller);
+        } else {
+            coin::destroy_zero(payment);
+        };
+
+        // Transfer fee to treasury
+        transfer::public_transfer(fee_coin, fee_config.treasury_recipient);
+
+        event::emit(CheckinFeeCollected {
+            wallet_address: caller,
+            fee_amount,
+            timestamp: current_time,
+        });
+
+        // Continue with check-in logic
         let mut new_streak = 1u64;
         let mut is_milestone = false;
         let mut milestone_bonus = 0u64;
@@ -304,14 +425,7 @@ module tovira_points::points {
             };
 
             // Calculate streak
-            // Backend already validated: if last_checkin_date == yesterday, streak continues
-            // The ticket.points_amount already includes the correct streak calculation from backend
-            // But we still need to determine the streak value for storage
-            
             if (*string::bytes(&record.last_checkin_date) != *string::bytes(&string::utf8(b""))) {
-                // Backend sends points_amount based on whether streak continues
-                // We trust the backend's streak calculation embedded in the ticket
-                // For now, check if dates are consecutive (backend ensures this)
                 if (are_dates_consecutive(&record.last_checkin_date, &checkin_date)) {
                     new_streak = record.current_streak + 1;
                 } else {

@@ -17,7 +17,7 @@ interface CheckInCompletedEvent {
   points_earned: string;
   new_balance: string;
   timestamp: string;
-  checkin_date: string; // NEW
+  checkin_date: string;
   current_streak: string;
   is_milestone: boolean;
   milestone_bonus: string;
@@ -30,6 +30,7 @@ export class TicketMinter {
   private adminCapId: string;
   private pointsRegistryId: string;
   private blobRegistryId: string;
+  private feeConfigId: string; // NEW
 
   constructor() {
     const network = process.env.SUI_NETWORK || "testnet";
@@ -47,16 +48,18 @@ export class TicketMinter {
     this.adminCapId = process.env.SUI_ADMIN_CAP_ID || "";
     this.pointsRegistryId = process.env.SUI_POINTS_REGISTRY_ID || "";
     this.blobRegistryId = process.env.SUI_BLOB_REGISTRY_ID || "";
+    this.feeConfigId = process.env.SUI_FEE_CONFIG_ID || ""; // NEW
 
     if (
       !this.packageId ||
       !this.adminCapId ||
       !this.pointsRegistryId ||
-      !this.blobRegistryId
+      !this.blobRegistryId ||
+      !this.feeConfigId
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID",
+          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
 
@@ -65,11 +68,147 @@ export class TicketMinter {
     console.log(`   Package:         ${this.packageId}`);
     console.log(`   PointsRegistry:  ${this.pointsRegistryId}`);
     console.log(`   BlobRegistry:    ${this.blobRegistryId}`);
+    console.log(`   FeeConfig:       ${this.feeConfigId}`);
   }
 
   private normalizeAddress(addr: string): string {
     const hex = addr.startsWith("0x") ? addr.slice(2) : addr;
     return "0x" + hex.padStart(64, "0");
+  }
+
+  // NEW: Get current check-in fee
+  async getCheckinFee(): Promise<number> {
+    try {
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::get_checkin_fee`,
+        arguments: [tx.object(this.feeConfigId)],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: this.keypair.toSuiAddress(),
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        const view = new DataView(new Uint8Array(bytes).buffer);
+        const fee = Number(view.getBigUint64(0, true));
+        console.log(
+          `📊 Current check-in fee: ${fee} MIST (${(fee / 1_000_000_000).toFixed(3)} SUI)`,
+        );
+        return fee;
+      }
+
+      console.warn("⚠️  Could not read fee, using default");
+      return 2_000_000; // Default: 0.002 SUI
+    } catch (error) {
+      console.error("❌ Error in getCheckinFee:", error);
+      return 2_000_000;
+    }
+  }
+
+  // NEW: Update check-in fee (admin only)
+  async updateCheckinFee(newFee: number): Promise<string | null> {
+    try {
+      console.log(
+        `\n💰 Updating check-in fee → ${newFee} MIST (${(newFee / 1_000_000_000).toFixed(3)} SUI)`,
+      );
+
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::update_checkin_fee`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.object(this.feeConfigId),
+          tx.pure.u64(newFee),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: { showEffects: true },
+      });
+
+      if (result.effects?.status?.status === "success") {
+        console.log(`✅ Fee updated  tx=${result.digest}`);
+        return result.digest;
+      }
+
+      console.error("❌ Fee update failed:", result.effects?.status?.error);
+      return null;
+    } catch (error) {
+      console.error("❌ updateCheckinFee error:", error);
+      throw error;
+    }
+  }
+
+  // NEW: Set fee treasury address (admin only)
+  async setFeeTreasury(treasuryAddress: string): Promise<string | null> {
+    try {
+      console.log(`\n🏦 Setting fee treasury → ${treasuryAddress}`);
+
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::set_fee_treasury`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.object(this.feeConfigId),
+          tx.pure.address(treasuryAddress),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: { showEffects: true },
+      });
+
+      if (result.effects?.status?.status === "success") {
+        console.log(`✅ Treasury set  tx=${result.digest}`);
+        return result.digest;
+      }
+
+      console.error("❌ Treasury set failed:", result.effects?.status?.error);
+      return null;
+    } catch (error) {
+      console.error("❌ setFeeTreasury error:", error);
+      throw error;
+    }
+  }
+
+  // NEW: Get fee treasury address
+  async getFeeTreasury(): Promise<string | null> {
+    try {
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::get_fee_treasury`,
+        arguments: [tx.object(this.feeConfigId)],
+      });
+
+      const result = await this.client.devInspectTransactionBlock({
+        sender: this.keypair.toSuiAddress(),
+        transactionBlock: tx,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [bytes] = result.results[0].returnValues[0];
+        const address = "0x" + Buffer.from(bytes).toString("hex");
+        return address;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("❌ Error in getFeeTreasury:", error);
+      return null;
+    }
   }
 
   async verifyClaimByDigest(digest: string): Promise<{
@@ -198,7 +337,7 @@ export class TicketMinter {
   }
 
   /**
-   * NEW: Mint check-in ticket with specific date
+   * Mint check-in ticket with specific date
    * This ensures the ticket is valid only for the specified date
    */
   async mintCheckinTicket(
@@ -465,7 +604,7 @@ export class TicketMinter {
   }
 
   /**
-   * NEW: Get the last check-in DATE (not timestamp)
+   * Get the last check-in DATE (not timestamp)
    * Returns YYYY-MM-DD format or empty string
    */
   async getLastCheckinDate(walletAddress: string): Promise<string> {

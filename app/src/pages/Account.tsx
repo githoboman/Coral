@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
-import { Flame, Trophy, Calendar, TrendingUp } from "lucide-react";
+import { Flame, Trophy, Calendar, Coins } from "lucide-react";
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
@@ -27,6 +27,10 @@ const Account = () => {
     if (streak >= 30) return "from-yellow-500 to-orange-500";
     if (streak >= 10) return "from-green-500 to-emerald-500";
     return "from-blue-500 to-cyan-500";
+  };
+
+  const formatSUI = (mist: number) => {
+    return (mist / 1_000_000_000).toFixed(3);
   };
 
   const { progress, daysRemaining } = getMilestoneProgress();
@@ -75,6 +79,13 @@ const Account = () => {
                     : `Ready to earn ${checkinState.nextCheckinPoints} point${checkinState.nextCheckinPoints > 1 ? "s" : ""}!`
                   : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
               </p>
+              {/* NEW: Show fee */}
+              {checkinState.canCheckin && (
+                <p className="text-white/40 text-xs mt-1 flex items-center gap-1">
+                  <Coins className="w-3 h-3" />
+                  Check-in fee: {formatSUI(checkinState.checkinFee)} SUI
+                </p>
+              )}
             </div>
 
             <button
@@ -112,6 +123,13 @@ const Account = () => {
               {checkinState.status === "error" && "Try Again"}
             </button>
           </div>
+
+          {/* Error Message */}
+          {checkinState.error && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+              <p className="text-red-400 text-sm">{checkinState.error}</p>
+            </div>
+          )}
 
           {/* Streak Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -217,7 +235,7 @@ const Account = () => {
                         checkinState.currentStreak >= milestone
                           ? "bg-green-500/20 border-green-500/50 text-green-400"
                           : milestone === checkinState.nextMilestone
-                            ? "bg-green-500/20 border-green-500/50 text-green-400 animate-pulse"
+                            ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400 animate-pulse"
                             : "bg-white/5 border-white/10 text-white/40"
                       }
                     `}

@@ -152,6 +152,7 @@ router.get(
       const currentStreak = await minter.getCurrentStreak(wallet_address);
       const totalCheckins = await minter.getTotalCheckins(wallet_address);
       const balance = await minter.getBalance(wallet_address);
+      const checkinFee = await minter.getCheckinFee(); // NEW: Get current fee
 
       // Calculate dates in user's timezone
       const userDateToday = getUserDate(timezoneOffset);
@@ -214,6 +215,7 @@ router.get(
         next_is_milestone: pointsInfo.isMilestone,
         next_milestone: pointsInfo.nextMilestone,
         days_to_next_milestone: pointsInfo.nextMilestone - nextStreak,
+        checkin_fee: checkinFee, // NEW: Return current fee
       });
     } catch (error) {
       console.error("Error in checkin/status:", error);
@@ -246,6 +248,7 @@ router.post(
       // Get user's current data
       const lastCheckinDate = await minter.getLastCheckinDate(wallet_address);
       const currentStreak = await minter.getCurrentStreak(wallet_address);
+      const checkinFee = await minter.getCheckinFee(); // NEW: Get current fee
 
       // Calculate dates
       const userDateToday = getUserDate(timezoneOffset);
@@ -287,6 +290,9 @@ router.post(
         `   Points: ${pointsInfo.totalPoints} (base: ${pointsInfo.basePoints}, bonus: ${pointsInfo.milestoneBonus})`,
       );
       console.log(`   Is milestone: ${pointsInfo.isMilestone}`);
+      console.log(
+        `   Fee: ${checkinFee} MIST (${(checkinFee / 1_000_000_000).toFixed(3)} SUI)`,
+      );
 
       // Mint check-in ticket with date
       const ticketObjectId = await minter.mintCheckinTicket(
@@ -358,9 +364,10 @@ router.post(
         is_milestone: pointsInfo.isMilestone,
         new_streak: nextStreak,
         next_milestone: pointsInfo.nextMilestone,
+        checkin_fee: checkinFee, // NEW: Return fee amount
         message: pointsInfo.isMilestone
-          ? `🎉 Milestone! Check in to claim ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus) and reach day ${nextStreak}!`
-          : `Check in to claim ${pointsInfo.totalPoints} point${pointsInfo.totalPoints !== 1 ? "s" : ""} and continue your ${nextStreak}-day streak!`,
+          ? `🎉 Milestone! Check in to claim ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus) and reach day ${nextStreak}! Fee: ${(checkinFee / 1_000_000_000).toFixed(3)} SUI`
+          : `Check in to claim ${pointsInfo.totalPoints} point${pointsInfo.totalPoints !== 1 ? "s" : ""} and continue your ${nextStreak}-day streak! Fee: ${(checkinFee / 1_000_000_000).toFixed(3)} SUI`,
       });
     } catch (error) {
       console.error("Error in checkin/request-ticket:", error);

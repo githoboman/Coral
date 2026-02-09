@@ -7,6 +7,7 @@ import { Transaction } from "@mysten/sui/transactions";
 
 const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
 const POINTS_REGISTRY = import.meta.env.VITE_POINTS_REGISTRY_ID || "";
+const FEE_CONFIG = import.meta.env.VITE_FEE_CONFIG_ID || "";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export type CheckinStatus =
@@ -37,6 +38,7 @@ export interface CheckinState {
   nextIsMilestone: boolean;
   nextMilestone: number;
   daysToNextMilestone: number;
+  checkinFee: number; // NEW: in MIST
 }
 
 export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
@@ -61,6 +63,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     nextIsMilestone: false,
     nextMilestone: 5,
     daysToNextMilestone: 5,
+    checkinFee: 2_000_000, // Default: 0.002 SUI
   });
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -104,6 +107,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         nextIsMilestone: data.next_is_milestone || false,
         nextMilestone: data.next_milestone || 5,
         daysToNextMilestone: data.days_to_next_milestone || 5,
+        checkinFee: data.checkin_fee || 2_000_000, // NEW
         error: null,
       }));
     } catch (err) {
@@ -152,14 +156,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               error: null,
               balance: data.balance,
               currentStreak: prev.nextStreak,
-              totalCheckins: prev.totalCheckins + 1, // Increment total check-ins
+              totalCheckins: prev.totalCheckins + 1,
             }));
 
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
             }
 
-            // 🔥 EMIT POINTS UPDATE EVENT
             window.dispatchEvent(new Event("pointsUpdated"));
 
             setTimeout(fetchStatus, 2000);
@@ -182,14 +185,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             error: null,
             balance: prev.balance + expectedPts,
             currentStreak: prev.nextStreak,
-            totalCheckins: prev.totalCheckins + 1, // Increment total check-ins
+            totalCheckins: prev.totalCheckins + 1,
           }));
 
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
           }
 
-          // 🔥 EMIT POINTS UPDATE EVENT even on timeout
           window.dispatchEvent(new Event("pointsUpdated"));
 
           setTimeout(fetchStatus, 2000);
@@ -266,6 +268,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const ptsAmount = ticketData.points_amount as number;
       const isMilestone = ticketData.is_milestone as boolean;
       const milestoneBonus = ticketData.milestone_bonus as number;
+      const checkinFee = ticketData.checkin_fee as number; // NEW
 
       setState((prev) => ({
         ...prev,
@@ -275,11 +278,17 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const tx = new Transaction();
       tx.setGasBudget(10_000_000);
 
+      // NEW: Split SUI for check-in fee from gas coin
+      const [feeCoin] = tx.splitCoins(tx.gas, [checkinFee]);
+
+      // Call check-in with fee payment
       tx.moveCall({
         target: `${PACKAGE_ID}::points::checkin`,
         arguments: [
           tx.object(POINTS_REGISTRY),
           tx.object(ticketId),
+          tx.object(FEE_CONFIG), // NEW: Fee config
+          feeCoin, // NEW: Payment
           tx.object("0x6"),
         ],
       });
@@ -302,7 +311,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
       if (isMilestone) {
         console.log(
-          `🎉 Milestone reached! Earned ${ptsAmount} points (${ptsAmount - milestoneBonus} base + ${milestoneBonus} bonus)`,
+          `🎉 Milestone reached! Earned ${ptsAmount} points (${ptsAmount - milestoneBonus} base + ${milestoneBonus} bonus). Paid ${(checkinFee / 1_000_000_000).toFixed(3)} SUI fee.`,
         );
       }
     } catch (err: any) {
@@ -313,6 +322,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         } else if (err.message.includes("EAlreadyCheckedInToday")) {
           errorMsg =
             "You've already checked in today. Next check-in available at midnight.";
+        } else if (
+          err.message.includes("Insufficient") ||
+          err.message.includes("InsufficientCoinBalance")
+        ) {
+          errorMsg = `Insufficient SUI balance. You need at least ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI for the check-in fee plus gas.`;
+        } else if (err.message.includes("EInsufficientPayment")) {
+          errorMsg = `Check-in fee payment failed. Required: ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI`;
         } else {
           errorMsg = err.message;
         }
@@ -331,6 +347,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     state.canCheckin,
     state.status,
     state.hoursRemaining,
+    state.checkinFee,
     signAndExecute,
     pollForConfirmation,
     fetchStatus,
