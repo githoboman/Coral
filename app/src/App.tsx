@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
+import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
 
-import { AppLayout, Dashboard, Activity, Account, OnchainAnalysis, Leaderboard, Signin } from '@/pages/';
-import { TelegramProvider } from '@/components/TelegramProvider';
-import { SplashScreen } from '@/components/ui/SplashScreen';
+import {
+  AppLayout,
+  Dashboard,
+  Activity,
+  Account,
+  OnchainAnalysis,
+  Leaderboard,
+  Signin,
+} from "@/pages/";
+import Subscription from "@/pages/Subscription";
+import { TelegramProvider } from "@/components/TelegramProvider";
+import { SplashScreen } from "@/components/ui/SplashScreen";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -19,19 +28,15 @@ function App() {
 
   return (
     <TelegramProvider>
-      <div className={`app-container ${showSplash ? 'splash-visible' : ''}`}>
+      <div className={`app-container ${showSplash ? "splash-visible" : ""}`}>
         {showSplash && <SplashScreen />}
         <Routes>
           <Route path="/signin" element={<Signin />} />
-          <Route
-            element={
-              <AppLayout />
-            }
-          >
-
+          <Route element={<AppLayout />}>
             <Route path="/onchain" element={<OnchainAnalysis />} />
             <Route path="/activity" element={<Activity />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/subscription" element={<Subscription />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/" element={<Dashboard />}>
               <Route path="/:chatId" element={<Dashboard />} />

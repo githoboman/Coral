@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
-import { Flame, Trophy, Calendar, Coins } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumBadge } from "@/components/PremiumBadge";
+import { Flame, Trophy, Calendar, Crown, ArrowRight } from "lucide-react";
 import { SkeletonBox } from "@/components/ui/SkeletonLoader";
+import { useNavigate } from "react-router-dom";
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
+  const navigate = useNavigate();
   const { checkin, checkinState, refetchStatus } = useCheckin();
+  const { subscriptionState } = useSubscription();
   const [showMilestoneAnimation, setShowMilestoneAnimation] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -37,10 +42,6 @@ const Account = () => {
     if (streak >= 30) return "from-yellow-500 to-orange-500";
     if (streak >= 10) return "from-green-500 to-emerald-500";
     return "from-blue-500 to-cyan-500";
-  };
-
-  const formatSUI = (mist: number) => {
-    return (mist / 1_000_000_000).toFixed(3);
   };
 
   const { progress, daysRemaining } = getMilestoneProgress();
@@ -127,6 +128,49 @@ const Account = () => {
         </p>
       </div>
 
+      {/* Premium Status Card */}
+      {subscriptionState.isPremium && (
+        <div className="mb-6">
+          <PremiumBadge
+            variant="large"
+            daysRemaining={subscriptionState.daysRemaining}
+            showExpiry={true}
+          />
+        </div>
+      )}
+
+      {/* Upgrade CTA (if not premium) */}
+      {!subscriptionState.isPremium && (
+        <div
+          className="mb-6  border border-blue-500/20 rounded-[30px] p-6 relative overflow-hidden group cursor-pointer hover:border-blue-500/40 transition-all duration-300"
+          onClick={() => navigate("/subscription")}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r  via-blue-500/5 to-transparent group-hover:via-blue-500/10 transition-all duration-500" />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg mb-1">
+                  Upgrade to Premium
+                </h3>
+                <p className="text-white/60 text-sm">
+                  Get 5 daily prompts, priority access, and more for just 2
+                  SUI/month
+                </p>
+              </div>
+            </div>
+
+            <button className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-black font-bold text-sm flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg">
+              Upgrade
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Daily Check-in Card */}
       <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6 relative overflow-hidden">
         {/* Glow effect */}
@@ -145,13 +189,6 @@ const Account = () => {
                     : `Ready to earn ${checkinState.nextCheckinPoints} point${checkinState.nextCheckinPoints > 1 ? "s" : ""}!`
                   : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
               </p>
-              {/* Show fee */}
-              {/* {checkinState.canCheckin && (
-                <p className="text-white/40 text-xs mt-1 flex items-center gap-1">
-                  <Coins className="w-3 h-3" />
-                  Check-in fee: {formatSUI(checkinState.checkinFee)} SUI
-                </p>
-              )} */}
             </div>
 
             <button
@@ -208,6 +245,9 @@ const Account = () => {
                   </p>
                   <p className="text-white text-2xl font-bold">
                     {checkinState.balance.toLocaleString()}
+                    {subscriptionState.isPremium && (
+                      <PremiumBadge variant="inline" />
+                    )}
                   </p>
                 </div>
               </div>

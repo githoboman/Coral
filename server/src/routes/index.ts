@@ -8,6 +8,7 @@ import accountRouter from "./account";
 import chatRouter from "./chat";
 import checkinRouter from "./checkin";
 import taskPointsRouter from "./taskPoints";
+import subscriptionRoutes from "./subscription";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use(accountRouter);
 router.use(chatRouter);
 router.use("/checkin", checkinRouter);
 router.use("/task-points", taskPointsRouter);
+router.use("/subscription", subscriptionRoutes);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
