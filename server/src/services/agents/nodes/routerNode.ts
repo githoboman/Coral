@@ -1,80 +1,74 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { AgentState, IntentType, AgentType, RouterResponse } from "../types";
-import { z } from "zod";
+import { pipeline } from '@xenova/transformers';
+import { AgentState, IntentType, AgentType } from "../types";
 
-const RouterSchema = z.object({
-  intent: z.enum(['research', 'task', 'alert', 'chat', 'unknown']),
-  target_agent: z.enum(['research_agent', 'task_agent', 'alert_agent', 'main']),
-  requires_fee: z.boolean(),
-  estimated_cost: z.number(),
-  reason: z.string(),
-});
+/**
+ * Singleton for the classification pipeline to avoid reloading the model.
+ */
+class RouterClassifier {
+  private static instance: any = null;
+  private static loading = false;
 
-export async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
-  const llm = new ChatGoogleGenerativeAI({
-    model: process.env.LLM_MODEL || "gemini-2.5-flash",
-    apiKey: process.env.GEMINI_API_KEY,
-    temperature: 0,
-  });
-
-  const systemPrompt = `You are Tovira's Router Agent. Classify user requests and determine which specialized agent should handle them.
-
-AGENTS & FEES:
-- Research Agent (0.0008 SUI): Deep crypto analysis, token research, market reports, comprehensive insights
-- Task Agent (FREE): Task automation, reminders, swaps, limit orders, on-chain actions
-- Alert Agent (FREE): Price alerts, wallet monitoring, notifications, tracking
-- Main Agent (FREE): General chat, questions, explanations, unclear requests
-
-CLASSIFICATION RULES:
-1. Research: Requires deep analysis, data gathering, or comprehensive reports
-2. Task: User wants to automate something, create tasks, or execute actions
-3. Alert: User wants to be notified about price changes or wallet activity
-4. Chat: General questions, explanations, or unclear intent
-
-User Query: "${state.userQuery}"
-
-Return ONLY valid JSON matching this schema:
-{
-  "intent": "research" | "task" | "alert" | "chat",
-  "target_agent": "research_agent" | "task_agent" | "alert_agent" | "main",
-  "requires_fee": boolean,
-  "estimated_cost": number (in SUI),
-  "reason": "brief explanation of classification"
-}`;
-
-  try {
-    const response = await llm.invoke(systemPrompt);
-    const content = response.content as string;
-
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith('```json')) {
-      jsonStr = jsonStr.slice(7);
-    } else if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.slice(3);
+  static async getInstance() {
+    if (this.instance) return this.instance;
+    if (this.loading) {
+      // Wait for it to load if another request is already loading it
+      while (this.loading) await new Promise(r => setTimeout(r, 100));
+      return this.instance;
     }
-    if (jsonStr.endsWith('```')) {
-      jsonStr = jsonStr.slice(0, -3);
+
+    this.loading = true;
+    console.log('[ROUTER] Loading local transformer model (Xenova/distilbert-base-uncased-mnli)...');
+    try {
+      this.instance = await pipeline('zero-shot-classification', 'Xenova/distilbert-base-uncased-mnli');
+      console.log('[ROUTER] Local model loaded successfully.');
+    } catch (err) {
+      console.error('[ROUTER] Failed to load local model:', err);
+    } finally {
+      this.loading = false;
     }
-    jsonStr = jsonStr.trim();
-
-    const parsed = JSON.parse(jsonStr);
-    const validated = RouterSchema.parse(parsed);
-
-    return {
-      intent: validated.intent as IntentType,
-      targetAgent: validated.target_agent as AgentType,
-      requiresFee: validated.requires_fee,
-      estimatedCost: validated.estimated_cost,
-    };
-  } catch (error) {
-    console.error('Router node error:', error);
-    // Fallback to main agent
-    return {
-      intent: IntentType.CHAT,
-      targetAgent: AgentType.MAIN,
-      requiresFee: false,
-      estimatedCost: 0,
-    };
+    return this.instance;
   }
+}
+
+/**
+ * Tovira's Router Node - Temporarily disabled in favor of manual agent selection.
+ */
+export async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
+  const query = state.userQuery || "";
+  const lowerQuery = query.toLowerCase();
+
+  // Respect the pre-selected agent if provided from the frontend
+  if (state.targetAgent && state.targetAgent !== "main") {
+    console.log(`[ROUTER] Using pre-selected agent: ${state.targetAgent}`);
+    const selectedAgent = state.targetAgent as AgentType;
+    let intent = IntentType.CHAT;
+    let requiresFee = false;
+    let estimatedCost = 0;
+
+    if (selectedAgent === AgentType.RESEARCH) {
+      intent = IntentType.RESEARCH;
+      requiresFee = true;
+      estimatedCost = 0.0008;
+    } else if (selectedAgent === AgentType.TASK) {
+      intent = IntentType.TASK;
+    } else if (selectedAgent === AgentType.ALERT) {
+      intent = IntentType.ALERT;
+    }
+
+    return { intent, targetAgent: selectedAgent, requiresFee, estimatedCost };
+  }
+
+  console.log(`[ROUTER] No agent selected, defaulting to MAIN. Query: "${query}"`);
+
+  /* AUTOMATIC ROUTING DISABLED AS REQUESTED
+  try {
+    const classifier = await RouterClassifier.getInstance();
+    if (!classifier) throw new Error("Classifier not available");
+    // ... logic ...
+  } catch (error) {
+    console.warn(`[ROUTER] Hybrid classification failed`, error);
+  }
+  */
+
+  return { intent: IntentType.CHAT, targetAgent: AgentType.MAIN, requiresFee: false, estimatedCost: 0 };
 }

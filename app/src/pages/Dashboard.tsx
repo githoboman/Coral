@@ -28,7 +28,6 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/atom-one-dark.css";
 import { LayoutContextType } from "./Layout";
-import { trackTaskCreation } from "@/services/chatService";
 
 // Define custom Sui Move language for rehype-highlight
 const moveLanguage = (hljs: any) => {
@@ -81,6 +80,7 @@ import rust from "highlight.js/lib/languages/rust";
 // Define custom Sui Move language
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -290,6 +290,8 @@ const Dashboard = () => {
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [filteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Record<string, 'like' | 'dislike'>>({});
 
   const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -732,111 +734,175 @@ const Dashboard = () => {
 
       // Get last 5 messages for history context
       const history = messages.slice(-5).map((msg) => ({
-        role:
-          msg.sender === "user"
-            ? "user"
-            : ("assistant" as "user" | "assistant"),
+        role: msg.sender === "user" ? "user" : ("assistant" as "user" | "assistant"),
         content:
           msg.sender === "ai" && msg.variations
             ? msg.variations[msg.currentVariationIndex ?? 0]
             : msg.text,
       }));
 
-      // Call real API
-      const response = await sendChatMessage({
-        user_id,
-        message: query,
-        chat_id: currentChatId || chatId,
-        agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
-        history,
+      // ============================================
+      // STREAMING IMPLEMENTATION STARTS HERE
+      // ============================================
+
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id,
+          message: query,
+          chat_id: currentChatId || chatId,
+          agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
+          history,
+        }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Read the stream
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      // Variables to collect complete response data
+      let completeResponse = '';
+      let agentUsedInStream = 'main';
+      let requiresFee = false;
+      let estimatedCost = 0;
+      let chatIdFromStream = currentChatId || chatId;
+      let pendingActionFromStream: any = null;
+
       setIsProcessingPrompt(false);
-      setAgentUsed(response.agent_used);
+      setStreamingText(''); // Start showing streaming text
 
-      // Check if fee is required (research agent needs gas)
-      // IMPORTANT: Check this BEFORE adding any messages or updating chat
-      if (response.requires_fee && response.estimated_cost) {
-        setIsLoading(false);
-        setPendingQuery(query);
-        setFeeModalDetail({
-          agent: response.agent_used,
-          cost: response.estimated_cost,
-          reason: "Deep research and analysis",
-        });
-        return; // Stop here and wait for user to sign - don't add any messages
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          console.log('[STREAM] Stream completed');
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+
+            try {
+              const chunk = JSON.parse(data);
+              console.log('[STREAM] Chunk:', chunk);
+
+              if (chunk.chat_id) {
+                chatIdFromStream = chunk.chat_id;
+              }
+              if (chunk.finalResponse) {
+                completeResponse = chunk.finalResponse;
+                setStreamingText(chunk.finalResponse);
+              }
+              if (chunk.targetAgent) {
+                agentUsedInStream = chunk.targetAgent;
+                setAgentUsed(chunk.targetAgent);
+              }
+              if (chunk.requiresFee !== undefined) requiresFee = chunk.requiresFee;
+              if (chunk.estimatedCost !== undefined) estimatedCost = chunk.estimatedCost;
+              if (chunk.workflowSteps) setWorkflowSteps(chunk.workflowSteps);
+              if (chunk.pendingAction) pendingActionFromStream = chunk.pendingAction;
+
+            } catch (e) {
+              console.error('[STREAM] Parse error:', e);
+            }
+          }
+        }
       }
 
-      // Handle workflow steps if present (for research agent)
-      if (response.workflow_steps && response.workflow_steps.length > 0) {
-        setWorkflowSteps(response.workflow_steps);
-      }
+      // ============================================
+      // STREAM COMPLETE - PERSIST RESULTS
+      // ============================================
 
-      if (response.agent_used === "task_agent" && user_id) {
-        trackTaskCreation(user_id).catch((err) =>
-          console.error("[TASK TRACKING] Failed:", err),
-        );
-      }
+      // Determine active chat ID
+      const activeChatId = chatIdFromStream || currentChatId || chatId;
 
-      // Handle routing to chat if new
-      let activeChatId = response.chat_id;
-      if (!currentChatId && !chatId) {
-        // New chat created by backend
-        dispatch(setCurrentChat(activeChatId));
-
-        // Migrate temp messages to Redux
-        const allMessages = [...tempMessages, userMessage];
-        allMessages.forEach((msg) => {
-          dispatch(
-            addMessage({
-              chatId: activeChatId!,
-              message: { ...msg, chat_id: activeChatId },
-            }),
-          );
-        });
-
-        // Small delay to ensure state update before clearing temp
-        setTimeout(() => setTempMessages([]), 50);
-        navigate(`/${activeChatId}`);
-      }
-
-      // Add AI response to messages
+      // Add AI response to history
       const aiMessage: Message = {
         id: Date.now() + Math.random(),
-        text: response.response,
+        text: completeResponse || 'No response generated',
         sender: "ai",
         timestamp: new Date().toLocaleTimeString(),
         chat_id: activeChatId || undefined,
-        agentType: getAgentConfig(response.agent_used).displayName,
-        agentId: response.agent_used,
+        agentType: getAgentConfig(agentUsedInStream).displayName,
+        agentId: agentUsedInStream,
       };
 
       if (activeChatId) {
-        dispatch(addMessage({ chatId: activeChatId, message: aiMessage }));
+        // If this was a new chat creation, migrate everything to Redux once
+        if (!currentChatId && !chatId) {
+          dispatch(setCurrentChat(activeChatId));
+          // Use the locally defined userMessage to avoid stale closure issues
+          const historyToSync = [userMessage, aiMessage];
+
+          historyToSync.forEach((msg) => {
+            dispatch(addMessage({
+              chatId: activeChatId,
+              message: { ...msg, chat_id: activeChatId }
+            }));
+          });
+
+          // Clear temp messages immediately to switch view to persisted chat
+          setTempMessages([]);
+          navigate(`/${activeChatId}`);
+        } else {
+          // Normal existing chat: just add the AI message
+          dispatch(addMessage({ chatId: activeChatId, message: aiMessage }));
+        }
+      } else {
+        // Fallback for unexpected null chat ID (temp chat)
+        setTempMessages((prev) => [...prev, aiMessage]);
       }
 
-      // Refresh rate limit status after successful message
-      getRateLimitStatus(user_id).then(setRateLimitStatus);
-
+      // Cleanup streaming and processing states immediately
+      setStreamingText('');
+      setIsProcessingPrompt(false);
       setIsLoading(false);
       setWorkflowSteps([]);
 
+      // Refresh rate limit status
+      getRateLimitStatus(user_id).then(setRateLimitStatus);
+
+      // Handle extra actions (fees, pending tx)
+      if (requiresFee && estimatedCost) {
+        setFeeModalDetail({
+          agent: agentUsedInStream,
+          cost: estimatedCost,
+          reason: "Deep research and analysis",
+        });
+        return;
+      }
+
       // Check for pending action (immediate token transfer or swap)
       if (
-        response.pending_action &&
-        (response.pending_action.action_type === "token_transfer" ||
-          response.pending_action.action_type === "token_swap")
+        pendingActionFromStream &&
+        (pendingActionFromStream.action_type === "token_transfer" ||
+          pendingActionFromStream.action_type === "token_swap")
       ) {
-        const { task_id, action_params } = response.pending_action;
+        const { task_id, action_params } = pendingActionFromStream;
         console.log(
           "[Dashboard] Pending action detected, triggering transaction:",
-          action_params,
+          action_params
         );
 
-        // Set pending transaction state to show signing modal
         setPendingTxAction({
           taskId: task_id.toString(),
-          actionType: response.pending_action.action_type || "token_transfer",
+          actionType: pendingActionFromStream.action_type || "token_transfer",
           recipientAddress: action_params.recipientAddress,
           amount: action_params.amount,
           coinType: action_params.coinType,
@@ -845,10 +911,12 @@ const Dashboard = () => {
           amountToSwap: action_params.amountToSwap,
         });
       }
+
     } catch (error: any) {
       console.error("Error sending message:", error);
       setIsLoading(false);
       setIsProcessingPrompt(false);
+      setStreamingText('');
 
       // Determine error message
       let errorText = "Sorry, I encountered an error. Please try again.";
@@ -1058,7 +1126,7 @@ const Dashboard = () => {
   };
 
   const handleFeedback = (id: string, type: 'like' | 'dislike') => {
-    setFeedback(prev => {
+    setFeedback((prev: Record<string, 'like' | 'dislike'>) => {
       const current = prev[id];
       // Toggle off if clicking same type, otherwise switch to new type
       if (current === type) {
@@ -1218,10 +1286,10 @@ const Dashboard = () => {
       >
         <AnimatePresence mode="popLayout">
           {messages.length === 0 &&
-          !isLoading &&
-          !isProcessingPrompt &&
-          !streamingText &&
-          !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
+            !isLoading &&
+            !isProcessingPrompt &&
+            !streamingText &&
+            !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1324,8 +1392,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                      message.currentVariationIndex ?? 0
-                                    ]
+                                  message.currentVariationIndex ?? 0
+                                  ]
                                   : message.text || "",
                               );
 
@@ -1369,8 +1437,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                      message.currentVariationIndex ?? 0
-                                    ]
+                                  message.currentVariationIndex ?? 0
+                                  ]
                                   : message.text || "",
                               );
                               const urlRegex = /(https?:\/\/[^\s\)]+)/g;
@@ -1517,85 +1585,86 @@ const Dashboard = () => {
                             </div>
                           )}
 
-                        <button
-                          onClick={() => {
-                            const textToCopy = message.variations
-                              ? message.variations[
-                                  message.currentVariationIndex ?? 0
+                        <Tooltip content={copiedId === message.id.toString() ? "Copied!" : "Copy response"}>
+                          <button
+                            onClick={() => {
+                              const textToCopy = message.variations
+                                ? message.variations[
+                                message.currentVariationIndex ?? 0
                                 ]
-                              : message.text;
-                            navigator.clipboard.writeText(textToCopy);
-                          }}
-                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Copy response"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-white/80"
+                                : message.text;
+                              handleCopy(textToCopy, message.id.toString());
+                            }}
+                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <rect
-                              x="9"
-                              y="9"
-                              width="13"
-                              height="13"
-                              rx="2"
-                              ry="2"
-                            ></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => {
-                            console.log("Liked message:", message.id);
-                          }}
-                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Like response"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-blue-400"
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className={copiedId === message.id.toString() ? "text-[#B7FC0D]" : "text-white/40 hover:text-white/80"}
+                            >
+                              <rect
+                                x="9"
+                                y="9"
+                                width="13"
+                                height="13"
+                                rx="2"
+                                ry="2"
+                              ></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip content="Like response">
+                          <button
+                            onClick={() => handleFeedback(message.id.toString(), 'like')}
+                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => {
-                            console.log("Disliked message:", message.id);
-                          }}
-                          className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Dislike response"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-red-400"
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill={feedback[message.id.toString()] === 'like' ? "currentColor" : "none"}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className={feedback[message.id.toString()] === 'like' ? "text-blue-400" : "text-white/40 hover:text-blue-400"}
+                            >
+                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                            </svg>
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip content="Dislike response">
+                          <button
+                            onClick={() => handleFeedback(message.id.toString(), 'dislike')}
+                            className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                          </svg>
-                        </button>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill={feedback[message.id.toString()] === 'dislike' ? "currentColor" : "none"}
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className={feedback[message.id.toString()] === 'dislike' ? "text-red-400" : "text-white/40 hover:text-red-400"}
+                            >
+                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                            </svg>
+                          </button>
+                        </Tooltip>
                         <button
                           onClick={() => {
                             regenerateMessage(message);

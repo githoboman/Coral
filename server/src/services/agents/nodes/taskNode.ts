@@ -101,74 +101,27 @@ export async function taskNode(
     temperature: 0.3,
   });
 
-  const extractionPrompt = `You are a task extraction agent for a Web3 assistant. Analyze the user's request and extract task parameters.
+  const extractionPrompt = `Extract task parameters for a Web3 assistant.
+Query: "${state.userQuery}"
+Time: ${new Date().toISOString()}
 
-User Query: "${state.userQuery}"
+RULES:
+- should_create: true ONLY if actionable.
+- amount: Use "half"/"all" specifically if user mentions them.
+- recipient_address: Must be valid Sui 0x... format.
 
-CRITICAL: Only set should_create=true if you have ALL necessary details to create a meaningful, actionable task.
-CRITICAL: If the user says "half", "all", or "my balance", set amount="half" or amount="all" specifically.
+ACTION TYPES:
+1. reminder: Default. Needs WHAT & WHEN.
+2. token_transfer: Needs recipient_address, amount. Optional coin_type (def. SUI).
+3. dca_purchase: Recurring swaps. Needs from_coin, to_coin, amount_per_purchase, frequency.
+4. token_swap: Immediate. Needs from_coin, to_coin, amount_to_swap.
 
-=== ACTION TYPES ===
-
-1. REMINDER (action_type: "reminder")
-   - Default type for simple reminders and tasks
-   - Required: WHAT to remind and WHEN
-   
-2. TOKEN_TRANSFER (action_type: "token_transfer")  
-   - For sending tokens to a wallet address
-   - Required: recipient_address, amount
-   - Optional: coin_type (defaults to "0x2::sui::SUI")
-   - Amount should be in human-readable format (e.g., "10" for 10 SUI)
-   
-3. DCA_PURCHASE (action_type: "dca_purchase")
-   - For recurring token swaps (Dollar-Cost Averaging)
-   - Required: from_coin, to_coin, amount_per_purchase, frequency
-   - This is for scheduled recurring purchases
-
-4. TOKEN_SWAP (action_type: "token_swap")
-   - For immediate token swaps
-   - Required: from_coin, to_coin, amount_to_swap
-   - Amount can be a number ("10") or relative ("half", "all")
-
-=== VALIDATION ===
-
-For token_transfer:
-- recipient_address MUST be a valid Sui address (0x followed by 64 hex chars)
-- If address looks invalid, set should_create=false and ask for correct address
-
-For dca_purchase:
-- All 4 fields are required: from_coin, to_coin, amount_per_purchase, frequency
-
-Set should_create=false if ANY critical detail is missing.
-
-Current time: ${new Date().toISOString()}
-
-=== EXAMPLES ===
-
-"Send 5 SUI to 0x1234...abcd tomorrow at 3pm"
-→ action_type: "token_transfer"
-→ action_params: { recipient_address: "0x1234...abcd", amount: "5", coin_type: "0x2::sui::SUI" }
-→ due_date: (tomorrow at 3pm ISO format)
-→ should_create: true
-
-"Buy 10 USDC worth of SUI every week"  
-→ action_type: "dca_purchase"
-→ action_params: { from_coin: "USDC", to_coin: "SUI", amount_per_purchase: "10", frequency: "weekly" }
-→ is_recurring: true
-→ should_create: true
-
-"Remind me to check the market in 2 hours"
-→ action_type: "reminder"
-→ should_create: true
-
-"Send some tokens to my friend"
-→ should_create: false
-→ missing_info: "How much? What token? What's your friend's wallet address?"
-
-"Swap half of my SUI to USDC"
-→ action_type: "token_swap"
-→ action_params: { from_coin: "SUI", to_coin: "USDC", amount_to_swap: "half" }
-→ should_create: true`;
+EXAMPLES:
+- "Send 5 SUI to 0x123... tomorrow" -> {action_type: "token_transfer", action_params: {recipient_address: "0x123...", amount: "5"}, should_create: true}
+- "Buy 10 USDC worth of SUI weekly" -> {action_type: "dca_purchase", action_params: {from_coin: "USDC", to_coin: "SUI", amount_per_purchase: "10", frequency: "weekly"}, should_create: true}
+- "Swap half my SUI for USDC" -> {action_type: "token_swap", action_params: {from_coin: "SUI", to_coin: "USDC", amount_to_swap: "half"}, should_create: true}
+- "Remind me in 2h" -> {action_type: "reminder", should_create: true}
+- "Send tokens to friend" -> {should_create: false, missing_info: "Address and amount missing"} `;
 
   try {
     // Extract task parameters using structured output

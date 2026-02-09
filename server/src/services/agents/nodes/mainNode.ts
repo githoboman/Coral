@@ -3,6 +3,7 @@ import { AgentState } from "../types";
 import { SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { tavilySearch } from "../tools/tavily";
 import { getWalletBalance } from "../tools/sui";
+import { extractMessageContent } from "../utils";
 
 export async function mainNode(state: AgentState): Promise<Partial<AgentState>> {
   const llm = new ChatGoogleGenerativeAI({
@@ -39,6 +40,23 @@ USER CONTEXT:
 - Wallet Address: ${state.walletAddress || "Not connected"}
 `;
 
+  // FAST PATH: Check for simple greetings or thanks to avoid LLM call
+  const query = (state.userQuery || "").toLowerCase().trim();
+  const greetings = ["hi", "hello", "hey", "gm", "good morning", "good evening", "tovira", "who are you"];
+  const thanks = ["thanks", "thank you", "thx", "appreciate it"];
+
+  if (greetings.includes(query)) {
+    return {
+      finalResponse: "Hello! I'm Tovira, your Sui blockchain assistant. How can I help you today?\n\n- What's my wallet balance?\n- Research the latest SUI news\n- Send SUI to an address"
+    };
+  }
+
+  if (thanks.includes(query)) {
+    return {
+      finalResponse: "You're very welcome! Let me know if there's anything else you need help with."
+    };
+  }
+
   try {
     // Combine system prompt with conversation history
     const messages = [
@@ -55,28 +73,23 @@ USER CONTEXT:
     // Check for tool calls
     if (response.tool_calls && response.tool_calls.length > 0) {
       const toolCalls = response.tool_calls;
-      const toolMessages = [];
 
-      // Execute tools
-      for (const toolCall of toolCalls) {
+      // Execute tools in parallel
+      const toolMessages = await Promise.all(toolCalls.map(async (toolCall) => {
+        console.log(`Executing tool ${toolCall.name}:`, toolCall.args);
+
+        let content = "";
         if (toolCall.name === 'tavily_search') {
-          console.log(`Executing tool ${toolCall.name}:`, toolCall.args);
-          const toolResult = await tavilySearch.invoke(toolCall.args as { query: string });
-
-          toolMessages.push(new ToolMessage({
-            tool_call_id: toolCall.id!,
-            content: toolResult,
-          }));
+          content = await tavilySearch.invoke(toolCall.args as { query: string });
         } else if (toolCall.name === 'get_wallet_balance') {
-          console.log(`Executing tool ${toolCall.name}:`, toolCall.args);
-          const toolResult = await getWalletBalance.invoke(toolCall.args as { address: string });
-
-          toolMessages.push(new ToolMessage({
-            tool_call_id: toolCall.id!,
-            content: toolResult,
-          }));
+          content = await getWalletBalance.invoke(toolCall.args as { address: string });
         }
-      }
+
+        return new ToolMessage({
+          tool_call_id: toolCall.id!,
+          content: content,
+        });
+      }));
 
       // Add tool results to messages and call model again
       const finalResponse = await llmWithTools.invoke([
@@ -86,13 +99,13 @@ USER CONTEXT:
       ]);
 
       return {
-        finalResponse: finalResponse.content as string,
+        finalResponse: extractMessageContent(finalResponse),
       };
     }
 
     // No tool calls, return original response
     return {
-      finalResponse: response.content as string,
+      finalResponse: extractMessageContent(response),
     };
   } catch (error) {
     console.error('Main node error:', error);

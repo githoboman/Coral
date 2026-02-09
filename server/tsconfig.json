@@ -15,5 +15,7 @@
     "esm": true,
     "experimentalSpecifierResolution": "node"
   },
-  "include": ["src/**/*", "scripts/**/*"]
+  "include": [
+    "src/**/*"
+  ]
 }

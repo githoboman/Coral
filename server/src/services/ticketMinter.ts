@@ -61,7 +61,7 @@ export class TicketMinter {
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
+        "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
 
@@ -327,7 +327,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         console.log(`✅ Ticket minted: ${ticketId}  tx=${result.digest}`);
         return ticketId;
@@ -389,7 +389,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         console.log(
           `✅ Check-in ticket minted: ${ticketId}  tx=${result.digest}`,
@@ -896,6 +896,67 @@ export class TicketMinter {
     } catch (error) {
       console.error("Error reading BlobRegistry:", error);
       return null;
+    }
+  }
+
+  async mintTaskClaimTicket(
+    walletAddress: string,
+    taskCount: number,
+  ): Promise<string | null> {
+    try {
+      console.log(
+        `\n🎟️  Minting task claim ticket → ${walletAddress} (${taskCount} tasks)`,
+      );
+
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${this.packageId}::points::mint_task_claim_ticket`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.pure.address(walletAddress),
+          tx.pure.u64(taskCount),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        },
+      });
+
+      if (result.effects?.status?.status !== "success") {
+        console.error(
+          "❌ Task claim ticket mint failed:",
+          result.effects?.status?.error,
+        );
+        return null;
+      }
+
+      const created = result.effects?.created;
+      if (created && created.length > 0) {
+        const ticketRef = created[0];
+        const ticketId =
+          typeof ticketRef === "string"
+            ? ticketRef
+            : (ticketRef as any).reference?.objectId ||
+            (ticketRef as any).objectId;
+
+        console.log(
+          `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
+        );
+        return ticketId;
+      }
+
+      console.warn("⚠️  Tx succeeded but no created object found");
+      return null;
+    } catch (error) {
+      console.error("❌ mintTaskClaimTicket error:", error);
+      throw error;
     }
   }
 }

@@ -110,6 +110,10 @@ const Activity = () => {
     const totalTasks = taskList.length;
     const completedTasks = taskList.filter((t) => t.completed).length;
     const pendingTasks = taskList.filter((t) => !t.completed).length;
+    const completedHigh = taskList.filter((t) => t.completed && t.priority === "high").length;
+    const completedMedium = taskList.filter((t) => t.completed && t.priority === "medium").length;
+    const completedLow = taskList.filter((t) => t.completed && t.priority === "low").length;
+
     const highPriorityPending = taskList.filter(
       (t) => !t.completed && t.priority === "high",
     ).length;
@@ -122,6 +126,8 @@ const Activity = () => {
       completedHigh,
       completedMedium,
       completedLow,
+      highPriorityPending,
+      otherPending,
     };
   }, [items]);
 
@@ -613,12 +619,12 @@ const Activity = () => {
                 style={{
                   borderTopLeftRadius:
                     stats.completedTasks === 0 &&
-                    stats.highPriorityPending === 0
+                      stats.highPriorityPending === 0
                       ? "9999px"
                       : "0",
                   borderBottomLeftRadius:
                     stats.completedTasks === 0 &&
-                    stats.highPriorityPending === 0
+                      stats.highPriorityPending === 0
                       ? "9999px"
                       : "0",
                 }}
@@ -843,39 +849,9 @@ const Activity = () => {
                       Create Task
                     </button>
                   </div>
-                </div>
-              ) : (
-                // Create Mode
-                <div className="p-6">
-                  <h3 className="text-lg font-bold text-white mb-6">Create New Task</h3>
-                  <form onSubmit={handleAddSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Task Name</label>
-                      <input name="title" autoFocus className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Enter task name..." required />
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Description</label>
-                      <textarea name="desc" rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors" placeholder="Add details..." />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">Priority</label>
-                        <select name="priority" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors appearance-none cursor-pointer">
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                          <option value="low">Low</option>
-                        </select>
-                      </div>
-                      {/* Hidden or automated date field for now since UI doesn't explicitly ask for it in creation but API needs it */}
-                    </div>
-                    <div className="flex justify-end gap-3 pt-4">
-                      <button type="button" onClick={closeModal} className="px-5 py-2.5 rounded-xl text-white/60 hover:text-white font-bold transition-colors">Cancel</button>
-                      <button type="submit" className="px-6 py-2.5 rounded-xl bg-[#246AFC] hover:bg-[#1a55cc] text-white font-bold transition-colors shadow-lg shadow-blue-500/20">Create Task</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

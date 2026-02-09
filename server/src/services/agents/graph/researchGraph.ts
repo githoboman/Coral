@@ -5,6 +5,7 @@ import { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { tavilySearch } from "../tools/tavily";
 import { suiTools } from "../tools/sui";
 import { AgentState, WorkflowStep } from "../types";
+import { extractMessageContent } from "../utils";
 
 // Combine all research tools
 const tools = [tavilySearch, ...suiTools];
@@ -102,9 +103,7 @@ Format in clear markdown with headers and bullet points.`;
     // Extract final response
     const messages = result.messages as BaseMessage[];
     const finalMessage = messages[messages.length - 1];
-    const finalResponse = typeof finalMessage.content === 'string'
-      ? finalMessage.content
-      : JSON.stringify(finalMessage.content);
+    const finalResponse = extractMessageContent(finalMessage);
 
     // Update all steps to completed
     const completedSteps = [

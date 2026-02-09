@@ -26,29 +26,21 @@ export async function alertNode(state: AgentState): Promise<Partial<AgentState>>
     temperature: 0.3,
   });
 
-  const extractionPrompt = `You are an alert extraction agent. Analyze the user's request and extract alert/event parameters.
+  const extractionPrompt = `Extract alert parameters for a Web3 assistant.
+Query: "${state.userQuery}"
+Time: ${new Date().toISOString()}
 
-User Query: "${state.userQuery}"
+RULES:
+- should_create: true ONLY if all details (WHAT, WHEN, TARGET) are present.
+- Price alerts: Need token name AND target price.
+- Wallet alerts: Need wallet address AND specifically what to monitor.
+- Whale tracking: Need blockchain AND size threshold.
 
-CRITICAL: Only set should_create=true if you have ALL necessary details to create a meaningful, actionable alert.
-
-Required information for alerts:
-- WHAT: Specific condition to monitor (price level, transaction type, etc.)
-- For price alerts: token name AND specific price target
-- For wallet monitoring: which wallet AND what to monitor for
-- For whale tracking: which blockchain AND what threshold defines a "whale"
-- WHEN: When to trigger (can be "ongoing" for continuous monitoring)
-
-Set should_create=false if ANY critical detail is missing.
-
-Current time: ${new Date().toISOString()}
-
-Examples:
-✓ "Alert me when SUI hits $5" → should_create=true (has token and price)
-✓ "Monitor wallet 0x123... for transactions over $10k" → should_create=true (has wallet and threshold)
-✗ "Track whale movements" → should_create=false, missing_info="Which blockchain? What transaction size defines a whale?"
-✗ "Monitor my wallet" → should_create=false, missing_info="Which wallet address? What should I monitor for?"
-✗ "Set up an alert" → should_create=false, missing_info="What would you like to be alerted about?"`;
+EXAMPLES:
+- "Alert me when SUI hits $5" -> {should_create: true, event_name: "SUI Price Alert"}
+- "Monitor 0x123... for tx > $10k" -> {should_create: true, event_name: "Wallet Monitor"}
+- "Track whale movements" -> {should_create: false, missing_info: "Blockchain and size threshold missing"}
+- "Monitor my wallet" -> {should_create: false, missing_info: "Wallet address and monitor criteria missing"}`;
 
   try {
     // Extract alert parameters using structured output
