@@ -146,12 +146,12 @@ const Account = () => {
                   : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
               </p>
               {/* Show fee */}
-              {checkinState.canCheckin && (
+              {/* {checkinState.canCheckin && (
                 <p className="text-white/40 text-xs mt-1 flex items-center gap-1">
                   <Coins className="w-3 h-3" />
                   Check-in fee: {formatSUI(checkinState.checkinFee)} SUI
                 </p>
-              )}
+              )} */}
             </div>
 
             <button
