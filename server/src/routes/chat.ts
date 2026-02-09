@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { agentGraph } from '../services/agents/agent-graph';
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import { ChatRequest, ChatResponse } from '../services/agents/types';
+import { ChatRequest } from '../services/agents/types';
 import getSupabaseClient from '../config/supabase';
 import { rateLimitMiddleware, redisClient } from '../middleware/rateLimiter';
 import { awardChatPoints } from '../services/pointsService';
@@ -38,16 +38,23 @@ Title:`;
   }
 }
 
-// Main chat endpoint
+// Main chat endpoint - Now with streaming!
 router.post('/chat', rateLimitMiddleware, async (req, res) => {
   console.log('[CHAT ROUTE] POST /chat endpoint hit!');
   console.log('[CHAT ROUTE] Request body:', req.body);
+
   try {
     const { user_id, message, chat_id, agent_id, transaction_hash }: ChatRequest = req.body;
 
     if (!user_id || !message) {
       return res.status(400).json({ error: 'user_id and message are required' });
     }
+
+    // Set up SSE headers for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
     // Initialize state
     const historyMessages = (req.body.history || []).map((msg: any) =>
@@ -68,7 +75,7 @@ router.post('/chat', rateLimitMiddleware, async (req, res) => {
       walletBalance,
       chatId: chat_id,
       transactionHash: transaction_hash,
-      gasPaid: !!transaction_hash, // If transaction hash provided, gas is paid
+      gasPaid: !!transaction_hash,
     };
 
     console.log('[CHAT ROUTE] Initial state:', {
@@ -76,123 +83,136 @@ router.post('/chat', rateLimitMiddleware, async (req, res) => {
       gasPaid: !!transaction_hash,
     });
 
-    // Run the graph
-    const result = await agentGraph.invoke(initialState);
+    // Variables to collect the complete response
+    let finalResponse = '';
+    let targetAgent = 'main';
+    let requiresFee: boolean | undefined = undefined;
+    let estimatedCost: number | undefined = undefined;
+    let workflowSteps: any = undefined;
+    let pendingAction: { taskId: number; actionType: string; actionParams: any } | undefined = undefined;
 
-    // Generate chat_id if not provided
-    let activeChatId = chat_id;
-    if (!activeChatId) {
-      // Generate smart title using LLM
-      const chatTitle = await generateChatTitle(message, result.finalResponse as string || '');
+    try {
+      // Stream the graph execution
+      const stream = await agentGraph.stream(initialState);
 
-      // Create new chat
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          user_id,
-          name: chatTitle,
-          agent_id: agent_id || 'main',
-        })
-        .select('chat_id')
-        .single();
+      for await (const chunk of stream) {
+        // Send each chunk to the user immediately
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
 
-      if (chatError) {
-        console.error('Error creating chat:', chatError);
-        return res.status(500).json({ error: 'Failed to create chat' });
+        // Collect data from chunks to build final state
+        // Each chunk is a Record<string, Partial<AgentState>> where keys are node names
+        for (const nodeUpdate of Object.values(chunk)) {
+          const update = nodeUpdate as any;
+          if (update.finalResponse) {
+            finalResponse = update.finalResponse;
+          }
+          if (update.targetAgent) {
+            targetAgent = update.targetAgent;
+          }
+          if (update.requiresFee !== undefined) {
+            requiresFee = update.requiresFee;
+          }
+          if (update.estimatedCost !== undefined) {
+            estimatedCost = update.estimatedCost;
+          }
+          if (update.workflowSteps) {
+            workflowSteps = update.workflowSteps;
+          }
+          if (update.pendingAction) {
+            pendingAction = update.pendingAction;
+          }
+        }
       }
 
-      activeChatId = newChat.chat_id;
+      // Send completion marker
+      res.write('data: [DONE]\n\n');
+      res.end();
+
+      console.log('[CHAT ROUTE] Streaming completed. Final response length:', finalResponse.length);
+
+    } catch (streamError) {
+      console.error('[CHAT ROUTE] Streaming error:', streamError);
+      res.write(`data: ${JSON.stringify({ error: 'Stream failed', details: streamError instanceof Error ? streamError.message : 'Unknown error' })}\n\n`);
+      res.end();
+      return;
     }
 
-    // Save user message
-    await supabase.from('chat_messages').insert({
-      chat_id: activeChatId,
-      user_id,
-      query: message,
-      sender: 'user',
-    });
+    // Handle database operations asynchronously in the background (don't await)
+    (async () => {
+      try {
+        console.log('[CHAT ROUTE] Starting background database operations...');
 
-    // Save AI response
-    await supabase.from('chat_messages').insert({
-      chat_id: activeChatId,
-      user_id,
-      query: result.finalResponse || 'No response generated',
-      sender: 'ai',
-    });
+        // Generate chat_id if not provided
+        let activeChatId = chat_id;
+        if (!activeChatId) {
+          // Generate smart title using LLM
+          const chatTitle = await generateChatTitle(message, finalResponse || '');
 
-    // Update chat last_updated
-    await supabase
-      .from('chats')
-      .update({ last_updated: new Date().toISOString() })
-      .eq('chat_id', activeChatId);
+          // Create new chat
+          const { data: newChat, error: chatError } = await supabase
+            .from('chats')
+            .insert({
+              user_id,
+              name: chatTitle,
+              agent_id: agent_id || 'main',
+            })
+            .select('chat_id')
+            .single();
 
-    // Award chat points (max 5/day)
-    const pointsResult = await awardChatPoints(user_id);
+          if (chatError) {
+            console.error('[CHAT ROUTE] Error creating chat:', chatError);
+            return;
+          }
 
-    const pendingAction = result.pendingAction as { taskId: number; actionType: string; actionParams: any } | undefined;
-    console.log('[CHAT ROUTE] pendingAction from result:', pendingAction);
+          activeChatId = newChat.chat_id;
+          console.log('[CHAT ROUTE] Created new chat:', activeChatId);
+        }
 
-    const response: ChatResponse = {
-      response: (result.finalResponse as string) || 'No response generated',
-      agent_used: (result.targetAgent as string) || 'main',
-      chat_id: activeChatId as string,
-      requires_fee: result.requiresFee as boolean | undefined,
-      estimated_cost: result.estimatedCost as number | undefined,
-      workflow_steps: result.workflowSteps as any,
-      points_awarded: pointsResult.points_awarded,
-      pending_action: pendingAction ? {
-        task_id: pendingAction.taskId,
-        action_type: pendingAction.actionType,
-        action_params: pendingAction.actionParams,
-      } : undefined,
-    };
+        // Save user message
+        await supabase.from('chat_messages').insert({
+          chat_id: activeChatId,
+          user_id,
+          query: message,
+          sender: 'user',
+        });
 
-    res.json(response);
+        // Save AI response
+        await supabase.from('chat_messages').insert({
+          chat_id: activeChatId,
+          user_id,
+          query: finalResponse || 'No response generated',
+          sender: 'ai',
+        });
+
+        // Update chat last_updated
+        await supabase
+          .from('chats')
+          .update({ last_updated: new Date().toISOString() })
+          .eq('chat_id', activeChatId);
+
+        // Award chat points (max 5/day)
+        const pointsResult = await awardChatPoints(user_id);
+
+        console.log('[CHAT ROUTE] Database operations completed for chat:', activeChatId);
+        console.log('[CHAT ROUTE] Points awarded:', pointsResult.points_awarded);
+      } catch (dbError) {
+        console.error('[CHAT ROUTE] Error in background database operations:', dbError);
+      }
+    })();
+
   } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({
-      error: 'Failed to process message',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Streaming endpoint (SSE)
-router.post('/chat/stream', async (req, res) => {
-  try {
-    const { user_id, message, chat_id }: ChatRequest = req.body;
-
-    if (!user_id || !message) {
-      return res.status(400).json({ error: 'user_id and message are required' });
+    console.error('[CHAT ROUTE] Chat error:', error);
+    // If headers not sent yet, send JSON error
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to process message',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } else {
+      // If streaming already started, send error as SSE
+      res.write(`data: ${JSON.stringify({ error: 'Processing failed' })}\n\n`);
+      res.end();
     }
-
-    // Set up SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-
-    const initialState = {
-      messages: [new HumanMessage(message)],
-      userQuery: message,
-      userId: user_id,
-      chatId: chat_id,
-    };
-
-    // Stream the graph execution
-    const stream = await agentGraph.stream(initialState);
-
-    for await (const chunk of stream) {
-      // Send each chunk as SSE
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error) {
-    console.error('Streaming error:', error);
-    res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
-    res.end();
   }
 });
 
@@ -274,7 +294,7 @@ router.get('/rate-limit/:userId', async (req, res) => {
     res.json({
       limit: LIMIT,
       remaining: Math.max(0, LIMIT - count),
-      resetInSeconds: count >= LIMIT ? ttl : null, // seconds for countdown
+      resetInSeconds: count >= LIMIT ? ttl : null,
       isLimited: count >= LIMIT
     });
   } catch (error) {
@@ -290,4 +310,3 @@ router.get('/rate-limit/:userId', async (req, res) => {
 });
 
 export default router;
-
