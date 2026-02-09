@@ -96,8 +96,7 @@ module tovira_points::subscriptions {
         transfer::transfer(admin_cap, deployer);
     }
 
-    // 🔥 NEW: Public function to deposit coins into treasury
-    // This allows the points module to deposit check-in fees
+   
     public fun deposit_to_treasury(
         registry: &mut SubscriptionRegistry,
         payment: Coin<SUI>,
@@ -110,7 +109,7 @@ module tovira_points::subscriptions {
         event::emit(TreasuryDeposit {
             amount,
             new_balance: balance::value(&registry.treasury),
-            timestamp: 0, // No clock available in this context
+            timestamp: 0, 
         });
     }
 

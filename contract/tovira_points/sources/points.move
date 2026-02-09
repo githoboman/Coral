@@ -133,7 +133,7 @@ module tovira_points::points {
 
         let fee_config = CheckinFeeConfig {
             id: object::new(ctx),
-            fee_amount: 2_000_000, // 0.002 SUI in MIST
+            fee_amount: 2_000_000, 
             admin: deployer,
         };
 
@@ -348,14 +348,12 @@ module tovira_points::points {
 
         let fee_coin = coin::split(&mut payment, fee_amount, ctx);
         
-        // Return change to user
         if (coin::value(&payment) > 0) {
             transfer::public_transfer(payment, caller);
         } else {
             coin::destroy_zero(payment);
         };
 
-        // 🔥 FIX: Deposit fee into subscription treasury instead of transferring
         subscriptions::deposit_to_treasury(subscription_registry, fee_coin);
 
         event::emit(CheckinFeeCollected {
