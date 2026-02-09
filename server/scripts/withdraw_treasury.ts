@@ -1,4 +1,3 @@
-// admin-scripts/withdraw-treasury.ts
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
@@ -44,7 +43,6 @@ async function main() {
   console.log("💸 Treasury Withdrawal\n");
   console.log("=".repeat(60));
 
-  // Get environment variables
   const network = process.env.SUI_NETWORK || "testnet";
   const privateKey = process.env.WALRUS_PRIVATE_KEY;
   const adminCapId =
@@ -53,7 +51,6 @@ async function main() {
   const subscriptionPackageId =
     process.env.SUI_SUBSCRIPTION_PACKAGE_ID || process.env.SUI_PACKAGE_ID;
 
-  // Validate required env vars
   if (!privateKey) {
     console.error("❌ Error: WALRUS_PRIVATE_KEY not set in .env");
     process.exit(1);
@@ -78,7 +75,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Initialize client and keypair
   const client = new SuiClient({
     url: getFullnodeUrl(network as "testnet" | "mainnet"),
   });
@@ -88,7 +84,6 @@ async function main() {
 
   console.log(`\n🔑 Admin Address: ${adminAddress}`);
 
-  // Get current treasury balance
   console.log("\n📊 Fetching current treasury balance...");
   const currentBalanceMist = await getTreasuryBalance(
     client,
@@ -105,7 +100,6 @@ async function main() {
     process.exit(0);
   }
 
-  // Get withdrawal amount from command line
   const amountArg = process.argv[2];
 
   if (!amountArg) {
@@ -119,7 +113,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Calculate withdrawal amount
   let withdrawAmountMist: number;
   let withdrawAmountSui: string;
   let isWithdrawAll: boolean = false;
@@ -156,7 +149,6 @@ async function main() {
   console.log(`\n📉 Remaining After Withdrawal: ${remainingSui} SUI`);
   console.log(`   (${remainingMist.toLocaleString()} MIST)`);
 
-  // Confirm withdrawal
   if (process.argv[3] !== "--confirm") {
     console.log("\n⚠️  WARNING: This will withdraw funds from the treasury!");
     console.log(
@@ -174,24 +166,22 @@ async function main() {
     tx.setGasBudget(10_000_000);
 
     if (isWithdrawAll) {
-      // Use withdraw_all_treasury function
       tx.moveCall({
         target: `${subscriptionPackageId}::subscriptions::withdraw_all_treasury`,
         arguments: [
           tx.object(adminCapId),
           tx.object(subscriptionRegistryId),
-          tx.object("0x6"), // Clock
+          tx.object("0x6"),
         ],
       });
     } else {
-      // Use withdraw_treasury function with specific amount
       tx.moveCall({
         target: `${subscriptionPackageId}::subscriptions::withdraw_treasury`,
         arguments: [
           tx.object(adminCapId),
           tx.object(subscriptionRegistryId),
           tx.pure.u64(withdrawAmountMist),
-          tx.object("0x6"), // Clock
+          tx.object("0x6"),
         ],
       });
     }
@@ -211,7 +201,6 @@ async function main() {
       console.log(`   Withdrawn: ${withdrawAmountSui} SUI`);
       console.log(`   Recipient: ${adminAddress}`);
 
-      // Get updated balance
       const newBalanceMist = await getTreasuryBalance(
         client,
         subscriptionPackageId,

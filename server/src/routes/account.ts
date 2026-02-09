@@ -1,4 +1,3 @@
-// server/src/routes/account.ts
 import { Router, Request, Response, NextFunction } from "express";
 import { WalrusUserManager } from "../services/walrusUserManager";
 import { TicketMinter } from "../services/ticketMinter";
@@ -29,7 +28,6 @@ router.get(
           .json({ error: "Bad Request", detail: "User ID cannot be empty" });
       }
 
-      // Validate user_id format
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         return res.status(400).json({
           error: "Bad Request",
@@ -48,7 +46,6 @@ router.get(
       }
 
       const um = getUserManager();
-      // getUserProfile now decrypts automatically
       const userProfile = await um.getUserProfile(blobId, user_id);
 
       if (!userProfile) {
@@ -59,14 +56,13 @@ router.get(
 
       const balance = await minter.getBalance(user_id);
 
-      // userProfile is already decrypted
       return res.json({
         user_id,
         wallet_address: userProfile.wallet_address,
-        email: userProfile.email, // Decrypted
-        username: userProfile.username, // Decrypted
-        first_name: userProfile.first_name, // Decrypted
-        last_name: userProfile.last_name, // Decrypted
+        email: userProfile.email,
+        username: userProfile.username,
+        first_name: userProfile.first_name,
+        last_name: userProfile.last_name,
         points: balance,
         referral_points: 0,
         rank: null,
@@ -103,11 +99,9 @@ router.get(
 
       console.log(`[LEADERBOARD] Processing ${registry.total_users} users`);
 
-      // Decrypt each profile and get points
       const usersWithPoints = await Promise.all(
         Object.keys(registry.users).map(async (wallet) => {
           try {
-            // Decrypt the profile
             const decryptedProfile = await um.getUserProfile(blobId, wallet);
             if (!decryptedProfile) {
               return null;
@@ -120,8 +114,8 @@ router.get(
               wallet_address: wallet,
               username:
                 decryptedProfile.username ||
-                `User ${wallet.substring(0, 6)}...`, // Decrypted
-              email: decryptedProfile.email, // Decrypted (but don't expose in leaderboard)
+                `User ${wallet.substring(0, 6)}...`,
+              email: decryptedProfile.email,
               points: balance,
               referral_points: 0,
             };
@@ -132,15 +126,13 @@ router.get(
         }),
       );
 
-      // Filter out nulls and users with 0 points
       const validUsers = usersWithPoints.filter(
         (u) => u !== null && u.points > 0,
       );
 
-      // Sort by points descending
       const leaderboard = validUsers
         .sort((a, b) => b!.points - a!.points)
-        .slice(0, 100) // Top 100
+        .slice(0, 100)
         .map((user, idx) => ({
           rank: idx + 1,
           user_id: user!.user_id,

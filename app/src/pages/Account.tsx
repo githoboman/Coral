@@ -17,7 +17,6 @@ const Account = () => {
     }
   }, [checkinState.status, checkinState.nextIsMilestone]);
 
-  // Mark as loaded once we have data
   useEffect(() => {
     if (checkinState.status !== "checking" && checkinState.status !== "idle") {
       setIsInitialLoad(false);
@@ -46,7 +45,6 @@ const Account = () => {
 
   const { progress, daysRemaining } = getMilestoneProgress();
 
-  // Show skeleton during initial load
   if (isInitialLoad && checkinState.status === "checking") {
     return (
       <div className="w-full max-w-4xl mx-auto px-4 py-6">

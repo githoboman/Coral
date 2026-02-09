@@ -1,5 +1,3 @@
-// SkeletonLoader.tsx - Reusable skeleton components
-
 export const SkeletonBox = ({
   className = "",
   rounded = "rounded-xl",

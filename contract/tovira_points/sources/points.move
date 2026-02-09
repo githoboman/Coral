@@ -8,6 +8,7 @@ module tovira_points::points {
     use sui::address;
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
+    use tovira_points::subscriptions::{Self, SubscriptionRegistry};
 
     const EAlreadyClaimed: u64 = 1;
     const ENotEligible: u64 = 2;
@@ -42,7 +43,7 @@ module tovira_points::points {
         claimed_at: u64,
         last_checkin_at: u64,
         current_streak: u64,
-        last_checkin_date: String, // YYYY-MM-DD format
+        last_checkin_date: String, 
         total_checkins: u64,
     }
 
@@ -52,11 +53,9 @@ module tovira_points::points {
         admin: address,
     }
 
-    // NEW: Check-in fee configuration
     public struct CheckinFeeConfig has key {
         id: UID,
-        fee_amount: u64, // in MIST (0.002 SUI = 2_000_000 MIST)
-        treasury_recipient: address, // SubscriptionRegistry address
+        fee_amount: u64,
         admin: address,
     }
 
@@ -66,7 +65,7 @@ module tovira_points::points {
         points_amount: u64,
         reason: String,
         created_at: u64,
-        checkin_date: String, // NEW: YYYY-MM-DD for check-ins
+        checkin_date: String,
     }
 
     public struct PointsClaimed has copy, drop {
@@ -104,7 +103,6 @@ module tovira_points::points {
         timestamp: u64,
     }
 
-    // NEW: Check-in fee events
     public struct CheckinFeeCollected has copy, drop {
         wallet_address: address,
         fee_amount: u64,
@@ -114,12 +112,6 @@ module tovira_points::points {
     public struct FeeUpdated has copy, drop {
         old_fee: u64,
         new_fee: u64,
-        admin: address,
-        timestamp: u64,
-    }
-
-    public struct FeeTreasurySet has copy, drop {
-        treasury_address: address,
         admin: address,
         timestamp: u64,
     }
@@ -139,11 +131,9 @@ module tovira_points::points {
             admin: deployer,
         };
 
-        // NEW: Create fee config with default 0.002 SUI
         let fee_config = CheckinFeeConfig {
             id: object::new(ctx),
-            fee_amount: 2_000_000, // 0.002 SUI
-            treasury_recipient: @0x0, // Will be set by admin after deployment
+            fee_amount: 2_000_000, // 0.002 SUI in MIST
             admin: deployer,
         };
 
@@ -153,11 +143,10 @@ module tovira_points::points {
 
         transfer::share_object(registry);
         transfer::share_object(blob_registry);
-        transfer::share_object(fee_config); // NEW
+        transfer::share_object(fee_config);
         transfer::transfer(admin_cap, deployer);
     }
 
-    // NEW: Update check-in fee amount
     public entry fun update_checkin_fee(
         _admin_cap: &AdminCap,
         fee_config: &mut CheckinFeeConfig,
@@ -179,37 +168,10 @@ module tovira_points::points {
         });
     }
 
-    // NEW: Set treasury recipient address
-    public entry fun set_fee_treasury(
-        _admin_cap: &AdminCap,
-        fee_config: &mut CheckinFeeConfig,
-        treasury_address: address,
-        clock: &Clock,
-        ctx: &mut TxContext,
-    ) {
-        let caller = tx_context::sender(ctx);
-        assert!(caller == fee_config.admin, EUnauthorized);
-        
-        fee_config.treasury_recipient = treasury_address;
-
-        event::emit(FeeTreasurySet {
-            treasury_address,
-            admin: caller,
-            timestamp: clock::timestamp_ms(clock),
-        });
-    }
-
-    // NEW: Get current check-in fee
     public fun get_checkin_fee(fee_config: &CheckinFeeConfig): u64 {
         fee_config.fee_amount
     }
 
-    // NEW: Get treasury recipient address
-    public fun get_fee_treasury(fee_config: &CheckinFeeConfig): address {
-        fee_config.treasury_recipient
-    }
-
-    // Legacy function for waitlist tickets
     public entry fun mint_eligibility_ticket(
         _admin: &AdminCap,
         wallet_address: address,
@@ -226,7 +188,7 @@ module tovira_points::points {
             points_amount,
             reason: string::utf8(reason),
             created_at: clock::timestamp_ms(clock),
-            checkin_date: string::utf8(b""), // Empty for non-checkin
+            checkin_date: string::utf8(b""), 
         };
 
         let ticket_id = object::id(&ticket);
@@ -243,12 +205,11 @@ module tovira_points::points {
         transfer::transfer(ticket, wallet_address);
     }
 
-    // NEW: Dedicated function for check-in tickets with date
     public entry fun mint_checkin_ticket(
         _admin: &AdminCap,
         wallet_address: address,
         points_amount: u64,
-        checkin_date: vector<u8>, // YYYY-MM-DD format
+        checkin_date: vector<u8>, 
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
@@ -356,20 +317,16 @@ module tovira_points::points {
         false
     }
 
-    // Helper to compare dates for consecutive day check
-    // Backend ensures proper YYYY-MM-DD format
     fun are_dates_consecutive(date1: &String, date2: &String): bool {
-        // Since backend handles date logic, we just check they're different
-        // Backend calculates if yesterday's date matches last_checkin_date
         date1 != date2
     }
 
-    // UPDATED: Check-in with fee payment
     public entry fun checkin(
         registry: &mut PointsRegistry,
+        subscription_registry: &mut SubscriptionRegistry,
         ticket: EligibilityTicket,
         fee_config: &CheckinFeeConfig,
-        mut payment: Coin<SUI>, // NEW: Payment for check-in
+        mut payment: Coin<SUI>, 
         clock: &Clock,
         ctx: &mut TxContext,
     ) {
@@ -382,27 +339,24 @@ module tovira_points::points {
         let current_time = clock::timestamp_ms(clock);
         let checkin_date = ticket.checkin_date;
 
-        // Ticket must have a valid check-in date
         assert!(*string::bytes(&checkin_date) != *string::bytes(&string::utf8(b"")), EUnauthorized);
 
-        // NEW: Collect check-in fee
         let fee_amount = fee_config.fee_amount;
         let payment_value = coin::value(&payment);
         
         assert!(payment_value >= fee_amount, EInsufficientPayment);
 
-        // Split the exact fee amount
         let fee_coin = coin::split(&mut payment, fee_amount, ctx);
         
-        // Return any excess to user
+        // Return change to user
         if (coin::value(&payment) > 0) {
             transfer::public_transfer(payment, caller);
         } else {
             coin::destroy_zero(payment);
         };
 
-        // Transfer fee to treasury
-        transfer::public_transfer(fee_coin, fee_config.treasury_recipient);
+        // 🔥 FIX: Deposit fee into subscription treasury instead of transferring
+        subscriptions::deposit_to_treasury(subscription_registry, fee_coin);
 
         event::emit(CheckinFeeCollected {
             wallet_address: caller,
@@ -410,7 +364,6 @@ module tovira_points::points {
             timestamp: current_time,
         });
 
-        // Continue with check-in logic
         let mut new_streak = 1u64;
         let mut is_milestone = false;
         let mut milestone_bonus = 0u64;
@@ -419,23 +372,19 @@ module tovira_points::points {
         if (table::contains(&registry.records, wallet_key)) {
             let record = table::borrow(&registry.records, wallet_key);
             
-            // CRITICAL: Check if already checked in TODAY
             if (record.last_checkin_date == checkin_date) {
                 abort EAlreadyCheckedInToday
             };
 
-            // Calculate streak
             if (*string::bytes(&record.last_checkin_date) != *string::bytes(&string::utf8(b""))) {
                 if (are_dates_consecutive(&record.last_checkin_date, &checkin_date)) {
                     new_streak = record.current_streak + 1;
                 } else {
-                    // Streak broken - reset to 1
                     new_streak = 1;
                 };
             };
         };
 
-        // Check milestone
         if (is_milestone_day(new_streak)) {
             is_milestone = true;
             milestone_bonus = MILESTONE_BONUS;
@@ -541,7 +490,6 @@ module tovira_points::points {
         });
     }
 
-    // View functions
     public fun get_balance(registry: &PointsRegistry, wallet: String): u64 {
         if (!table::contains(&registry.records, wallet)) {
             return 0
@@ -563,7 +511,6 @@ module tovira_points::points {
         table::borrow(&registry.records, wallet).last_checkin_at
     }
 
-    // NEW: Get the last check-in DATE (not timestamp)
     public fun get_last_checkin_date(registry: &PointsRegistry, wallet: String): String {
         if (!table::contains(&registry.records, wallet)) {
             return string::utf8(b"")

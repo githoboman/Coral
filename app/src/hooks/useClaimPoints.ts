@@ -79,7 +79,6 @@ export function useClaimPoints() {
               balance: data.balance,
             });
 
-            // 🔥 EMIT POINTS UPDATE EVENT
             window.dispatchEvent(new Event("pointsUpdated"));
 
             return true;
@@ -99,7 +98,6 @@ export function useClaimPoints() {
             balance: expectedPts,
           });
 
-          // 🔥 EMIT POINTS UPDATE EVENT even on timeout
           window.dispatchEvent(new Event("pointsUpdated"));
 
           return true;

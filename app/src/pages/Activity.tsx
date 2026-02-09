@@ -49,7 +49,6 @@ const Activity = () => {
   const currentAccount = useCurrentAccount();
   const userId = currentAccount?.address || "";
 
-  // Redux state
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.tasks.tasks);
   const events = useAppSelector((state) => state.events.events);
@@ -62,7 +61,6 @@ const Activity = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // improved loading states
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
     initialLoad: true,
     tasksLoading: false,
@@ -74,10 +72,8 @@ const Activity = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Debounce search query (300ms delay)
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Convert Redux state to items format
   const items = useMemo(() => {
     const taskItems: Item[] = tasks.map((task) => ({
       id: task.id!,
@@ -286,7 +282,6 @@ const Activity = () => {
     }
   };
 
-  // Countdown Timer Logic
   const countdown = "58:58:59";
 
   const TaskPointsClaimSection = () => {
@@ -389,7 +384,6 @@ const Activity = () => {
           claimable.claimable_tasks,
         );
 
-        // 🔥 EMIT POINTS UPDATE EVENT
         window.dispatchEvent(new Event("pointsUpdated"));
 
         const refreshResponse = await fetch(

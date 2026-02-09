@@ -1,4 +1,3 @@
-// server/src/routes/index.ts
 import { Router, Request, Response } from "express";
 import authRouter from "./auth";
 import usersRouter from "./users";

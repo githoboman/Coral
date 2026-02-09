@@ -1,4 +1,3 @@
-// contracts/sources/task_points.move
 #[allow(lint(public_entry))]
 module tovira_points::task_points {
     use sui::table::{Self, Table};
@@ -14,13 +13,11 @@ module tovira_points::task_points {
     const POINTS_PER_TASK: u64 = 2;
     const MS_PER_DAY: u64 = 24 * 60 * 60 * 1000;
 
-    // Task points registry
     public struct TaskPointsRegistry has key {
         id: UID,
         records: Table<address, TaskRecord>,
     }
 
-    // Task tracking record
     public struct TaskRecord has store {
         tasks_created_today: u64,
         tasks_claimed_today: u64,
@@ -29,7 +26,6 @@ module tovira_points::task_points {
         total_points_earned: u64,
     }
 
-    // Task claim ticket
     public struct TaskClaimTicket has key {
         id: UID,
         wallet_address: address,
@@ -38,7 +34,6 @@ module tovira_points::task_points {
         created_at: u64,
     }
 
-    // Events
     public struct TaskPointsClaimed has copy, drop {
         wallet_address: address,
         task_count: u64,
@@ -55,7 +50,6 @@ module tovira_points::task_points {
         timestamp: u64,
     }
 
-    // Initialize
     fun init(ctx: &mut TxContext) {
         let registry = TaskPointsRegistry {
             id: object::new(ctx),
@@ -65,7 +59,6 @@ module tovira_points::task_points {
         transfer::share_object(registry);
     }
 
-    // Mint task claim ticket (called by backend)
     public entry fun mint_task_claim_ticket(
         _admin: &AdminCap,
         wallet_address: address,
@@ -99,7 +92,6 @@ module tovira_points::task_points {
         transfer::transfer(ticket, wallet_address);
     }
 
-    // Claim task points
     public entry fun claim_task_points(
         task_registry: &mut TaskPointsRegistry,
         points_registry: &mut PointsRegistry,
@@ -111,10 +103,8 @@ module tovira_points::task_points {
         let now = clock::timestamp_ms(clock);
         let today = get_day_timestamp(now);
 
-        // Verify ticket ownership
         assert!(ticket.wallet_address == caller, E_UNAUTHORIZED);
 
-        // Get or create task record
         if (!table::contains(&task_registry.records, caller)) {
             let record = TaskRecord {
                 tasks_created_today: 0,
@@ -128,19 +118,16 @@ module tovira_points::task_points {
 
         let record = table::borrow_mut(&mut task_registry.records, caller);
 
-        // Reset daily counters if new day
         if (record.last_reset_date != today) {
             record.tasks_created_today = 0;
             record.tasks_claimed_today = 0;
             record.last_reset_date = today;
         };
 
-        // Update record
         record.tasks_claimed_today = record.tasks_claimed_today + ticket.task_count;
         record.total_tasks_created = record.total_tasks_created + ticket.task_count;
         record.total_points_earned = record.total_points_earned + ticket.points_amount;
 
-        // Award points
         let wallet_key = address_to_string(caller);
         points::internal_award_points(
             points_registry,
@@ -148,10 +135,8 @@ module tovira_points::task_points {
             ticket.points_amount,
         );
 
-        // Get new balance
         let new_balance = points::get_balance(points_registry, wallet_key);
 
-        // Emit event
         event::emit(TaskPointsClaimed {
             wallet_address: caller,
             task_count: ticket.task_count,
@@ -160,12 +145,10 @@ module tovira_points::task_points {
             timestamp: now,
         });
 
-        // Destroy ticket
         let TaskClaimTicket { id, wallet_address: _, task_count: _, points_amount: _, created_at: _ } = ticket;
         object::delete(id);
     }
 
-    // View functions
     public fun get_task_record(
         registry: &TaskPointsRegistry,
         wallet: address,

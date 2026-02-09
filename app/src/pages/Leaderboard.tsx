@@ -13,19 +13,13 @@ const Leaderboard = () => {
   );
 
   useEffect(() => {
-    // Initial fetch (respects cache)
     dispatch(fetchLeaderboard(false));
 
-    // Auto-refresh every 30 seconds (respects cache - only fetches if cache expired)
     const pollInterval = setInterval(() => {
       dispatch(fetchLeaderboard(false));
     }, 30000);
 
-    // Listen for points updates from other components (bypass cache for immediate update)
-    const handlePointsUpdate = () => {
-      console.log("🔄 Points updated - refreshing leaderboard immediately");
-      dispatch(fetchLeaderboard(true)); // forceRefresh = true
-    };
+    const handlePointsUpdate = () => {};
 
     window.addEventListener("pointsUpdated", handlePointsUpdate);
 
@@ -48,7 +42,6 @@ const Leaderboard = () => {
     return "bg-gradient-to-r from-blue-500 to-blue-700";
   };
 
-  // Show skeleton on initial load
   if (loading && leaderboard.length === 0) {
     return <LeaderboardSkeleton />;
   }

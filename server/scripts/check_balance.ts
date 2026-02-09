@@ -1,4 +1,3 @@
-// admin-scripts/check-treasury-balance.ts
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import "dotenv/config";
@@ -35,7 +34,6 @@ async function main() {
   try {
     console.log("\n📊 Fetching treasury balance...\n");
 
-    // Method 1: Call view function
     const tx = new Transaction();
 
     tx.moveCall({
@@ -63,7 +61,6 @@ async function main() {
       process.exit(1);
     }
 
-    // Get recent withdrawal events
     console.log("\n📜 Recent Withdrawals:");
 
     try {
@@ -92,7 +89,6 @@ async function main() {
       console.log("   (Could not fetch withdrawal events)");
     }
 
-    // Get recent fee collections
     console.log("\n📈 Recent Check-in Fees Collected:");
 
     try {
@@ -130,7 +126,6 @@ async function main() {
       console.log("   (Could not fetch fee events)");
     }
 
-    // Get subscription payments
     console.log("\n💳 Recent Premium Subscriptions:");
 
     try {

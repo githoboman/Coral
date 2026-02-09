@@ -1,4 +1,3 @@
-// admin-scripts/set-treasury.ts
 import { TicketMinter } from "../src/services/ticketMinter";
 import "dotenv/config";
 
@@ -7,7 +6,6 @@ async function main() {
 
   const minter = new TicketMinter();
 
-  // Get treasury address from command line or env
   const treasuryAddress =
     process.argv[2] || process.env.SUI_SUBSCRIPTION_REGISTRY_ID;
 
@@ -29,7 +27,6 @@ async function main() {
       console.log(`   Transaction: ${result}`);
       console.log(`   Treasury: ${treasuryAddress}`);
 
-      // Verify
       const currentTreasury = await minter.getFeeTreasury();
       console.log(`\n   Verified treasury: ${currentTreasury}`);
     } else {

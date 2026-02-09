@@ -17,16 +17,13 @@ function getUserManager(): WalrusUserManager {
   return userManager;
 }
 
-// ============================================================================
-// IN-MEMORY CACHE FOR STATUS REQUESTS
-// ============================================================================
 interface StatusCache {
   data: any;
   timestamp: number;
 }
 
 const statusCache = new Map<string, StatusCache>();
-const CACHE_TTL = 3000; // 3 seconds
+const CACHE_TTL = 3000;
 
 function getCachedStatus(walletAddress: string): any | null {
   const cached = statusCache.get(walletAddress);
@@ -47,10 +44,6 @@ function setCachedStatus(walletAddress: string, data: any): void {
     timestamp: Date.now(),
   });
 }
-
-// ============================================================================
-// DATE UTILITY FUNCTIONS
-// ============================================================================
 
 function getUserDate(timezoneOffset: number): string {
   const now = new Date();
@@ -89,10 +82,6 @@ function getMidnightTimestamp(timezoneOffset: number): number {
   return userDate.getTime() - timezoneOffset * 60000;
 }
 
-// ============================================================================
-// POINTS CALCULATION
-// ============================================================================
-
 function calculateCheckinPoints(currentStreak: number): {
   basePoints: number;
   milestoneBonus: number;
@@ -121,14 +110,6 @@ function calculateCheckinPoints(currentStreak: number): {
   };
 }
 
-// ============================================================================
-// ROUTES
-// ============================================================================
-
-/**
- * GET /api/checkin/status
- * Check if user can check in and get streak info
- */
 router.get(
   "/status",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -143,7 +124,6 @@ router.get(
         return;
       }
 
-      // Check cache first
       const cached = getCachedStatus(wallet_address);
       if (cached) {
         console.log(
@@ -158,7 +138,6 @@ router.get(
         : 0;
       const minter = getTicketMinter();
 
-      // Parallel fetch for better performance
       const [lastCheckinDate, currentStreak, balance, checkinFee] =
         await Promise.all([
           minter.getLastCheckinDate(wallet_address),
@@ -167,7 +146,6 @@ router.get(
           minter.getCheckinFee(),
         ]);
 
-      // Get total check-ins - try multiple methods
       let totalCheckins = 0;
       try {
         totalCheckins = await minter.getTotalCheckins(wallet_address);
@@ -179,7 +157,6 @@ router.get(
           `⚠️  Error fetching total_checkins, using current_streak as fallback:`,
           error,
         );
-        // Fallback: use current streak as approximation
         totalCheckins = currentStreak;
       }
 
@@ -237,7 +214,6 @@ router.get(
         checkin_fee: checkinFee,
       };
 
-      // Cache the response
       setCachedStatus(wallet_address, response);
 
       res.json(response);
@@ -248,10 +224,6 @@ router.get(
   },
 );
 
-/**
- * POST /api/checkin/request-ticket
- * Request a check-in ticket for today
- */
 router.post(
   "/request-ticket",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -266,7 +238,6 @@ router.post(
         return;
       }
 
-      // Clear cache on ticket request
       statusCache.delete(wallet_address);
 
       const timezoneOffset = timezone_offset || 0;
@@ -333,7 +304,6 @@ router.post(
 
       console.log(`✅ Check-in ticket minted: ${ticketObjectId}`);
 
-      // Update Walrus with streak info (async, non-blocking)
       (async () => {
         try {
           const blobRegistry = await minter.getCurrentBlobId();

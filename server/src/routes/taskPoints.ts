@@ -1,4 +1,3 @@
-// server/src/routes/taskPoints.ts
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter } from "../services/ticketMinter";
 import { WalrusUserManager } from "../services/walrusUserManager";
@@ -18,12 +17,10 @@ function getUserManager(): WalrusUserManager {
   return userManager;
 }
 
-// Helper to get today's date as YYYY-MM-DD
 function getTodayDate(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-// Get claimable tasks for user
 router.get(
   "/claimable",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -38,7 +35,6 @@ router.get(
         return;
       }
 
-      // Validate user_id format
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         res.status(400).json({
           error: "Bad Request",
@@ -50,7 +46,6 @@ router.get(
       const minter = getTicketMinter();
       const manager = getUserManager();
 
-      // Get user registry blob ID
       const userRegistryBlobId = await minter.getCurrentBlobId();
       if (!userRegistryBlobId) {
         res.json({
@@ -63,7 +58,6 @@ router.get(
         return;
       }
 
-      // Get user profile
       const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
 
       if (!profile) {
@@ -77,7 +71,6 @@ router.get(
         return;
       }
 
-      // Check if it's a new day and reset is needed
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -106,7 +99,6 @@ router.get(
   },
 );
 
-// Request task claim ticket
 router.post(
   "/request-claim",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -121,7 +113,6 @@ router.post(
         return;
       }
 
-      // Validate user_id format
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         res.status(400).json({
           error: "Bad Request",
@@ -141,7 +132,6 @@ router.post(
       const minter = getTicketMinter();
       const manager = getUserManager();
 
-      // Get user registry
       const userRegistryBlobId = await minter.getCurrentBlobId();
       if (!userRegistryBlobId) {
         res.status(404).json({
@@ -151,7 +141,6 @@ router.post(
         return;
       }
 
-      // Get user profile
       const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
       if (!profile) {
         res.status(404).json({
@@ -161,7 +150,6 @@ router.post(
         return;
       }
 
-      // Check if they have enough claimable tasks
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -211,7 +199,6 @@ router.post(
   },
 );
 
-// Update task count after task creation
 router.post(
   "/track-creation",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -226,7 +213,6 @@ router.post(
         return;
       }
 
-      // Validate user_id format
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         res.status(400).json({
           error: "Bad Request",
@@ -238,7 +224,6 @@ router.post(
       const minter = getTicketMinter();
       const manager = getUserManager();
 
-      // Get user registry
       const userRegistryBlobId = await minter.getCurrentBlobId();
       if (!userRegistryBlobId) {
         res.status(404).json({
@@ -248,7 +233,6 @@ router.post(
         return;
       }
 
-      // Get user profile
       const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
       if (!profile) {
         res.status(404).json({
@@ -258,7 +242,6 @@ router.post(
         return;
       }
 
-      // Check if needs daily reset
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -267,7 +250,6 @@ router.post(
       const currentClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
       const newCreated = currentCreated + 1;
 
-      // Update profile
       const updatedProfile = manager.createUserProfile(
         profile.email,
         profile.wallet_address,
@@ -303,7 +285,6 @@ router.post(
         return;
       }
 
-      // Update on-chain registry if changed
       if (newBlobId !== userRegistryBlobId) {
         await minter.updateBlobRegistry(newBlobId);
       }
@@ -324,7 +305,6 @@ router.post(
   },
 );
 
-// Update claimed count after successful claim
 router.post(
   "/confirm-claim",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -350,7 +330,6 @@ router.post(
       const minter = getTicketMinter();
       const manager = getUserManager();
 
-      // Get user registry
       const userRegistryBlobId = await minter.getCurrentBlobId();
       if (!userRegistryBlobId) {
         res.status(404).json({
@@ -360,7 +339,6 @@ router.post(
         return;
       }
 
-      // Get user profile
       const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
       if (!profile) {
         res.status(404).json({
@@ -370,7 +348,6 @@ router.post(
         return;
       }
 
-      // Update claimed count
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -378,7 +355,6 @@ router.post(
       const currentClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
       const newClaimed = currentClaimed + task_count;
 
-      // ✅ FIX: Get actual on-chain points balance
       const onChainBalance = await minter.getBalance(user_id);
 
       console.log(`[TASK POINTS] On-chain balance: ${onChainBalance}`);
@@ -386,12 +362,11 @@ router.post(
         `[TASK POINTS] Walrus cached balance: ${profile.points_awarded}`,
       );
 
-      // Update profile with new claimed count AND sync on-chain balance
       const updatedProfile = manager.createUserProfile(
         profile.email,
         profile.wallet_address,
         profile.is_waitlisted,
-        onChainBalance, // ✅ Sync on-chain balance to Walrus cache
+        onChainBalance,
         {
           username: profile.username,
           first_name: profile.first_name,
@@ -423,7 +398,6 @@ router.post(
         return;
       }
 
-      // Update on-chain registry if changed
       if (newBlobId !== userRegistryBlobId) {
         await minter.updateBlobRegistry(newBlobId);
       }
@@ -445,14 +419,12 @@ router.post(
   },
 );
 
-// Get task statistics
 router.get(
   "/stats/:user_id",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id } = req.params;
 
-      // Validate user_id format
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         res.status(400).json({
           error: "Bad Request",
@@ -464,7 +436,6 @@ router.get(
       const minter = getTicketMinter();
       const manager = getUserManager();
 
-      // Get user registry
       const userRegistryBlobId = await minter.getCurrentBlobId();
       if (!userRegistryBlobId) {
         res.json({
@@ -477,7 +448,6 @@ router.get(
         return;
       }
 
-      // Get user profile
       const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
       if (!profile) {
         res.json({
@@ -490,10 +460,8 @@ router.get(
         return;
       }
 
-      // Get on-chain points balance
       const balance = await minter.getBalance(user_id);
 
-      // Check if needs daily reset
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;

@@ -1,4 +1,3 @@
-// contracts/sources/subscriptions.move
 #[allow(lint(public_entry), unused_const)]
 module tovira_points::subscriptions {
     use sui::table::{Self, Table};
@@ -15,29 +14,26 @@ module tovira_points::subscriptions {
     const E_NOT_ADMIN: u64 = 4;
     const E_INSUFFICIENT_BALANCE: u64 = 5;
 
-    const PREMIUM_PRICE: u64 = 2_000_000_000; // 2 SUI
-    const PREMIUM_DURATION_MS: u64 = 30 * 24 * 60 * 60 * 1000; // 30 days
+    const PREMIUM_PRICE: u64 = 2_000_000_000; 
+    const PREMIUM_DURATION_MS: u64 = 30 * 24 * 60 * 60 * 1000;
     const FREE_DAILY_PROMPTS: u64 = 2;
     const PREMIUM_DAILY_PROMPTS: u64 = 5;
     const MS_PER_DAY: u64 = 24 * 60 * 60 * 1000;
 
-    // Admin capability
     public struct AdminCap has key, store {
         id: UID,
     }
 
-    // Subscription registry with treasury
     public struct SubscriptionRegistry has key {
         id: UID,
         subscribers: Table<address, SubscriptionRecord>,
-        treasury: Balance<SUI>, // ✅ This holds the SUI
+        treasury: Balance<SUI>,
         total_revenue: u64,
-        admin: address, // Owner who can withdraw
+        admin: address,
     }
 
-    // Individual subscription record
     public struct SubscriptionRecord has store {
-        tier: u8, // 0 = free, 1 = premium
+        tier: u8, 
         started_at: u64,
         expires_at: u64,
         daily_prompts_used: u64,
@@ -45,7 +41,6 @@ module tovira_points::subscriptions {
         payment_tx_digest: String,
     }
 
-    // Events
     public struct PremiumSubscribed has copy, drop {
         wallet_address: address,
         tier: u8,
@@ -76,16 +71,21 @@ module tovira_points::subscriptions {
         timestamp: u64,
     }
 
-    // Initialize
+    public struct TreasuryDeposit has copy, drop {
+        amount: u64,
+        new_balance: u64,
+        timestamp: u64,
+    }
+
     fun init(ctx: &mut TxContext) {
         let deployer = tx_context::sender(ctx);
 
         let registry = SubscriptionRegistry {
             id: object::new(ctx),
             subscribers: table::new(ctx),
-            treasury: balance::zero<SUI>(), // ✅ Initialize empty treasury
+            treasury: balance::zero<SUI>(), 
             total_revenue: 0,
-            admin: deployer, // ✅ Set admin
+            admin: deployer,
         };
 
         let admin_cap = AdminCap {
@@ -96,7 +96,24 @@ module tovira_points::subscriptions {
         transfer::transfer(admin_cap, deployer);
     }
 
-    // Subscribe to premium (pay 2 SUI)
+    // 🔥 NEW: Public function to deposit coins into treasury
+    // This allows the points module to deposit check-in fees
+    public fun deposit_to_treasury(
+        registry: &mut SubscriptionRegistry,
+        payment: Coin<SUI>,
+    ) {
+        let amount = coin::value(&payment);
+        let payment_balance = coin::into_balance(payment);
+        balance::join(&mut registry.treasury, payment_balance);
+        registry.total_revenue = registry.total_revenue + amount;
+
+        event::emit(TreasuryDeposit {
+            amount,
+            new_balance: balance::value(&registry.treasury),
+            timestamp: 0, // No clock available in this context
+        });
+    }
+
     public entry fun subscribe_premium(
         registry: &mut SubscriptionRegistry,
         payment: Coin<SUI>,
@@ -110,13 +127,11 @@ module tovira_points::subscriptions {
         let now = clock::timestamp_ms(clock);
         let expires_at = now + PREMIUM_DURATION_MS;
 
-        // ✅ Convert coin to balance and add to treasury
         let payment_balance = coin::into_balance(payment);
         balance::join(&mut registry.treasury, payment_balance);
         
         registry.total_revenue = registry.total_revenue + amount;
 
-        // Create or update subscription record
         if (table::contains(&registry.subscribers, sender)) {
             let record = table::borrow_mut(&mut registry.subscribers, sender);
             record.tier = 1;
@@ -146,7 +161,6 @@ module tovira_points::subscriptions {
         });
     }
 
-    // ✅ NEW: Withdraw funds from treasury (admin only)
     public entry fun withdraw_treasury(
         _admin_cap: &AdminCap,
         registry: &mut SubscriptionRegistry,
@@ -156,21 +170,16 @@ module tovira_points::subscriptions {
     ) {
         let caller = tx_context::sender(ctx);
         
-        // Verify caller is admin
         assert!(caller == registry.admin, E_NOT_ADMIN);
 
-        // Check treasury has enough balance
         let treasury_balance = balance::value(&registry.treasury);
         assert!(treasury_balance >= amount, E_INSUFFICIENT_BALANCE);
 
-        // Extract balance and convert to coin
         let withdrawn_balance = balance::split(&mut registry.treasury, amount);
         let coin = coin::from_balance(withdrawn_balance, ctx);
 
-        // Transfer to admin
         transfer::public_transfer(coin, caller);
 
-        // Emit event
         let remaining = balance::value(&registry.treasury);
         event::emit(TreasuryWithdrawn {
             admin: caller,
@@ -180,7 +189,6 @@ module tovira_points::subscriptions {
         });
     }
 
-    // ✅ NEW: Withdraw entire treasury (convenience function)
     public entry fun withdraw_all_treasury(
         admin_cap: &AdminCap,
         registry: &mut SubscriptionRegistry,
@@ -191,7 +199,6 @@ module tovira_points::subscriptions {
         withdraw_treasury(admin_cap, registry, treasury_balance, clock, ctx);
     }
 
-    // ✅ NEW: Transfer admin rights
     public entry fun transfer_admin(
         _admin_cap: &AdminCap,
         registry: &mut SubscriptionRegistry,
@@ -204,12 +211,10 @@ module tovira_points::subscriptions {
         registry.admin = new_admin;
     }
 
-    // ✅ NEW: View treasury balance
     public fun get_treasury_balance(registry: &SubscriptionRegistry): u64 {
         balance::value(&registry.treasury)
     }
 
-    // Use a task prompt (rate limiting)
     public entry fun use_task_prompt(
         registry: &mut SubscriptionRegistry,
         clock: &Clock,
@@ -219,7 +224,6 @@ module tovira_points::subscriptions {
         let now = clock::timestamp_ms(clock);
         let today = get_day_timestamp(now);
 
-        // Get or create record
         if (!table::contains(&registry.subscribers, sender)) {
             let record = SubscriptionRecord {
                 tier: 0,
@@ -234,9 +238,8 @@ module tovira_points::subscriptions {
 
         let record = table::borrow_mut(&mut registry.subscribers, sender);
 
-        // Check if subscription expired
         if (record.tier == 1 && record.expires_at < now) {
-            record.tier = 0; // Downgrade to free
+            record.tier = 0; 
             event::emit(SubscriptionExpired {
                 wallet_address: sender,
                 expired_at: record.expires_at,
@@ -244,17 +247,14 @@ module tovira_points::subscriptions {
             });
         };
 
-        // Reset daily counter if new day
         if (record.last_prompt_date != today) {
             record.daily_prompts_used = 0;
             record.last_prompt_date = today;
         };
 
-        // Check prompt limit
         let limit = if (record.tier == 1) { PREMIUM_DAILY_PROMPTS } else { FREE_DAILY_PROMPTS };
         assert!(record.daily_prompts_used < limit, E_PROMPT_LIMIT_REACHED);
 
-        // Increment usage
         record.daily_prompts_used = record.daily_prompts_used + 1;
 
         event::emit(PromptUsed {
@@ -266,7 +266,6 @@ module tovira_points::subscriptions {
         });
     }
 
-    // View functions
     public fun get_subscription(
         registry: &SubscriptionRegistry,
         wallet: address,
@@ -291,19 +290,17 @@ module tovira_points::subscriptions {
         clock: &Clock,
     ): bool {
         if (!table::contains(&registry.subscribers, wallet)) {
-            return true // First time user
+            return true 
         };
 
         let record = table::borrow(&registry.subscribers, wallet);
         let now = clock::timestamp_ms(clock);
         let today = get_day_timestamp(now);
 
-        // Check if new day
         if (record.last_prompt_date != today) {
             return true
         };
 
-        // Check tier and limit
         let limit = if (record.tier == 1 && record.expires_at >= now) { 
             PREMIUM_DAILY_PROMPTS 
         } else { 
@@ -317,7 +314,6 @@ module tovira_points::subscriptions {
         registry.admin
     }
 
-    // Helper to get day timestamp (midnight UTC)
     fun get_day_timestamp(timestamp_ms: u64): u64 {
         timestamp_ms / MS_PER_DAY
     }

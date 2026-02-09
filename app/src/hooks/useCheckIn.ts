@@ -8,6 +8,9 @@ import { Transaction } from "@mysten/sui/transactions";
 const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
 const POINTS_REGISTRY = import.meta.env.VITE_POINTS_REGISTRY_ID || "";
 const FEE_CONFIG = import.meta.env.VITE_FEE_CONFIG_ID || "";
+const SUBSCRIPTION_REGISTRY =
+  import.meta.env.VITE_SUI_SUBSCRIPTION_REGISTRY_ID || "";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export type CheckinStatus =
@@ -46,7 +49,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [state, setState] = useState<CheckinState>({
-    status: "checking", // Start in checking state
+    status: "checking",
     canCheckin: false,
     lastCheckinDate: null,
     lastCheckinAt: null,
@@ -80,7 +83,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       return;
     }
 
-    // Cancel any pending requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -123,7 +125,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         error: null,
       }));
     } catch (err: any) {
-      // Ignore abort errors
       if (err.name === "AbortError") {
         return;
       }
@@ -136,7 +137,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }
   }, [currentAccount?.address, getTimezoneOffset]);
 
-  // Fetch immediately on mount and when account changes
   useEffect(() => {
     fetchStatus();
 
@@ -308,6 +308,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         target: `${PACKAGE_ID}::points::checkin`,
         arguments: [
           tx.object(POINTS_REGISTRY),
+          tx.object(SUBSCRIPTION_REGISTRY),
           tx.object(ticketId),
           tx.object(FEE_CONFIG),
           feeCoin,
@@ -332,9 +333,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       );
 
       if (isMilestone) {
-        console.log(
-          `🎉 Milestone reached! Earned ${ptsAmount} points (${ptsAmount - milestoneBonus} base + ${milestoneBonus} bonus). Paid ${(checkinFee / 1_000_000_000).toFixed(3)} SUI fee.`,
-        );
       }
     } catch (err: any) {
       let errorMsg = "Check-in failed. Please try again.";

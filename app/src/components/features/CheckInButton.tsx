@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
-import { X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from "react";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CheckInResult {
   success: boolean;
@@ -13,7 +13,8 @@ interface CheckInResult {
   next_checkin_time?: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 // Auto check-in component that shows modal on success
 export function AutoCheckIn() {
@@ -31,7 +32,9 @@ export function AutoCheckIn() {
 
     try {
       // First check status
-      const statusResponse = await fetch(`${API_BASE_URL}/api/checkin/status/${userId}`);
+      const statusResponse = await fetch(
+        `${API_BASE_URL}/api/checkin/status/${userId}`,
+      );
       if (!statusResponse.ok) return;
 
       const status = await statusResponse.json();
@@ -43,8 +46,8 @@ export function AutoCheckIn() {
 
       // Perform check-in
       const response = await fetch(`${API_BASE_URL}/api/checkin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId }),
       });
 
@@ -54,9 +57,7 @@ export function AutoCheckIn() {
         setResult(data);
         setShowModal(true);
       }
-    } catch (error) {
-      console.error('Auto check-in failed:', error);
-    }
+    } catch (error) {}
   }, [userId, hasAttempted]);
 
   // Auto check-in on mount
@@ -77,7 +78,8 @@ export function AutoCheckIn() {
   }
 
   const milestones = [5, 10, 15, 20, 25, 30];
-  const isMilestone = result.streak_day && milestones.includes(result.streak_day);
+  const isMilestone =
+    result.streak_day && milestones.includes(result.streak_day);
 
   return (
     <AnimatePresence>
@@ -119,17 +121,23 @@ export function AutoCheckIn() {
               <div className="p-6 pt-2 text-center">
                 {/* Title */}
                 <h2 className="text-xl font-bold text-white mb-2">
-                  {isMilestone ? 'Milestone Reached!' : 'Daily Check-in Complete!'}
+                  {isMilestone
+                    ? "Milestone Reached!"
+                    : "Daily Check-in Complete!"}
                 </h2>
 
                 {/* Streak Badge */}
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full mb-4">
-                  <span className="text-sm font-medium text-white/80">Day {result.streak_day} Streak</span>
+                  <span className="text-sm font-medium text-white/80">
+                    Day {result.streak_day} Streak
+                  </span>
                 </div>
 
                 {/* Points Card */}
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-4">
-                  <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Points Earned</p>
+                  <p className="text-white/40 text-xs uppercase tracking-wider mb-1">
+                    Points Earned
+                  </p>
                   <p className="text-3xl font-bold text-white">
                     +{result.points_earned}
                     <span className="text-green-400 ml-1 text-lg">pts</span>
@@ -148,8 +156,7 @@ export function AutoCheckIn() {
                         ? `${10 - result.streak_day} days to Day 10 bonus`
                         : result.streak_day < 30
                           ? `${30 - result.streak_day} days to Day 30 bonus`
-                          : 'Keep the streak going!'
-                    }
+                          : "Keep the streak going!"}
                   </p>
                 )}
 
