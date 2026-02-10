@@ -291,12 +291,51 @@ router.get("/rate-limit/:userId", async (req, res) => {
 });
 
 // Task agent daily prompt status (subscription-aware: 2 free / 5 premium)
+// Task agent daily prompt status (subscription-aware: 2 free / 5 premium)
 router.get("/task-prompts/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const subscriptionService = getSubscriptionService();
-    const remaining = await subscriptionService.getPromptsRemaining(userId);
-    res.json(remaining);
+
+    console.log(
+      `\n[TASK PROMPTS] Getting status for ${userId.substring(0, 10)}...`,
+    );
+
+    // ✅ Get tier from blockchain (source of truth)
+    const tierStatus = await subscriptionService.getCurrentTier(userId);
+    const limit = tierStatus.isActivePremium ? 5 : 2;
+
+    // ✅ Get usage from Redis (same source that blocks users)
+    const today = new Date().toISOString().split("T")[0];
+    let used = 0;
+
+    if (redisClient && redisClient.isOpen) {
+      try {
+        const redisKey = `prompts:${userId}:${today}`;
+        const count = await redisClient.get(redisKey);
+        used = count ? parseInt(count) : 0;
+        console.log(`[TASK PROMPTS] Redis: ${redisKey} = ${used}`);
+      } catch (redisError) {
+        console.warn("[TASK PROMPTS] Redis failed, using Walrus fallback");
+        const remaining = await subscriptionService.getPromptsRemaining(userId);
+        used = remaining.used;
+      }
+    } else {
+      // No Redis - fallback to Walrus
+      const remaining = await subscriptionService.getPromptsRemaining(userId);
+      used = remaining.used;
+    }
+
+    const result = {
+      used,
+      limit,
+      remaining: Math.max(0, limit - used),
+      tier: tierStatus.tier,
+    };
+
+    console.log(`[TASK PROMPTS] Returning: ${JSON.stringify(result)}`);
+
+    res.json(result);
   } catch (error) {
     console.error("Error checking task prompt status:", error);
     res.json({ used: 0, limit: 2, remaining: 2, tier: 0 });

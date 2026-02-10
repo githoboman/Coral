@@ -8,7 +8,7 @@ import { Transaction } from "@mysten/sui/transactions";
 const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
 const SUBSCRIPTION_REGISTRY =
   import.meta.env.VITE_SUI_SUBSCRIPTION_REGISTRY_ID || "";
-const PREMIUM_PRICE = 2_000_000_000; // 2 SUI in MIST
+const PREMIUM_PRICE = 2_000_000_000;
 
 export type SubscriptionStatus =
   | "idle"
@@ -43,7 +43,7 @@ export function useSubscription() {
     expiresAt: null,
     daysRemaining: null,
     dailyPromptsUsed: 0,
-    dailyPromptsLimit: 2, // Free tier default
+    dailyPromptsLimit: 2,
     error: null,
   });
 
@@ -56,7 +56,6 @@ export function useSubscription() {
     setState((prev) => ({ ...prev, status: "loading" }));
 
     try {
-      // Fetch subscription status from backend API
       const API_BASE =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
       const response = await fetch(
@@ -102,7 +101,6 @@ export function useSubscription() {
   useEffect(() => {
     fetchSubscriptionStatus();
 
-    // Refresh every 30 seconds
     const interval = setInterval(fetchSubscriptionStatus, 30000);
 
     return () => clearInterval(interval);
@@ -128,7 +126,6 @@ export function useSubscription() {
       const tx = new Transaction();
       tx.setGasBudget(20_000_000);
 
-      // Split coins for subscription payment
       const [paymentCoin] = tx.splitCoins(tx.gas, [PREMIUM_PRICE]);
 
       tx.moveCall({
@@ -136,7 +133,7 @@ export function useSubscription() {
         arguments: [
           tx.object(SUBSCRIPTION_REGISTRY),
           paymentCoin,
-          tx.object("0x6"), // Clock object
+          tx.object("0x6"),
         ],
       });
 
@@ -155,30 +152,22 @@ export function useSubscription() {
       console.log("Subscription transaction:", result.digest);
       console.log("Full transaction result:", JSON.stringify(result, null, 2));
 
-      // ✅ Check transaction success using Sui SDK response
       let isSuccess = false;
       let errorMsg = "";
 
       const resultAny = result as any;
 
-      // Log what we actually got to debug
       console.log("📊 Checking result structure:");
       console.log("  - effects type:", typeof result.effects);
       console.log("  - effects:", result.effects);
       console.log("  - rawEffects present:", !!resultAny.rawEffects);
       console.log("  - objectChanges:", resultAny.objectChanges?.length || 0);
 
-      // The Sui SDK response structure varies by version:
-      // 1. effects.status.status === "success" (newer parsed format)
-      // 2. effects is a base64 string with rawEffects array (your version)
-      // 3. Check objectChanges as fallback
-
       if (
         resultAny.effects &&
         typeof resultAny.effects === "object" &&
         resultAny.effects.status
       ) {
-        // Case 1: Parsed effects object (newer SDK versions)
         if (resultAny.effects.status.status === "success") {
           isSuccess = true;
           console.log(
@@ -200,20 +189,7 @@ export function useSubscription() {
           );
         }
       } else if (typeof result.effects === "string" && resultAny.rawEffects) {
-        // Case 2: Base64 encoded effects with rawEffects array (SDK v1.38)
         console.log("📊 Parsing rawEffects (SDK v1.38 format)");
-
-        // rawEffects BCS encoding structure:
-        // OLD FORMAT: [1, 1, execution_status, ...]
-        //   [0] = version (1)
-        //   [1] = format (1)
-        //   [2] = execution_status: 0 = Success, >0 = Failure
-        //
-        // NEW FORMAT: [1, 0, gas_low, gas_high, ...]
-        //   [0] = version (1)
-        //   [1] = format (0) - indicates new format
-        //   [2-5] = gas used (little-endian u32)
-        //   Execution status is implicit (this format only used for successful txns)
 
         if (
           Array.isArray(resultAny.rawEffects) &&
@@ -230,7 +206,6 @@ export function useSubscription() {
           );
 
           if (format === 0) {
-            // NEW FORMAT - execution status is implicit success
             isSuccess = true;
             const gasUsed =
               resultAny.rawEffects[2] + (resultAny.rawEffects[3] << 8);
@@ -240,7 +215,6 @@ export function useSubscription() {
               ")",
             );
           } else if (format === 1) {
-            // OLD FORMAT - execution status at byte[2]
             const executionStatus = resultAny.rawEffects[2];
             console.log(
               "  - Execution status (rawEffects[2]):",
@@ -255,7 +229,6 @@ export function useSubscription() {
             } else {
               isSuccess = false;
 
-              // Map error codes to user-friendly messages
               const errorMessages: Record<number, string> = {
                 7: "Insufficient SUI balance. You need at least 2.01 SUI (2 SUI + gas fees).",
               };
@@ -271,7 +244,6 @@ export function useSubscription() {
               console.log("Error:", errorMsg);
             }
           } else {
-            // Unknown format
             console.log("⚠️ Unknown format byte:", format);
             isSuccess = !!(
               resultAny.objectChanges && resultAny.objectChanges.length > 0
@@ -281,7 +253,6 @@ export function useSubscription() {
             }
           }
         } else {
-          // Fallback if rawEffects format is unexpected
           console.log(
             "⚠️ Unexpected rawEffects format, using objectChanges fallback",
           );
@@ -293,7 +264,6 @@ export function useSubscription() {
           }
         }
       } else {
-        // Case 3: Unknown format - use fallback checks
         console.log("⚠️ Unknown effects format, using fallback checks");
         if (result.digest && resultAny.objectChanges?.length > 0) {
           isSuccess = true;
@@ -316,7 +286,6 @@ export function useSubscription() {
         console.error("❌ Transaction failed on-chain");
         console.log("Error details:", errorMsg);
 
-        // Parse common error patterns for user-friendly messages
         let userFriendlyError = "Subscription failed. Please try again.";
         const errorStr = String(errorMsg).toLowerCase();
 
@@ -341,25 +310,21 @@ export function useSubscription() {
           error: userFriendlyError,
         }));
 
-        return; // Exit early, don't show success
+        return;
       }
 
-      // ✅ Transaction succeeded on-chain - wrap in try-catch to prevent any post-processing errors
       try {
         console.log("✅ Subscription transaction succeeded on-chain");
 
-        // Set success state immediately
         setState((prev) => ({
           ...prev,
           status: "success",
           error: null,
         }));
 
-        // Wait a moment for blockchain to update
         console.log("⏳ Waiting for blockchain to update...");
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // Refresh subscription status
         console.log("🔄 Refreshing subscription status...");
         try {
           await fetchSubscriptionStatus();
@@ -369,21 +334,17 @@ export function useSubscription() {
             "⚠️ Failed to refresh subscription status, but transaction succeeded:",
             refreshError,
           );
-          // Don't override success state if refresh fails
         }
 
-        // Keep success state visible for 3 seconds
         setTimeout(() => {
           setState((prev) => ({
             ...prev,
             status: "idle",
-            error: null, // Clear any error
+            error: null,
           }));
         }, 3000);
       } catch (postSuccessError) {
         console.error("⚠️ Error in post-success processing:", postSuccessError);
-        // Transaction already succeeded, so maintain success state
-        // Just log the error but don't change the UI state
       }
     } catch (error: any) {
       console.error("Subscription failed:", error);

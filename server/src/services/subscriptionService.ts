@@ -25,18 +25,76 @@ export class SubscriptionService {
     console.log("✅ SubscriptionService initialized");
   }
 
-  // Get today's date as ISO string (YYYY-MM-DD)
   private getTodayDate(): string {
     return new Date().toISOString().split("T")[0];
   }
 
-  // Check if user needs daily reset
   private needsDailyReset(lastDate: string | undefined): boolean {
     if (!lastDate) return true;
     return lastDate !== this.getTodayDate();
   }
 
-  // Get subscription details from on-chain
+  async getCurrentTier(walletAddress: string): Promise<{
+    tier: number;
+    expires_at: number;
+    isActivePremium: boolean;
+  }> {
+    try {
+      const onChain = await this.getOnChainSubscription(walletAddress);
+
+      if (onChain) {
+        const now = Date.now();
+        const isActivePremium = onChain.tier === 1 && onChain.expires_at > now;
+
+        console.log(
+          `[SUBSCRIPTION] On-chain tier check for ${walletAddress.substring(0, 10)}...:`,
+        );
+        console.log(`   Tier: ${onChain.tier}`);
+        console.log(
+          `   Expires: ${new Date(onChain.expires_at).toISOString()}`,
+        );
+        console.log(`   Active Premium: ${isActivePremium}`);
+
+        return {
+          tier: isActivePremium ? 1 : 0,
+          expires_at: onChain.expires_at,
+          isActivePremium,
+        };
+      }
+
+      console.warn(
+        `[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`,
+      );
+      const walrusData = await this.getWalrusSubscription(walletAddress);
+
+      if (walrusData) {
+        const now = Date.now();
+        // ✅ FIX: Ensure boolean type
+        const isActivePremium = Boolean(
+          walrusData.tier === 1 &&
+          walrusData.expires_at &&
+          new Date(walrusData.expires_at).getTime() > now,
+        );
+
+        return {
+          tier: isActivePremium ? 1 : 0,
+          expires_at: walrusData.expires_at
+            ? new Date(walrusData.expires_at).getTime()
+            : 0,
+          isActivePremium,
+        };
+      }
+
+      console.log(
+        `[SUBSCRIPTION] No subscription found, defaulting to free tier`,
+      );
+      return { tier: 0, expires_at: 0, isActivePremium: false };
+    } catch (error) {
+      console.error("[SUBSCRIPTION] Error getting tier:", error);
+      return { tier: 0, expires_at: 0, isActivePremium: false };
+    }
+  }
+
   async getOnChainSubscription(walletAddress: string): Promise<{
     tier: number;
     started_at: number;
@@ -60,10 +118,12 @@ export class SubscriptionService {
         transactionBlock: tx,
       });
 
-      if (result.results?.[0]?.returnValues) {
+      if (
+        result.results?.[0]?.returnValues &&
+        result.results[0].returnValues.length >= 5
+      ) {
         const values = result.results[0].returnValues;
 
-        // Parse the tuple: (tier, started_at, expires_at, daily_prompts_used, last_prompt_date)
         const tier = this.parseU8(values[0][0]);
         const started_at = this.parseU64(values[1][0]);
         const expires_at = this.parseU64(values[2][0]);
@@ -86,7 +146,6 @@ export class SubscriptionService {
     }
   }
 
-  // Get subscription from Walrus (fast cache)
   async getWalrusSubscription(walletAddress: string): Promise<{
     tier: number;
     expires_at?: string;
@@ -119,7 +178,6 @@ export class SubscriptionService {
     }
   }
 
-  // Update Walrus subscription cache
   async updateWalrusSubscription(
     walletAddress: string,
     updates: {
@@ -193,48 +251,52 @@ export class SubscriptionService {
     }
   }
 
-  // Check if user can use prompt (with Redis fast path)
   async canUsePrompt(walletAddress: string): Promise<boolean> {
     try {
       const today = this.getTodayDate();
 
+      // Get current tier from blockchain (source of truth)
+      const tierStatus = await this.getCurrentTier(walletAddress);
+      const limit = tierStatus.isActivePremium ? 5 : 2;
+
+      console.log(
+        `[SUBSCRIPTION] Checking canUsePrompt for ${walletAddress.substring(0, 10)}...`,
+      );
+      console.log(`   Tier: ${tierStatus.tier}, Limit: ${limit}`);
+
       // Layer 1: Redis fast check
       if (redisClient && redisClient.isOpen) {
         const redisKey = `prompts:${walletAddress}:${today}`;
-        const tierKey = `subscription:${walletAddress}`;
 
         try {
-          const [count, tierData] = await Promise.all([
-            redisClient.get(redisKey),
-            redisClient.get(tierKey),
-          ]);
+          const count = await redisClient.get(redisKey);
+          console.log(`   Redis key: ${redisKey}, value: ${count}`);
 
-          if (count && tierData) {
+          if (count) {
             const used = parseInt(count);
-            const { tier, expires_at } = JSON.parse(tierData);
-
-            // Check if premium expired
-            const now = Date.now();
-            const isActivePremium =
-              tier === 1 && expires_at && new Date(expires_at).getTime() > now;
-
-            const limit = isActivePremium ? 5 : 2;
 
             if (used < limit) {
               console.log(
-                `[SUBSCRIPTION] Redis fast check: ${used}/${limit} used`,
+                `[SUBSCRIPTION] ✅ Redis: ALLOWED ${used}/${limit} (tier ${tierStatus.tier})`,
               );
               return true;
             } else {
               console.log(
-                `[SUBSCRIPTION] Redis fast check: Limit reached ${used}/${limit}`,
+                `[SUBSCRIPTION] ❌ Redis: BLOCKED ${used}/${limit} (tier ${tierStatus.tier})`,
               );
               return false;
             }
+          } else {
+            // No Redis data - new user or daily reset happened
+            console.log(
+              `[SUBSCRIPTION] ✅ Redis: No data found, allowing (new user or reset)`,
+            );
+            return true;
           }
         } catch (redisError) {
           console.warn(
             "[SUBSCRIPTION] Redis check failed, falling back to Walrus",
+            redisError,
           );
         }
       }
@@ -244,79 +306,75 @@ export class SubscriptionService {
 
       if (!walrusData) {
         // New user - allow first prompts
+        console.log(`[SUBSCRIPTION] ✅ Walrus: No data, allowing (new user)`);
         return true;
       }
+
+      console.log(
+        `   Walrus data: used=${walrusData.daily_prompts_used}, last_date=${walrusData.last_prompt_date}`,
+      );
 
       // Check if needs daily reset
       if (this.needsDailyReset(walrusData.last_prompt_date)) {
-        console.log(`[SUBSCRIPTION] Daily reset needed for ${walletAddress}`);
+        console.log(`[SUBSCRIPTION] ✅ Walrus: Daily reset needed, allowing`);
         return true;
       }
 
-      // Check tier and expiration
-      const now = Date.now();
-      const isActivePremium =
-        walrusData.tier === 1 &&
-        walrusData.expires_at &&
-        new Date(walrusData.expires_at).getTime() > now;
-
-      const limit = isActivePremium ? 5 : 2;
       const canUse = walrusData.daily_prompts_used < limit;
 
       console.log(
-        `[SUBSCRIPTION] Walrus check: ${walrusData.daily_prompts_used}/${limit} used, tier: ${walrusData.tier}`,
+        `[SUBSCRIPTION] ${canUse ? "✅" : "❌"} Walrus: ${walrusData.daily_prompts_used}/${limit} (blockchain tier: ${tierStatus.tier}, cached: ${walrusData.tier})`,
       );
 
       return canUse;
     } catch (error) {
       console.error("Error checking prompt limit:", error);
-      return true; // Fail open
+      return true;
     }
   }
 
-  // Track prompt usage
   async trackPromptUsage(walletAddress: string): Promise<boolean> {
     try {
       const today = this.getTodayDate();
 
-      // Get current usage
+      console.log(
+        `\n[SUBSCRIPTION] 📊 Tracking prompt usage for ${walletAddress.substring(0, 10)}...`,
+      );
+
+      const tierStatus = await this.getCurrentTier(walletAddress);
+
       const walrusData = await this.getWalrusSubscription(walletAddress);
 
-      // Determine if reset needed
       const needsReset = this.needsDailyReset(walrusData?.last_prompt_date);
       const currentUsed = needsReset ? 0 : walrusData?.daily_prompts_used || 0;
       const newUsed = currentUsed + 1;
 
-      // Update Walrus
+      console.log(
+        `   Current: ${currentUsed}, New: ${newUsed}, Reset: ${needsReset}`,
+      );
+
       await this.updateWalrusSubscription(walletAddress, {
+        tier: tierStatus.tier,
+        expires_at:
+          tierStatus.expires_at > 0
+            ? new Date(tierStatus.expires_at).toISOString()
+            : undefined,
         daily_prompts_used: newUsed,
         last_prompt_date: today,
       });
 
-      // Update Redis cache
       if (redisClient && redisClient.isOpen) {
         const redisKey = `prompts:${walletAddress}:${today}`;
 
         await redisClient.set(redisKey, newUsed.toString(), {
-          EX: 86400, // Expire after 24 hours
+          EX: 86400,
         });
 
-        // Cache subscription tier for fast checks
-        if (walrusData) {
-          const tierKey = `subscription:${walletAddress}`;
-          await redisClient.set(
-            tierKey,
-            JSON.stringify({
-              tier: walrusData.tier,
-              expires_at: walrusData.expires_at,
-            }),
-            { EX: 3600 }, // Expire after 1 hour
-          );
-        }
+        console.log(`   Redis updated: ${redisKey} = ${newUsed}`);
       }
 
       console.log(
-        `[SUBSCRIPTION] Tracked usage: ${newUsed} prompts for ${walletAddress}`,
+        `✅ [SUBSCRIPTION] Tracked: ${newUsed} prompts (tier ${tierStatus.tier})`,
       );
 
       return true;
@@ -326,7 +384,6 @@ export class SubscriptionService {
     }
   }
 
-  // Get prompts remaining
   async getPromptsRemaining(walletAddress: string): Promise<{
     used: number;
     limit: number;
@@ -334,31 +391,23 @@ export class SubscriptionService {
     tier: number;
   }> {
     try {
+      const tierStatus = await this.getCurrentTier(walletAddress);
+      const limit = tierStatus.isActivePremium ? 5 : 2;
+
       const walrusData = await this.getWalrusSubscription(walletAddress);
 
       if (!walrusData) {
-        return { used: 0, limit: 2, remaining: 2, tier: 0 };
+        return { used: 0, limit, remaining: limit, tier: tierStatus.tier };
       }
 
-      // Check if needs daily reset
       const needsReset = this.needsDailyReset(walrusData.last_prompt_date);
       const used = needsReset ? 0 : walrusData.daily_prompts_used;
-
-      // Check tier and expiration
-      const now = Date.now();
-      const isActivePremium =
-        walrusData.tier === 1 &&
-        walrusData.expires_at &&
-        new Date(walrusData.expires_at).getTime() > now;
-
-      const tier = isActivePremium ? 1 : 0;
-      const limit = isActivePremium ? 5 : 2;
 
       return {
         used,
         limit,
         remaining: Math.max(0, limit - used),
-        tier,
+        tier: tierStatus.tier,
       };
     } catch (error) {
       console.error("Error getting prompts remaining:", error);
@@ -366,19 +415,16 @@ export class SubscriptionService {
     }
   }
 
-  // Helper to parse u8 from bytes
   private parseU8(bytes: number[]): number {
     return bytes[0];
   }
 
-  // Helper to parse u64 from bytes
   private parseU64(bytes: number[]): bigint {
     const view = new DataView(new Uint8Array(bytes).buffer);
     return view.getBigUint64(0, true);
   }
 }
 
-// Singleton
 let subscriptionService: SubscriptionService | null = null;
 
 export function getSubscriptionService(): SubscriptionService {
