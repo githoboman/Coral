@@ -143,7 +143,9 @@ export function useSubscription() {
       setState((prev) => ({ ...prev, status: "confirming" }));
 
       const result = await signAndExecuteTransaction(
-        { transaction: tx },
+        {
+          transaction: tx,
+        },
         {
           onSuccess: () => {},
           onError: () => {},
@@ -151,37 +153,262 @@ export function useSubscription() {
       );
 
       console.log("Subscription transaction:", result.digest);
+      console.log("Full transaction result:", JSON.stringify(result, null, 2));
 
-      // Wait a moment for blockchain to update
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // ✅ Check transaction success using Sui SDK response
+      let isSuccess = false;
+      let errorMsg = "";
 
-      // Refresh subscription status
-      await fetchSubscriptionStatus();
+      const resultAny = result as any;
 
-      setState((prev) => ({
-        ...prev,
-        status: "success",
-      }));
+      // Log what we actually got to debug
+      console.log("📊 Checking result structure:");
+      console.log("  - effects type:", typeof result.effects);
+      console.log("  - effects:", result.effects);
+      console.log("  - rawEffects present:", !!resultAny.rawEffects);
+      console.log("  - objectChanges:", resultAny.objectChanges?.length || 0);
 
-      // Reset to idle after showing success
-      setTimeout(() => {
-        setState((prev) => ({ ...prev, status: "idle" }));
-      }, 3000);
+      // The Sui SDK response structure varies by version:
+      // 1. effects.status.status === "success" (newer parsed format)
+      // 2. effects is a base64 string with rawEffects array (your version)
+      // 3. Check objectChanges as fallback
+
+      if (
+        resultAny.effects &&
+        typeof resultAny.effects === "object" &&
+        resultAny.effects.status
+      ) {
+        // Case 1: Parsed effects object (newer SDK versions)
+        if (resultAny.effects.status.status === "success") {
+          isSuccess = true;
+          console.log(
+            "✅ Transaction successful (effects.status.status === 'success')",
+          );
+        } else if (resultAny.effects.status.status === "failure") {
+          isSuccess = false;
+          errorMsg = resultAny.effects.status.error || "Transaction failed";
+          console.log(
+            "❌ Transaction failed (effects.status.status === 'failure')",
+          );
+          console.log("Error:", errorMsg);
+        } else if (typeof resultAny.effects.status === "string") {
+          isSuccess = resultAny.effects.status === "success";
+          errorMsg = resultAny.effects.error || "";
+          console.log(
+            "✅ Transaction status (string):",
+            resultAny.effects.status,
+          );
+        }
+      } else if (typeof result.effects === "string" && resultAny.rawEffects) {
+        // Case 2: Base64 encoded effects with rawEffects array (SDK v1.38)
+        console.log("📊 Parsing rawEffects (SDK v1.38 format)");
+
+        // rawEffects BCS encoding structure:
+        // OLD FORMAT: [1, 1, execution_status, ...]
+        //   [0] = version (1)
+        //   [1] = format (1)
+        //   [2] = execution_status: 0 = Success, >0 = Failure
+        //
+        // NEW FORMAT: [1, 0, gas_low, gas_high, ...]
+        //   [0] = version (1)
+        //   [1] = format (0) - indicates new format
+        //   [2-5] = gas used (little-endian u32)
+        //   Execution status is implicit (this format only used for successful txns)
+
+        if (
+          Array.isArray(resultAny.rawEffects) &&
+          resultAny.rawEffects.length > 2
+        ) {
+          const version = resultAny.rawEffects[0];
+          const format = resultAny.rawEffects[1];
+
+          console.log("  - Version:", version);
+          console.log("  - Format:", format);
+          console.log(
+            "  - rawEffects[0-15]:",
+            resultAny.rawEffects.slice(0, 16),
+          );
+
+          if (format === 0) {
+            // NEW FORMAT - execution status is implicit success
+            isSuccess = true;
+            const gasUsed =
+              resultAny.rawEffects[2] + (resultAny.rawEffects[3] << 8);
+            console.log(
+              "✅ Transaction successful (new format, gas used:",
+              gasUsed,
+              ")",
+            );
+          } else if (format === 1) {
+            // OLD FORMAT - execution status at byte[2]
+            const executionStatus = resultAny.rawEffects[2];
+            console.log(
+              "  - Execution status (rawEffects[2]):",
+              executionStatus,
+            );
+
+            if (executionStatus === 0) {
+              isSuccess = true;
+              console.log(
+                "✅ Transaction successful (old format, execution status === 0)",
+              );
+            } else {
+              isSuccess = false;
+
+              // Map error codes to user-friendly messages
+              const errorMessages: Record<number, string> = {
+                7: "Insufficient SUI balance. You need at least 2.01 SUI (2 SUI + gas fees).",
+              };
+
+              errorMsg =
+                errorMessages[executionStatus] ||
+                `Transaction failed with error code ${executionStatus}`;
+              console.log(
+                "❌ Transaction failed (execution status ===",
+                executionStatus,
+                ")",
+              );
+              console.log("Error:", errorMsg);
+            }
+          } else {
+            // Unknown format
+            console.log("⚠️ Unknown format byte:", format);
+            isSuccess = !!(
+              resultAny.objectChanges && resultAny.objectChanges.length > 0
+            );
+            if (!isSuccess) {
+              errorMsg = "Unknown transaction format";
+            }
+          }
+        } else {
+          // Fallback if rawEffects format is unexpected
+          console.log(
+            "⚠️ Unexpected rawEffects format, using objectChanges fallback",
+          );
+          isSuccess = !!(
+            resultAny.objectChanges && resultAny.objectChanges.length > 0
+          );
+          if (!isSuccess) {
+            errorMsg = "Transaction status unclear";
+          }
+        }
+      } else {
+        // Case 3: Unknown format - use fallback checks
+        console.log("⚠️ Unknown effects format, using fallback checks");
+        if (result.digest && resultAny.objectChanges?.length > 0) {
+          isSuccess = true;
+          console.log("✅ Transaction successful (digest + objectChanges)");
+        } else {
+          isSuccess = false;
+          errorMsg = "Unable to verify transaction success";
+          console.log("❌ Unable to verify transaction status");
+        }
+      }
+
+      console.log(
+        "🎯 Final determination - isSuccess:",
+        isSuccess,
+        "errorMsg:",
+        errorMsg,
+      );
+
+      if (!isSuccess) {
+        console.error("❌ Transaction failed on-chain");
+        console.log("Error details:", errorMsg);
+
+        // Parse common error patterns for user-friendly messages
+        let userFriendlyError = "Subscription failed. Please try again.";
+        const errorStr = String(errorMsg).toLowerCase();
+
+        if (
+          errorStr.includes("insufficient") &&
+          (errorStr.includes("coin") || errorStr.includes("balance"))
+        ) {
+          userFriendlyError =
+            "Insufficient SUI balance. You need at least 2.01 SUI (2 SUI + gas fees).";
+        } else if (errorStr.includes("gas")) {
+          userFriendlyError =
+            "Not enough SUI for gas fees. Please add more SUI to your wallet.";
+        } else if (errorStr.includes("insufficient_payment")) {
+          userFriendlyError = "Payment amount is insufficient. 2 SUI required.";
+        } else if (errorMsg) {
+          userFriendlyError = `Transaction failed: ${errorMsg}`;
+        }
+
+        setState((prev) => ({
+          ...prev,
+          status: "error",
+          error: userFriendlyError,
+        }));
+
+        return; // Exit early, don't show success
+      }
+
+      // ✅ Transaction succeeded on-chain - wrap in try-catch to prevent any post-processing errors
+      try {
+        console.log("✅ Subscription transaction succeeded on-chain");
+
+        // Set success state immediately
+        setState((prev) => ({
+          ...prev,
+          status: "success",
+          error: null,
+        }));
+
+        // Wait a moment for blockchain to update
+        console.log("⏳ Waiting for blockchain to update...");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Refresh subscription status
+        console.log("🔄 Refreshing subscription status...");
+        try {
+          await fetchSubscriptionStatus();
+          console.log("✅ Subscription status refreshed successfully");
+        } catch (refreshError) {
+          console.warn(
+            "⚠️ Failed to refresh subscription status, but transaction succeeded:",
+            refreshError,
+          );
+          // Don't override success state if refresh fails
+        }
+
+        // Keep success state visible for 3 seconds
+        setTimeout(() => {
+          setState((prev) => ({
+            ...prev,
+            status: "idle",
+            error: null, // Clear any error
+          }));
+        }, 3000);
+      } catch (postSuccessError) {
+        console.error("⚠️ Error in post-success processing:", postSuccessError);
+        // Transaction already succeeded, so maintain success state
+        // Just log the error but don't change the UI state
+      }
     } catch (error: any) {
       console.error("Subscription failed:", error);
 
       let errorMsg = "Subscription failed. Please try again.";
 
       if (error?.message) {
-        if (error.message.includes("User rejected")) {
+        const msg = error.message.toLowerCase();
+
+        if (
+          msg.includes("user rejected") ||
+          msg.includes("rejected") ||
+          msg.includes("cancelled")
+        ) {
           errorMsg = "Transaction was cancelled.";
         } else if (
-          error.message.includes("Insufficient") ||
-          error.message.includes("InsufficientCoinBalance")
+          msg.includes("insufficient") &&
+          (msg.includes("coin") || msg.includes("balance"))
         ) {
           errorMsg =
             "Insufficient SUI balance. You need at least 2.01 SUI (2 SUI + gas fees).";
-        } else if (error.message.includes("E_INSUFFICIENT_PAYMENT")) {
+        } else if (msg.includes("gas")) {
+          errorMsg =
+            "Not enough SUI for gas fees. Please add more SUI to your wallet.";
+        } else if (msg.includes("insufficient_payment")) {
           errorMsg = "Payment amount is insufficient. 2 SUI required.";
         } else {
           errorMsg = error.message;
