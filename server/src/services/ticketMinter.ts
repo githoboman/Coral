@@ -1,4 +1,4 @@
-// FIXED VERSION - Key changes marked with // FIX:
+// UPDATED VERSION with sponsored waitlist claims
 
 import { EventId, SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
@@ -25,7 +25,6 @@ interface CheckInCompletedEvent {
   milestone_bonus: string;
 }
 
-// FIX: Added interface for task point claim events
 interface TaskPointsClaimedEvent {
   wallet_address: string;
   points_earned: string;
@@ -264,7 +263,6 @@ export class TicketMinter {
         };
       }
 
-      // FIX: Also check for TaskPointsClaimed events
       const taskClaimEvent = events.find(
         (e) => e.type === `${this.packageId}::task_points::TaskPointsClaimed`,
       );
@@ -517,19 +515,10 @@ export class TicketMinter {
     }
   }
 
-  // FIX: getBalance now queries BOTH PointsClaimed AND TaskPointsClaimed events.
-  //
-  // ROOT CAUSE: task_points::TaskPointsClaimed emits its own new_balance after each
-  // task claim. The old code only checked points::PointsClaimed, so any balance
-  // increase from task claims was invisible on the Account page and Leaderboard.
-  //
-  // SOLUTION: fetch both event types in parallel, collect all balance snapshots
-  // with their timestamps, sort descending, and return the most recent value.
   async getBalance(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // Query both event types in parallel for speed
       const [claimEvents, taskClaimEvents] = await Promise.all([
         this.client.queryEvents({
           query: { MoveEventType: `${this.packageId}::points::PointsClaimed` },
@@ -545,7 +534,6 @@ export class TicketMinter {
         }),
       ]);
 
-      // Collect all balance snapshots from both event types
       interface BalanceSnapshot {
         balance: number;
         timestamp: number;
@@ -573,7 +561,6 @@ export class TicketMinter {
       }
 
       if (snapshots.length > 0) {
-        // Sort descending by timestamp — most recent event has the true balance
         snapshots.sort((a, b) => b.timestamp - a.timestamp);
         const latestBalance = snapshots[0].balance;
         console.log(
@@ -582,7 +569,6 @@ export class TicketMinter {
         return latestBalance;
       }
 
-      // Fallback: devInspect the registry directly
       console.log(
         `📝 No events found, running devInspect fallback for balance of ${walletAddress}`,
       );
@@ -998,6 +984,79 @@ export class TicketMinter {
     } catch (error) {
       console.error("❌ mintTaskClaimTicket error:", error);
       throw error;
+    }
+  }
+
+  // NEW: Sponsored claim - mint ticket and claim in single transaction
+  async sponsoredClaimWaitlistPoints(walletAddress: string): Promise<{
+    success: boolean;
+    digest?: string;
+    balance?: number;
+    error?: string;
+  }> {
+    try {
+      console.log(
+        `\n💰 [SPONSORED] Claiming waitlist points for: ${walletAddress}`,
+      );
+
+      const tx = new Transaction();
+      tx.setGasBudget(10_000_000);
+
+      tx.moveCall({
+        target: `${this.packageId}::points::sponsored_claim_waitlist_points`,
+        arguments: [
+          tx.object(this.adminCapId),
+          tx.object(this.pointsRegistryId),
+          tx.pure.address(walletAddress),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await this.client.signAndExecuteTransaction({
+        signer: this.keypair,
+        transaction: tx,
+        options: {
+          showEffects: true,
+          showEvents: true,
+        },
+      });
+
+      if (result.effects?.status?.status !== "success") {
+        console.error(
+          "❌ Sponsored claim failed:",
+          result.effects?.status?.error,
+        );
+        return {
+          success: false,
+          error: result.effects?.status?.error || "Transaction failed",
+        };
+      }
+
+      console.log(`✅ Sponsored claim successful  tx=${result.digest}`);
+
+      const events = result.events || [];
+      const claimEvent = events.find(
+        (e) => e.type === `${this.packageId}::points::PointsClaimed`,
+      );
+
+      let balance = 0;
+      if (claimEvent) {
+        const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
+        balance = Number(data.new_balance);
+        console.log(`   User balance: ${balance} points`);
+      }
+
+      return {
+        success: true,
+        digest: result.digest,
+        balance,
+      };
+    } catch (error: any) {
+      console.error("❌ sponsoredClaimWaitlistPoints error:", error);
+      return {
+        success: false,
+        error: error?.message || "Unknown error occurred",
+      };
     }
   }
 }

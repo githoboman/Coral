@@ -57,6 +57,7 @@ module tovira_points::points {
         id: UID,
         fee_amount: u64,
         admin: address,
+        fee_treasury: address,
     }
 
     public struct EligibilityTicket has key {
@@ -116,6 +117,13 @@ module tovira_points::points {
         timestamp: u64,
     }
 
+    public struct FeeTreasuryUpdated has copy, drop {
+        old_treasury: address,
+        new_treasury: address,
+        admin: address,
+        timestamp: u64,
+    }
+
     fun init(ctx: &mut TxContext) {
         let deployer = tx_context::sender(ctx);
 
@@ -135,6 +143,7 @@ module tovira_points::points {
             id: object::new(ctx),
             fee_amount: 2_000_000, 
             admin: deployer,
+            fee_treasury: deployer,
         };
 
         let admin_cap = AdminCap {
@@ -168,8 +177,33 @@ module tovira_points::points {
         });
     }
 
+    public entry fun set_fee_treasury(
+        _admin_cap: &AdminCap,
+        fee_config: &mut CheckinFeeConfig,
+        new_treasury: address,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let caller = tx_context::sender(ctx);
+        assert!(caller == fee_config.admin, EUnauthorized);
+
+        let old_treasury = fee_config.fee_treasury;
+        fee_config.fee_treasury = new_treasury;
+
+        event::emit(FeeTreasuryUpdated {
+            old_treasury,
+            new_treasury,
+            admin: caller,
+            timestamp: clock::timestamp_ms(clock),
+        });
+    }
+
     public fun get_checkin_fee(fee_config: &CheckinFeeConfig): u64 {
         fee_config.fee_amount
+    }
+
+    public fun get_fee_treasury(fee_config: &CheckinFeeConfig): address {
+        fee_config.fee_treasury
     }
 
     public entry fun mint_eligibility_ticket(
@@ -238,6 +272,7 @@ module tovira_points::points {
         transfer::transfer(ticket, wallet_address);
     }
 
+    // ORIGINAL: User claims their own waitlist points (user pays gas)
     public entry fun claim_waitlist_points(
         registry: &mut PointsRegistry,
         ticket: EligibilityTicket,
@@ -301,6 +336,126 @@ module tovira_points::points {
             timestamp: current_time,
         });
     }
+
+
+        // Direct sponsored claim - no ticket needed
+    public entry fun sponsored_claim_waitlist_points(
+        _admin_cap: &AdminCap,
+        registry: &mut PointsRegistry,
+        beneficiary: address,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        let wallet_key = address_to_string(beneficiary);
+        
+        // Check if already claimed
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow(&registry.records, wallet_key);
+            assert!(!record.waitlist_claimed, EAlreadyClaimed);
+        };
+
+        let amount = WAITLIST_POINTS;
+        let current_time = clock::timestamp_ms(clock);
+
+        // Award points
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow_mut(&mut registry.records, wallet_key);
+            record.balance = record.balance + amount;
+            record.waitlist_claimed = true;
+        } else {
+            let record = PointsRecord {
+                wallet_address: wallet_key,
+                balance: amount,
+                waitlist_claimed: true,
+                claimed_at: current_time,
+                last_checkin_at: 0,
+                current_streak: 0,
+                last_checkin_date: string::utf8(b""),
+                total_checkins: 0,
+            };
+            table::add(&mut registry.records, wallet_key, record);
+        };
+
+        registry.total_supply = registry.total_supply + amount;
+
+        event::emit(PointsClaimed {
+            wallet_address: beneficiary,
+            amount,
+            reason: string::utf8(b"Waitlist Bonus"),
+            new_balance: table::borrow(&registry.records, wallet_key).balance,
+            timestamp: current_time,
+        });
+    }
+
+    // NEW: Admin-sponsored claim (admin pays gas, user gets points)
+    public entry fun claim_waitlist_points_sponsored(
+        _admin_cap: &AdminCap,
+        registry: &mut PointsRegistry,
+        ticket: EligibilityTicket,
+        clock: &Clock,
+        _ctx: &mut TxContext,
+    ) {
+        // The ticket owner is the user who should receive points
+        let beneficiary = ticket.wallet_address;
+        let wallet_key = address_to_string(beneficiary);
+
+        // Check if already claimed (for waitlist bonus only)
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow(&registry.records, wallet_key);
+            if (ticket.reason == string::utf8(b"Waitlist Bonus")) {
+                assert!(!record.waitlist_claimed, EAlreadyClaimed);
+            };
+        };
+
+        let amount = ticket.points_amount;
+        let reason = ticket.reason;
+        let current_time = clock::timestamp_ms(clock);
+
+        // Destroy the ticket
+        let EligibilityTicket { 
+            id, 
+            wallet_address: _, 
+            points_amount: _, 
+            reason: _, 
+            created_at: _,
+            checkin_date: _
+        } = ticket;
+        object::delete(id);
+
+        // Award points to the beneficiary
+        if (table::contains(&registry.records, wallet_key)) {
+            let record = table::borrow_mut(&mut registry.records, wallet_key);
+            record.balance = record.balance + amount;
+            if (reason == string::utf8(b"Waitlist Bonus")) {
+                record.waitlist_claimed = true;
+            };
+        } else {
+            let record = PointsRecord {
+                wallet_address: wallet_key,
+                balance: amount,
+                waitlist_claimed: (reason == string::utf8(b"Waitlist Bonus")),
+                claimed_at: current_time,
+                last_checkin_at: 0,
+                current_streak: 0,
+                last_checkin_date: string::utf8(b""),
+                total_checkins: 0,
+            };
+            table::add(&mut registry.records, wallet_key, record);
+        };
+
+        registry.total_supply = registry.total_supply + amount;
+
+        // Emit event with the beneficiary's address (not the sponsor)
+        event::emit(PointsClaimed {
+            wallet_address: beneficiary,
+            amount,
+            reason,
+            new_balance: table::borrow(&registry.records, wallet_key).balance,
+            timestamp: current_time,
+        });
+    }
+
+    
 
     fun is_milestone_day(streak: u64): bool {
         let milestones = vector[5u64, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80];

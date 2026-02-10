@@ -1,124 +1,43 @@
 import { useState, useCallback, useRef } from "react";
-import {
-  useCurrentAccount,
-  useSignAndExecuteTransaction,
-} from "@mysten/dapp-kit";
-import { Transaction } from "@mysten/sui/transactions";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 
-const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
-const POINTS_REGISTRY = import.meta.env.VITE_POINTS_REGISTRY_ID || "";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export type ClaimStatus =
   | "idle"
   | "verifying"
-  | "signing"
-  | "confirming"
+  | "claiming"
   | "success"
   | "error";
 
 export interface ClaimState {
   status: ClaimStatus;
-  ticketObjectId: string | null;
   pointsAmount: number;
   error: string | null;
   balance: number;
+  transactionDigest: string | null;
 }
 
 export function useClaimPoints() {
   const currentAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [state, setState] = useState<ClaimState>({
     status: "idle",
-    ticketObjectId: null,
     pointsAmount: 0,
     error: null,
     balance: 0,
+    transactionDigest: null,
   });
 
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
-
   const reset = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
     setState({
       status: "idle",
-      ticketObjectId: null,
       pointsAmount: 0,
       error: null,
       balance: 0,
+      transactionDigest: null,
     });
   }, []);
-
-  const pollForClaim = useCallback(
-    async (wallet: string, expectedPts: number, txDigest: string) => {
-      const maxAttempts = 10;
-      let attempt = 0;
-
-      const doPoll = async () => {
-        attempt++;
-        try {
-          const digestParam =
-            attempt === 1 ? `&tx_digest=${encodeURIComponent(txDigest)}` : "";
-
-          const res = await fetch(
-            `${API_BASE}/api/auth/check-claim-status?wallet_address=${encodeURIComponent(wallet)}${digestParam}`,
-          );
-          const data = await res.json();
-
-          if (data.claimed || data.balance > 0) {
-            if (pollRef.current) {
-              clearInterval(pollRef.current);
-              pollRef.current = null;
-            }
-            setState({
-              status: "success",
-              ticketObjectId: null,
-              pointsAmount: expectedPts,
-              error: null,
-              balance: data.balance,
-            });
-
-            window.dispatchEvent(new Event("pointsUpdated"));
-
-            return true;
-          }
-        } catch (_) { }
-
-        if (attempt >= maxAttempts) {
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-          setState({
-            status: "success",
-            ticketObjectId: null,
-            pointsAmount: expectedPts,
-            error: null,
-            balance: expectedPts,
-          });
-
-          window.dispatchEvent(new Event("pointsUpdated"));
-
-          return true;
-        }
-
-        return false;
-      };
-
-      const done = await doPoll();
-      if (done) return;
-
-      pollRef.current = setInterval(async () => {
-        const done = await doPoll();
-        if (done && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-        }
-      }, 1500);
-    },
-    [],
-  );
 
   const claimPoints = useCallback(
     async (email: string) => {
@@ -133,15 +52,20 @@ export function useClaimPoints() {
 
       setState({
         status: "verifying",
-        ticketObjectId: null,
         pointsAmount: 0,
         error: null,
         balance: 0,
+        transactionDigest: null,
       });
 
       try {
-        const verifyRes = await fetch(
-          `${API_BASE}/api/auth/verify-and-issue-ticket`,
+        console.log(
+          `🚀 Claiming waitlist points for ${currentAccount.address}...`,
+        );
+
+        // Call the sponsored claim endpoint (backend handles everything)
+        const claimRes = await fetch(
+          `${API_BASE}/api/auth/claim-waitlist-points`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -152,60 +76,55 @@ export function useClaimPoints() {
           },
         );
 
-        const verifyData = await verifyRes.json();
+        const claimData = await claimRes.json();
 
-        if (!verifyRes.ok || !verifyData.eligible) {
+        if (!claimRes.ok || !claimData.success) {
+          // Handle specific error cases
+          if (claimData.already_claimed) {
+            setState((prev) => ({
+              ...prev,
+              status: "error",
+              error: "You have already claimed your waitlist points.",
+            }));
+            return;
+          }
+
+          if (!claimData.eligible) {
+            setState((prev) => ({
+              ...prev,
+              status: "error",
+              error: claimData.message || "Not eligible for waitlist points.",
+            }));
+            return;
+          }
+
           setState((prev) => ({
             ...prev,
             status: "error",
-            error: verifyData.message || verifyData.detail || "Not eligible",
+            error: claimData.detail || claimData.message || "Claim failed",
           }));
           return;
         }
 
-        const ticketId = verifyData.ticket_object_id as string;
-        const ptsAmount = verifyData.points_amount as number;
+        // Success! Points have been claimed
+        console.log("✅ Points claimed successfully:", claimData);
 
-        setState((prev) => ({
-          ...prev,
-          status: "signing",
-          ticketObjectId: ticketId,
-          pointsAmount: ptsAmount,
-        }));
-
-        const tx = new Transaction();
-        tx.setGasBudget(10_000_000);
-
-        tx.moveCall({
-          target: `${PACKAGE_ID}::points::claim_waitlist_points`,
-          arguments: [
-            tx.object(POINTS_REGISTRY),
-            tx.object(ticketId),
-            tx.object("0x6"),
-          ],
+        setState({
+          status: "success",
+          pointsAmount: claimData.points_awarded || 100,
+          balance: claimData.new_balance || 100,
+          error: null,
+          transactionDigest: claimData.transaction_digest || null,
         });
 
-        const result = await signAndExecute(
-          { transaction: tx },
-          {
-            onSuccess: () => { },
-            onError: () => { },
-          },
-        );
-
-        setState((prev) => ({ ...prev, status: "confirming" }));
-
-        await pollForClaim(currentAccount.address, ptsAmount, result.digest);
+        // Notify other components that points were updated
+        window.dispatchEvent(new Event("pointsUpdated"));
       } catch (err: any) {
-        let errorMsg = "Transaction failed. Please try again.";
+        console.error("❌ Claim error:", err);
+
+        let errorMsg = "Failed to claim points. Please try again.";
         if (err?.message) {
-          if (err.message.includes("User rejected")) {
-            errorMsg = "Transaction was cancelled.";
-          } else if (err.message.includes("MoveAbort")) {
-            errorMsg = "Smart contract error. Please contact support.";
-          } else {
-            errorMsg = err.message;
-          }
+          errorMsg = err.message;
         }
 
         setState((prev) => ({
@@ -215,7 +134,7 @@ export function useClaimPoints() {
         }));
       }
     },
-    [currentAccount?.address, signAndExecute, pollForClaim],
+    [currentAccount?.address],
   );
 
   return { claimPoints, claimState: state, reset };

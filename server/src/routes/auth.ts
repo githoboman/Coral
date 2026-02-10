@@ -60,7 +60,6 @@ router.post(
       console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
 
       if (blobRegistry) {
-        // Check for duplicate email (requires decrypting)
         const existingWallet = await um.findWalletByEmail(
           blobRegistry,
           normalizedEmail,
@@ -79,12 +78,11 @@ router.post(
         }
       }
 
-      // Create encrypted profile
       const profile = um.createUserProfile(
         normalizedEmail,
         wallet_address,
-        false, // is_waitlisted
-        0, // points_awarded
+        false,
+        0,
         {
           username: username || undefined,
           first_name: first_name || undefined,
@@ -130,8 +128,9 @@ router.post(
   },
 );
 
+// UPDATED: Now handles the full sponsored claim flow
 router.post(
-  "/verify-and-issue-ticket",
+  "/claim-waitlist-points",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { email, wallet_address } = req.body;
@@ -159,52 +158,55 @@ router.post(
       const normalizedEmail = email.toLowerCase().trim();
       const minter = getTicketMinter();
 
-      console.log(`\n🔍 Checking on-chain claim status for: ${wallet_address}`);
-      const alreadyClaimed = await minter.hasClaimed(wallet_address);
+      console.log(
+        `\n🔍 [SPONSORED CLAIM] Checking eligibility for: ${wallet_address}`,
+      );
 
+      // Step 1: Check if already claimed
+      const alreadyClaimed = await minter.hasClaimed(wallet_address);
       if (alreadyClaimed) {
         res.json({
-          eligible: false,
+          success: false,
           already_claimed: true,
           message: "Points already claimed for this wallet.",
         });
         return;
       }
 
+      // Step 2: Verify waitlist eligibility
       console.log(`🔍 Checking waitlist for: ${normalizedEmail}`);
-      const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
+      const isWhitelisted = await getWaitlistManager().isEmailWhitelisted(
         normalizedEmail,
         WHITELIST_BLOB_ID,
       );
 
-      if (!isWaitlisted) {
+      if (!isWhitelisted) {
         res.status(403).json({
+          success: false,
           eligible: false,
-          already_claimed: false,
           message:
             "Email is not on the waitlist. New users do not receive points.",
         });
         return;
       }
 
-      console.log(`🎟️  Minting EligibilityTicket for ${wallet_address}...`);
-      const ticketObjectId = await minter.mintTicket(
-        wallet_address,
-        100,
-        "Waitlist Bonus",
-      );
+      // Step 3: Execute sponsored claim (backend mints ticket & claims in one transaction)
+      console.log(`💰 Executing sponsored claim...`);
+      const claimResult =
+        await minter.sponsoredClaimWaitlistPoints(wallet_address);
 
-      if (!ticketObjectId) {
+      if (!claimResult.success) {
         res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to mint eligibility ticket. Please try again.",
+          success: false,
+          error: "Claim Failed",
+          detail: claimResult.error || "Failed to claim points",
         });
         return;
       }
 
-      console.log(`✅ Ticket minted: ${ticketObjectId}`);
+      console.log(`✅ Points successfully claimed! tx=${claimResult.digest}`);
 
-      // Update user profile with waitlist status (async, non-blocking)
+      // Step 4: Update user profile asynchronously (non-blocking)
       (async () => {
         try {
           const um = getUserManager();
@@ -217,7 +219,6 @@ router.post(
             );
 
             if (existingProfile) {
-              // Re-encrypt with updated waitlist status
               const updatedProfile = um.createUserProfile(
                 existingProfile.email,
                 existingProfile.wallet_address,
@@ -251,15 +252,18 @@ router.post(
         }
       })();
 
+      // Step 5: Return success to user
       res.json({
-        eligible: true,
-        already_claimed: false,
-        ticket_object_id: ticketObjectId,
-        points_amount: 300,
-        message: "Eligible! Sign the claim transaction to receive your points.",
+        success: true,
+        claimed: true,
+        transaction_digest: claimResult.digest,
+        points_awarded: 100,
+        new_balance: claimResult.balance || 100,
+        message:
+          "🎉 Congratulations! Your waitlist points have been awarded. No gas fees required!",
       });
     } catch (error) {
-      console.error("Error in verify-and-issue-ticket:", error);
+      console.error("Error in claim-waitlist-points:", error);
       next(error);
     }
   },
@@ -290,12 +294,11 @@ router.get(
       }
 
       const um = getUserManager();
-      // getUserProfile now returns decrypted data
       const userProfile = await um.getUserProfile(blobId, wallet_address);
 
       res.json({
         exists: !!userProfile,
-        user: userProfile || null, // Decrypted profile
+        user: userProfile || null,
       });
     } catch (error) {
       console.error("Error in check-user:", error);
