@@ -1,4 +1,5 @@
 // server/src/services/chatStorageService.ts
+// FIXED VERSION with SSL retry logic
 import axios from "axios";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
 import { TicketMinter } from "./ticketMinter";
@@ -30,7 +31,7 @@ export interface ChatRegistry {
     string,
     {
       metadata: EncryptedData;
-      messages_blob_id?: string; // Points to the messages blob for this chat
+      messages_blob_id?: string;
     }
   >;
   active_chat_ids: string[];
@@ -39,7 +40,7 @@ export interface ChatRegistry {
 export interface ChatData {
   chat_id: string;
   user_id: string;
-  messages: EncryptedData[]; // Encrypted messages
+  messages: EncryptedData[];
   created_at: string;
   updated_at: string;
 }
@@ -343,7 +344,7 @@ export class ChatStorageService {
     return newChatBlobId;
   }
 
-  // Get chat registry for user
+  // Get chat registry for user with retry logic
   async getChatRegistry(userId: string): Promise<ChatRegistry | null> {
     // Check cache first
     const cached = this.registryCache.get(userId);
@@ -359,29 +360,48 @@ export class ChatStorageService {
       return null;
     }
 
-    try {
-      console.log(`📥 Fetching chat registry: ${registryBlobId}`);
-      const response = await axios.get(
-        `${this.aggregatorUrl}/v1/blobs/${registryBlobId}`,
-        { timeout: 30000 },
-      );
+    const maxRetries = 3;
+    const baseDelay = 1500;
 
-      const registry = response.data as ChatRegistry;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📥 Fetching chat registry: ${registryBlobId} (attempt ${attempt}/${maxRetries})`,
+        );
+        const response = await axios.get(
+          `${this.aggregatorUrl}/v1/blobs/${registryBlobId}`,
+          { timeout: 30000 },
+        );
 
-      // Cache it
-      this.registryCache.set(userId, {
-        blobId: registryBlobId,
-        registry,
-      });
+        const registry = response.data as ChatRegistry;
 
-      console.log(
-        `✅ Chat registry loaded: ${Object.keys(registry.chats).length} chats`,
-      );
-      return registry;
-    } catch (error) {
-      console.error(`Error fetching chat registry for ${userId}:`, error);
-      return null;
+        // Cache it
+        this.registryCache.set(userId, {
+          blobId: registryBlobId,
+          registry,
+        });
+
+        console.log(
+          `✅ Chat registry loaded: ${Object.keys(registry.chats).length} chats`,
+        );
+        return registry;
+      } catch (error: any) {
+        console.error(`⚠️  Attempt ${attempt} failed:`, error.message || error);
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * attempt;
+          console.log(`   Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          console.error(
+            `❌ All retries exhausted for registry ${registryBlobId}`,
+          );
+          return null;
+        }
+      }
     }
+
+    return null;
   }
 
   // Get chat data by blob ID
@@ -392,34 +412,51 @@ export class ChatStorageService {
       return cached.data;
     }
 
-    try {
-      const response = await axios.get(
-        `${this.aggregatorUrl}/v1/blobs/${blobId}`,
-        { timeout: 30000 },
-      );
+    const maxRetries = 3;
+    const baseDelay = 1500;
 
-      const chatData = response.data as ChatData;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📥 Fetching chat data: ${blobId} (attempt ${attempt}/${maxRetries})`,
+        );
+        const response = await axios.get(
+          `${this.aggregatorUrl}/v1/blobs/${blobId}`,
+          { timeout: 30000 },
+        );
 
-      // Cache it
-      this.chatDataCache.set(blobId, {
-        blobId,
-        data: chatData,
-      });
+        const chatData = response.data as ChatData;
 
-      return chatData;
-    } catch (error) {
-      console.error(`Error fetching chat data for blob ${blobId}:`, error);
-      return null;
+        // Cache it
+        this.chatDataCache.set(blobId, {
+          blobId,
+          data: chatData,
+        });
+
+        console.log(
+          `✅ Chat data loaded: ${chatData.messages.length} messages`,
+        );
+        return chatData;
+      } catch (error: any) {
+        console.error(`⚠️  Attempt ${attempt} failed:`, error.message || error);
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * attempt;
+          console.log(`   Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          console.error(`❌ All retries exhausted for blob ${blobId}`);
+          return null;
+        }
+      }
     }
+
+    return null;
   }
 
   // Get decrypted messages for a chat
   async getMessages(chatId: string): Promise<ChatMessage[]> {
     console.log(`\n📖 Getting messages for chat: ${chatId}`);
-
-    // Extract userId from chatId or we need to pass it
-    // For now, we'll need to search through cached registries
-    // Better: pass userId explicitly in the route
 
     // Find the chat in any cached registry
     for (const [userId, cached] of this.registryCache.entries()) {
@@ -562,58 +599,112 @@ export class ChatStorageService {
     }
   }
 
-  // Helper: Upload registry
+  // Helper: Upload registry with retry logic
   private async uploadRegistry(registry: ChatRegistry): Promise<string | null> {
-    try {
-      const registryJson = JSON.stringify(registry);
+    const maxRetries = 3;
+    const baseDelay = 1500;
 
-      const response = await axios.put(
-        `${this.publisherUrl}/v1/blobs`,
-        registryJson,
-        {
-          headers: { "Content-Type": "application/json" },
-          params: { epochs: this.epochs },
-          timeout: 30000,
-        },
-      );
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📤 Uploading registry (attempt ${attempt}/${maxRetries})...`,
+        );
 
-      const result = response.data as WalrusUploadResponse;
-      return (
-        result.newlyCreated?.blobObject?.blobId ||
-        result.alreadyCertified?.blobId ||
-        null
-      );
-    } catch (error) {
-      console.error("Error uploading registry:", error);
-      return null;
+        const registryJson = JSON.stringify(registry);
+
+        const response = await axios.put(
+          `${this.publisherUrl}/v1/blobs`,
+          registryJson,
+          {
+            headers: { "Content-Type": "application/json" },
+            params: { epochs: this.epochs },
+            timeout: 30000,
+          },
+        );
+
+        const result = response.data as WalrusUploadResponse;
+        const blobId =
+          result.newlyCreated?.blobObject?.blobId ||
+          result.alreadyCertified?.blobId ||
+          null;
+
+        if (blobId) {
+          console.log(`✅ Registry upload successful! Blob ID: ${blobId}`);
+        }
+
+        return blobId;
+      } catch (error: any) {
+        console.error(
+          `⚠️  Registry upload attempt ${attempt} failed:`,
+          error.message || error,
+        );
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * attempt;
+          console.log(`   Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          console.error("❌ All retry attempts exhausted for registry upload");
+          return null;
+        }
+      }
     }
+
+    return null;
   }
 
-  // Helper: Upload chat data
+  // Helper: Upload chat data with retry logic
   private async uploadChatData(chatData: ChatData): Promise<string | null> {
-    try {
-      const chatJson = JSON.stringify(chatData);
+    const maxRetries = 3;
+    const baseDelay = 1500;
 
-      const response = await axios.put(
-        `${this.publisherUrl}/v1/blobs`,
-        chatJson,
-        {
-          headers: { "Content-Type": "application/json" },
-          params: { epochs: this.epochs },
-          timeout: 30000,
-        },
-      );
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📤 Uploading chat data (attempt ${attempt}/${maxRetries})...`,
+        );
 
-      const result = response.data as WalrusUploadResponse;
-      return (
-        result.newlyCreated?.blobObject?.blobId ||
-        result.alreadyCertified?.blobId ||
-        null
-      );
-    } catch (error) {
-      console.error("Error uploading chat data:", error);
-      return null;
+        const chatJson = JSON.stringify(chatData);
+
+        const response = await axios.put(
+          `${this.publisherUrl}/v1/blobs`,
+          chatJson,
+          {
+            headers: { "Content-Type": "application/json" },
+            params: { epochs: this.epochs },
+            timeout: 30000,
+          },
+        );
+
+        const result = response.data as WalrusUploadResponse;
+        const blobId =
+          result.newlyCreated?.blobObject?.blobId ||
+          result.alreadyCertified?.blobId ||
+          null;
+
+        if (blobId) {
+          console.log(`✅ Chat data upload successful! Blob ID: ${blobId}`);
+        }
+
+        return blobId;
+      } catch (error: any) {
+        console.error(
+          `⚠️  Chat data upload attempt ${attempt} failed:`,
+          error.message || error,
+        );
+
+        if (attempt < maxRetries) {
+          const delay = baseDelay * attempt;
+          console.log(`   Waiting ${delay}ms before retry...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          console.error("❌ All retry attempts exhausted for chat data upload");
+          return null;
+        }
+      }
     }
+
+    return null;
   }
 }
 

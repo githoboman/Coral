@@ -66,18 +66,6 @@ export async function getRateLimitStatus(
 }
 
 /**
- * Get task prompt usage status for a user
- */
-export async function getTaskPromptStatus(
-  userId: string,
-): Promise<TaskPromptStatus> {
-  const response = await axios.get(
-    `${API_BASE_URL}/api/task-prompts/${userId}`,
-  );
-  return response.data;
-}
-
-/**
  * Track task creation for points (fire-and-forget)
  * Call this immediately after a task is created via the task agent
  */
@@ -132,4 +120,54 @@ export async function confirmTaskClaim(userId: string, taskCount: number) {
     },
   );
   return response.data;
+}
+
+/**
+ * Get task prompt status for a user
+ * Returns daily limit info for task agent prompts
+ */
+export async function getTaskPromptStatus(userId: string): Promise<{
+  used: number;
+  limit: number;
+  remaining: number;
+  tier: number;
+}> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/chat/task-prompts/${userId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      console.error(
+        "[CHAT SERVICE] Failed to fetch task prompt status:",
+        response.status,
+      );
+      // Return default free tier limits on error
+      return {
+        used: 0,
+        limit: 2,
+        remaining: 2,
+        tier: 0,
+      };
+    }
+
+    const data = await response.json();
+    console.log("[CHAT SERVICE] Task prompt status:", data);
+    return data;
+  } catch (error) {
+    console.error("[CHAT SERVICE] Error fetching task prompt status:", error);
+    // Return default free tier limits on error
+    return {
+      used: 0,
+      limit: 2,
+      remaining: 2,
+      tier: 0,
+    };
+  }
 }

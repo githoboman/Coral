@@ -12,6 +12,8 @@ import {
   Square,
   Layout,
   ChevronDown,
+  Crown,
+  AlertCircle,
 } from "lucide-react";
 import WorkflowSteps from "@/components/WorkflowSteps";
 import AgentSelector from "@/components/AgentSelector";
@@ -99,6 +101,7 @@ import {
   sendChatMessage,
   getRateLimitStatus,
   RateLimitStatus,
+  getTaskPromptStatus,
 } from "@/services/chatService";
 import LinkPreview from "@/components/LinkPreview";
 
@@ -291,7 +294,9 @@ const Dashboard = () => {
   const [filteredCommands] = useState<Command[]>([]);
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<Record<string, 'like' | 'dislike'>>({});
+  const [feedback, setFeedback] = useState<Record<string, "like" | "dislike">>(
+    {},
+  );
 
   const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -302,6 +307,15 @@ const Dashboard = () => {
   const [rateLimitStatus, setRateLimitStatus] =
     useState<RateLimitStatus | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Task prompt limit state
+  const [taskPromptStatus, setTaskPromptStatus] = useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    tier: number;
+  } | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Pending transaction action state (for immediate token transfers)
   interface PendingTxAction {
@@ -508,6 +522,16 @@ const Dashboard = () => {
     });
   }, [user_id]);
 
+  // Check task prompt status when task agent is selected
+  useEffect(() => {
+    if (selectedAgentId === "task_agent" && user_id) {
+      getTaskPromptStatus(user_id).then((status) => {
+        setTaskPromptStatus(status);
+        console.log("[TASK PROMPTS] Status:", status);
+      });
+    }
+  }, [selectedAgentId, user_id]);
+
   // Countdown timer effect
   useEffect(() => {
     if (countdown === null || countdown <= 0) return;
@@ -698,6 +722,14 @@ const Dashboard = () => {
     const query = text || input;
     if (!query.trim() || isLoading) return;
 
+    // Check task agent prompt limit
+    if (selectedAgentId === "task_agent" && taskPromptStatus) {
+      if (taskPromptStatus.remaining <= 0) {
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+
     // Check if user is authenticated
     if (!user_id) {
       console.error("User not authenticated");
@@ -734,7 +766,10 @@ const Dashboard = () => {
 
       // Get last 5 messages for history context
       const history = messages.slice(-5).map((msg) => ({
-        role: msg.sender === "user" ? "user" : ("assistant" as "user" | "assistant"),
+        role:
+          msg.sender === "user"
+            ? "user"
+            : ("assistant" as "user" | "assistant"),
         content:
           msg.sender === "ai" && msg.variations
             ? msg.variations[msg.currentVariationIndex ?? 0]
@@ -745,7 +780,8 @@ const Dashboard = () => {
       // STREAMING IMPLEMENTATION STARTS HERE
       // ============================================
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+      const API_BASE_URL =
+        import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
@@ -761,6 +797,46 @@ const Dashboard = () => {
         }),
       });
 
+      if (response.status === 429) {
+        const errorData = await response.json();
+
+        if (errorData.requiresUpgrade) {
+          console.log(
+            "[DASHBOARD] Task agent limit reached - showing upgrade modal",
+          );
+          setShowUpgradeModal(true);
+          setIsLoading(false);
+          setIsProcessingPrompt(false);
+
+          // Refresh task prompt status to show updated UI
+          if (selectedAgentId === "task_agent" && user_id) {
+            getTaskPromptStatus(user_id).then(setTaskPromptStatus);
+          }
+          return;
+        }
+
+        // General rate limit (6-hour window for other agents)
+        console.log("[DASHBOARD] General rate limit reached");
+        const errorMessage: Message = {
+          id: Date.now() + Math.random(),
+          text: `⏱️ **Rate Limit Reached**\n\n${errorData.message}\n\nYou can send ${errorData.limit} messages every 6 hours.`,
+          sender: "ai",
+          timestamp: new Date().toLocaleTimeString(),
+        };
+
+        if (currentChatId) {
+          dispatch(
+            addMessage({ chatId: currentChatId, message: errorMessage }),
+          );
+        } else {
+          setTempMessages((prev) => [...prev, errorMessage]);
+        }
+
+        setIsLoading(false);
+        setIsProcessingPrompt(false);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -768,39 +844,39 @@ const Dashboard = () => {
       // Read the stream
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       // Variables to collect complete response data
-      let completeResponse = '';
-      let agentUsedInStream = 'main';
+      let completeResponse = "";
+      let agentUsedInStream = "main";
       let requiresFee = false;
       let estimatedCost = 0;
       let chatIdFromStream = currentChatId || chatId;
       let pendingActionFromStream: any = null;
 
       setIsProcessingPrompt(false);
-      setStreamingText(''); // Start showing streaming text
+      setStreamingText(""); // Start showing streaming text
 
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log('[STREAM] Stream completed');
+          console.log("[STREAM] Stream completed");
           break;
         }
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             const data = line.slice(6).trim();
-            if (data === '[DONE]') break;
+            if (data === "[DONE]") break;
 
             try {
               const chunk = JSON.parse(data);
-              console.log('[STREAM] Chunk:', chunk);
+              console.log("[STREAM] Chunk:", chunk);
 
               if (chunk.chat_id) {
                 chatIdFromStream = chunk.chat_id;
@@ -813,13 +889,15 @@ const Dashboard = () => {
                 agentUsedInStream = chunk.targetAgent;
                 setAgentUsed(chunk.targetAgent);
               }
-              if (chunk.requiresFee !== undefined) requiresFee = chunk.requiresFee;
-              if (chunk.estimatedCost !== undefined) estimatedCost = chunk.estimatedCost;
+              if (chunk.requiresFee !== undefined)
+                requiresFee = chunk.requiresFee;
+              if (chunk.estimatedCost !== undefined)
+                estimatedCost = chunk.estimatedCost;
               if (chunk.workflowSteps) setWorkflowSteps(chunk.workflowSteps);
-              if (chunk.pendingAction) pendingActionFromStream = chunk.pendingAction;
-
+              if (chunk.pendingAction)
+                pendingActionFromStream = chunk.pendingAction;
             } catch (e) {
-              console.error('[STREAM] Parse error:', e);
+              console.error("[STREAM] Parse error:", e);
             }
           }
         }
@@ -835,7 +913,7 @@ const Dashboard = () => {
       // Add AI response to history
       const aiMessage: Message = {
         id: Date.now() + Math.random(),
-        text: completeResponse || 'No response generated',
+        text: completeResponse || "No response generated",
         sender: "ai",
         timestamp: new Date().toLocaleTimeString(),
         chat_id: activeChatId || undefined,
@@ -851,10 +929,12 @@ const Dashboard = () => {
           const historyToSync = [userMessage, aiMessage];
 
           historyToSync.forEach((msg) => {
-            dispatch(addMessage({
-              chatId: activeChatId,
-              message: { ...msg, chat_id: activeChatId }
-            }));
+            dispatch(
+              addMessage({
+                chatId: activeChatId,
+                message: { ...msg, chat_id: activeChatId },
+              }),
+            );
           });
 
           // Clear temp messages immediately to switch view to persisted chat
@@ -870,13 +950,18 @@ const Dashboard = () => {
       }
 
       // Cleanup streaming and processing states immediately
-      setStreamingText('');
+      setStreamingText("");
       setIsProcessingPrompt(false);
       setIsLoading(false);
       setWorkflowSteps([]);
 
       // Refresh rate limit status
       getRateLimitStatus(user_id).then(setRateLimitStatus);
+
+      // Refresh task prompt status if using task agent
+      if (selectedAgentId === "task_agent") {
+        getTaskPromptStatus(user_id).then(setTaskPromptStatus);
+      }
 
       // Handle extra actions (fees, pending tx)
       if (requiresFee && estimatedCost) {
@@ -897,7 +982,7 @@ const Dashboard = () => {
         const { task_id, action_params } = pendingActionFromStream;
         console.log(
           "[Dashboard] Pending action detected, triggering transaction:",
-          action_params
+          action_params,
         );
 
         setPendingTxAction({
@@ -911,12 +996,11 @@ const Dashboard = () => {
           amountToSwap: action_params.amountToSwap,
         });
       }
-
     } catch (error: any) {
       console.error("Error sending message:", error);
       setIsLoading(false);
       setIsProcessingPrompt(false);
-      setStreamingText('');
+      setStreamingText("");
 
       // Determine error message
       let errorText = "Sorry, I encountered an error. Please try again.";
@@ -924,6 +1008,18 @@ const Dashboard = () => {
       // Handle rate limit error
       if (error.response?.status === 429) {
         const data = error.response.data;
+
+        // Task agent specific limit
+        if (data.requiresUpgrade) {
+          setShowUpgradeModal(true);
+
+          // Refresh task prompt status
+          if (selectedAgentId === "task_agent" && user_id) {
+            getTaskPromptStatus(user_id).then(setTaskPromptStatus);
+          }
+          return;
+        }
+
         errorText = `⏱️ **Rate Limit Reached**\n\n${data.message}\n\nYou can send ${data.limit} messages every 6 hours.`;
       }
 
@@ -1125,8 +1221,8 @@ const Dashboard = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleFeedback = (id: string, type: 'like' | 'dislike') => {
-    setFeedback((prev: Record<string, 'like' | 'dislike'>) => {
+  const handleFeedback = (id: string, type: "like" | "dislike") => {
+    setFeedback((prev: Record<string, "like" | "dislike">) => {
       const current = prev[id];
       // Toggle off if clicking same type, otherwise switch to new type
       if (current === type) {
@@ -1286,10 +1382,10 @@ const Dashboard = () => {
       >
         <AnimatePresence mode="popLayout">
           {messages.length === 0 &&
-            !isLoading &&
-            !isProcessingPrompt &&
-            !streamingText &&
-            !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
+          !isLoading &&
+          !isProcessingPrompt &&
+          !streamingText &&
+          !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1392,8 +1488,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                  message.currentVariationIndex ?? 0
-                                  ]
+                                      message.currentVariationIndex ?? 0
+                                    ]
                                   : message.text || "",
                               );
 
@@ -1437,8 +1533,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                  message.currentVariationIndex ?? 0
-                                  ]
+                                      message.currentVariationIndex ?? 0
+                                    ]
                                   : message.text || "",
                               );
                               const urlRegex = /(https?:\/\/[^\s\)]+)/g;
@@ -1585,13 +1681,19 @@ const Dashboard = () => {
                             </div>
                           )}
 
-                        <Tooltip content={copiedId === message.id.toString() ? "Copied!" : "Copy response"}>
+                        <Tooltip
+                          content={
+                            copiedId === message.id.toString()
+                              ? "Copied!"
+                              : "Copy response"
+                          }
+                        >
                           <button
                             onClick={() => {
                               const textToCopy = message.variations
                                 ? message.variations[
-                                message.currentVariationIndex ?? 0
-                                ]
+                                    message.currentVariationIndex ?? 0
+                                  ]
                                 : message.text;
                               handleCopy(textToCopy, message.id.toString());
                             }}
@@ -1607,7 +1709,11 @@ const Dashboard = () => {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className={copiedId === message.id.toString() ? "text-[#B7FC0D]" : "text-white/40 hover:text-white/80"}
+                              className={
+                                copiedId === message.id.toString()
+                                  ? "text-[#B7FC0D]"
+                                  : "text-white/40 hover:text-white/80"
+                              }
                             >
                               <rect
                                 x="9"
@@ -1624,7 +1730,9 @@ const Dashboard = () => {
 
                         <Tooltip content="Like response">
                           <button
-                            onClick={() => handleFeedback(message.id.toString(), 'like')}
+                            onClick={() =>
+                              handleFeedback(message.id.toString(), "like")
+                            }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
                             <svg
@@ -1632,12 +1740,20 @@ const Dashboard = () => {
                               width="14"
                               height="14"
                               viewBox="0 0 24 24"
-                              fill={feedback[message.id.toString()] === 'like' ? "currentColor" : "none"}
+                              fill={
+                                feedback[message.id.toString()] === "like"
+                                  ? "currentColor"
+                                  : "none"
+                              }
                               stroke="currentColor"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className={feedback[message.id.toString()] === 'like' ? "text-blue-400" : "text-white/40 hover:text-blue-400"}
+                              className={
+                                feedback[message.id.toString()] === "like"
+                                  ? "text-blue-400"
+                                  : "text-white/40 hover:text-blue-400"
+                              }
                             >
                               <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
                             </svg>
@@ -1646,7 +1762,9 @@ const Dashboard = () => {
 
                         <Tooltip content="Dislike response">
                           <button
-                            onClick={() => handleFeedback(message.id.toString(), 'dislike')}
+                            onClick={() =>
+                              handleFeedback(message.id.toString(), "dislike")
+                            }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
                             <svg
@@ -1654,12 +1772,20 @@ const Dashboard = () => {
                               width="14"
                               height="14"
                               viewBox="0 0 24 24"
-                              fill={feedback[message.id.toString()] === 'dislike' ? "currentColor" : "none"}
+                              fill={
+                                feedback[message.id.toString()] === "dislike"
+                                  ? "currentColor"
+                                  : "none"
+                              }
                               stroke="currentColor"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className={feedback[message.id.toString()] === 'dislike' ? "text-red-400" : "text-white/40 hover:text-red-400"}
+                              className={
+                                feedback[message.id.toString()] === "dislike"
+                                  ? "text-red-400"
+                                  : "text-white/40 hover:text-red-400"
+                              }
                             >
                               <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
                             </svg>
@@ -1885,6 +2011,106 @@ const Dashboard = () => {
         )}
       </AnimatePresence>
 
+      {/* Upgrade Modal for Task Agent Limit */}
+      <AnimatePresence mode="wait">
+        {showUpgradeModal && (
+          <ModalPortal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowUpgradeModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-[#1e1e1e] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
+                    <Crown size={24} className="text-white" />
+                  </div>
+                  <button
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="text-white/40 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Upgrade to Premium
+                </h3>
+                <p className="text-white/60 text-sm mb-4">
+                  You need to upgrade to premium to continue chatting. Free tier
+                  only gets 2 prompts per day.
+                </p>
+
+                {taskPromptStatus && (
+                  <div className="bg-black/40 rounded-lg p-4 mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle size={16} className="text-yellow-400" />
+                      <span className="text-sm text-white/70">
+                        Daily Limit Reached
+                      </span>
+                    </div>
+                    <div className="text-white/90 text-sm">
+                      You've used{" "}
+                      <strong>
+                        {taskPromptStatus.used}/{taskPromptStatus.limit}
+                      </strong>{" "}
+                      task prompts today.
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-gradient-to-br from-blue-500/20 to-blue-700/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+                  <h4 className="text-white font-bold text-sm mb-2">
+                    Premium Benefits
+                  </h4>
+                  <ul className="space-y-2 text-sm text-white/80">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                      5 daily task prompts (vs 2 free)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                      Priority agent access
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                      Advanced features & early access
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="flex-1 py-3 text-sm font-medium text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUpgradeModal(false);
+                      navigate("/subscription");
+                    }}
+                    className="flex-1 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 rounded-xl transition-all font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Crown size={16} />
+                    Upgrade Now
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </ModalPortal>
+        )}
+      </AnimatePresence>
+
       {/* Unified Input Bar */}
       <div className="w-full flex justify-center items-end p-4 pb-6 sticky bottom-0 z-50">
         <motion.div
@@ -1904,12 +2130,22 @@ const Dashboard = () => {
             }}
             onKeyDown={handleKeyDown}
             placeholder={
-              rateLimitStatus?.isLimited && countdown !== null
-                ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
-                : "Ask anything..."
+              selectedAgentId === "task_agent" &&
+              taskPromptStatus &&
+              taskPromptStatus.remaining <= 0
+                ? "Upgrade to premium to continue using task agent..."
+                : rateLimitStatus?.isLimited && countdown !== null
+                  ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
+                  : "Ask anything..."
             }
-            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited ? "opacity-50 cursor-not-allowed" : ""}`}
-            disabled={isLoading || rateLimitStatus?.isLimited}
+            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited || (selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "opacity-50 cursor-not-allowed" : ""}`}
+            disabled={
+              isLoading ||
+              !!rateLimitStatus?.isLimited ||
+              (selectedAgentId === "task_agent" &&
+                !!taskPromptStatus &&
+                taskPromptStatus.remaining <= 0)
+            }
           />
 
           {/* Rate limit indicator */}
@@ -1922,13 +2158,35 @@ const Dashboard = () => {
               </span>
             )}
 
-          {/* Send Button */}
+          {/* Task prompt limit indicator */}
+          {selectedAgentId === "task_agent" && taskPromptStatus && (
+            <span
+              className={`text-xs absolute -top-6 left-5 ${
+                taskPromptStatus.remaining === 0
+                  ? "text-red-400"
+                  : taskPromptStatus.remaining <= 1
+                    ? "text-yellow-400/70"
+                    : "text-white/40"
+              }`}
+            >
+              {taskPromptStatus.remaining === 0
+                ? "Upgrade to continue"
+                : `${taskPromptStatus.remaining} task prompt${taskPromptStatus.remaining !== 1 ? "s" : ""} remaining`}
+            </span>
+          )}
 
+          {/* Send Button */}
           <button
             onClick={() =>
               isLoading ? handleStopGeneration() : handleSendMessage()
             }
-            className={`${(input.trim() || isLoading) && !rateLimitStatus?.isLimited ? "btn-primary" : "btn-ghost"} btn btn-icon hover:bg-white/20`}
+            className={`${(input.trim() || isLoading) && !rateLimitStatus?.isLimited && !(selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "btn-primary" : "btn-ghost"} btn btn-icon hover:bg-white/20`}
+            disabled={
+              !!rateLimitStatus?.isLimited ||
+              (selectedAgentId === "task_agent" &&
+                !!taskPromptStatus &&
+                taskPromptStatus.remaining <= 0)
+            }
           >
             {isLoading ? (
               <Square size={14} fill="white" />

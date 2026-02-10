@@ -25,6 +25,15 @@ interface CheckInCompletedEvent {
   milestone_bonus: string;
 }
 
+// FIX: Added interface for task point claim events
+interface TaskPointsClaimedEvent {
+  wallet_address: string;
+  points_earned: string;
+  new_balance: string;
+  task_count: string;
+  timestamp: string;
+}
+
 export class TicketMinter {
   private client: SuiClient;
   private keypair: Ed25519Keypair;
@@ -61,7 +70,7 @@ export class TicketMinter {
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-        "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
+          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
 
@@ -78,7 +87,6 @@ export class TicketMinter {
     return "0x" + hex.padStart(64, "0");
   }
 
-  // FIX: New method to convert address to Move's format (no leading zeros)
   private toMoveAddressFormat(addr: string): string {
     const normalized = this.normalizeAddress(addr);
     const withoutPrefix = normalized.slice(2);
@@ -248,11 +256,27 @@ export class TicketMinter {
       if (claimEvent) {
         const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
         console.log(`✅ Claim verified on-chain:`, data);
-
         return {
           confirmed: true,
           balance: Number(data.new_balance),
           amount: Number(data.amount),
+          timestamp: data.timestamp,
+        };
+      }
+
+      // FIX: Also check for TaskPointsClaimed events
+      const taskClaimEvent = events.find(
+        (e) => e.type === `${this.packageId}::task_points::TaskPointsClaimed`,
+      );
+
+      if (taskClaimEvent) {
+        const data =
+          taskClaimEvent.parsedJson as unknown as TaskPointsClaimedEvent;
+        console.log(`✅ Task claim verified on-chain:`, data);
+        return {
+          confirmed: true,
+          balance: Number(data.new_balance),
+          amount: Number(data.points_earned),
           timestamp: data.timestamp,
         };
       }
@@ -265,7 +289,6 @@ export class TicketMinter {
         const data =
           checkinEvent.parsedJson as unknown as CheckInCompletedEvent;
         console.log(`✅ Check-in verified on-chain:`, data);
-
         return {
           confirmed: true,
           balance: Number(data.new_balance),
@@ -327,7 +350,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
+              (ticketRef as any).objectId;
 
         console.log(`✅ Ticket minted: ${ticketId}  tx=${result.digest}`);
         return ticketId;
@@ -389,7 +412,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
+              (ticketRef as any).objectId;
 
         console.log(
           `✅ Check-in ticket minted: ${ticketId}  tx=${result.digest}`,
@@ -470,8 +493,6 @@ export class TicketMinter {
         `📝 No event found, running devInspect fallback for ${walletAddress}`,
       );
       const tx = new Transaction();
-
-      // FIX: Use Move address format
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
       tx.moveCall({
@@ -496,35 +517,76 @@ export class TicketMinter {
     }
   }
 
+  // FIX: getBalance now queries BOTH PointsClaimed AND TaskPointsClaimed events.
+  //
+  // ROOT CAUSE: task_points::TaskPointsClaimed emits its own new_balance after each
+  // task claim. The old code only checked points::PointsClaimed, so any balance
+  // increase from task claims was invisible on the Account page and Leaderboard.
+  //
+  // SOLUTION: fetch both event types in parallel, collect all balance snapshots
+  // with their timestamps, sort descending, and return the most recent value.
   async getBalance(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      const allEvents = await this.client.queryEvents({
-        query: {
-          MoveEventType: `${this.packageId}::points::PointsClaimed`,
-        },
-        limit: 50,
-        order: "descending",
-      });
+      // Query both event types in parallel for speed
+      const [claimEvents, taskClaimEvents] = await Promise.all([
+        this.client.queryEvents({
+          query: { MoveEventType: `${this.packageId}::points::PointsClaimed` },
+          limit: 50,
+          order: "descending",
+        }),
+        this.client.queryEvents({
+          query: {
+            MoveEventType: `${this.packageId}::task_points::TaskPointsClaimed`,
+          },
+          limit: 50,
+          order: "descending",
+        }),
+      ]);
 
-      for (const ev of allEvents.data) {
+      // Collect all balance snapshots from both event types
+      interface BalanceSnapshot {
+        balance: number;
+        timestamp: number;
+      }
+      const snapshots: BalanceSnapshot[] = [];
+
+      for (const ev of claimEvents.data) {
         const data = ev.parsedJson as unknown as PointsClaimedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-          const balance = Number(data.new_balance);
-          console.log(
-            `✅ getBalance → ${balance} (from event for ${walletAddress})`,
-          );
-          return balance;
+          snapshots.push({
+            balance: Number(data.new_balance),
+            timestamp: Number(data.timestamp),
+          });
         }
       }
 
+      for (const ev of taskClaimEvents.data) {
+        const data = ev.parsedJson as unknown as TaskPointsClaimedEvent;
+        if (this.normalizeAddress(data.wallet_address) === normalized) {
+          snapshots.push({
+            balance: Number(data.new_balance),
+            timestamp: Number(data.timestamp),
+          });
+        }
+      }
+
+      if (snapshots.length > 0) {
+        // Sort descending by timestamp — most recent event has the true balance
+        snapshots.sort((a, b) => b.timestamp - a.timestamp);
+        const latestBalance = snapshots[0].balance;
+        console.log(
+          `✅ getBalance → ${latestBalance} (most recent of ${snapshots.length} events for ${walletAddress.substring(0, 10)}...)`,
+        );
+        return latestBalance;
+      }
+
+      // Fallback: devInspect the registry directly
       console.log(
-        `📝 No event found, running devInspect fallback for balance of ${walletAddress}`,
+        `📝 No events found, running devInspect fallback for balance of ${walletAddress}`,
       );
       const tx = new Transaction();
-
-      // FIX: Use Move address format
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
       tx.moveCall({
@@ -577,8 +639,6 @@ export class TicketMinter {
         `📝 No check-in event found, running devInspect for ${walletAddress}`,
       );
       const tx = new Transaction();
-
-      // FIX: Use Move address format
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
       tx.moveCall({
@@ -630,8 +690,6 @@ export class TicketMinter {
         `📝 No check-in event found, running devInspect for date of ${walletAddress}`,
       );
       const tx = new Transaction();
-
-      // FIX: Use Move address format
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
       tx.moveCall({
@@ -684,8 +742,6 @@ export class TicketMinter {
         `📝 No check-in event found, running devInspect for streak of ${walletAddress}`,
       );
       const tx = new Transaction();
-
-      // FIX: Use Move address format
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
       tx.moveCall({
@@ -711,19 +767,13 @@ export class TicketMinter {
     }
   }
 
-  /**
-   * FINAL FIX: Get total number of check-ins for a wallet
-   * Fixed to properly fall through strategies when contract returns 0
-   */
   async getTotalCheckins(walletAddress: string): Promise<number> {
     try {
       const normalized = this.normalizeAddress(walletAddress);
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
-      // Strategy 1: Try the contract's get_total_checkins function
       try {
         const tx = new Transaction();
-
         tx.moveCall({
           target: `${this.packageId}::points::get_total_checkins`,
           arguments: [
@@ -742,7 +792,6 @@ export class TicketMinter {
           const view = new DataView(new Uint8Array(bytes).buffer);
           const total = Number(view.getBigUint64(0, true));
 
-          // FIX: Only return if > 0, otherwise fall through to event counting
           if (total > 0) {
             console.log(
               `✅ getTotalCheckins (contract) → ${total} for ${walletAddress.substring(0, 10)}...`,
@@ -761,7 +810,6 @@ export class TicketMinter {
         );
       }
 
-      // Strategy 2: Count ALL CheckInCompleted events for this wallet
       try {
         console.log(
           `📊 Counting check-in events for ${walletAddress.substring(0, 10)}...`,
@@ -771,9 +819,8 @@ export class TicketMinter {
         let cursor: EventId | null = null;
         let hasMore = true;
         let pagesChecked = 0;
-        const MAX_PAGES = 100; // Safety limit
+        const MAX_PAGES = 100;
 
-        // Count events as we paginate through ALL pages
         while (hasMore && pagesChecked < MAX_PAGES) {
           const eventsPage = await this.client.queryEvents({
             query: {
@@ -784,7 +831,6 @@ export class TicketMinter {
             cursor: cursor || undefined,
           });
 
-          // Count matching events in this page
           for (const ev of eventsPage.data) {
             const data = ev.parsedJson as unknown as CheckInCompletedEvent;
             if (this.normalizeAddress(data.wallet_address) === normalized) {
@@ -794,7 +840,6 @@ export class TicketMinter {
 
           pagesChecked++;
 
-          // Check if there are more pages
           if (eventsPage.hasNextPage && eventsPage.nextCursor) {
             cursor = eventsPage.nextCursor;
           } else {
@@ -819,7 +864,6 @@ export class TicketMinter {
         );
       }
 
-      // Strategy 3: Use current streak as minimum estimate
       try {
         const streak = await this.getCurrentStreak(walletAddress);
         if (streak > 0) {
@@ -832,7 +876,6 @@ export class TicketMinter {
         console.warn(`⚠️  Streak fallback failed:`, streakError);
       }
 
-      // Strategy 4: Return 0 if all else fails
       console.log(
         `📝 No check-ins found for ${walletAddress.substring(0, 10)}...`,
       );
@@ -847,9 +890,7 @@ export class TicketMinter {
     try {
       const object = await this.client.getObject({
         id: this.blobRegistryId,
-        options: {
-          showContent: true,
-        },
+        options: { showContent: true },
       });
 
       if (object.data?.content?.dataType === "moveObject") {
@@ -911,7 +952,7 @@ export class TicketMinter {
       const tx = new Transaction();
 
       tx.moveCall({
-        target: `${this.packageId}::points::mint_task_claim_ticket`,
+        target: `${this.packageId}::task_points::mint_task_claim_ticket`,
         arguments: [
           tx.object(this.adminCapId),
           tx.pure.address(walletAddress),
@@ -944,7 +985,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
+              (ticketRef as any).objectId;
 
         console.log(
           `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,

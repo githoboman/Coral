@@ -253,6 +253,25 @@ EXAMPLES:
 
     const task = await taskStorage.getTask(state.userId, result.taskId);
 
+    // ✅ TRACK TASK CREATION FOR POINTS (fire-and-forget)
+    (async () => {
+      try {
+        const API_BASE_URL =
+          process.env.API_BASE_URL || "http://localhost:3000";
+        await fetch(`${API_BASE_URL}/api/task-points/track-creation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: state.userId }),
+        });
+        console.log(
+          `[TASK NODE] ✅ Task creation tracked for ${state.userId.substring(0, 10)}...`,
+        );
+      } catch (error) {
+        console.warn("[TASK NODE] ⚠️ Failed to track task creation:", error);
+        // Don't throw - task creation should succeed even if tracking fails
+      }
+    })();
+
     if (!task) {
       return {
         finalResponse:
