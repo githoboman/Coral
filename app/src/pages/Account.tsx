@@ -75,7 +75,6 @@ const Account = () => {
     return () => clearInterval(interval);
   }, [checkinState.nextAvailableAt]);
 
-  const [copied, setCopied] = useState(false);
 
   if (loading) {
     return <AccountSkeleton />;
@@ -88,17 +87,6 @@ const Account = () => {
     await updatePreferences(newPermissions);
   };
 
-  const referralCode = profile?.referral_code || "";
-  // Ensure we have a valid origin even if window is undefined (SSR safety, though this is client-side)
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const referralLink = `${origin}/?ref=${referralCode}`;
-
-  const handleCopyReferral = () => {
-    if (!referralCode) return;
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const truncateAddress = (address: string) => {
     if (!address) return "N/A";
@@ -158,7 +146,7 @@ const Account = () => {
 
         <div className="flex flex-col gap-8">
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-8">
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white/5 rounded-xl">
                   <Send size={18} className="text-white/40 rotate-12" />
@@ -174,28 +162,6 @@ const Account = () => {
               >
                 {tgStatus.is_linked ? "Disconnect" : (tgLoading ? "Connecting..." : "Connect")}
               </button>
-            </div>
-
-            <div className="bg-[#B7FC0D]/5 border border-[#B7FC0D]/20 p-6 rounded-3xl">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-white/40 text-xs font-bold uppercase tracking-wider">Referral Program</span>
-                <div className="flex items-center gap-2 bg-[#B7FC0D]/10 px-3 py-1 rounded-full border border-[#B7FC0D]/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#B7FC0D] animate-pulse" />
-                  <span className="text-[#B7FC0D] text-xs font-bold">{profile?.referrals_count || 0} Referrals</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between bg-black/40 border border-white/5 p-4 rounded-2xl relative group">
-                <div className="flex items-center gap-4 overflow-hidden">
-                  <ExternalLink size={18} className="text-white/40 flex-shrink-0" />
-                  <span className="text-white font-medium truncate text-sm">{referralLink || "Loading..."}</span>
-                </div>
-                <button
-                  onClick={handleCopyReferral}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
-                >
-                  <Copy size={18} className={copied ? "text-[#B7FC0D]" : "text-white/60"} />
-                </button>
-              </div>
             </div>
           </div>
 

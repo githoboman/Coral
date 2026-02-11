@@ -1,29 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Plus, Search, Filter } from "lucide-react";
-import { Task, type Event } from "@/hooks/taskApi";
-import { useCurrentAccount } from "@mysten/dapp-kit";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  fetchTasks,
-  createTask as createReduxTask,
-  updateTaskStatus,
-  removeTask,
-} from "@/store/slices/tasksSlice";
-import {
-  fetchEvents,
-  createEvent as createReduxEvent,
-} from "@/store/slices/eventsSlice";
-import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { ChevronRight, Plus, Search, Filter, X } from "lucide-react";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchTasks, removeTask, invalidateCache } from "@/store/slices/tasksSlice";
+import { fetchEvents } from "@/store/slices/eventsSlice";
+import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { useDebounce } from "@/hooks/useDebounce";
 import { confirmTaskClaim } from "@/services/chatService";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 type Item = {
-  id: number;
+  id: string | number;
   type: "event" | "task";
   dateKey: string;
   title: string;
@@ -34,6 +25,7 @@ type Item = {
   priority?: string;
   tags?: string[];
   dueDate?: string;
+  isOptimistic?: boolean;
 };
 
 type LoadingStates = {
@@ -45,6 +37,13 @@ type LoadingStates = {
   deleting: boolean;
 };
 
+type OptimisticTask = {
+  id: string;
+  title: string;
+  status: "creating" | "failed";
+  error?: string;
+};
+
 const Activity = () => {
   const currentAccount = useCurrentAccount();
   const userId = currentAccount?.address || "";
@@ -54,12 +53,8 @@ const Activity = () => {
   const events = useAppSelector((state) => state.events.events);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"event" | "task">("task");
-  const [selectedDateForModal, setSelectedDateForModal] = useState<Date | null>(
-    new Date(),
-  );
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
     initialLoad: true,
@@ -70,7 +65,11 @@ const Activity = () => {
     deleting: false,
   });
 
+  const [prompt, setPrompt] = useState("");
+  const [isPromptLoading, setIsPromptLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [togglingItems, setTogglingItems] = useState<Set<string | number>>(new Set());
+  const [optimisticTasks, setOptimisticTasks] = useState<OptimisticTask[]>([]);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -101,8 +100,20 @@ const Activity = () => {
       dueDate: event.event_date,
     }));
 
-    return [...taskItems, ...eventItems];
-  }, [tasks, events]);
+    const optimisticItems: Item[] = optimisticTasks.map((task) => ({
+      id: task.id,
+      type: "task" as const,
+      dateKey: new Date().toISOString().split("T")[0],
+      title: task.status === "failed" ? `Failed: ${task.title}` : `Creating: ${task.title}`,
+      completed: false,
+      priority: "medium",
+      isOptimistic: true,
+      desc: task.status === "failed" ? task.error : "AI is processing your request...",
+      color: task.status === "failed" ? "bg-red-500/10" : undefined,
+    }));
+
+    return [...optimisticItems, ...taskItems, ...eventItems];
+  }, [tasks, events, optimisticTasks]);
 
   // Stats calculations
   const stats = useMemo(() => {
@@ -110,14 +121,15 @@ const Activity = () => {
     const totalTasks = taskList.length;
     const completedTasks = taskList.filter((t) => t.completed).length;
     const pendingTasks = taskList.filter((t) => !t.completed).length;
-    const completedHigh = taskList.filter((t) => t.completed && t.priority === "high").length;
-    const completedMedium = taskList.filter((t) => t.completed && t.priority === "medium").length;
-    const completedLow = taskList.filter((t) => t.completed && t.priority === "low").length;
-
-    const highPriorityPending = taskList.filter(
-      (t) => !t.completed && t.priority === "high",
+    const completedHigh = taskList.filter(
+      (t) => t.completed && t.priority === "high",
     ).length;
-    const otherPending = pendingTasks - highPriorityPending;
+    const completedMedium = taskList.filter(
+      (t) => t.completed && t.priority === "medium",
+    ).length;
+    const completedLow = taskList.filter(
+      (t) => t.completed && t.priority === "low",
+    ).length;
 
     return {
       totalTasks,
@@ -126,8 +138,6 @@ const Activity = () => {
       completedHigh,
       completedMedium,
       completedLow,
-      highPriorityPending,
-      otherPending,
     };
   }, [items]);
 
@@ -169,128 +179,162 @@ const Activity = () => {
     });
   }, [userId, dispatch]);
 
-  const openAddModal = (mode: "event" | "task" = "task") => {
-    setSelectedDateForModal(new Date());
-    setModalMode(mode);
+  const openAddModal = () => {
     setSelectedItem(null);
     setIsModalOpen(true);
   };
 
   const openViewModal = (item: Item) => {
     setSelectedItem(item);
-    setSelectedDateForModal(null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedDateForModal(null);
     setSelectedItem(null);
   };
 
-  const handleAddSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePromptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const title = fd.get("title")?.toString().trim();
-    if (!title || !selectedDateForModal) return;
+    if (!prompt.trim() || !userId) return;
 
     try {
-      setLoadingStates((prev) => ({ ...prev, creating: true }));
-      setError(null);
+      setIsPromptLoading(true);
+      setToast(null);
 
-      const localDate = new Date(
-        selectedDateForModal.getFullYear(),
-        selectedDateForModal.getMonth(),
-        selectedDateForModal.getDate(),
-        12,
-        0,
-        0,
-        0,
-      );
+      // Optimistic update
+      const currentPrompt = prompt;
+      const tempId = `optimistic-${Date.now()}`;
+      setOptimisticTasks(prev => [{
+        id: tempId,
+        title: currentPrompt,
+        status: "creating"
+      }, ...prev]);
 
-      if (modalMode === "event") {
-        const eventData: Event = {
+      setPrompt("");
+      closeModal();
+
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           user_id: userId,
-          event_name: title,
-          description: fd.get("desc")?.toString() || undefined,
-          event_date: localDate.toISOString(),
-          event_time: fd.get("time")?.toString() || undefined,
-          color:
-            (fd.get("color")?.toString() as Event["color"]) || "bg-blue-500",
-          tags:
-            fd
-              .get("tags")
-              ?.toString()
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean) || [],
-        };
+          message: currentPrompt, // Use captured prompt
+          agent_id: "task_agent",
+          stream: false,
+        }),
+      });
 
-        await dispatch(createReduxEvent(eventData));
+      if (!response.ok) throw new Error("Failed to process task prompt");
+
+      const data = await response.json();
+
+      if (data.task_created) {
+        dispatch(invalidateCache());
+        await dispatch(fetchTasks(userId));
+        // Success! Remove optimistic task as real one is now in the list
+        setOptimisticTasks(prev => prev.filter(t => t.id !== tempId));
+        setToast({ message: "Task created successfully!", type: "success" });
       } else {
-        const taskData: Task = {
-          user_id: userId,
-          task_name: title,
-          description: fd.get("desc")?.toString() || undefined,
-          due_date: localDate.toISOString(),
-          priority:
-            (fd.get("priority")?.toString() as "low" | "medium" | "high") ||
-            "medium",
-          tags:
-            fd
-              .get("tags")
-              ?.toString()
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean) || [],
-        };
+        // Task creation failed
+        console.warn("Task creation denied:", data.response);
+        const errorMsg = data.response || "Agent declined to create task.";
 
-        await dispatch(createReduxTask(taskData));
+        // Update optimistic task to failed state
+        setOptimisticTasks(prev => prev.map(t =>
+          t.id === tempId ? { ...t, status: "failed", error: errorMsg } : t
+        ));
+        setToast({ message: errorMsg, type: "error" });
+      }
+    } catch (err) {
+      console.error("Task creation error:", err);
+      const errorMsg = err instanceof Error ? err.message : "Network/Server Error";
+
+      // Update optimistic task to failed state
+      setOptimisticTasks(prev => prev.map(t =>
+        t.title === prompt || (t.status === "creating" && !t.error) // Fallback matching
+          ? { ...t, status: "failed", error: errorMsg }
+          : t
+      ));
+      setToast({ message: errorMsg, type: "error" });
+    } finally {
+      setIsPromptLoading(false);
+    }
+  };
+
+
+
+  const toggleTaskComplete = async (id: string | number) => {
+    // Cannot toggle optimistic tasks
+    if (typeof id === 'string') {
+      const optimisticTask = optimisticTasks.find(t => t.id === id);
+      if (optimisticTask?.status === "failed") {
+        // Allow retrying failed 
+        // Logic to re-submit could go here, or just let user delete it
+      }
+      return;
+    }
+
+    const task = items.find((i) => i.id === id && i.type === "task");
+    if (!task || togglingItems.has(id)) return;
+
+    try {
+      setTogglingItems((prev) => new Set(prev).add(id));
+      setToast(null);
+
+      // Instead of direct API call, use the chat agent as requested
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          message: `Complete task ${id}`,
+          agent_id: "task_agent",
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to complete task via agent");
+
+      // Refresh tasks after agent processing
+      dispatch(invalidateCache());
+      await dispatch(fetchTasks(userId));
+    } catch (err) {
+      console.error("Failed to toggle task:", err);
+      setToast({ message: "Failed to update task. Please try again.", type: "error" });
+    } finally {
+      setTogglingItems((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const deleteItem = async (id: string | number) => {
+    try {
+      setLoadingStates((prev) => ({ ...prev, deleting: true }));
+      setToast(null);
+
+      if (typeof id === 'string') {
+        // Optimistic deletion - just remove from state
+        setOptimisticTasks(prev => prev.filter(t => t.id !== id));
+      } else {
+        // Real backend deletion
+        await dispatch(removeTask({ taskId: id, userId }));
       }
 
       closeModal();
-    } catch (err) {
-      console.error(`Failed to create ${modalMode}:`, err);
-      setError(`Failed to create ${modalMode}. Please try again.`);
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, creating: false }));
-    }
-  };
-
-  const toggleTaskComplete = async (id: number) => {
-    const task = items.find((i) => i.id === id && i.type === "task");
-    if (!task) return;
-
-    try {
-      setLoadingStates((prev) => ({ ...prev, updating: true }));
-      setError(null);
-
-      await dispatch(
-        updateTaskStatus({ taskId: id, userId, completed: !task.completed }),
-      );
-    } catch (err) {
-      console.error("Failed to toggle task:", err);
-      setError("Failed to update task. Please try again.");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, updating: false }));
-    }
-  };
-
-  const deleteItem = async (id: number) => {
-    try {
-      setLoadingStates((prev) => ({ ...prev, deleting: true }));
-      setError(null);
-      await dispatch(removeTask({ taskId: id, userId }));
-      closeModal();
+      setToast({ message: "Task deleted successfully", type: "success" });
     } catch (err) {
       console.error("Failed to delete item:", err);
-      setError("Failed to delete item. Please try again.");
+      setToast({ message: "Failed to delete item.", type: "error" });
     } finally {
       setLoadingStates((prev) => ({ ...prev, deleting: false }));
     }
   };
 
-  const countdown = "58:58:59";
+
 
   const TaskPointsClaimSection = () => {
     const currentAccount = useCurrentAccount();
@@ -494,61 +538,43 @@ const Activity = () => {
 
   return (
     <div className="flex flex-col h-full w-full max-w-7xl mx-auto px-4 pb-6 pt-6">
-      {/* Error notification */}
-      {error && (
-        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg z-50 flex items-center gap-2 animate-slide-in">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="hover:bg-red-600 rounded p-1 transition-colors"
-          >
-            <div className="w-4 h-4 flex items-center justify-center font-bold">
-              ×
-            </div>
-          </button>
-        </div>
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
+
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-6">
+          <h1 className="text-[28px] font-medium text-white">
+            Tasks
+          </h1>
+        </div>
+      </div>
 
       {/* Top Section Cards */}
       <div className="flex flex-col md:flex-row gap-6 mb-10">
-        {/* Countdown Card - Left */}
-        <div className="w-full md:w-[280px] bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#246AFC]/10 blur-[50px] rounded-full pointer-events-none" />
 
-          <div>
-            <div className="text-[32px] font-mono font-bold text-white tracking-wider mb-1">
-              {countdown}
-            </div>
-            <div className="text-[13px] text-white/40 font-medium">
-              Countdown to next task
-            </div>
-          </div>
-
-          <div className="mt-8 flex items-center justify-between">
-            <span className="text-[11px] text-white/30 font-bold uppercase tracking-wider">
-              Check SUI price...
-            </span>
-            <button className="bg-[#246AFC] hover:bg-[#1a55cc] text-white text-[10px] font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
-              View <ChevronRight size={10} />
-            </button>
-          </div>
-        </div>
 
         {/* Stats & Progress Card - Right */}
-        <div className="flex-1 bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 relative overflow-hidden">
+        <div className="flex-1 flex flex-col justify-between bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 relative overflow-hidden">
           <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#B7FC0D]/5 blur-[60px] rounded-full pointer-events-none" />
 
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between">
             <div className="flex items-center gap-4">
               <span className="text-[40px] font-light text-white leading-none">
                 {stats.totalTasks}
               </span>
-              <span className="text-[15px] text-white font-medium max-w-[100px] leading-tight">
+              <span className="text-[15px] w-fit no-break text-white font-medium max-w-[100px] leading-tight">
                 Total number of tasks
               </span>
             </div>
             <button
-              onClick={() => openAddModal("task")}
+              onClick={() => openAddModal()}
               className="bg-[#246AFC] hover:bg-[#1a55cc] text-white px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all shadow-[0_4px_20px_rgba(36,106,252,0.3)] hover:shadow-[0_6px_25px_rgba(36,106,252,0.4)] active:scale-95"
             >
               <Plus size={16} /> New Task
@@ -556,16 +582,16 @@ const Activity = () => {
           </div>
 
           {/* Progress Bar Container */}
-          <div className="w-full h-12 bg-[#1A1A1A] rounded-full p-1.5 flex relative">
-            {stats.completedTasks > 0 && (
+          <div className="w-full h-12 bg-[#1A1A1A] rounded-full p-1.5 flex relative z-0">
+            {/* Green Segment (Completed Low Priority) */}
+            {stats.completedLow > 0 && (
               <div
-                className="h-full bg-[#00C853] rounded-l-full relative group transition-all duration-500 hover:brightness-110"
+                className={`h-full bg-[#00C853] rounded-full relative flex items-center justify-end px-3 transition-all duration-500 hover:brightness-110 z-30 ${(stats.completedMedium > 0 || stats.completedHigh > 0 || stats.pendingTasks > 0) ? '-mr-8' : ''
+                  }`}
                 style={{
-                  width: `${(stats.completedTasks / stats.totalTasks) * 100}%`,
-                  borderTopRightRadius:
-                    stats.completedTasks === stats.totalTasks ? "9999px" : "0",
-                  borderBottomRightRadius:
-                    stats.completedTasks === stats.totalTasks ? "9999px" : "0",
+                  width: (stats.completedMedium > 0 || stats.completedHigh > 0 || stats.pendingTasks > 0)
+                    ? `calc(${(stats.completedLow / stats.totalTasks) * 100}% + 32px)`
+                    : `${(stats.completedLow / stats.totalTasks) * 100}%`
                 }}
               >
                 <span className="text-black font-bold text-xs sm:text-sm relative z-40">
@@ -574,20 +600,15 @@ const Activity = () => {
               </div>
             )}
 
-            {stats.highPriorityPending > 0 && (
+            {/* Orange-Brown Segment (Completed Medium Priority) */}
+            {stats.completedMedium > 0 && (
               <div
                 className={`h-full bg-[#FFAA00] rounded-full relative flex items-center justify-end px-3 transition-all duration-500 hover:brightness-110 z-20 ${(stats.completedHigh > 0 || stats.pendingTasks > 0) ? '-mr-8' : ''
                   }`}
                 style={{
-                  width: `${(stats.highPriorityPending / stats.totalTasks) * 100}%`,
-                  borderTopLeftRadius:
-                    stats.completedTasks === 0 ? "9999px" : "0",
-                  borderBottomLeftRadius:
-                    stats.completedTasks === 0 ? "9999px" : "0",
-                  borderTopRightRadius:
-                    stats.otherPending === 0 ? "9999px" : "0",
-                  borderBottomRightRadius:
-                    stats.otherPending === 0 ? "9999px" : "0",
+                  width: (stats.completedHigh > 0 || stats.pendingTasks > 0)
+                    ? `calc(${(stats.completedMedium / stats.totalTasks) * 100}% + 32px)`
+                    : `${(stats.completedMedium / stats.totalTasks) * 100}%`
                 }}
               >
                 <span className="text-black font-bold text-xs sm:text-sm relative z-40">
@@ -613,34 +634,21 @@ const Activity = () => {
               </div>
             )}
 
-            {stats.otherPending > 0 && (
+            {/* Gray Segment (Other Pending/Remaining) */}
+            {stats.pendingTasks > 0 && (
               <div
-                className="h-full bg-[#424242] rounded-r-full relative group transition-all duration-500 hover:brightness-110 flex-1"
-                style={{
-                  borderTopLeftRadius:
-                    stats.completedTasks === 0 &&
-                      stats.highPriorityPending === 0
-                      ? "9999px"
-                      : "0",
-                  borderBottomLeftRadius:
-                    stats.completedTasks === 0 &&
-                      stats.highPriorityPending === 0
-                      ? "9999px"
-                      : "0",
-                }}
+                className="h-full bg-[#424242] rounded-full relative flex-1 flex items-center justify-end px-4 transition-all duration-500 hover:brightness-110 z-0"
               >
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 font-medium text-sm">
-                  Tap to view pending tasks &nbsp;{" "}
-                  <span className="text-white font-bold">
-                    {stats.otherPending}
+                <div className="relative z-40 flex items-center gap-2">
+                  <span className="text-white/60 font-medium text-[10px] sm:text-xs hidden md:inline truncate">
+                    Tap to view pending tasks
                   </span>
-                </span>
+                  <span className="text-white font-bold text-sm">{stats.pendingTasks}</span>
+                </div>
               </div>
             )}
             {stats.totalTasks === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-white/30 text-xs italic">
-                No tasks created yet
-              </div>
+              <div className="w-full h-full flex items-center justify-center text-white/30 text-xs italic">No tasks created yet</div>
             )}
           </div>
         </div>
@@ -690,18 +698,27 @@ const Activity = () => {
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <button
                     onClick={() => toggleTaskComplete(item.id)}
-                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${item.completed ? "bg-[#246AFC] border-[#246AFC]" : "border-white/20 hover:border-white/40"}`}
+                    disabled={togglingItems.has(item.id)}
+                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${item.completed ? "bg-[#246AFC] border-[#246AFC]" : "border-white/20 hover:border-white/40"} ${togglingItems.has(item.id) ? "opacity-50 cursor-wait" : ""}`}
                   >
-                    {item.completed && (
+                    {togglingItems.has(item.id) ? (
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : item.completed && (
                       <div className="w-1.5 h-3 border-r-2 border-b-2 border-white rotate-45 mb-1" />
                     )}
                   </button>
 
                   <span
-                    className={`text-[16px] font-medium truncate ${item.completed ? "text-white/30 line-through" : "text-white/80"}`}
+                    className={`text-[16px] font-medium truncate ${item.completed ? "text-white/30 line-through" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
                   >
                     {item.title}
                   </span>
+                  {item.isOptimistic && !item.desc?.startsWith("Failed") && (
+                    <div className="ml-3 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                  )}
+                  {item.isOptimistic && item.desc?.startsWith("Failed") && (
+                    <div className="ml-3 text-red-500 text-xs font-bold">!</div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-8 md:gap-12 flex-shrink-0 ml-4">
@@ -712,7 +729,7 @@ const Activity = () => {
                   </span>
 
                   <div className="hidden md:flex items-center gap-2 text-white/80 font-mono text-sm">
-                    <span>59:59:59</span>
+                    <span></span>
                   </div>
 
                   <button
@@ -730,7 +747,7 @@ const Activity = () => {
             <Search size={40} className="mb-4 opacity-20" />
             <p>No tasks found</p>
             <button
-              onClick={() => openAddModal("task")}
+              onClick={() => openAddModal()}
               className="mt-4 text-[#246AFC] hover:underline text-sm"
             >
               Create a new task
@@ -740,122 +757,124 @@ const Activity = () => {
       </div>
 
       {/* Creation/View Detail Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            {selectedItem ? (
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <h3 className="text-xl font-bold text-white pr-8">
-                    {selectedItem.title}
-                  </h3>
-                  <button
-                    onClick={closeModal}
-                    className="text-white/40 hover:text-white"
-                  >
-                    <ChevronRight className="rotate-90" />
-                  </button>
-                </div>
-                <div className="space-y-4 mb-8 text-white/70 text-sm">
-                  {selectedItem.desc && (
-                    <p className="bg-white/5 p-4 rounded-xl">
-                      {selectedItem.desc}
-                    </p>
-                  )}
-                  <div className="flex gap-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getPriorityColor(selectedItem.priority)}`}
+      {
+        isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+              {selectedItem ? (
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-xl font-bold text-white pr-8">
+                      {selectedItem.title}
+                    </h3>
+                    <button
+                      onClick={closeModal}
+                      className="text-white/40 hover:text-white"
                     >
-                      {getPriorityLabel(selectedItem.priority)}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/5 text-white/60 border border-white/5">
-                      {selectedItem.dueDate
-                        ? new Date(selectedItem.dueDate).toLocaleDateString()
-                        : "No date"}
-                    </span>
+                      <ChevronRight className="rotate-90" />
+                    </button>
                   </div>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => deleteItem(selectedItem.id)}
-                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-bold transition-colors"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={closeModal}
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-bold transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-6">
-                  Create New Task
-                </h3>
-                <form onSubmit={handleAddSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">
-                      Task Name
-                    </label>
-                    <input
-                      name="title"
-                      autoFocus
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors"
-                      placeholder="Enter task name..."
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      name="desc"
-                      rows={3}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors"
-                      placeholder="Add details..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs uppercase tracking-wider text-white/40 font-bold mb-2">
-                        Priority
-                      </label>
-                      <select
-                        name="priority"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#246AFC] transition-colors appearance-none cursor-pointer"
+                  <div className="space-y-4 mb-8 text-white/70 text-sm">
+                    {selectedItem.desc && (
+                      <p className="bg-white/5 p-4 rounded-xl">
+                        {selectedItem.desc}
+                      </p>
+                    )}
+                    <div className="flex gap-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getPriorityColor(selectedItem.priority)}`}
                       >
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="low">Low</option>
-                      </select>
+                        {getPriorityLabel(selectedItem.priority)}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/5 text-white/60 border border-white/5">
+                        {selectedItem.dueDate
+                          ? new Date(selectedItem.dueDate).toLocaleDateString()
+                          : "No date"}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-3 pt-4">
+                  <div className="flex justify-end gap-3">
                     <button
-                      type="button"
-                      onClick={closeModal}
-                      className="px-5 py-2.5 rounded-xl text-white/60 hover:text-white font-bold transition-colors"
+                      onClick={() => deleteItem(selectedItem.id)}
+                      className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-bold transition-colors"
                     >
-                      Cancel
+                      Delete
                     </button>
                     <button
-                      type="submit"
-                      className="px-6 py-2.5 rounded-xl bg-[#246AFC] hover:bg-[#1a55cc] text-white font-bold transition-colors shadow-lg shadow-blue-500/20"
+                      onClick={closeModal}
+                      className="px-4 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-bold transition-colors"
                     >
-                      Create Task
+                      Close
                     </button>
                   </div>
-                </form>
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-white">
+                      AI Task Manager
+                    </h3>
+                    <button
+                      onClick={closeModal}
+                      className="text-white/40 hover:text-white"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="mb-8">
+                    <p className="text-white/60 text-sm mb-4">
+                      Describe what you need to do, and the agent will handle the rest.
+                    </p>
+
+                    <form onSubmit={handlePromptSubmit} className="relative group">
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="e.g., Remind me to check SUI price tomorrow at 10am..."
+                        disabled={isPromptLoading}
+                        rows={3}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white placeholder-white/20 focus:outline-none focus:border-[#246AFC]/50 transition-all text-sm resize-none"
+                      />
+                      <div className="flex justify-end mt-4">
+                        <button
+                          type="submit"
+                          disabled={isPromptLoading || !prompt.trim()}
+                          className="bg-[#246AFC] hover:bg-[#1a55cc] text-white px-6 py-2.5 rounded-full font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {isPromptLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              Create Task
+                              <ChevronRight size={16} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Optional: Show recent activity or tips */}
+                  <div className="bg-[#B7FC0D]/5 border border-[#B7FC0D]/10 rounded-2xl p-4">
+                    <h4 className="text-[#B7FC0D] text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#B7FC0D] animate-pulse" />
+                      Agent Tip
+                    </h4>
+                    <p className="text-white/40 text-[13px] leading-relaxed">
+                      You can specify dates, times, and priority levels directly in your prompt.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

@@ -16,26 +16,6 @@ export interface AgentConfig {
 }
 
 export const agentConfigs: Record<string, AgentConfig> = {
-  research_agent: {
-    id: 'research_agent',
-    name: 'research',
-    displayName: 'Research Agent',
-    description: 'Comprehensive crypto research and analysis. Data-driven insights for informed decisions',
-    icon: '🔍',
-    iconUrl: '/assets/images/agents/research-agent.svg',
-    color: '#8b5cf6',
-    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-    fee: 0.0008,
-    feeDisplay: '0.0008 SUI per research',
-    suggestions: [
-      'Research the SUI token',
-      'Analyze Cetus protocol',
-      'What tokens are trending on Solana?',
-      'Deep dive into NFT market dynamics',
-    ],
-    placeholder: 'Ask me to research any token, protocol, or market...',
-  },
-
   task_agent: {
     id: 'task_agent',
     name: 'task',
@@ -55,51 +35,11 @@ export const agentConfigs: Record<string, AgentConfig> = {
     ],
     placeholder: 'Tell me what task you want to automate...',
   },
-
-  alert_agent: {
-    id: 'alert_agent',
-    name: 'alert',
-    displayName: 'Alert Manager',
-    description: 'Real-time price alerts and wallet monitoring for your crypto portfolio',
-    icon: '🔔',
-    iconUrl: '/assets/images/agents/alert-agent.svg',
-    color: '#f59e0b',
-    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-    fee: 0,
-    feeDisplay: 'Free',
-    suggestions: [
-      'Alert me when SUI hits $5',
-      'Monitor my wallet for large transactions',
-      'Notify me of new token listings',
-      'Track whale movements',
-    ],
-    placeholder: 'What would you like to be alerted about?',
-  },
-
-  main: {
-    id: 'main',
-    name: 'main',
-    displayName: 'Tovira AI',
-    description: 'Your AI assistant for Web3. Ask me anything about crypto, DeFi, and the Sui ecosystem',
-    icon: '💬',
-    iconUrl: '/assets/images/agents/tovira-agent.svg',
-    color: '#10b981',
-    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    fee: 0,
-    feeDisplay: 'Free',
-    suggestions: [
-      'What is the Sui blockchain?',
-      'Explain DeFi yield farming',
-      'What are some good DeFi strategies?',
-      'How do I get started with Web3?',
-    ],
-    placeholder: 'Ask me anything about crypto and Web3...',
-  },
 };
 
 // Helper function to get agent config
 export const getAgentConfig = (agentId: string): AgentConfig => {
-  return agentConfigs[agentId] || agentConfigs.main;
+  return agentConfigs[agentId] || agentConfigs.task_agent;
 };
 
 // List of all agents for selector

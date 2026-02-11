@@ -280,7 +280,7 @@ const Dashboard = () => {
   const [streamingText, setStreamingText] = useState("");
   const [agentUsed, setAgentUsed] = useState<string>("");
   const [tempMessages, setTempMessages] = useState<Message[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("main");
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("task_agent");
   const [autoOpenAgentSelector, setAutoOpenAgentSelector] = useState(false);
   const [feeModalDetail, setFeeModalDetail] = useState<{
     agent: string;
@@ -1109,7 +1109,7 @@ const Dashboard = () => {
           user_id: currentAccount.address,
           message: pendingQuery,
           chat_id: currentChatId || chatId,
-          agent_id: selectedAgentId !== "main" ? selectedAgentId : undefined,
+          agent_id: selectedAgentId,
           transaction_hash: signature, // Send signature as "transaction hash"
           history,
         });
@@ -1198,7 +1198,7 @@ const Dashboard = () => {
     setInput("");
 
     // Reset agent selection state for new chat
-    setSelectedAgentId("main");
+    setSelectedAgentId("task_agent");
     setAutoOpenAgentSelector(true);
 
     // Clear last chat from localStorage so we don't redirect back
@@ -1382,10 +1382,10 @@ const Dashboard = () => {
       >
         <AnimatePresence mode="popLayout">
           {messages.length === 0 &&
-          !isLoading &&
-          !isProcessingPrompt &&
-          !streamingText &&
-          !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
+            !isLoading &&
+            !isProcessingPrompt &&
+            !streamingText &&
+            !(!chatId && localStorage.getItem("tovira_last_chat_id")) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1442,10 +1442,10 @@ const Dashboard = () => {
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
                         <img
                           src={
-                            getAgentConfig(message.agentId || "main").iconUrl
+                            getAgentConfig(message.agentId || "task_agent").iconUrl
                           }
                           alt={
-                            getAgentConfig(message.agentId || "main")
+                            getAgentConfig(message.agentId || "task_agent")
                               .displayName
                           }
                           className="w-6 h-6 rounded-full object-cover"
@@ -1488,8 +1488,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                      message.currentVariationIndex ?? 0
-                                    ]
+                                  message.currentVariationIndex ?? 0
+                                  ]
                                   : message.text || "",
                               );
 
@@ -1533,8 +1533,8 @@ const Dashboard = () => {
                               const messageText = String(
                                 message.variations
                                   ? message.variations[
-                                      message.currentVariationIndex ?? 0
-                                    ]
+                                  message.currentVariationIndex ?? 0
+                                  ]
                                   : message.text || "",
                               );
                               const urlRegex = /(https?:\/\/[^\s\)]+)/g;
@@ -1692,8 +1692,8 @@ const Dashboard = () => {
                             onClick={() => {
                               const textToCopy = message.variations
                                 ? message.variations[
-                                    message.currentVariationIndex ?? 0
-                                  ]
+                                message.currentVariationIndex ?? 0
+                                ]
                                 : message.text;
                               handleCopy(textToCopy, message.id.toString());
                             }}
@@ -2131,8 +2131,8 @@ const Dashboard = () => {
             onKeyDown={handleKeyDown}
             placeholder={
               selectedAgentId === "task_agent" &&
-              taskPromptStatus &&
-              taskPromptStatus.remaining <= 0
+                taskPromptStatus &&
+                taskPromptStatus.remaining <= 0
                 ? "Upgrade to premium to continue using task agent..."
                 : rateLimitStatus?.isLimited && countdown !== null
                   ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
@@ -2161,13 +2161,12 @@ const Dashboard = () => {
           {/* Task prompt limit indicator */}
           {selectedAgentId === "task_agent" && taskPromptStatus && (
             <span
-              className={`text-xs absolute -top-6 left-5 ${
-                taskPromptStatus.remaining === 0
-                  ? "text-red-400"
-                  : taskPromptStatus.remaining <= 1
-                    ? "text-yellow-400/70"
-                    : "text-white/40"
-              }`}
+              className={`text-xs absolute -top-6 left-5 ${taskPromptStatus.remaining === 0
+                ? "text-red-400"
+                : taskPromptStatus.remaining <= 1
+                  ? "text-yellow-400/70"
+                  : "text-white/40"
+                }`}
             >
               {taskPromptStatus.remaining === 0
                 ? "Upgrade to continue"
