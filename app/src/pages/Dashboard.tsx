@@ -2151,7 +2151,8 @@ const Dashboard = () => {
           {/* Rate limit indicator */}
           {rateLimitStatus &&
             !rateLimitStatus.isLimited &&
-            rateLimitStatus.remaining <= 2 && (
+            rateLimitStatus.remaining <= 2 &&
+            selectedAgentId !== "task_agent" && (
               <span className="text-xs text-yellow-400/70 absolute -top-6 left-5">
                 {rateLimitStatus.remaining} message
                 {rateLimitStatus.remaining !== 1 ? "s" : ""} remaining
