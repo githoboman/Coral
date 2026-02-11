@@ -28,6 +28,7 @@ export function RegisterEnokiWallets() {
         providers: {
           google: {
             clientId: googleClientId,
+            redirectUrl: `${window.location.origin}/signin`,
           },
         },
         client: suiClient as any,
