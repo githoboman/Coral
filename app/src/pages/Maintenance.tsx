@@ -30,7 +30,7 @@ export default function Maintenance() {
 
           <p className="text-white/50 text-base leading-relaxed mb-8">
             We're currently performing some scheduled upgrades to improve your experience. 
-            We'll be back online shortly. Thank you for your patience!
+            Thank you for your patience!
           </p>
 
           <div className="space-y-6">
