@@ -82,15 +82,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const isMaintenancePage = location.pathname === "/maintenance";
 
     // Maintenance Mode Check
-    if (import.meta.env.VITE_MAINTENANCE_MODE === "true" || import.meta.env.VITE_MAINTENANCE_MODE === true) {
+    const maintenanceEnabled = import.meta.env.VITE_MAINTENANCE_MODE === "true" || import.meta.env.VITE_MAINTENANCE_MODE === true;
+
+    if (maintenanceEnabled) {
       if (!isMaintenancePage) {
         navigate("/maintenance", { replace: true });
       }
       return;
+    } else {
+      // If maintenance is OFF but we are on the maintenance page, redirect away
+      if (isMaintenancePage) {
+        if (isAuthenticated) {
+          navigate("/", { replace: true });
+        } else {
+          navigate("/signin", { replace: true });
+        }
+        return;
+      }
     }
 
     if (!isAuthenticated) {
-      if (!isSigninPage && !isInitializing && !isMaintenancePage) {
+      if (!isSigninPage && !isInitializing) {
         navigate("/signin", { replace: true });
       }
       setIsOnboardingOpen(false);
