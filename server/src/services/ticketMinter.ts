@@ -69,7 +69,7 @@ export class TicketMinter {
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
+        "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
 
@@ -348,7 +348,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         console.log(`✅ Ticket minted: ${ticketId}  tx=${result.digest}`);
         return ticketId;
@@ -410,7 +410,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         console.log(
           `✅ Check-in ticket minted: ${ticketId}  tx=${result.digest}`,
@@ -561,7 +561,7 @@ export class TicketMinter {
       }
 
       if (snapshots.length > 0) {
-        snapshots.sort((a, b) => b.timestamp - a.timestamp);
+        snapshots.sort((a: BalanceSnapshot, b: BalanceSnapshot) => b.timestamp - a.timestamp);
         const latestBalance = snapshots[0].balance;
         console.log(
           `✅ getBalance → ${latestBalance} (most recent of ${snapshots.length} events for ${walletAddress.substring(0, 10)}...)`,
@@ -971,7 +971,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         console.log(
           `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
