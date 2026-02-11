@@ -44,6 +44,10 @@ export default function Signin() {
 
   // Redirect if already authenticated
   useEffect(() => {
+    if (import.meta.env.VITE_MAINTENANCE_MODE === "true" || import.meta.env.VITE_MAINTENANCE_MODE === true) {
+      navigate("/maintenance");
+      return;
+    }
     if (currentAccount) {
       navigate("/");
     }

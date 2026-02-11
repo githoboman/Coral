@@ -79,9 +79,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const isAuthenticated = !!currentAccount;
     const isSigninPage = location.pathname === "/signin";
+    const isMaintenancePage = location.pathname === "/maintenance";
+
+    // Maintenance Mode Check
+    if (import.meta.env.VITE_MAINTENANCE_MODE === "true" || import.meta.env.VITE_MAINTENANCE_MODE === true) {
+      if (!isMaintenancePage) {
+        navigate("/maintenance", { replace: true });
+      }
+      return;
+    }
 
     if (!isAuthenticated) {
-      if (!isSigninPage && !isInitializing) {
+      if (!isSigninPage && !isInitializing && !isMaintenancePage) {
         navigate("/signin", { replace: true });
       }
       setIsOnboardingOpen(false);

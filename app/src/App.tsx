@@ -10,6 +10,7 @@ import {
   OnchainAnalysis,
   Leaderboard,
   Signin,
+  Maintenance,
 } from "@/pages/";
 import Subscription from "@/pages/Subscription";
 import { TelegramProvider } from "@/components/TelegramProvider";
@@ -31,6 +32,7 @@ function App() {
       <div className={`app-container ${showSplash ? "splash-visible" : ""}`}>
         {showSplash && <SplashScreen />}
         <Routes>
+          <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/signin" element={<Signin />} />
           <Route element={<AppLayout />}>
             <Route path="/onchain" element={<OnchainAnalysis />} />
