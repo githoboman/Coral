@@ -6,6 +6,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 export type ClaimStatus =
   | "idle"
   | "verifying"
+  | "signing"
+  | "confirming"
   | "claiming"
   | "success"
   | "error";
