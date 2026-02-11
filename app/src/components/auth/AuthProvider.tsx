@@ -302,7 +302,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         onSubmit={(email, data) => handleOnboardingSubmit(email, data)}
         onComplete={() => {
           dispatch(invalidateCache());
-          dispatch(fetchLeaderboard());
+          dispatch(fetchLeaderboard(false));
           setIsOnboarded(true);
           setIsOnboardingOpen(false);
         }}
