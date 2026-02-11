@@ -1,376 +1,246 @@
 import { useEffect, useState } from "react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
-import { useSubscription } from "@/hooks/useSubscription";
-import { PremiumBadge } from "@/components/PremiumBadge";
-import { Flame, Trophy, Calendar, Crown, ArrowRight } from "lucide-react";
-import { SkeletonBox } from "@/components/ui/SkeletonLoader";
-import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/useProfile";
+import { useTelegramLinking } from "@/hooks/useTelegramLinking";
+import { AccountSkeleton } from "@/components/ui/SkeletonLoader";
+import {
+  Flame,
+  Wallet,
+  Send,
+  User,
+  ExternalLink,
+  Copy,
+  Bell,
+  ShieldCheck,
+  Zap
+} from "lucide-react";
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
-  const navigate = useNavigate();
-  const { checkin, checkinState, refetchStatus } = useCheckin();
-  const { subscriptionState } = useSubscription();
-  const [showMilestoneAnimation, setShowMilestoneAnimation] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const { mutate: disconnectWallet } = useDisconnectWallet();
+  const { checkin, checkinState } = useCheckin();
+  const { profile, updatePreferences, loading } = useProfile();
+  const { status: tgStatus, connectTelegram, disconnectTelegram, loading: tgLoading } = useTelegramLinking();
+
+
+  const [permissions, setPermissions] = useState({
+    analytics_enabled: false,
+    notifications_enabled: true,
+    personalization_enabled: false
+  });
 
   useEffect(() => {
-    if (checkinState.status === "success" && checkinState.nextIsMilestone) {
-      setShowMilestoneAnimation(true);
-      setTimeout(() => setShowMilestoneAnimation(false), 3000);
+    if (profile?.preferences) {
+      setPermissions(prev => ({
+        ...prev,
+        analytics_enabled: profile.preferences?.analytics_enabled ?? prev.analytics_enabled,
+        notifications_enabled: profile.preferences?.notifications_enabled ?? prev.notifications_enabled,
+        personalization_enabled: profile.preferences?.personalization_enabled ?? prev.personalization_enabled,
+      }));
     }
-  }, [checkinState.status, checkinState.nextIsMilestone]);
+  }, [profile?.preferences]);
+
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
 
   useEffect(() => {
-    if (checkinState.status !== "checking" && checkinState.status !== "idle") {
-      setIsInitialLoad(false);
-    } else if (checkinState.balance > 0 || checkinState.totalCheckins > 0) {
-      setIsInitialLoad(false);
-    }
-  }, [checkinState]);
+    const updateTimer = () => {
+      if (!checkinState.nextAvailableAt) {
+        setTimeRemaining(""); // Clear if no next time
+        return;
+      }
 
-  const getMilestoneProgress = () => {
-    const { currentStreak, nextMilestone, daysToNextMilestone } = checkinState;
-    const progress = ((currentStreak / nextMilestone) * 100).toFixed(0);
-    return { progress, daysRemaining: daysToNextMilestone };
+      const now = Date.now();
+      const diff = checkinState.nextAvailableAt - now;
+
+      if (diff <= 0) {
+        setTimeRemaining("");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeRemaining(
+        `${hours.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+      );
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [checkinState.nextAvailableAt]);
+
+  const [copied, setCopied] = useState(false);
+
+  if (loading) {
+    return <AccountSkeleton />;
+  }
+
+  const handlePermissionToggle = async (key: string) => {
+    const newVal = !permissions[key as keyof typeof permissions];
+    const newPermissions = { ...permissions, [key]: newVal };
+    setPermissions(newPermissions);
+    await updatePreferences(newPermissions);
   };
 
-  const getStreakColor = (streak: number) => {
-    if (streak >= 80) return "from-purple-500 to-pink-500";
-    if (streak >= 50) return "from-orange-500 to-red-500";
-    if (streak >= 30) return "from-yellow-500 to-orange-500";
-    if (streak >= 10) return "from-green-500 to-emerald-500";
-    return "from-blue-500 to-cyan-500";
+  const referralCode = profile?.referral_code || "";
+  // Ensure we have a valid origin even if window is undefined (SSR safety, though this is client-side)
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const referralLink = `${origin}/?ref=${referralCode}`;
+
+  const handleCopyReferral = () => {
+    if (!referralCode) return;
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const { progress, daysRemaining } = getMilestoneProgress();
+  const truncateAddress = (address: string) => {
+    if (!address) return "N/A";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
-  if (isInitialLoad && checkinState.status === "checking") {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-6">
-        {/* Header Skeleton */}
-        <div className="mb-8">
-          <SkeletonBox className="h-9 w-32 mb-2" />
-          <SkeletonBox className="h-5 w-96" />
-        </div>
+  const username = profile?.username || (currentAccount?.address ? truncateAddress(currentAccount.address) : "Guest User");
 
-        {/* Daily Check-in Card Skeleton */}
-        <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-            <div className="flex-1">
-              <SkeletonBox className="h-8 w-48 mb-2" />
-              <SkeletonBox className="h-5 w-96" />
+  return (
+    <div className="w-full max-w-7xl mx-auto px-6 py-8">
+      <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center gap-6">
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full bg-[#1A1A1A] flex items-center justify-center border-2 border-white/10">
+              <User size={40} className="text-white/20" />
             </div>
-            <SkeletonBox className="h-14 w-40 rounded-full" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-medium text-white">Hi, <span className="text-[#B7FC0D]">{username}</span></h1>
+            <p className="text-white/40 text-sm">Welcome back to your account</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-[#0A0A0A] border border-white/10 rounded-[40px] p-8 flex flex-col min-h-[400px]">
+          <div className="bg-white/5 p-6 rounded-3xl mb-8 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <Wallet className="text-white/40" />
+              <span className="text-white font-medium">{currentAccount ? truncateAddress(currentAccount.address) : "No Wallet"}</span>
+            </div>
+            <button onClick={() => disconnectWallet()} className="text-[#EF4444] font-bold hover:opacity-80">Disconnect</button>
           </div>
 
-          {/* Streak Stats Row Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6"
-              >
+          <div className="space-y-6 bg-white/5 p-6 rounded-3xl mb-8">
+            <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider">Permissions</h3>
+            {[
+              { key: 'analytics_enabled', label: 'Analytics data sharing', icon: Zap },
+              { key: 'notifications_enabled', label: 'Receive notifications', icon: Bell },
+              { key: 'personalization_enabled', label: 'Personalization', icon: ShieldCheck }
+            ].map(p => (
+              <div key={p.key} className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <SkeletonBox className="w-10 h-10 rounded-full" />
-                  <div className="flex-1">
-                    <SkeletonBox className="h-3 w-24 mb-2" />
-                    <SkeletonBox className="h-7 w-16" />
-                  </div>
+                  <p.icon size={18} className="text-white/40" />
+                  <span className="text-white/80">{p.label}</span>
                 </div>
+                <button
+                  onClick={() => handlePermissionToggle(p.key)}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${permissions[p.key as keyof typeof permissions] ? 'bg-[#B7FC0D]' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-3 h-3 rounded-full transition-all ${permissions[p.key as keyof typeof permissions] ? 'right-1 bg-black' : 'left-1 bg-white/40'}`} />
+                </button>
               </div>
             ))}
           </div>
-
-          {/* Milestone Progress Skeleton */}
-          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <SkeletonBox className="h-6 w-40 mb-2" />
-                <SkeletonBox className="h-4 w-64" />
-              </div>
-              <div className="text-right">
-                <SkeletonBox className="h-3 w-20 mb-2" />
-                <SkeletonBox className="h-7 w-16" />
-              </div>
-            </div>
-            <SkeletonBox className="h-4 w-full rounded-full" />
-          </div>
         </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-6">
-      {/* Milestone Celebration Animation */}
-      {showMilestoneAnimation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-8 text-center animate-in zoom-in-95 duration-500">
-            <Trophy className="w-20 h-20 mx-auto mb-4 text-white animate-bounce" />
-            <h2 className="text-3xl font-bold text-white mb-2">
-              🎉 Milestone Reached!
-            </h2>
-            <p className="text-white/90 text-lg">
-              {checkinState.currentStreak} Day Streak - Earned{" "}
-              {checkinState.pointsEarned} Points!
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Account</h1>
-        <p className="text-white/60 mt-2">
-          Manage your daily check-ins and track your progress
-        </p>
-      </div>
-
-      {/* Premium Status Card */}
-      {subscriptionState.isPremium && (
-        <div className="mb-6">
-          <PremiumBadge
-            variant="large"
-            daysRemaining={subscriptionState.daysRemaining}
-            showExpiry={true}
-          />
-        </div>
-      )}
-
-      {/* Upgrade CTA (if not premium) */}
-      {!subscriptionState.isPremium && (
-        <div
-          className="mb-6  border border-blue-500/20 rounded-[30px] p-6 relative overflow-hidden group cursor-pointer hover:border-blue-500/40 transition-all duration-300"
-          onClick={() => navigate("/subscription")}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r  via-blue-500/5 to-transparent group-hover:via-blue-500/10 transition-all duration-500" />
-
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
-                <Crown className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-white font-bold text-lg mb-1">
-                  Upgrade to Premium
-                </h3>
-                <p className="text-white/60 text-sm">
-                  Get 5 daily prompts, priority access, and more for just 2
-                  SUI/month
-                </p>
-              </div>
-            </div>
-
-            <button className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-black font-bold text-sm flex items-center gap-2 transition-all duration-200 hover:scale-105 shadow-lg">
-              Upgrade
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Daily Check-in Card */}
-      <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-8 mb-6 relative overflow-hidden">
-        {/* Glow effect */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none" />
-
-        <div className="relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">
-                Daily Check-in
-              </h2>
-              <p className="text-white/60 text-sm">
-                {checkinState.canCheckin
-                  ? checkinState.streakWillReset
-                    ? "⚠️ Your streak will reset! Check in now to continue."
-                    : `Ready to earn ${checkinState.nextCheckinPoints} point${checkinState.nextCheckinPoints > 1 ? "s" : ""}!`
-                  : `Next check-in available in ${checkinState.hoursRemaining} hour${checkinState.hoursRemaining !== 1 ? "s" : ""}`}
-              </p>
-            </div>
-
-            <button
-              onClick={checkin}
-              disabled={
-                !checkinState.canCheckin ||
-                checkinState.status === "requesting" ||
-                checkinState.status === "signing" ||
-                checkinState.status === "confirming"
-              }
-              className={`
-                px-8 py-4 rounded-full font-bold text-sm transition-all
-                ${
-                  checkinState.canCheckin && checkinState.status === "idle"
-                    ? checkinState.nextIsMilestone
-                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-black shadow-lg shadow-yellow-500/30 animate-pulse"
-                      : "bg-[#246AFC] hover:bg-[#1a55cc] text-white shadow-lg shadow-blue-500/20"
-                    : "bg-white/10 text-white/40 cursor-not-allowed"
-                }
-              `}
-            >
-              {checkinState.status === "requesting" && "Requesting..."}
-              {checkinState.status === "signing" && "Sign Transaction..."}
-              {checkinState.status === "confirming" && "Confirming..."}
-              {checkinState.status === "success" && "✓ Checked In!"}
-              {checkinState.status === "idle" && checkinState.canCheckin && (
-                <>
-                  {checkinState.nextIsMilestone ? "🎯 " : ""}
-                  Check In
-                  {checkinState.nextIsMilestone && " for Milestone!"}
-                </>
-              )}
-              {checkinState.status === "cooldown" &&
-                `Wait ${checkinState.hoursRemaining}h`}
-              {checkinState.status === "error" && "Try Again"}
-            </button>
-          </div>
-
-          {/* Error Message */}
-          {checkinState.error && (
-            <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-              <p className="text-red-400 text-sm">{checkinState.error}</p>
-            </div>
-          )}
-
-          {/* Streak Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {/* Points Balance */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div>
-                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
-                    Total Points
-                  </p>
-                  <p className="text-white text-2xl font-bold">
-                    {checkinState.balance.toLocaleString()}
-                    {subscriptionState.isPremium && (
-                      <PremiumBadge variant="inline" />
-                    )}
-                  </p>
+        <div className="flex flex-col gap-8">
+          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-8">
+            <div className="flex justify-between items-center mb-10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/5 rounded-xl">
+                  <Send size={18} className="text-white/40 rotate-12" />
                 </div>
-              </div>
-            </div>
-            {/* Current Streak */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className={`w-10 h-10 rounded-full bg-gradient-to-br ${getStreakColor(checkinState.currentStreak)} flex items-center justify-center`}
-                >
-                  <Flame className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
-                    Current Streak
-                  </p>
-                  <p className="text-white text-2xl font-bold">
-                    {checkinState.currentStreak}
-                    <span className="text-white/40 text-sm ml-1">days</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Check-ins */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
-                    Total Check-ins
-                  </p>
-                  <p className="text-white text-2xl font-bold">
-                    {checkinState.totalCheckins}
-                    <span className="text-white/40 text-sm ml-1">times</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Milestone Progress */}
-          <div className="bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div>
-                  <p className="text-white font-bold text-lg">Next Milestone</p>
-                  <p className="text-white/60 text-sm">
-                    {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} until{" "}
-                    {checkinState.nextMilestone}-day milestone
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-white/40 text-xs font-bold uppercase tracking-wider">
-                  Bonus Reward
-                </p>
-                <p className="text-green-400 text-2xl font-bold">+5 pts</p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="relative w-full h-4 bg-white/5 rounded-full overflow-hidden">
-              <div
-                className={`absolute top-0 left-0 h-full bg-gradient-to-r ${getStreakColor(checkinState.currentStreak)} transition-all duration-500 rounded-full`}
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 animate-pulse" />
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-white text-xs font-bold drop-shadow-lg">
-                  {checkinState.currentStreak} / {checkinState.nextMilestone}
+                <span className="text-white text-lg font-medium">
+                  {tgStatus.is_linked ? `@${tgStatus.telegram_username}` : "Telegram account"}
                 </span>
               </div>
+              <button
+                onClick={() => tgStatus.is_linked ? disconnectTelegram() : connectTelegram()}
+                disabled={tgLoading}
+                className={`px-6 py-2 rounded-full font-bold text-sm transition-colors ${tgStatus.is_linked ? 'bg-[#EF4444] text-white' : 'bg-[#326AFD] text-white'} disabled:opacity-50`}
+              >
+                {tgStatus.is_linked ? "Disconnect" : (tgLoading ? "Connecting..." : "Connect")}
+              </button>
             </div>
 
-            {/* Upcoming Milestones */}
-            <div className="mt-6 pt-6 border-t border-white/5">
-              <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">
-                Upcoming Milestones
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((milestone) => (
-                  <div
-                    key={milestone}
-                    className={`
-                      px-3 py-1.5 rounded-full text-xs font-bold border transition-all
-                      ${
-                        checkinState.currentStreak >= milestone
-                          ? "bg-green-500/20 border-green-500/50 text-green-400"
-                          : milestone === checkinState.nextMilestone
-                            ? "bg-green-500/20 border-green-500/50 text-green-400 animate-pulse"
-                            : "bg-white/5 border-white/10 text-white/40"
-                      }
-                    `}
-                  >
-                    {checkinState.currentStreak >= milestone && "✓ "}
-                    {milestone} days
-                  </div>
-                ))}
+            <div className="bg-[#B7FC0D]/5 border border-[#B7FC0D]/20 p-6 rounded-3xl">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-white/40 text-xs font-bold uppercase tracking-wider">Referral Program</span>
+                <div className="flex items-center gap-2 bg-[#B7FC0D]/10 px-3 py-1 rounded-full border border-[#B7FC0D]/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#B7FC0D] animate-pulse" />
+                  <span className="text-[#B7FC0D] text-xs font-bold">{profile?.referrals_count || 0} Referrals</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between bg-black/40 border border-white/5 p-4 rounded-2xl relative group">
+                <div className="flex items-center gap-4 overflow-hidden">
+                  <ExternalLink size={18} className="text-white/40 flex-shrink-0" />
+                  <span className="text-white font-medium truncate text-sm">{referralLink || "Loading..."}</span>
+                </div>
+                <button
+                  onClick={handleCopyReferral}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <Copy size={18} className={copied ? "text-[#B7FC0D]" : "text-white/60"} />
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Streak Reset Warning */}
-          {checkinState.streakWillReset && checkinState.canCheckin && (
-            <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-red-400 text-xl">⚠️</span>
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-8 relative overflow-hidden group">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />
+            <div className="flex justify-between items-center mb-6 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-[#B7FC0D]/10 rounded-2xl border border-[#B7FC0D]/20">
+                  <Flame size={24} className="text-[#B7FC0D]" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-lg">Daily Check-in</h3>
+                  <p className="text-white/40 text-xs">{checkinState.currentStreak} day streak</p>
+                </div>
               </div>
-              <div>
-                <p className="text-red-400 font-bold text-sm">
-                  Streak at Risk!
-                </p>
-                <p className="text-red-400/80 text-xs">
-                  You haven't checked in for more than 24 hours. Check in now to
-                  prevent losing your {checkinState.currentStreak}-day streak!
-                </p>
+              <button
+                onClick={checkin}
+                disabled={!checkinState.canCheckin}
+                className={`px-8 py-2.5 rounded-full font-bold text-sm transition-all ${checkinState.canCheckin ? 'bg-[#B7FC0D] text-black hover:scale-105 active:scale-95' : 'bg-white/5 text-white/20'}`}
+              >
+                {(() => {
+                  if (checkinState.status === "signing") return "Signing...";
+                  if (checkinState.status === "confirming") return "Confirming...";
+                  if (checkinState.status === "requesting") return "Requesting...";
+
+                  if (checkinState.canCheckin) return "Check In";
+
+                  const timeLeft = timeRemaining || (checkinState.hoursRemaining !== null ? `~${checkinState.hoursRemaining}h` : "...");
+                  return `Next: ${timeLeft}`;
+                })()}
+              </button>
+            </div>
+            <div className="space-y-3 relative z-10">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                <span>Progress</span>
+                <span className="text-[#B7FC0D]">{checkinState.currentStreak} / {checkinState.nextMilestone}</span>
+              </div>
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div
+                  className="h-full bg-gradient-to-r from-[#B7FC0D] to-[#97D600] transition-all duration-700"
+                  style={{ width: `${(checkinState.currentStreak / checkinState.nextMilestone) * 100}%` }}
+                />
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

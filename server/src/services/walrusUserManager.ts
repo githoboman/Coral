@@ -36,6 +36,11 @@ export interface UserProfile {
   subscription_expires_at?: string;
   daily_prompts_used?: number;
   last_prompt_date?: string;
+
+  // Telegram Integration
+  telegram_username?: EncryptedData | string;
+  telegram_chat_id?: EncryptedData | string;
+  telegram_linked_at?: string;
 }
 
 export interface DecryptedUserProfile {
@@ -71,6 +76,11 @@ export interface DecryptedUserProfile {
   subscription_expires_at?: string;
   daily_prompts_used?: number;
   last_prompt_date?: string;
+
+  // Telegram Integration
+  telegram_username?: string;
+  telegram_chat_id?: string;
+  telegram_linked_at?: string;
 }
 
 export interface UsersRegistry {
@@ -214,6 +224,21 @@ export class WalrusUserManager {
       profile.last_prompt_date = additionalData.last_prompt_date;
     }
 
+    // Telegram Integration
+    if (additionalData?.telegram_username) {
+      profile.telegram_username = this.encryption.encrypt(
+        additionalData.telegram_username,
+      );
+    }
+    if (additionalData?.telegram_chat_id) {
+      profile.telegram_chat_id = this.encryption.encrypt(
+        additionalData.telegram_chat_id,
+      );
+    }
+    if (additionalData?.telegram_linked_at) {
+      profile.telegram_linked_at = additionalData.telegram_linked_at;
+    }
+
     return profile;
   }
 
@@ -251,6 +276,15 @@ export class WalrusUserManager {
       subscription_expires_at: profile.subscription_expires_at,
       daily_prompts_used: profile.daily_prompts_used || 0,
       last_prompt_date: profile.last_prompt_date,
+
+      // Telegram Integration
+      telegram_username: this.encryption.decryptOptional(
+        profile.telegram_username,
+      ),
+      telegram_chat_id: this.encryption.decryptOptional(
+        profile.telegram_chat_id,
+      ),
+      telegram_linked_at: profile.telegram_linked_at,
     };
   }
 
@@ -490,6 +524,34 @@ export class WalrusUserManager {
       return null;
     } catch (error) {
       console.error("Error in findWalletByEmail:", error);
+      return null;
+    }
+  }
+
+  async findWalletByTelegramChatId(
+    registryBlobId: string,
+    chatId: string,
+  ): Promise<string | null> {
+    try {
+      const registry = await this.fetchUsersRegistry(registryBlobId);
+      if (!registry) return null;
+
+      const targetChatId = chatId.toString().trim();
+
+      for (const [walletAddress, encryptedProfile] of Object.entries(
+        registry.users,
+      )) {
+        const decryptedChatId = this.encryption.decryptOptional(
+          encryptedProfile.telegram_chat_id,
+        );
+        if (decryptedChatId === targetChatId) {
+          return walletAddress;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in findWalletByTelegramChatId:", error);
       return null;
     }
   }

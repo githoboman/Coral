@@ -9,6 +9,7 @@ import chatRouter from "./chat";
 import checkinRouter from "./checkin";
 import taskPointsRouter from "./taskPoints";
 import subscriptionRoutes from "./subscription";
+import telegramRouter from "./telegram";
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.use(chatRouter);
 router.use("/checkin", checkinRouter);
 router.use("/task-points", taskPointsRouter);
 router.use("/subscription", subscriptionRoutes);
+router.use("/telegram", telegramRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
@@ -67,6 +69,11 @@ router.get("/info", (_req: Request, res: Response) => {
         "GET /api/task-prompts/:userId",
       ],
       checkin: ["GET /api/checkin/status", "POST /api/checkin/request-ticket"],
+      telegram: [
+        "POST /api/telegram/link",
+        "GET /api/telegram/status",
+        "POST /api/telegram/webhook"
+      ]
     },
     storage: "Walrus (Encrypted)",
     blockchain: "Sui",

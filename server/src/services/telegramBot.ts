@@ -1,0 +1,117 @@
+import { Telegraf } from "telegraf";
+import { getTelegramService } from "./telegramService";
+import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter } from "./ticketMinter";
+
+export class TelegramBot {
+  private static instance: TelegramBot;
+  private bot: Telegraf | null = null;
+  private userManager = new WalrusUserManager();
+  private ticketMinter = new TicketMinter();
+
+  private constructor() {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) {
+      console.warn("⚠️ TELEGRAM_BOT_TOKEN not found in .env. Telegram bot disabled.");
+      return;
+    }
+
+    this.bot = new Telegraf(token);
+    this.setupHandlers();
+    this.bot.launch()
+      .then(() => {
+        console.log("🚀 Telegram Bot is running...");
+      })
+      .catch((err) => {
+        console.error("❌ Telegram Bot failed to launch:", err.message);
+        if (err.message.includes("401")) {
+          console.warn("   Tip: Check your TELEGRAM_BOT_TOKEN in .env. It might be invalid.");
+        }
+        this.bot = null; // Disable the bot on failure
+      });
+  }
+
+  public static getInstance(): TelegramBot {
+    if (!TelegramBot.instance) {
+      TelegramBot.instance = new TelegramBot();
+    }
+    return TelegramBot.instance;
+  }
+
+  private setupHandlers() {
+    if (!this.bot) return;
+
+    this.bot.start(async (ctx) => {
+      const payload = (ctx as any).payload; // payload exists on start command context in telegraf
+
+      if (payload && payload.startsWith("link_")) {
+        const token = payload.replace("link_", "");
+        const telegramService = getTelegramService();
+        const walletAddress = telegramService.validateToken(token);
+
+        if (walletAddress) {
+          try {
+            const chatId = ctx.chat?.id.toString();
+            const telegramUsername = ctx.from?.username || "User";
+
+            if (!chatId) {
+              await ctx.reply("❌ Error: Could not determine chat ID.");
+              return;
+            }
+
+            // Link the user in Walrus
+            const blobId = await this.ticketMinter.getCurrentBlobId();
+            if (blobId) {
+              const profile = await this.userManager.getUserProfile(blobId, walletAddress);
+              if (profile) {
+                const updatedProfile = this.userManager.createUserProfile(
+                  profile.email,
+                  profile.wallet_address,
+                  profile.is_waitlisted,
+                  profile.points_awarded,
+                  {
+                    ...profile,
+                    telegram_chat_id: chatId,
+                    telegram_username: telegramUsername,
+                  }
+                );
+
+                const newBlobId = await this.userManager.addOrUpdateUser(blobId, updatedProfile);
+                if (newBlobId && newBlobId !== blobId) {
+                  await this.ticketMinter.updateBlobRegistry(newBlobId);
+                }
+
+                telegramService.consumeToken(token);
+                await ctx.reply(`✅ Successfully linked to Tovira Dashboard!\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\nNotifications are now enabled.`);
+                return;
+              }
+            }
+            await ctx.reply("❌ Error: User profile not found. Please ensure you are logged in on the web app.");
+          } catch (error) {
+            console.error("Error in Telegram link handler:", error);
+            await ctx.reply("❌ Linking failed. Please try again later.");
+          }
+        } else {
+          await ctx.reply("❌ Invalid or expired linking token. Please go back to the web app and try again.");
+        }
+      } else {
+        await ctx.reply("Welcome to Tovira! Link your wallet in the web app to receive notifications here.");
+      }
+    });
+
+    this.bot.command("status", async (ctx) => {
+      await ctx.reply("You are connected to Tovira.");
+    });
+  }
+
+  public async sendMessage(chatId: string, message: string) {
+    if (!this.bot) return;
+    try {
+      await this.bot.telegram.sendMessage(chatId, message);
+    } catch (error) {
+      console.error(`Failed to send Telegram message to ${chatId}:`, error);
+    }
+  }
+}
+
+export const getTelegramBot = () => TelegramBot.getInstance();

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";

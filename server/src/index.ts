@@ -12,6 +12,11 @@ const server = app.listen(PORT, () => {
 ║   URL: http://localhost:${PORT}
 ╚════════════════════════════════════════╝
   `);
+
+  // Initialize Telegram Bot
+  import("./services/telegramBot").then(({ getTelegramBot }) => {
+    getTelegramBot();
+  });
 });
 
 process.on("SIGTERM", () => {

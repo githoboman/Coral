@@ -94,3 +94,56 @@ export const ActivitySkeleton = () => (
     </div>
   </div>
 );
+
+export const AccountSkeleton = () => (
+  <div className="w-full max-w-7xl mx-auto px-6 py-8">
+    {/* Header Section Skeleton */}
+    <div className="flex items-center justify-between mb-12">
+      <div className="flex items-center gap-6">
+        <SkeletonBox className="w-24 h-24 rounded-full" />
+        <div>
+          <SkeletonBox className="h-10 w-48 mb-2" />
+          <SkeletonBox className="h-4 w-64" />
+        </div>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Left Card Skeleton */}
+      <div className="bg-[#0A0A0A] border border-white/10 rounded-[40px] p-8 flex flex-col min-h-[400px]">
+        <SkeletonBox className="h-20 w-full rounded-3xl mb-8" />
+        <div className="space-y-6 bg-white/5 p-6 rounded-3xl mb-8">
+          <SkeletonBox className="h-4 w-24 mb-4" />
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex justify-between items-center">
+              <SkeletonBox className="h-5 w-32" />
+              <SkeletonBox className="w-10 h-5 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Card Skeleton */}
+      <div className="flex flex-col gap-8">
+        <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-8">
+          <div className="flex justify-between items-center mb-8">
+            <SkeletonBox className="h-10 w-48" />
+            <SkeletonBox className="h-6 w-24 rounded-full" />
+          </div>
+          <SkeletonBox className="h-32 w-full rounded-3xl" />
+        </div>
+
+        <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <SkeletonBox className="w-10 h-10 rounded-2xl" />
+              <SkeletonBox className="h-6 w-32" />
+            </div>
+            <SkeletonBox className="h-10 w-28 rounded-full" />
+          </div>
+          <SkeletonBox className="h-2 w-full rounded-full" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
