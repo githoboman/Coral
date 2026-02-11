@@ -299,7 +299,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         loading={onboardingLoading}
         message={onboardingMessage}
         initialEmail={userEmail}
-        onSubmit={handleOnboardingSubmit}
+        onSubmit={(email, data) => handleOnboardingSubmit(email, data)}
         onComplete={() => {
           dispatch(invalidateCache());
           dispatch(fetchLeaderboard());

@@ -193,7 +193,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
 
             return true;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         if (attempt >= maxAttempts) {
           if (pollRef.current) {
@@ -291,7 +291,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const ticketId = ticketData.ticket_object_id as string;
       const ptsAmount = ticketData.points_amount as number;
       const isMilestone = ticketData.is_milestone as boolean;
-      const milestoneBonus = ticketData.milestone_bonus as number;
+      const _milestoneBonus = ticketData.milestone_bonus as number;
       const checkinFee = ticketData.checkin_fee as number;
 
       setState((prev) => ({
@@ -319,8 +319,8 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const result = await signAndExecute(
         { transaction: tx },
         {
-          onSuccess: () => {},
-          onError: () => {},
+          onSuccess: () => { },
+          onError: () => { },
         },
       );
 

@@ -9,8 +9,7 @@ import {
   Wallet,
   Send,
   User,
-  ExternalLink,
-  Copy,
+
   Bell,
   ShieldCheck,
   Zap
