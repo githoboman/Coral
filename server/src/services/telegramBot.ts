@@ -8,27 +8,38 @@ export class TelegramBot {
   private bot: Telegraf | null = null;
   private userManager = new WalrusUserManager();
   private ticketMinter = new TicketMinter();
+  
+  private log(message: string, ...args: any[]) {
+    console.log(`[TELEGRAM BOT] ${message}`, ...args);
+  }
 
   private constructor() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
-      console.warn("⚠️ TELEGRAM_BOT_TOKEN not found in .env. Telegram bot disabled.");
+      this.log("⚠️ TELEGRAM_BOT_TOKEN not found in .env. Telegram bot disabled.");
       return;
     }
 
+    this.log(`Initializing with token: ${token.substring(0, 5)}...`);
     this.bot = new Telegraf(token);
     this.setupHandlers();
-    this.bot.launch()
+    
+    // Explicitly set polling mode and clear webhook info if any
+    this.bot.launch({ dropPendingUpdates: true })
       .then(() => {
-        console.log("🚀 Telegram Bot is running...");
+        this.log("🚀 Telegram Bot is running...");
       })
       .catch((err) => {
-        console.error("❌ Telegram Bot failed to launch:", err.message);
+        this.log("❌ Telegram Bot failed to launch:", err.message);
         if (err.message.includes("401")) {
-          console.warn("   Tip: Check your TELEGRAM_BOT_TOKEN in .env. It might be invalid.");
+          this.log("   Tip: Check your TELEGRAM_BOT_TOKEN in .env. It might be invalid.");
         }
         this.bot = null; // Disable the bot on failure
       });
+      
+    // Enable graceful stop
+    process.once('SIGINT', () => this.bot?.stop('SIGINT'));
+    process.once('SIGTERM', () => this.bot?.stop('SIGTERM'));
   }
 
   public static getInstance(): TelegramBot {
@@ -41,13 +52,26 @@ export class TelegramBot {
   private setupHandlers() {
     if (!this.bot) return;
 
+    this.bot.use((ctx, next) => {
+      this.log(`Received update type: ${ctx.updateType}`);
+      // Log full message details for debugging
+      if (ctx.message && 'text' in ctx.message) {
+         this.log(`Message from ${ctx.from?.username} (${ctx.from?.id}): ${ctx.message.text}`);
+      }
+      return next();
+    });
+
     this.bot.start(async (ctx) => {
+      this.log("Processing /start command");
       const payload = (ctx as any).payload; // payload exists on start command context in telegraf
+      this.log(`Payload received: ${payload}`);
 
       if (payload && payload.startsWith("link_")) {
         const token = payload.replace("link_", "");
         const telegramService = getTelegramService();
         const walletAddress = telegramService.validateToken(token);
+        
+        this.log(`Validating token: ${token} -> Wallet: ${walletAddress}`);
 
         if (walletAddress) {
           try {
