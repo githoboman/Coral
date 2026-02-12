@@ -54,7 +54,6 @@ export class TelegramBot {
 
     this.bot.use((ctx, next) => {
       this.log(`Received update type: ${ctx.updateType}`);
-      // Log full message details for debugging
       if (ctx.message && 'text' in ctx.message) {
          this.log(`Message from ${ctx.from?.username} (${ctx.from?.id}): ${ctx.message.text}`);
       }
@@ -63,7 +62,7 @@ export class TelegramBot {
 
     this.bot.start(async (ctx) => {
       this.log("Processing /start command");
-      const payload = (ctx as any).payload; // payload exists on start command context in telegraf
+      const payload = (ctx as any).payload; 
       this.log(`Payload received: ${payload}`);
 
       if (payload && payload.startsWith("link_")) {
@@ -119,7 +118,71 @@ export class TelegramBot {
           await ctx.reply("❌ Invalid or expired linking token. Please go back to the web app and try again.");
         }
       } else {
+        // Handle standard /start without payload
+        // Check if user is already linked
+        try {
+          const chatId = ctx.chat?.id.toString();
+          if (chatId) {
+            const blobId = await this.ticketMinter.getCurrentBlobId();
+            if (blobId) {
+              const walletAddress = await this.userManager.findWalletByTelegramChatId(blobId, chatId);
+              if (walletAddress) {
+                const profile = await this.userManager.getUserProfile(blobId, walletAddress);
+                if (profile) {
+                   await ctx.reply(`✅ You are already connected!\n\nUser: ${profile.telegram_username || "Unknown"}\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n\nUse /info to see more details.`);
+                   return;
+                }
+              }
+            }
+          }
+        } catch (err) {
+            this.log("Error checking existing link status:", err);
+        }
+
         await ctx.reply("Welcome to Tovira! Link your wallet in the web app to receive notifications here.");
+      }
+    });
+
+    this.bot.command("info", async (ctx) => {
+      try {
+        const chatId = ctx.chat?.id.toString();
+        if (!chatId) return;
+
+        const blobId = await this.ticketMinter.getCurrentBlobId();
+        if (!blobId) {
+          await ctx.reply("❌ Service temporarily unavailable (Registry not found).");
+          return;
+        }
+
+        const walletAddress = await this.userManager.findWalletByTelegramChatId(blobId, chatId);
+        if (!walletAddress) {
+          await ctx.reply("❌ You are not connected. Please go to the dashboard to link your account.");
+          return;
+        }
+
+        const profile = await this.userManager.getUserProfile(blobId, walletAddress);
+        if (!profile) {
+           await ctx.reply("❌ User profile not found.");
+           return;
+        }
+
+        const subscription = profile.subscription_tier === 1 ? "Premium" : "Free";
+        const message = `
+📊 *Your Tovira Profile*
+
+👤 *User:* ${profile.telegram_username || "Unknown"}
+👛 *Wallet:* \`${walletAddress}\`
+💎 *Plan:* ${subscription}
+🔥 *Streak:* ${profile.current_streak || 0} days
+
+_Use /disconnect in the web app to unlink._
+        `.trim();
+
+        await ctx.replyWithMarkdown(message);
+
+      } catch (error) {
+        this.log("Error in /info command:", error);
+        await ctx.reply("❌ Failed to fetch info.");
       }
     });
 
