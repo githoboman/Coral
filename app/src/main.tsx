@@ -6,7 +6,6 @@ import { store } from './store';
 import App from './App.tsx';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import './global.css';
-import './styles/chat.css';
 
 import "highlight.js/styles/github-dark.css";
 
