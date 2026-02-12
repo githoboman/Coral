@@ -134,7 +134,7 @@ export async function getTaskPromptStatus(userId: string): Promise<{
 }> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/chat/task-prompts/${userId}`,
+      `${API_BASE_URL}/api/task-prompts/${userId}`,
       {
         method: "GET",
         headers: {

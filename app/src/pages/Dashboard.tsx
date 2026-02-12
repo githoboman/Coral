@@ -1436,7 +1436,7 @@ const Dashboard = () => {
                   className={`flex flex-col ${message.sender === "user" ? "items-end" : "items-start"} group`}
                 >
                   <div
-                    className={`md:max-w-[85%] overflow-hidden ${message.sender === "user" ? "bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl md:w-auto md:ml-auto w-fit" : ""}`}
+                    className={`md:max-w-[85%] overflow-hidden ${message.sender === "user" ? "bg-[#326AFD] text-white rounded-[24px] px-5 py-2.5 shadow-xl md:w-auto md:ml-auto w-fit" : ""}`}
                   >
                     {message.sender === "ai" && (
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
@@ -1448,7 +1448,7 @@ const Dashboard = () => {
                             getAgentConfig(message.agentId || "task_agent")
                               .displayName
                           }
-                          className="w-6 h-6 rounded-full object-cover"
+                          className="w-6 h-6 object-cover"
                         />
                         <span>
                           {message.agentType?.toUpperCase() || "TOVIRA"}
@@ -1833,7 +1833,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {/* Streaming Text */}
+              {/* Streaming Text with Smooth Typewriter Effect */}
               {streamingText && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -1852,30 +1852,10 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <div className="prose prose-invert prose-sm max-w-none break-words">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[
-                          [
-                            rehypeHighlight,
-                            {
-                              languages: {
-                                move: moveLanguage,
-                                sui: moveLanguage,
-                                javascript,
-                                typescript,
-                                python,
-                                bash,
-                                json,
-                                rust,
-                              },
-                            },
-                          ],
-                          rehypeKatex,
-                        ]}
-                        components={MarkdownComponents(handleOpenArtifact)}
-                      >
-                        {streamingText}
-                      </ReactMarkdown>
+                      <TypewriterEffect
+                        content={streamingText}
+                        onOpenArtifact={handleOpenArtifact}
+                      />
                     </div>
                   </div>
                 </motion.div>
@@ -2239,6 +2219,71 @@ const Dashboard = () => {
         }}
       />
     </div>
+  );
+};
+
+// Smooth Typewriter Effect Component
+const TypewriterEffect = ({
+  content,
+  onOpenArtifact
+}: {
+  content: string;
+  onOpenArtifact?: any;
+}) => {
+  const [displayedLength, setDisplayedLength] = useState(0);
+  const contentRef = useRef(content);
+
+  // Keep ref in sync with content prop
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisplayedLength((current) => {
+        if (current < contentRef.current.length) {
+          // Type faster if we are far behind
+          const diff = contentRef.current.length - current;
+          const step = diff > 50 ? 5 : 1;
+          return current + step;
+        }
+        return current;
+      });
+    }, 15); // 15ms per character
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Jump to end if content effectively resets (new message)
+  useEffect(() => {
+    if (content.length === 0) setDisplayedLength(0);
+  }, [content]);
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[
+        [
+          rehypeHighlight,
+          {
+            languages: {
+              move: moveLanguage,
+              sui: moveLanguage,
+              javascript,
+              typescript,
+              python,
+              bash,
+              json,
+              rust,
+            },
+          },
+        ],
+        rehypeKatex,
+      ]}
+      components={MarkdownComponents(onOpenArtifact)}
+    >
+      {content.slice(0, displayedLength)}
+    </ReactMarkdown>
   );
 };
 

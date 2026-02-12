@@ -2,7 +2,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { AgentState } from "../types";
 import { SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { tavilySearch } from "../tools/tavily";
-import { getWalletBalance } from "../tools/sui";
+// import { getWalletBalance } from "../tools/sui"; // Removed wallet tool
 import { extractMessageContent } from "../utils";
 
 export async function mainNode(state: AgentState): Promise<Partial<AgentState>> {
@@ -10,6 +10,7 @@ export async function mainNode(state: AgentState): Promise<Partial<AgentState>> 
     model: process.env.LLM_MODEL || "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.7,
+    streaming: true,
   });
 
   const systemPrompt = `You are Tovira, an AI assistant specialized in Web3, cryptocurrency, and the Sui blockchain ecosystem.
@@ -20,7 +21,6 @@ Your capabilities:
 - Provide information about the Sui ecosystem
 - Help users understand crypto terminology
 - Offer general guidance on crypto topics
-- Check user wallet balances using 'get_wallet_balance' (Pass the user's wallet address if they ask about 'my funds' or 'how much I have')
 - Search the web for real-time information and latest news using the 'tavily_search' tool
 
 If the user asks for current prices, news, or recent events, USE the search tool.
@@ -35,9 +35,6 @@ Provide a helpful, informative response. Be:
 CRITICAL: At the very end of your response, strictly provide 2-3 short, suggestive follow-up questions that the user might want to ask next. Format them as a list.
 
 Format your response in markdown with proper formatting for readability.
-
-USER CONTEXT:
-- Wallet Address: ${state.walletAddress || "Not connected"}
 `;
 
   // FAST PATH: Check for simple greetings or thanks to avoid LLM call
@@ -47,7 +44,7 @@ USER CONTEXT:
 
   if (greetings.includes(query)) {
     return {
-      finalResponse: "Hello! I'm Tovira, your Sui blockchain assistant. How can I help you today?\n\n- What's my wallet balance?\n- Research the latest SUI news\n- Send SUI to an address"
+      finalResponse: "Hello! I'm Tovira, your Sui blockchain assistant. How can I help you today?\n\n- Research the latest SUI news\n- Explain DeFi concepts"
     };
   }
 
@@ -64,8 +61,8 @@ USER CONTEXT:
       ...state.messages
     ];
 
-    // Bind tools to the LLM
-    const llmWithTools = llm.bindTools([tavilySearch, getWalletBalance]);
+    // Bind tools to the LLM (Removed wallet tools)
+    const llmWithTools = llm.bindTools([tavilySearch]);
 
     // First call to the model
     const response = await llmWithTools.invoke(messages);
@@ -81,9 +78,8 @@ USER CONTEXT:
         let content = "";
         if (toolCall.name === 'tavily_search') {
           content = await tavilySearch.invoke(toolCall.args as { query: string });
-        } else if (toolCall.name === 'get_wallet_balance') {
-          content = await getWalletBalance.invoke(toolCall.args as { address: string });
         }
+        // Wallet tool execution removed
 
         return new ToolMessage({
           tool_call_id: toolCall.id!,
