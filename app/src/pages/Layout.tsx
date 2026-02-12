@@ -122,7 +122,7 @@ const MobileSidebarDrawer = ({
       />
       <div
         ref={containerRef}
-        className="fixed inset-y-0 left-0 w-64 bg-black z-[80] p-0 border-r border-white/10 md:hidden overflow-y-auto -translate-x-full"
+        className="fixed inset-y-0 left-0 w-auto h-[100dvh] bg-transparent z-[80] p-4 md:hidden overflow-visible -translate-x-full flex items-center"
       >
         {isDashboard ? (
           <MobileDashboardSidebar navItems={navItems} onClose={onClose} />

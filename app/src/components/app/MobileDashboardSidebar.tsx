@@ -1,5 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { User, Layout } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { PanelLeft } from 'lucide-react';
+import { useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 interface MobileDashboardSidebarProps {
   navItems: Array<{
@@ -12,82 +15,106 @@ interface MobileDashboardSidebarProps {
 }
 
 export function MobileDashboardSidebar({ navItems, onClose }: MobileDashboardSidebarProps) {
-  const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
+  useGSAP(() => {
+    const activeLink = containerRef.current?.querySelector('.sidebar-link-active');
+    if (activeLink && indicatorRef.current) {
+      const rect = activeLink.getBoundingClientRect();
+      const parentRect = containerRef.current!.getBoundingClientRect();
+      const targetY = rect.top - parentRect.top + (rect.height / 2) - 20; // 20 is half of 40px height
 
-  /* Recents logic removed */
+      gsap.to(indicatorRef.current, {
+        y: targetY,
+        opacity: 1,
+        duration: 0.4,
+        ease: 'expo.out',
+        overwrite: true
+      });
+    } else if (indicatorRef.current) {
+      gsap.to(indicatorRef.current, { opacity: 0, duration: 0.2 });
+    }
+  }, [navItems, location.pathname]);
 
   return (
-    <div className="h-full flex flex-col bg-black text-white overflow-hidden">
+    <div
+      ref={containerRef}
+      className="h-full bg-[#0A0A0A] border border-white/10 rounded-[40px] flex flex-col relative shadow-2xl overflow-hidden w-[240px]"
+    >
+      {/* Floating Indicator */}
+      <div
+        ref={indicatorRef}
+        className="absolute left-0 w-[4px] h-[32px] bg-[#B7FC0D] rounded-r-full top-1 z-50 pointer-events-none opacity-0 shadow-[0_0_12px_rgba(183,252,13,0.4)]"
+      />
+
       {/* Header */}
-      <div className="p-7 flex items-center justify-between">
-        <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img
-              src="/assets/images/signin-logo.png"
-              alt="Tovira Logo"
-              className="h-full w-full object-contain"
-            />
+      <div className="flex items-center mb-10 mt-6 h-14 overflow-hidden p-6 justify-between">
+        <div className="flex items-center gap-3 cursor-pointer min-w-0" onClick={() => (window.location.href = '/')}>
+          <div className="w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
+            <img src="/assets/images/signin-logo.png" alt="Logo" className="w-10 h-10 object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Tovira
-          </h1>
+          <span className="text-[25px] font-black text-white tracking-tight truncate">Tovira</span>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-2 text-white/80 hover:text-white transition-colors cursor-pointer"
-          >
-            <Layout size={24} />
-          </button>
-        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 mt-6">
-        <ul className="space-y-2 relative">
-          {navItems.map((item) => {
-            return (
-              <li key={item.name} className="relative">
-                {/* Active Indicator (Lime Bar) */}
-                {item.active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[6px] h-3/5 bg-[#8BEE1C] rounded-r-md z-10" />
-                )}
-
-                <div className="px-3">
-                  <Link
-                    to={item.to}
-                    onClick={onClose}
-                    className={`group flex items-center px-5 py-4 rounded-[18px] transition-all duration-300 gap-5 cursor-pointer relative ${item.active
-                      ? 'bg-[#1C1C1E] text-white'
-                      : 'text-white/60 hover:text-white'
-                      }`}
-                  >
-                    <img
-                      src={item.iconUrl}
-                      alt={item.name}
-                      className={`flex-shrink-0 w-6 h-6 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
-                    />
-                    <div className="flex-1 flex items-center justify-between">
-                      <span className="text-[20px] font-medium tracking-tight leading-none">{item.name}</span>
-                    </div>
-                  </Link>
+      <nav className="flex-1 px-2 space-y-6 overflow-y-auto no-scrollbar py-6">
+        {navItems.map((item) => {
+          return (
+            <div key={item.name} className="flex flex-col">
+              <Link
+                to={item.to}
+                onClick={onClose}
+                className={`sidebar-link group relative flex items-center h-12 rounded-2xl cursor-pointer transition-all duration-300 px-4 gap-3
+                  ${item.active ? 'bg-white/5 text-white shadow-inner sidebar-link-active' : 'text-white/40 hover:text-white hover:bg-white/5'}
+                `}
+              >
+                <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+                  <img
+                    src={item.iconUrl}
+                    alt={item.name}
+                    className={`w-5 h-5 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
+                  />
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+
+                <div className="flex flex-1 items-center justify-between min-w-0">
+                  <span className="text-[15px] font-[500] tracking-tight truncate pl-3">{item.name}</span>
+                </div>
+              </Link>
+            </div>
+          );
+        })}
       </nav>
 
-      {/* Footer Profile */}
-      <div className="p-4 px-3 mb-4">
+      {/* Bottom Actions */}
+      <div className="p-2 pt-6 border-t border-white/5 space-y-4 overflow-hidden mb-2">
+        <button
+          onClick={onClose}
+          className="sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300 w-full px-4 gap-3"
+        >
+          <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+            <PanelLeft size={20} className="transition-opacity duration-200 opacity-50 group-hover:opacity-100" />
+          </div>
+          <span className="text-[15px] font-[500] tracking-tight truncate pl-3">Collapse</span>
+        </button>
+
         <Link
           to="/account"
           onClick={onClose}
-          className="flex items-center px-5 py-4 rounded-[18px] gap-5 text-white/60 hover:text-white transition-all cursor-pointer"
+          className={`sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300 px-4 gap-3
+            ${location.pathname === '/account' ? 'bg-white/5 text-white sidebar-link-active' : ''}
+          `}
         >
-          <User size={24} className="flex-shrink-0" />
-          <span className="text-[20px] font-medium tracking-tight leading-none">Profile</span>
+          <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+            <img
+              src="/assets/icons/user.svg"
+              alt="Profile"
+              className={`w-5 h-5 object-contain transition-opacity duration-200 ${location.pathname === '/account' ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
+            />
+          </div>
+          <span className="text-[15px] font-[500] tracking-tight truncate pl-3">Profile</span>
         </Link>
       </div>
     </div>
