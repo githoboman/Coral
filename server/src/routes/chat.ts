@@ -40,9 +40,9 @@ router.post("/chat", /* rateLimitMiddleware, */ async (req, res) => {
     // canUsePrompt() checks Redis first (fast), falls back to Walrus only on cache miss
     if (agent_id === "task_agent") {
       const subscriptionService = getSubscriptionService();
-      // const canUse = await subscriptionService.canUsePrompt(user_id);
+      const canUse = await subscriptionService.canUsePrompt(user_id);
 
-      /* if (!canUse) {
+      if (!canUse) {
         const remaining =
           await subscriptionService.getPromptsRemaining(user_id);
         console.log(
@@ -60,7 +60,7 @@ router.post("/chat", /* rateLimitMiddleware, */ async (req, res) => {
           tier: remaining.tier,
           requiresUpgrade: remaining.tier === 0,
         });
-      } */
+      }
 
       // ✅ SPEED FIX: Track usage fire-and-forget so stream starts immediately
       // Walrus write happens in background — AI response is not delayed
@@ -352,15 +352,7 @@ router.get("/rate-limit/:userId", async (req, res) => {
 // Task agent daily prompt status (subscription-aware: 2 free / 5 premium)
 // Task agent daily prompt status (subscription-aware: 2 free / 5 premium)
 router.get("/task-prompts/:userId", async (req, res) => {
-  // ✅ MOCK: Return unlimited status for testing
-  return res.json({
-    used: 0,
-    limit: 100,
-    remaining: 100,
-    tier: 1,
-  });
-
-  /* try {
+  try {
     const { userId } = req.params;
     const subscriptionService = getSubscriptionService();
 
@@ -406,7 +398,7 @@ router.get("/task-prompts/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error checking task prompt status:", error);
     res.json({ used: 0, limit: 2, remaining: 2, tier: 0 });
-  } */
+  }
 });
 
 
