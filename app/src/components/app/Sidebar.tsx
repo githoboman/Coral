@@ -79,41 +79,41 @@ export function Sidebar({ navItems }: SidebarProps) {
   return (
     <div
       ref={containerRef}
-      className="h-[calc(100dvh-32px)] bg-white/5 border border-white/5 rounded-[30px] flex flex-col relative shadow-2xl overflow-hidden will-change-[width]"
+      className="h-[calc(100dvh-32px)] bg-[#0A0A0A] border border-white/10 rounded-[40px] flex flex-col relative shadow-2xl overflow-hidden will-change-[width]"
     >
       {/* Floating Indicator */}
       <div
         ref={indicatorRef}
-        className="absolute left-0 w-[3px] h-[40px] bg-[#B7FC0D] rounded-r-full z-50 pointer-events-none opacity-0 shadow-[0_0_12px_rgba(183,252,13,0.4)]"
+        className="absolute left-0 w-[4px] h-[32px] bg-[#B7FC0D] rounded-r-full top-1 z-50 pointer-events-none opacity-0 shadow-[0_0_12px_rgba(183,252,13,0.4)]"
       />
 
       {/* Header */}
-      <div className={`flex items-center mb-6 h-14 overflow-hidden transition-all p-6 duration-300 ${isCollapsed ? 'justify-center px-0' : 'p-4 justify-between'}`}>
+      <div className={`flex items-center mb-10 mt-6 h-14 overflow-hidden transition-all p-6 duration-300 ${isCollapsed ? 'justify-center px-0' : 'p-4 justify-between'}`}>
         <div className={`flex items-center gap-3 cursor-pointer min-w-0 ${isCollapsed ? 'justify-center' : ''}`} onClick={() => (window.location.href = '/')}>
           <div className="w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
             <img src="/assets/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
           </div>
           {!isCollapsed && <span className="sidebar-label text-[25px] font-black text-white tracking-tight truncate">Tovira</span>}
         </div>
-        {!isCollapsed && (
+        {/* {!isCollapsed && (
           <button
             onClick={toggleSidebar}
             className="sidebar-header-toggle text-white/40 hover:text-white transition-colors p-1 cursor-pointer flex-shrink-0"
           >
             <PanelLeft size={20} />
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 space-y-2 overflow-y-auto no-scrollbar py-4">
+      <nav className="flex-1 px-2 space-y-6 overflow-y-auto no-scrollbar py-6">
         {navItems.map((item) => {
           return (
             <div key={item.name} className="flex flex-col">
               <Link
                 to={item.to}
                 className={`sidebar-link group relative flex items-center h-12 rounded-2xl cursor-pointer transition-all duration-300
-                  ${item.active ? 'bg-white/10 text-white shadow-lg sidebar-link-active' : 'text-white/40 hover:text-white hover:bg-white/5'}
+                  ${item.active ? 'bg-white/5 text-white shadow-inner sidebar-link-active' : 'text-white/40 hover:text-white hover:bg-white/5'}
                   ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
                 `}
               >
@@ -127,7 +127,7 @@ export function Sidebar({ navItems }: SidebarProps) {
 
                 {!isCollapsed && (
                   <div className="sidebar-label flex flex-1 items-center justify-between min-w-0">
-                    <span className="text-[17px] font-[400] tracking-tight truncate pl-3">{item.name}</span>
+                    <span className="text-[15px] font-[500] tracking-tight truncate pl-3">{item.name}</span>
                   </div>
                 )}
               </Link>
@@ -137,11 +137,24 @@ export function Sidebar({ navItems }: SidebarProps) {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="p-2 border-t border-white/5 space-y-1 overflow-hidden">
+      <div className="p-2 pt-6 border-t border-white/5 space-y-4 overflow-hidden mb-2">
+        {/* Toggle Sidebar Button moved here to match Image 1 layout */}
+        <button
+          onClick={toggleSidebar}
+          className={`sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300 w-full
+            ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
+          `}
+        >
+          <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
+            <PanelLeft size={20} className="transition-opacity duration-200 opacity-50 group-hover:opacity-100" />
+          </div>
+          {!isCollapsed && <span className="sidebar-label text-[15px] font-[500] tracking-tight truncate pl-3">Collapse</span>}
+        </button>
+
         <Link
           to="/account"
           className={`sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300
-            ${location.pathname === '/account' ? 'bg-white/10 text-white sidebar-link-active' : ''}
+            ${location.pathname === '/account' ? 'bg-white/5 text-white sidebar-link-active' : ''}
             ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
           `}
         >
@@ -152,17 +165,9 @@ export function Sidebar({ navItems }: SidebarProps) {
               className={`w-5 h-5 object-contain transition-opacity duration-200 ${location.pathname === '/account' ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
             />
           </div>
-          {!isCollapsed && <span className="sidebar-label text-[17px] font-[400] tracking-tight truncate pl-3">Profile</span>}
+          {!isCollapsed && <span className="sidebar-label text-[15px] font-[500] tracking-tight truncate pl-3">Profile</span>}
         </Link>
       </div>
-
-      {/* Collapse toggle for collapsed state */}
-      <button
-        onClick={toggleSidebar}
-        className={`absolute bottom-16 left-1/2 -translate-x-1/2 p-2 text-white/20 hover:text-white transition-all cursor-pointer ${isCollapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-      >
-        <PanelLeft size={20} />
-      </button>
     </div>
   );
 }

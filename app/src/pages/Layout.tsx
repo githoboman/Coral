@@ -1359,7 +1359,7 @@ export default function AppLayout() {
       <div className="absolute inset-0 bg-[#070B0F] -z-10" />
 
       <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-        <div className="sticky top-0 p-4 hidden md:flex h-dvh">
+        <div className="sticky top-0 p-2 hidden md:flex h-dvh left-10">
           <Sidebar navItems={navItems} />
         </div>
 
