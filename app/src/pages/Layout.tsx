@@ -945,6 +945,7 @@ export default function AppLayout() {
 
   console.log("[Layout] currentAccount:", currentAccount);
 
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeWalletModal, setActiveWalletModal] = useState<
@@ -1359,12 +1360,22 @@ export default function AppLayout() {
       <div className="absolute inset-0 bg-[#070B0F] -z-10" />
 
       <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-        <div className="sticky top-0 p-2 hidden md:flex h-dvh left-10">
-          <Sidebar navItems={navItems} />
+        {/* Fixed Desktop Sidebar */}
+        <div className="fixed top-0 left-10 h-dvh py-2 hidden md:flex z-50">
+          <Sidebar
+            navItems={navItems}
+            isCollapsed={isDesktopSidebarCollapsed}
+            onToggle={() => setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
+          />
         </div>
 
+        {/* Main Content with dynamic margin */}
         <div
-          className={`h-fit w-full flex-1 ${!isDashboard ? "pb-20" : ""} md:pb-0`}
+          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${
+            !isDashboard ? "pb-20" : ""
+          } md:pb-0 ${
+            isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
+          }`}
         >
           <MobileTopBar
             balance={walletBalanceUSD}

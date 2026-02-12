@@ -16,12 +16,14 @@ interface SidebarProps {
     active: boolean;
   }>;
   onSignOut?: () => void;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }
 
 
-export function Sidebar({ navItems }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  /* Recents logic removed */
+export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }: SidebarProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed ?? internalCollapsed;
 
   /* Hooks for navigation and layout */
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,7 +31,11 @@ export function Sidebar({ navItems }: SidebarProps) {
   const location = useLocation();
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalCollapsed(!internalCollapsed);
+    }
   };
 
   useGSAP(() => {

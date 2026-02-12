@@ -14,6 +14,10 @@ import {
   ChevronDown,
   Crown,
   AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  RotateCcw,
 } from "lucide-react";
 import WorkflowSteps from "@/components/WorkflowSteps";
 import AgentSelector from "@/components/AgentSelector";
@@ -1566,28 +1570,7 @@ const Dashboard = () => {
                           className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           title="Copy message"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-white/80"
-                          >
-                            <rect
-                              x="9"
-                              y="9"
-                              width="13"
-                              height="13"
-                              rx="2"
-                              ry="2"
-                            ></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
+                          <Copy size={14} className="text-white/40 hover:text-white/80" />
                         </button>
                         <button
                           onClick={() => {
@@ -1699,32 +1682,14 @@ const Dashboard = () => {
                             }}
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                            <Copy
+                              size={14}
                               className={
                                 copiedId === message.id.toString()
                                   ? "text-[#B7FC0D]"
                                   : "text-white/40 hover:text-white/80"
                               }
-                            >
-                              <rect
-                                x="9"
-                                y="9"
-                                width="13"
-                                height="13"
-                                rx="2"
-                                ry="2"
-                              ></rect>
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
 
@@ -1735,28 +1700,19 @@ const Dashboard = () => {
                             }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
+                            <ThumbsUp
+                              size={14}
                               fill={
                                 feedback[message.id.toString()] === "like"
                                   ? "currentColor"
                                   : "none"
                               }
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
                               className={
                                 feedback[message.id.toString()] === "like"
                                   ? "text-blue-400"
                                   : "text-white/40 hover:text-blue-400"
                               }
-                            >
-                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
 
@@ -1767,28 +1723,19 @@ const Dashboard = () => {
                             }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
+                            <ThumbsDown
+                              size={14}
                               fill={
                                 feedback[message.id.toString()] === "dislike"
                                   ? "currentColor"
                                   : "none"
                               }
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
                               className={
                                 feedback[message.id.toString()] === "dislike"
                                   ? "text-red-400"
                                   : "text-white/40 hover:text-red-400"
                               }
-                            >
-                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
                         <button
@@ -1798,23 +1745,7 @@ const Dashboard = () => {
                           className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           title="Retry"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-white/80"
-                          >
-                            <path d="M21 2v6h-6"></path>
-                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                            <path d="M3 22v-6h6"></path>
-                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                          </svg>
+                          <RotateCcw size={14} className="text-white/40 hover:text-white/80" />
                         </button>
                       </div>
                     )}

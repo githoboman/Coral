@@ -564,7 +564,7 @@ const Activity = () => {
         <div className="flex-1 flex flex-col justify-between bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 relative overflow-hidden">
           <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#B7FC0D]/5 blur-[60px] rounded-full pointer-events-none" />
 
-          <div className="flex justify-between">
+          <div className="flex justify-between mb-4">
             <div className="flex items-center gap-4">
               <span className="text-[40px] font-light text-white leading-none">
                 {stats.totalTasks}
