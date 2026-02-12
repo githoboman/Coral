@@ -1342,7 +1342,13 @@ const Dashboard = () => {
   if (isHistoryLoading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[100dvh] w-full bg-transparent">
-        <LoadingSpinner size="lg" />
+        <div className="relative flex items-center justify-center">
+          <img
+            src="/assets/images/signin-logo.png"
+            alt="Loading..."
+            className="w-24 h-24 object-contain animate-pulse"
+          />
+        </div>
       </div>
     );
   }
