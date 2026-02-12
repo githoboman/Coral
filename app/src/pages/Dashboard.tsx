@@ -18,6 +18,7 @@ import {
   ThumbsDown,
   Copy,
   RotateCcw,
+  Clock,
 } from "lucide-react";
 import WorkflowSteps from "@/components/WorkflowSteps";
 import AgentSelector from "@/components/AgentSelector";
@@ -318,8 +319,10 @@ const Dashboard = () => {
     limit: number;
     remaining: number;
     tier: number;
+    resetInSeconds?: number;
   } | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [taskCountdown, setTaskCountdown] = useState<number | null>(null);
 
   // Pending transaction action state (for immediate token transfers)
   interface PendingTxAction {
@@ -531,10 +534,29 @@ const Dashboard = () => {
     if (selectedAgentId === "task_agent" && user_id) {
       getTaskPromptStatus(user_id).then((status) => {
         setTaskPromptStatus(status);
+        if (status.resetInSeconds) {
+          setTaskCountdown(status.resetInSeconds);
+        }
         console.log("[TASK PROMPTS] Status:", status);
       });
     }
   }, [selectedAgentId, user_id]);
+
+  // Task Countdown timer effect
+  useEffect(() => {
+    if (taskCountdown === null || taskCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setTaskCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [taskCountdown]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -1975,6 +1997,12 @@ const Dashboard = () => {
                       </strong>{" "}
                       task prompts today.
                     </div>
+                    {taskCountdown !== null && (
+                      <div className="text-white/60 text-xs mt-3 flex items-center gap-2 border-t border-white/10 pt-2">
+                        <Clock size={12} />
+                        Resets in: <span className="font-mono text-white/90 font-bold">{formatCountdown(taskCountdown)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2073,8 +2101,13 @@ const Dashboard = () => {
           {/* Task prompt limit indicator */}
           {selectedAgentId === "task_agent" && taskPromptStatus && (
             <span
-              className={`text-xs absolute -top-6 left-5 ${taskPromptStatus.remaining === 0
-                ? "text-red-400"
+              onClick={() => {
+                if (taskPromptStatus.remaining === 0) {
+                  setShowUpgradeModal(true);
+                }
+              }}
+              className={`text-xs absolute -top-6 left-5 transition-colors py-1 px-2 rounded-full ${taskPromptStatus.remaining === 0
+                ? "text-purple-400 hover:text-purple-300 cursor-pointer hover:underline"
                 : taskPromptStatus.remaining <= 1
                   ? "text-yellow-400/70"
                   : "text-white/40"

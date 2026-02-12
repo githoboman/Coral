@@ -131,6 +131,7 @@ export async function getTaskPromptStatus(userId: string): Promise<{
   limit: number;
   remaining: number;
   tier: number;
+  resetInSeconds?: number;
 }> {
   try {
     const response = await fetch(

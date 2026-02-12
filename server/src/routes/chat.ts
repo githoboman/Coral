@@ -385,11 +385,18 @@ router.get("/task-prompts/:userId", async (req, res) => {
       used = remaining.used;
     }
 
+    // Calculate time until next reset (Midnight UTC)
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCHours(24, 0, 0, 0);
+    const resetInSeconds = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+
     const result = {
       used,
       limit,
       remaining: Math.max(0, limit - used),
       tier: tierStatus.tier,
+      resetInSeconds,
     };
 
     console.log(`[TASK PROMPTS] Returning: ${JSON.stringify(result)}`);
