@@ -1,6 +1,33 @@
+import { useState, useEffect } from "react";
 import { Hammer } from "lucide-react";
 
 export default function Maintenance() {
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const target = new Date();
+      target.setHours(19, 0, 0, 0); // 7 PM today
+
+      const difference = target.getTime() - now.getTime();
+
+      if (difference > 0) {
+        setTimeLeft({
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      } else {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,238,28,0.05),transparent_50%)]" />
@@ -29,9 +56,27 @@ export default function Maintenance() {
           </h2>
 
           <p className="text-white/50 text-base leading-relaxed mb-8">
-            We're currently performing some scheduled upgrades to improve your experience. 
+            We're currently performing some scheduled upgrades to improve your experience.
             Thank you for your patience!
           </p>
+
+          {/* Countdown Timer */}
+          <div className="flex items-center justify-center gap-3 md:gap-4 mb-10">
+            {['Hours', 'Minutes', 'Seconds'].map((label, i) => {
+              const value = i === 0 ? timeLeft.hours : i === 1 ? timeLeft.minutes : timeLeft.seconds;
+              return (
+                <div key={label} className="flex flex-col items-center gap-2">
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-[#0A0A0A] border border-white/10 rounded-2xl flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-[#8BEE1C]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="text-2xl md:text-3xl font-mono font-bold text-white relative z-10">
+                      {value.toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">{label}</span>
+                </div>
+              );
+            })}
+          </div>
 
           <div className="space-y-6">
             <p className="text-white/40 text-sm font-medium uppercase tracking-widest">
