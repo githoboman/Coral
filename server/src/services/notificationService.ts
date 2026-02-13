@@ -19,9 +19,9 @@ export class NotificationService {
   }
 
   /**
-   * Helper to get Telegram Chat ID for a user
+   * Helper to get User Details (Chat ID + Username)
    */
-  private async getTelegramChatId(userId: string): Promise<string | null> {
+  private async getUserDetails(userId: string): Promise<{ chatId: string; username: string } | null> {
     try {
       const blobId = await this.ticketMinter.getCurrentBlobId();
       if (!blobId) return null;
@@ -29,12 +29,17 @@ export class NotificationService {
       const profile = await this.userManager.getUserProfile(blobId, userId);
       if (!profile || !profile.telegram_chat_id) return null;
 
-      // Handle encrypted data if necessary (assuming it's decrypted in DecryptedUserProfile,
-      // but UserProfile has it as EncryptedData | string. 
-      // The userManager.getUserProfile returns DecryptedUserProfile so it should be string)
-      return profile.telegram_chat_id as string;
+      // Determine display name: Username -> First Name -> "User"
+      let displayName = "User";
+      if (profile.username) displayName = profile.username;
+      else if (profile.first_name) displayName = profile.first_name;
+
+      return { 
+        chatId: profile.telegram_chat_id as string,
+        username: displayName
+      };
     } catch (error) {
-      console.error(`[NOTIFICATION] Error getting chat ID for ${userId}:`, error);
+      console.error(`[NOTIFICATION] Error getting user details for ${userId}:`, error);
       return null;
     }
   }
@@ -43,14 +48,14 @@ export class NotificationService {
    * Send a general notification to a user
    */
   public async sendNotification(userId: string, message: string): Promise<boolean> {
-    const chatId = await this.getTelegramChatId(userId);
-    if (!chatId) {
+    const details = await this.getUserDetails(userId);
+    if (!details || !details.chatId) {
       console.log(`[NOTIFICATION] No Telegram chat ID for user ${userId}`);
       return false;
     }
 
     try {
-      await this.telegramBot.sendMessage(chatId, message);
+      await this.telegramBot.sendMessage(details.chatId, message);
       console.log(`[NOTIFICATION] Sent to ${userId}: ${message.substring(0, 20)}...`);
       return true;
     } catch (error) {
@@ -63,36 +68,69 @@ export class NotificationService {
    * Notify user about a newly created task
    */
   public async sendTaskCreatedNotification(userId: string, task: Partial<TaskData>) {
-    const priorityEmoji = 
-      task.priority === 'high' ? '🔴' : 
-      task.priority === 'medium' ? '🟡' : '🟢';
+    const details = await this.getUserDetails(userId);
+    if (!details) return;
+
+    const priorityStr = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
 
     const message = `
-🆕 *New Task Created*
+Hey ${details.username}
+You just created a new task!
 
-*${task.task_name}*
-${task.description ? `_${task.description}_\n` : ''}
-📅 Due: ${task.due_date ? new Date(task.due_date).toLocaleString() : 'No due date'}
-${priorityEmoji} Priority: ${task.priority?.toUpperCase()}
+ *Details*
+${task.task_name}
+${task.description || ''}
+
+ *Due Date*
+${task.due_date ? new Date(task.due_date).toLocaleString() : 'No due date'}
+
+ *Priority* 
+${priorityStr}
+
+I'd be here to remind you once it is due.
     `.trim();
 
-    await this.sendNotification(userId, message);
+    // Use direct sendMessage since we already fetched details
+    try {
+        await this.telegramBot.sendMessage(details.chatId, message);
+    } catch (e) {
+        console.error("Failed to send created notification", e);
+    }
   }
 
   /**
    * Notify user about a due task
    */
   public async sendTaskDueNotification(userId: string, task: TaskData) {
+    const details = await this.getUserDetails(userId);
+    if (!details) return;
+
     const message = `
-⏰ *Task Due Reminder*
+Reminder Alert!!
 
-*${task.task_name}*
- is due soon!
+Hey ${details.username}
 
-📅 Due: ${new Date(task.due_date!).toLocaleString()}
+
+Your task is due! Kindly attend to it.
+
+Here's the *details of what you asked me to remind you* 
+
+${task.task_name}
+${task.description || ''}
+
+ *Due Date*
+${new Date(task.due_date!).toLocaleDateString()}
+
+Do well to schedule more activities, I look forward to helping you stay productive, thanks 😊
+
+Get to it
     `.trim();
 
-    await this.sendNotification(userId, message);
+     try {
+        await this.telegramBot.sendMessage(details.chatId, message);
+    } catch (e) {
+        console.error("Failed to send due notification", e);
+    }
   }
 }
 

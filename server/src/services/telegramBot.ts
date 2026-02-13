@@ -166,11 +166,15 @@ export class TelegramBot {
            return;
         }
 
+        let displayName = "User";
+        if (profile.username) displayName = profile.username;
+        else if (profile.first_name) displayName = profile.first_name;
+
         const subscription = profile.subscription_tier === 1 ? "Premium" : "Free";
         const message = `
 📊 *Your Tovira Profile*
 
-👤 *User:* ${profile.telegram_username || "Unknown"}
+👤 *User:* ${displayName}
 👛 *Wallet:* \`${walletAddress}\`
 💎 *Plan:* ${subscription}
 🔥 *Streak:* ${profile.current_streak || 0} days
