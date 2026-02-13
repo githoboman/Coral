@@ -501,7 +501,7 @@ const Dashboard = () => {
             console.warn("Failed to parse cached messages:", e);
           }
         }
-        navigate(`/${lastChatId}`, { replace: true });
+        navigate(`/chat/${lastChatId}`, { replace: true });
       }
     }
   }, [user_id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1159,7 +1159,7 @@ const Dashboard = () => {
             );
           });
           setTempMessages([]);
-          navigate(`/${activeChatId}`);
+          navigate(`/chat/${activeChatId}`);
         }
 
         const aiMessage: Message = {
@@ -1230,7 +1230,7 @@ const Dashboard = () => {
     localStorage.removeItem("tovira_last_chat_id");
 
     // Navigate to home (no chat ID)
-    navigate("/");
+    navigate("/chat");
 
     // Clear current chat in Redux
     dispatch(setCurrentChat(null));
@@ -2174,7 +2174,7 @@ const Dashboard = () => {
         currentChatId={currentChatId}
         selectedAgentId={selectedAgentId}
         onChatSelect={(chatId) => {
-          navigate(`/${chatId}`);
+          navigate(`/chat/${chatId}`);
         }}
         onAgentChange={(agentId) => {
           setSelectedAgentId(agentId);
@@ -2183,7 +2183,7 @@ const Dashboard = () => {
           dispatch(deleteChat(chatId));
           // If the deleted chat was the current chat, navigate to home
           if (chatId === currentChatId) {
-            navigate("/");
+            navigate("/chat");
           }
         }}
       />

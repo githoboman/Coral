@@ -32,7 +32,6 @@ import { Transaction } from "@mysten/sui/transactions";
 import { Sidebar } from "@/components/app/Sidebar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
-import { BottomNav } from "@/components/app/BottomNav";
 import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
 import { AutoCheckIn } from "@/components/features/CheckInButton";
@@ -66,15 +65,11 @@ interface NavItem {
 const MobileSidebarDrawer = ({
   isOpen,
   onClose,
-  isDashboard,
   navItems,
-  signOut,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  isDashboard: boolean;
   navItems: any[];
-  signOut: () => void;
 }) => {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -124,11 +119,7 @@ const MobileSidebarDrawer = ({
         ref={containerRef}
         className="fixed inset-y-0 left-0 w-auto h-[100dvh] bg-transparent z-[80] p-4 md:hidden overflow-visible -translate-x-full flex items-center"
       >
-        {isDashboard ? (
-          <MobileDashboardSidebar navItems={navItems} onClose={onClose} />
-        ) : (
-          <Sidebar navItems={navItems} onSignOut={signOut} />
-        )}
+        <MobileDashboardSidebar navItems={navItems} onClose={onClose} />
       </div>
     </>
   );
@@ -945,7 +936,7 @@ export default function AppLayout() {
 
   console.log("[Layout] currentAccount:", currentAccount);
 
-  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(true);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeWalletModal, setActiveWalletModal] = useState<
@@ -1324,9 +1315,9 @@ export default function AppLayout() {
   const navItems: NavItem[] = [
     {
       name: "Chats",
-      to: "/",
+      to: "/chat",
       iconUrl: "/assets/icons/edit.svg",
-      active: location.pathname === "/" || location.pathname.startsWith("/c/"),
+      active: location.pathname === "/chat" || location.pathname.startsWith("/chat/"),
     },
     {
       name: "Analysis",
@@ -1382,7 +1373,7 @@ export default function AppLayout() {
             isConnected={!!address}
             onWalletClick={() => setIsWalletCollapsed(false)}
             onConnectClick={() => navigate("/signin")}
-            onMenuClick={isDashboard ? () => setIsSidebarOpen(true) : undefined}
+            onMenuClick={() => setIsSidebarOpen(true)}
             onRecentChatsClick={mobileActions?.onRecentClick}
             onNewChatClick={mobileActions?.onNewClick}
             showChatActions={!!mobileActions}
@@ -1397,54 +1388,13 @@ export default function AppLayout() {
               } satisfies LayoutContextType
             }
           />
-          {!isDashboard && (
-            <div className="md:hidden">
-              <BottomNav
-                navItems={[
-                  {
-                    name: "Chats",
-                    to: "/",
-                    iconUrl: "/assets/icons/edit.svg",
-                    active:
-                      location.pathname === "/" ||
-                      location.pathname.startsWith("/c/"),
-                  },
-                  {
-                    name: "Analysis",
-                    to: "/onchain",
-                    iconUrl: "/assets/icons/bar-chart.svg",
-                    active: location.pathname === "/onchain",
-                  },
-                  {
-                    name: "Leaderboard",
-                    to: "/leaderboard",
-                    iconUrl: "/assets/icons/trophy.svg",
-                    active: location.pathname === "/leaderboard",
-                  },
-                  {
-                    name: "Subscription",
-                    to: "/subscription",
-                    iconUrl: "/assets/icons/wallet.svg",
-                    active: location.pathname === "/subscription",
-                  },
-                  {
-                    name: "Profile",
-                    to: "/account",
-                    iconUrl: "/assets/icons/user.svg",
-                    active: location.pathname === "/account",
-                  },
-                ]}
-              />
-            </div>
-          )}
+
         </div>
 
         <MobileSidebarDrawer
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          isDashboard={isDashboard}
           navItems={navItems}
-          signOut={signOut}
         />
 
         <WalletManager

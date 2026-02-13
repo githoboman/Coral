@@ -62,9 +62,9 @@ const Subscription = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Subscription</h1>
-        <p className="text-white/60 mt-2">
+      <div className="mb-8 text-center md:text-left">
+        <h1 className="text-2xl md:text-3xl font-bold">Subscription</h1>
+        <p className="text-white/60 mt-2 text-sm md:text-base">
           Unlock premium features and maximize your Tovira experience
         </p>
       </div>

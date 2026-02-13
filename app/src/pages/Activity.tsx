@@ -544,8 +544,8 @@ const Activity = () => {
 
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <div className="flex items-center gap-6">
-          <h1 className="text-[28px] font-medium text-white">
+        <div className="mb-8 text-center md:text-left">
+          <h1 className="text-2xl md:text-3xl font-bold">
             Tasks
           </h1>
         </div>
