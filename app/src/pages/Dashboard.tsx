@@ -88,7 +88,6 @@ import rust from "highlight.js/lib/languages/rust";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchChats,
