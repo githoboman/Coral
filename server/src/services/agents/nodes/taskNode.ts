@@ -120,8 +120,18 @@ EXAMPLES:
         console.log(
           `[TASK NODE] ✅ Task creation tracked for ${state.userId.substring(0, 10)}...`,
         );
+
+        // ✅ SEND NOTIFICATION (fire-and-forget)
+        // Import dynamically to avoid circular dependencies if any
+        const { getNotificationService } = await import("../../notificationService");
+        const notificationService = getNotificationService();
+        if (task) {
+          await notificationService.sendTaskCreatedNotification(state.userId, task);
+          console.log(`[TASK NODE] 🔔 Notification sent to ${state.userId}`);
+        }
+
       } catch (error) {
-        console.warn("[TASK NODE] ⚠️ Failed to track task creation:", error);
+        console.warn("[TASK NODE] ⚠️ Failed to track task or send notification:", error);
       }
     })();
 

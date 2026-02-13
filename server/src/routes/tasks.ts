@@ -1,6 +1,7 @@
 // server/src/routes/tasks.ts
 import { Router, Request, Response, NextFunction } from "express";
 import { getTaskStorageService } from "../services/taskStorageService";
+import { getNotificationService } from "../services/notificationService";
 
 const router = Router();
 
@@ -69,6 +70,14 @@ router.post(
       }
 
       const task = await taskStorage.getTask(user_id, result.taskId);
+
+      // Send Telegram notification
+      const notificationService = getNotificationService();
+      if (task) {
+        notificationService.sendTaskCreatedNotification(user_id, task).catch(err => 
+          console.error("Failed to send task creation notification:", err)
+        );
+      }
 
       res.json({
         success: true,
