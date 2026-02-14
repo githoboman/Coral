@@ -72,19 +72,18 @@ export class NotificationService {
     if (!details) return;
 
     const priorityStr = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
+    const taskDetails = task.description || task.task_name;
 
     const message = `
 Hey ${details.username}
 You just created a new task!
 
- *Details*
-${task.task_name}
-${task.description || ''}
+*${taskDetails}*
 
- *Due Date*
+*Due Date*
 ${task.due_date ? new Date(task.due_date).toLocaleString() : 'No due date'}
 
- *Priority* 
+*Priority* 
 ${priorityStr}
 
 I'd be here to remind you once it is due.
@@ -105,6 +104,8 @@ I'd be here to remind you once it is due.
     const details = await this.getUserDetails(userId);
     if (!details) return;
 
+    const taskDetails = task.description || task.task_name;
+
     const message = `
 Reminder Alert!!
 
@@ -113,12 +114,9 @@ Hey ${details.username}
 
 Your task is due! Kindly attend to it.
 
-Here's the *details of what you asked me to remind you* 
+*${taskDetails}*
 
-${task.task_name}
-${task.description || ''}
-
- *Due Date*
+*Due Date*
 ${new Date(task.due_date!).toLocaleDateString()}
 
 Do well to schedule more activities, I look forward to helping you stay productive, thanks 😊

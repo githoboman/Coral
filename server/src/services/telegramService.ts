@@ -78,7 +78,10 @@ export class TelegramService {
    * Returns the deep link for a token.
    */
   public getDeepLink(token: string): string {
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME || "ToviraBot";
+    let botUsername = process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME || "ToviraBot";
+    if (botUsername.startsWith("@")) {
+      botUsername = botUsername.substring(1);
+    }
     return `https://t.me/${botUsername}?start=link_${token}`;
   }
 }
