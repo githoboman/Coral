@@ -57,7 +57,7 @@ export async function taskNode(
 
   const extractionPrompt = `Extract task parameters for a Task Manager assistant.
 Query: "${state.userQuery}"
-Time: ${new Date().toISOString()}
+Time: ${new Date().toISOString()} (UTC)
 
 RULES:
 - should_create: true ONLY if actionable.

@@ -61,14 +61,14 @@ export class TaskScheduler {
     try {
       const tasks = await this.taskStorage.getTasks(userId);
       const now = new Date();
-      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-
-      // Find tasks due within the next hour that haven't been notified
+      // Find tasks that are due (or past due) and haven't been notified
       const dueTasks = tasks.filter(task => {
         if (!task.due_date || task.status === "completed" || task.due_notification_sent) return false;
         
         const dueDate = new Date(task.due_date);
-        return dueDate > now && dueDate <= oneHourFromNow;
+        // Add a small buffer (e.g. 1 minute) to ensure we catch tasks that just became due
+        // But mainly we want to notify when Current Time >= Due Time
+        return dueDate <= now;
       });
 
       for (const task of dueTasks) {

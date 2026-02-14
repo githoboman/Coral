@@ -2077,12 +2077,12 @@ const Dashboard = () => {
               selectedAgentId === "task_agent" &&
                 taskPromptStatus &&
                 taskPromptStatus.remaining <= 0
-                ? "Upgrade to premium to continue using task agent..."
+                ? "Upgrade to premium to continue..."
                 : rateLimitStatus?.isLimited && countdown !== null
                   ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
                   : "Ask anything..."
             }
-            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited || (selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`flex-1 min-h-[48px] max-h-[120px] py-3 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited || (selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "opacity-50 cursor-not-allowed" : ""}`}
             disabled={
               isLoading ||
               !!rateLimitStatus?.isLimited ||

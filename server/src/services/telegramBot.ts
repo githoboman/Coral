@@ -246,7 +246,7 @@ _Detailed list is available on the dashboard._
   public async sendMessage(chatId: string, message: string) {
     if (!this.bot) return;
     try {
-      await this.bot.telegram.sendMessage(chatId, message);
+      await this.bot.telegram.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error(`Failed to send Telegram message to ${chatId}:`, error);
     }
