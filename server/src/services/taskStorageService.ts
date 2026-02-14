@@ -87,7 +87,6 @@ export class TaskStorageService {
       }
 
       return userProfile.task_registry_blob_id || null;
-      return userProfile.task_registry_blob_id || null;
     } catch (error) {
       console.error("Error getting user task registry blob ID:", error);
       throw error;
