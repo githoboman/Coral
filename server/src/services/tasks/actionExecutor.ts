@@ -1,6 +1,22 @@
 import { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { TokenTransferParams, DCAParams, TaskActionType } from '../agents/types';
+// Define types locally since agents directory was removed
+export interface TokenTransferParams {
+  recipientAddress: string;
+  amount: string;
+  coinType: string;
+}
+
+export interface DCAParams {
+  fromCoin: string;
+  toCoin: string;
+  amountPerPurchase: string;
+  frequency: string; // cron expression
+  duration?: number; // minutes
+  totalAmountLimit?: string;
+}
+
+export type TaskActionType = 'transfer' | 'swap' | 'dca' | 'stake' | 'claim';
 
 // Initialize Sui client - defaults to mainnet
 const suiClient = new SuiClient({

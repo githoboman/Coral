@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
-import chatsReducer from './slices/chatsSlice';
+
 import tasksReducer from './slices/tasksSlice';
 import eventsReducer from './slices/eventsSlice';
 import uiReducer from './slices/uiSlice';
@@ -9,7 +9,7 @@ import leaderboardReducer from './slices/leaderboardSlice';
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    chats: chatsReducer,
+
     tasks: tasksReducer,
     events: eventsReducer,
     ui: uiReducer,

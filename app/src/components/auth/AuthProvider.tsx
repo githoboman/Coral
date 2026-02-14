@@ -15,7 +15,7 @@ import {
   fetchLeaderboard,
   clearLeaderboard,
 } from "@/store/slices/leaderboardSlice";
-import { resetChats } from "@/store/slices/chatsSlice";
+
 
 interface AuthContextType {
   isOnboarded: boolean;
@@ -264,7 +264,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       disconnectWallet();
 
       // Clear Redux stores
-      dispatch(resetChats());
+
       dispatch(clearLeaderboard());
 
       // 1. Clear specific auth items

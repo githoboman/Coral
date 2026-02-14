@@ -8,7 +8,7 @@ import { fetchEvents } from "@/store/slices/eventsSlice";
 import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { Toast, ToastType } from "@/components/ui/Toast";
 import { useDebounce } from "@/hooks/useDebounce";
-import { confirmTaskClaim } from "@/services/chatService";
+
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -209,37 +209,29 @@ const Activity = () => {
       setPrompt("");
       closeModal();
 
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      const response = await fetch(`${API_BASE_URL}/api/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          message: currentPrompt, // Use captured prompt
-          agent_id: "task_agent",
-          stream: false,
+          task_name: currentPrompt,
+          priority: "medium",
+          status: "pending"
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to process task prompt");
+      if (!response.ok) throw new Error("Failed to create task");
 
       const data = await response.json();
 
-      if (data.task_created) {
+      if (data.success) {
         dispatch(invalidateCache());
         await dispatch(fetchTasks(userId));
-        // Success! Remove optimistic task as real one is now in the list
+        // Success! Remove optimistic task
         setOptimisticTasks(prev => prev.filter(t => t.id !== tempId));
         setToast({ message: "Task created successfully!", type: "success" });
       } else {
-        // Task creation failed
-        console.warn("Task creation denied:", data.response);
-        const errorMsg = data.response || "Agent declined to create task.";
-
-        // Update optimistic task to failed state
-        setOptimisticTasks(prev => prev.map(t =>
-          t.id === tempId ? { ...t, status: "failed", error: errorMsg } : t
-        ));
-        setToast({ message: errorMsg, type: "error" });
+        throw new Error(data.detail || "Failed to create task");
       }
     } catch (err) {
       console.error("Task creation error:", err);
@@ -277,21 +269,18 @@ const Activity = () => {
       setTogglingItems((prev) => new Set(prev).add(id));
       setToast(null);
 
-      // Instead of direct API call, use the chat agent as requested
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      // Direct API call
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          message: `Complete task ${id}`,
-          agent_id: "task_agent",
-          stream: false,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to complete task via agent");
+      if (!response.ok) throw new Error("Failed to complete task");
 
-      // Refresh tasks after agent processing
+      // Refresh tasks
       dispatch(invalidateCache());
       await dispatch(fetchTasks(userId));
     } catch (err) {
@@ -426,10 +415,14 @@ const Activity = () => {
 
         console.log("[CLAIM] Transaction successful:", result.digest);
 
-        await confirmTaskClaim(
-          currentAccount.address,
-          claimable.claimable_tasks,
-        );
+        await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: currentAccount.address,
+            task_count: claimable.claimable_tasks
+          })
+        });
 
         window.dispatchEvent(new Event("pointsUpdated"));
 
