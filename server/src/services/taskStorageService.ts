@@ -191,16 +191,21 @@ export class TaskStorageService {
     try {
       currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
     } catch (error) {
-      console.warn(`Could not fetch registry blob ID, assuming none or error: ${error}`);
-      // If it was a network error, we should probably fail here too, but for now strictness is in the `get` method.
-      // Actually, we MUST fail here if it's a network error, otherwise we overwrite.
-      throw error;
+      console.error(`❌ Critical Error: Could not fetch user profile/registry for ${userId}:`, error);
+      // CRITICAL: Return null to abort task creation and protect existing data.
+      // Do NOT proceed to create a new registry if the fetch failed due to network error.
+      return null; 
     }
 
     let currentRegistry: TaskRegistry | null = null;
 
     if (currentRegistryBlobId) {
-      currentRegistry = await this.getTaskRegistry(userId);
+      try {
+        currentRegistry = await this.getTaskRegistry(userId);
+      } catch (error) {
+        console.error(`❌ Critical Error: Could not fetch task registry ${currentRegistryBlobId}:`, error);
+        return null;
+      }
     }
 
     // Encrypt task data

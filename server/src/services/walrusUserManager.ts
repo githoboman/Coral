@@ -341,7 +341,7 @@ export class WalrusUserManager {
     }
 
     console.error("❌ Failed to fetch users registry after all retries");
-    return null;
+    throw lastError || new Error("Failed to fetch users registry");
   }
 
   async uploadUsersRegistry(
@@ -482,22 +482,20 @@ export class WalrusUserManager {
     registryBlobId: string,
     walletAddress: string,
   ): Promise<DecryptedUserProfile | null> {
-    try {
-      const registry = await this.fetchUsersRegistry(registryBlobId);
-      if (!registry) {
-        return null;
-      }
-
-      const encryptedProfile = registry.users[walletAddress];
-      if (!encryptedProfile) {
-        return null;
-      }
-
-      return this.decryptProfile(encryptedProfile);
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
+    // Propagate errors so caller knows if fetch failed vs user not found
+    const registry = await this.fetchUsersRegistry(registryBlobId);
+    
+    // If registry is null (shouldn't happen with throw change, but for type safety)
+    if (!registry) { 
+      throw new Error("Failed to retrieve user registry");
     }
+
+    const encryptedProfile = registry.users[walletAddress];
+    if (!encryptedProfile) {
+      return null; // User genuinely doesn't exist in this registry
+    }
+
+    return this.decryptProfile(encryptedProfile);
   }
 
   async findWalletByEmail(
