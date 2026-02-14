@@ -584,6 +584,34 @@ export class WalrusUserManager {
     }
   }
 
+  async findWalletByUsername(
+    registryBlobId: string,
+    username: string,
+  ): Promise<string | null> {
+    try {
+      const registry = await this.fetchUsersRegistry(registryBlobId);
+      if (!registry) return null;
+
+      const targetUsername = username.toLowerCase().trim();
+
+      for (const [walletAddress, encryptedProfile] of Object.entries(
+        registry.users,
+      )) {
+        const decryptedUsername = this.encryption.decryptOptional(
+          encryptedProfile.username,
+        );
+        if (decryptedUsername?.toLowerCase().trim() === targetUsername) {
+          return walletAddress;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in findWalletByUsername:", error);
+      return null;
+    }
+  }
+
   getBlobUrl(blobId: string): string {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }

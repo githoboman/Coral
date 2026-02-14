@@ -166,11 +166,15 @@ export class TelegramBot {
            return;
         }
 
+        let displayName = "User";
+        if (profile.username) displayName = profile.username;
+        else if (profile.first_name) displayName = profile.first_name;
+
         const subscription = profile.subscription_tier === 1 ? "Premium" : "Free";
         const message = `
 📊 *Your Tovira Profile*
 
-👤 *User:* ${profile.telegram_username || "Unknown"}
+👤 *User:* ${displayName}
 👛 *Wallet:* \`${walletAddress}\`
 💎 *Plan:* ${subscription}
 🔥 *Streak:* ${profile.current_streak || 0} days
@@ -188,6 +192,54 @@ _Use /disconnect in the web app to unlink._
 
     this.bot.command("status", async (ctx) => {
       await ctx.reply("You are connected to Tovira.");
+    });
+
+    this.bot.command("tasks", async (ctx) => {
+      try {
+        const chatId = ctx.chat?.id.toString();
+        if (!chatId) return;
+
+        const blobId = await this.ticketMinter.getCurrentBlobId();
+        if (!blobId) {
+          await ctx.reply("❌ Service unavailable.");
+          return;
+        }
+
+        const walletAddress = await this.userManager.findWalletByTelegramChatId(blobId, chatId);
+        this.log(`Tasks command: ChatID ${chatId} -> Wallet ${walletAddress}`);
+        
+        if (!walletAddress) {
+          await ctx.reply("❌ You are not connected. Link your account in the dashboard.");
+          return;
+        }
+
+        // Import here to avoid circular dependencies if any
+        const { getTaskStorageService } = await import("./taskStorageService");
+        const taskStorage = getTaskStorageService();
+        const tasks = await taskStorage.getTasks(walletAddress);
+
+        const total = tasks.length;
+        const pending = tasks.filter(t => t.status === "pending").length;
+        const completed = tasks.filter(t => t.status === "completed").length;
+        const overdue = tasks.filter(t => t.status === "pending" && t.due_date && new Date(t.due_date) < new Date()).length;
+
+        const message = `
+📋 *Your Tasks*
+
+Total: ${total}
+🟡 Pending: ${pending}
+🟢 Completed: ${completed}
+🔴 Overdue: ${overdue}
+
+_Detailed list is available on the dashboard._
+        `.trim();
+
+        await ctx.replyWithMarkdown(message);
+
+      } catch (error) {
+        this.log("Error in /tasks command:", error);
+        await ctx.reply("❌ Failed to fetch tasks.");
+      }
     });
   }
 

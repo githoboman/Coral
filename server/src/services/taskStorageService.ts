@@ -18,6 +18,7 @@ export interface TaskData {
   action_status?: string;
   created_at: string;
   updated_at: string;
+  due_notification_sent?: boolean;
 }
 
 export interface TaskRegistry {
@@ -138,6 +139,9 @@ export class TaskStorageService {
           subscription_expires_at: userProfile.subscription_expires_at,
           daily_prompts_used: userProfile.daily_prompts_used,
           last_prompt_date: userProfile.last_prompt_date,
+          telegram_chat_id: userProfile.telegram_chat_id,
+          telegram_username: userProfile.telegram_username,
+          telegram_linked_at: userProfile.telegram_linked_at,
         },
       );
 

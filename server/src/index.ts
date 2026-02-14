@@ -17,6 +17,11 @@ const server = app.listen(PORT, () => {
   import("./services/telegramBot").then(({ getTelegramBot }) => {
     getTelegramBot();
   });
+
+  // Initialize Task Scheduler
+  import("./services/scheduler").then(({ getTaskScheduler }) => {
+    getTaskScheduler().start();
+  });
 });
 
 process.on("SIGTERM", () => {
