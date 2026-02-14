@@ -922,7 +922,7 @@ export class TicketMinter {
       return null;
     } catch (error) {
       console.error("Error reading BlobRegistry:", error);
-      return null;
+      throw error;
     }
   }
 

@@ -86,9 +86,10 @@ export class TaskStorageService {
       }
 
       return userProfile.task_registry_blob_id || null;
+      return userProfile.task_registry_blob_id || null;
     } catch (error) {
       console.error("Error getting user task registry blob ID:", error);
-      return null;
+      throw error;
     }
   }
 
@@ -183,7 +184,16 @@ export class TaskStorageService {
     };
 
     // Get current registry
-    const currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
+    let currentRegistryBlobId: string | null = null;
+    try {
+      currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
+    } catch (error) {
+      console.warn(`Could not fetch registry blob ID, assuming none or error: ${error}`);
+      // If it was a network error, we should probably fail here too, but for now strictness is in the `get` method.
+      // Actually, we MUST fail here if it's a network error, otherwise we overwrite.
+      throw error;
+    }
+
     let currentRegistry: TaskRegistry | null = null;
 
     if (currentRegistryBlobId) {
@@ -196,24 +206,24 @@ export class TaskStorageService {
     // Update registry
     const updatedRegistry: TaskRegistry = currentRegistry
       ? {
-          ...currentRegistry,
-          version: currentRegistry.version + 1,
-          updated_at: now,
-          tasks: {
-            ...currentRegistry.tasks,
-            [taskId]: encryptedTask,
-          },
-          active_task_ids: [...currentRegistry.active_task_ids, taskId],
-        }
+        ...currentRegistry,
+        version: currentRegistry.version + 1,
+        updated_at: now,
+        tasks: {
+          ...currentRegistry.tasks,
+          [taskId]: encryptedTask,
+        },
+        active_task_ids: [...currentRegistry.active_task_ids, taskId],
+      }
       : {
-          version: 1,
-          user_id: userId,
-          updated_at: now,
-          tasks: {
-            [taskId]: encryptedTask,
-          },
-          active_task_ids: [taskId],
-        };
+        version: 1,
+        user_id: userId,
+        updated_at: now,
+        tasks: {
+          [taskId]: encryptedTask,
+        },
+        active_task_ids: [taskId],
+      };
 
     // Upload registry
     const registryBlobId = await this.uploadRegistry(updatedRegistry);
@@ -274,7 +284,7 @@ export class TaskStorageService {
       return registry;
     } catch (error) {
       console.error(`Error fetching task registry for ${userId}:`, error);
-      return null;
+      throw error;
     }
   }
 
