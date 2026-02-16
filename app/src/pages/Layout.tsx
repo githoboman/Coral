@@ -34,7 +34,6 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
 import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
-import { AutoCheckIn } from "@/components/features/CheckInButton";
 import { sileo } from "sileo";
 
 export type LayoutContextType = {
