@@ -1,8 +1,8 @@
 // server/src/services/taskStorageService.ts
 import axios from "axios";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
-import { TicketMinter } from "./ticketMinter";
-import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 
 export interface TaskData {
   id: string;
@@ -67,7 +67,7 @@ export class TaskStorageService {
     userId: string,
   ): Promise<string | null> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -75,7 +75,7 @@ export class TaskStorageService {
         return null;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -99,7 +99,7 @@ export class TaskStorageService {
     taskRegistryBlobId: string,
   ): Promise<boolean> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -107,7 +107,7 @@ export class TaskStorageService {
         return false;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,

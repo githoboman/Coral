@@ -2,8 +2,8 @@
 // FIXED VERSION with SSL retry logic
 import axios from "axios";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
-import { TicketMinter } from "./ticketMinter";
-import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 
 export interface ChatMessage {
   id: string;
@@ -85,7 +85,7 @@ export class ChatStorageService {
     userId: string,
   ): Promise<string | null> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -93,7 +93,7 @@ export class ChatStorageService {
         return null;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -117,7 +117,7 @@ export class ChatStorageService {
     chatRegistryBlobId: string,
   ): Promise<boolean> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -125,7 +125,7 @@ export class ChatStorageService {
         return false;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,

@@ -1,8 +1,8 @@
 // server/src/services/subscriptionService.ts
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
-import { TicketMinter } from "./ticketMinter";
-import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 import { redisClient } from "../middleware/rateLimiter";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -153,12 +153,12 @@ export class SubscriptionService {
     last_prompt_date?: string;
   } | null> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) return null;
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const profile = await userManager.getUserProfile(
         userRegistryBlobId,
         walletAddress,
@@ -188,12 +188,12 @@ export class SubscriptionService {
     },
   ): Promise<boolean> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) return false;
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const profile = await userManager.getUserProfile(
         userRegistryBlobId,
         walletAddress,

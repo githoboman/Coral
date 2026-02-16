@@ -1,12 +1,12 @@
 import { getTelegramBot } from "./telegramBot";
-import { WalrusUserManager } from "./walrusUserManager";
-import { TicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
 import { TaskData } from "./taskStorageService";
 
 export class NotificationService {
   private static instance: NotificationService;
-  private userManager = new WalrusUserManager();
-  private ticketMinter = new TicketMinter();
+  private userManager = getWalrusUserManager();
+  private ticketMinter = getTicketMinter();
   private telegramBot = getTelegramBot();
 
   private constructor() {}
