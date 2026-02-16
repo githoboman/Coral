@@ -42,7 +42,9 @@ export class TicketMinter {
   private blobRegistryId: string;
   private feeConfigId: string;
 
-  constructor() {
+  private static instance: TicketMinter;
+
+  private constructor() {
     const network = process.env.SUI_NETWORK || "testnet";
     this.client = new SuiClient({
       url: getFullnodeUrl(network as "testnet" | "mainnet"),
@@ -79,6 +81,41 @@ export class TicketMinter {
     console.log(`   PointsRegistry:  ${this.pointsRegistryId}`);
     console.log(`   BlobRegistry:    ${this.blobRegistryId}`);
     console.log(`   FeeConfig:       ${this.feeConfigId}`);
+  }
+
+  public static getInstance(): TicketMinter {
+    if (!TicketMinter.instance) {
+      TicketMinter.instance = new TicketMinter();
+    }
+    return TicketMinter.instance;
+  }
+
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    retries = 10,
+    delay = 1000
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error: any) {
+      const isRateLimit =
+        error?.message?.includes("429") ||
+        error?.status === 429 ||
+        (error?.body && JSON.stringify(error.body).includes("Too Many Requests"));
+
+      if (retries > 0 && isRateLimit) {
+        console.warn(
+          `⚠️  RPC Rate Limit (429) hit. Waiting ${delay}ms before retry... (${retries} attempts left)`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        // Exponential backoff with jitter
+        const nextDelay = Math.min(delay * 2, 30000) + Math.random() * 500;
+        return this.executeWithRetry(operation, retries - 1, nextDelay);
+      }
+
+      console.error(`❌ Operation failed after retries (Status: ${error?.status || 'unknown'}).`);
+      throw error;
+    }
   }
 
   private normalizeAddress(addr: string): string {
@@ -451,6 +488,13 @@ export class TicketMinter {
 
       if (result.effects?.status?.status === "success") {
         console.log(`✅ BlobRegistry updated  tx=${result.digest}`);
+        
+        // Update cache immediately so we don't serve stale data
+        this.blobRegistryCache = {
+          id: newBlobId,
+          timestamp: Date.now()
+        };
+        
         return result.digest;
       }
 
@@ -520,18 +564,22 @@ export class TicketMinter {
       const normalized = this.normalizeAddress(walletAddress);
 
       const [claimEvents, taskClaimEvents] = await Promise.all([
-        this.client.queryEvents({
-          query: { MoveEventType: `${this.packageId}::points::PointsClaimed` },
-          limit: 50,
-          order: "descending",
-        }),
-        this.client.queryEvents({
-          query: {
-            MoveEventType: `${this.packageId}::task_points::TaskPointsClaimed`,
-          },
-          limit: 50,
-          order: "descending",
-        }),
+        this.executeWithRetry(() =>
+          this.client.queryEvents({
+            query: { MoveEventType: `${this.packageId}::points::PointsClaimed` },
+            limit: 50,
+            order: "descending",
+          })
+        ),
+        this.executeWithRetry(() =>
+          this.client.queryEvents({
+            query: {
+              MoveEventType: `${this.packageId}::task_points::TaskPointsClaimed`,
+            },
+            limit: 50,
+            order: "descending",
+          })
+        ),
       ]);
 
       interface BalanceSnapshot {
@@ -1094,3 +1142,6 @@ export class TicketMinter {
     }
   }
 }
+
+export const getTicketMinter = () => TicketMinter.getInstance();
+

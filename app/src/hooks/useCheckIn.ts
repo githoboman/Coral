@@ -354,6 +354,15 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         }
       }
 
+      console.error(errorMsg);
+      // Only show toast checks that are not silent/background if we want, but user asked for "show the toast letting the user know"
+      // The error state is also set, but a toast is more visible.
+      if (err.name !== "AbortError") {
+         import("sileo").then(({ sileo }) => {
+            sileo.error({ title: "Check-in Failed", description: errorMsg });
+         });
+      }
+
       setState((prev) => ({
         ...prev,
         status: "error",

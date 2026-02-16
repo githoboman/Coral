@@ -41,6 +41,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "sileo": "^0.0.8",
     "tailwindcss": "^4.1.13"
   },
   "devDependencies": {

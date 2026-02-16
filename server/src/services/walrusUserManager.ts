@@ -122,6 +122,7 @@ export interface WalrusUploadResponse {
 }
 
 export class WalrusUserManager {
+  private static instance: WalrusUserManager;
   private publisherUrl: string;
   private aggregatorUrl: string;
   private epochs: number;
@@ -129,7 +130,7 @@ export class WalrusUserManager {
     null;
   private encryption = getEncryptionService();
 
-  constructor() {
+  private constructor() {
     this.publisherUrl =
       process.env.WALRUS_PUBLISHER_URL ||
       "https://publisher.walrus-testnet.walrus.space";
@@ -141,6 +142,13 @@ export class WalrusUserManager {
     console.log("✅ WalrusUserManager initialized");
     console.log(`   Publisher: ${this.publisherUrl}`);
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
+  }
+
+  public static getInstance(): WalrusUserManager {
+    if (!WalrusUserManager.instance) {
+      WalrusUserManager.instance = new WalrusUserManager();
+    }
+    return WalrusUserManager.instance;
   }
 
   createUserProfile(
@@ -614,3 +622,6 @@ export class WalrusUserManager {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 }
+
+export const getWalrusUserManager = () => WalrusUserManager.getInstance();
+

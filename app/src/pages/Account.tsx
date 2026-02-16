@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { sileo } from "sileo";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
@@ -149,6 +150,16 @@ const Account = () => {
               </div>
             ))}
           </div>
+          
+          {/* <div className="bg-white/5 p-4 sm:p-6 rounded-3xl">
+            <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider mb-4">Debug</h3>
+            <button
+              onClick={() => sileo.success({ title: "Test Toast", description: "This is a test notification with a description." })}
+              className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
+            >
+              Test Toast Notification
+            </button>
+          </div> */}
         </div>
 
         <div className="flex flex-col gap-6 sm:gap-8">

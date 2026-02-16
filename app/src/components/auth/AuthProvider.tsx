@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-toastify";
+import { sileo } from "sileo";
 import { OnboardingModal } from "./Onboarding";
 import {
   useCurrentAccount,
@@ -7,7 +7,6 @@ import {
   useDisconnectWallet,
 } from "@mysten/dapp-kit";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import "react-toastify/dist/ReactToastify.css";
 import { useAppDispatch } from "@/store/hooks";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -206,7 +205,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const walletAddress = currentAccount?.address;
 
     if (!walletAddress) {
-      toast.error("Wallet not connected");
+      sileo.error({ title: "Error", description: "Wallet not connected" });
       return { success: false };
     }
 
@@ -268,12 +267,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
 
-      toast.success("Profile saved! Checking waitlist status...");
+      sileo.success({ title: "Profile Saved", description: "Checking waitlist status..." });
 
       return { success: true, data };
     } catch (error: any) {
       setOnboardingMessage(error.message || "Failed to save profile");
-      toast.error(error.message || "Failed to save profile");
+      sileo.error({ title: "Error", description: error.message || "Failed to save profile" });
 
       throw error;
     } finally {
@@ -316,9 +315,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       navigate("/signin", { replace: true });
 
-      toast.success("Successfully logged out");
+      sileo.success({ title: "Logged Out", description: "Successfully logged out" });
     } catch (error: any) {
-      toast.error("Failed to log out completely");
+      sileo.error({ title: "Error", description: "Failed to log out completely" });
     }
   };
 
