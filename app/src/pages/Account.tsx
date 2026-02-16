@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { sileo } from "sileo";
+// import { sileo } from "sileo";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
