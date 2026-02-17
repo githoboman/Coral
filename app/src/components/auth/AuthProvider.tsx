@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { sileo } from "sileo";
 import { OnboardingModal } from "./Onboarding";
 import {
@@ -36,6 +36,9 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Session-level cache so onboarding check only runs once per wallet per page session
+const SESSION_ONBOARDED_KEY = "tovira_onboarded_wallet";
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [_isMobile, setIsMobile] = useState(false);
@@ -44,8 +47,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [onboardingMessage, setOnboardingMessage] = useState<string | null>(
     null,
   );
-  const [checkingOnboarding, setCheckingOnboarding] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  // Use a ref so the check never runs twice even under StrictMode double-invoke
+  const checkingRef = useRef(false);
+  const checkedWalletRef = useRef<string | null>(null);
 
   const currentAccount = useCurrentAccount();
   const { mutate: disconnectWallet } = useDisconnectWallet();
@@ -61,134 +67,122 @@ export function AuthProvider({ children }: AuthProviderProps) {
     import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
-
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   useEffect(() => {
-    if (isInitializing) {
-      return;
-    }
+    if (isInitializing) return;
 
     const isAuthenticated = !!currentAccount;
     const isSigninPage = location.pathname === "/signin";
     const isMaintenancePage = location.pathname === "/maintenance";
 
-    // Maintenance Mode Check
-    const maintenanceEnabled = import.meta.env.VITE_MAINTENANCE_MODE === "true" || import.meta.env.VITE_MAINTENANCE_MODE === true;
+    const maintenanceEnabled =
+      import.meta.env.VITE_MAINTENANCE_MODE === "true" ||
+      import.meta.env.VITE_MAINTENANCE_MODE === true;
 
     if (maintenanceEnabled) {
-      if (!isMaintenancePage) {
-        navigate("/maintenance", { replace: true });
-      }
+      if (!isMaintenancePage) navigate("/maintenance", { replace: true });
       return;
     } else {
-      // If maintenance is OFF but we are on the maintenance page, redirect away
       if (isMaintenancePage) {
-        if (isAuthenticated) {
-          navigate("/", { replace: true });
-        } else {
-          navigate("/signin", { replace: true });
-        }
+        navigate(isAuthenticated ? "/" : "/signin", { replace: true });
         return;
       }
     }
 
     if (!isAuthenticated) {
-      if (!isSigninPage && !isInitializing) {
-        navigate("/signin", { replace: true });
-      }
+      if (!isSigninPage) navigate("/signin", { replace: true });
       setIsOnboardingOpen(false);
-    } else {
-      // If authenticated and on signin page, redirect to home
-      if (isSigninPage) {
-        navigate("/", { replace: true });
-      }
+      // Clear the session cache when wallet disconnects
+      sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
+      checkedWalletRef.current = null;
+      checkingRef.current = false;
+      return;
+    }
 
-      const activeId = currentAccount.address;
+    // Authenticated
+    if (isSigninPage) {
+      navigate("/", { replace: true });
+    }
 
-      if (activeId && !checkingOnboarding) {
-        setCheckingOnboarding(true);
-        checkUserOnboardingStatus(activeId);
-      }
+    const activeAddress = currentAccount.address;
+
+    // If we already checked THIS wallet address in this session, skip
+    if (checkedWalletRef.current === activeAddress) return;
+
+    // Check sessionStorage first — if already marked onboarded for this wallet, skip API call
+    const cachedOnboardedWallet = sessionStorage.getItem(SESSION_ONBOARDED_KEY);
+    if (cachedOnboardedWallet === activeAddress) {
+      checkedWalletRef.current = activeAddress;
+      setIsOnboarded(true);
+      setIsOnboardingOpen(false);
+      return;
+    }
+
+    // Only run the API check once per wallet per mount
+    if (!checkingRef.current) {
+      checkingRef.current = true;
+      checkedWalletRef.current = activeAddress;
+      checkUserOnboardingStatus(activeAddress);
     }
   }, [isInitializing, currentAccount, location.pathname, navigate]);
 
   const checkUserOnboardingStatus = async (walletAddress: string) => {
-    if (!walletAddress) {
-      setCheckingOnboarding(false);
-      return;
-    }
-
     const maxRetries = 3;
-    let attempt = 0;
 
-    while (attempt < maxRetries) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const response = await fetch(
           `${apiBaseUrl}/api/auth/check-user?wallet_address=${encodeURIComponent(walletAddress)}`,
           {
             method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
           },
         );
 
         if (!response.ok) {
-          // If 404, user definitely doesn't exist, don't retry
-          if (response.status === 404) {
-            setIsOnboarded(false);
-            setIsOnboardingOpen(true);
-            setCheckingOnboarding(false);
-            return;
-          }
-          // For other errors (500s), throw to trigger retry
-          throw new Error(`Failed to check user status: ${response.status}`);
+          throw new Error(`Status ${response.status}`);
         }
 
         const data = await response.json();
 
-        if (!data.exists) {
+        // is_onboarded: true means the wallet has a profile in the Walrus registry
+        // (set server-side — covers both waitlisted and non-waitlisted users)
+        const fullyOnboarded = data.exists && data.is_onboarded;
+
+        if (!fullyOnboarded) {
           setIsOnboarded(false);
           setIsOnboardingOpen(true);
-        } else if (!data.user.email) {
-          setIsOnboarded(false);
-          setIsOnboardingOpen(true);
-          setUserEmail(data.user.email);
+          if (data.user?.email) setUserEmail(data.user.email);
         } else {
+          // Cache so page refreshes skip the API call entirely
+          sessionStorage.setItem(SESSION_ONBOARDED_KEY, walletAddress);
           setIsOnboarded(true);
           setIsOnboardingOpen(false);
-          setUserEmail(data.user.email);
+          if (data.user?.email) setUserEmail(data.user.email);
         }
-        return; // Success, exit function
+
+        checkingRef.current = false;
+        return;
       } catch (error: any) {
-        attempt++;
         console.warn(`Attempt ${attempt} to check user failed:`, error);
-        
-        if (attempt >= maxRetries) {
-          // Only show onboarding if all retries failed (assuming network issue or valid missing user)
-           // But be careful: if the backend is down, showing onboarding might be confusing. 
-           // However, blocking access is worse. 
-           // Let's assume if we can't verify, we prompt to verify.
+        if (attempt < maxRetries) {
+          await new Promise((r) =>
+            setTimeout(r, 1000 * Math.pow(2, attempt - 1)),
+          );
+        } else {
+          // All retries failed — show onboarding as safe fallback
           setIsOnboarded(false);
           setIsOnboardingOpen(true);
-        } else {
-           // Wait before retry (exponential backoff: 1s, 2s, 4s)
-           await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
-        }
-      } finally {
-        if (attempt >= maxRetries) {
-          setCheckingOnboarding(false);
         }
       }
     }
+
+    checkingRef.current = false;
   };
 
   const handleOnboardingSubmit = async (
@@ -203,7 +197,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     },
   ): Promise<{ success: boolean; data?: any }> => {
     const walletAddress = currentAccount?.address;
-
     if (!walletAddress) {
       sileo.error({ title: "Error", description: "Wallet not connected" });
       return { success: false };
@@ -213,11 +206,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     try {
-      let response = await fetch(`${apiBaseUrl}/api/auth/verify-and-register`, {
+      // Single call to /register — saves the profile in Walrus.
+      // This is what makes check-user return is_onboarded: true on subsequent loads.
+      const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           wallet_address: walletAddress,
@@ -232,48 +225,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }),
       });
 
-      if (response.status === 404) {
-        response = await fetch(`${apiBaseUrl}/api/auth/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            wallet_address: walletAddress,
-            username: additionalData?.username,
-            first_name: additionalData?.firstName,
-            last_name: additionalData?.lastName,
-            preferences: {
-              notifications_enabled: additionalData?.notifications_enabled,
-              analytics_enabled: additionalData?.analytics_enabled,
-              personalization_enabled: additionalData?.personalization_enabled,
-            },
-          }),
-        });
-      }
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
           errorData.detail ||
-          errorData.message ||
-          "Failed to complete onboarding",
+            errorData.message ||
+            "Failed to complete onboarding",
         );
       }
 
       const data = await response.json();
-
       setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
-
-      sileo.success({ title: "Profile Saved", description: "Checking waitlist status..." });
-
+      sileo.success({
+        title: "Profile Saved",
+        description: "Checking waitlist status...",
+      });
       return { success: true, data };
     } catch (error: any) {
       setOnboardingMessage(error.message || "Failed to save profile");
-      sileo.error({ title: "Error", description: error.message || "Failed to save profile" });
-
+      sileo.error({
+        title: "Error",
+        description: error.message || "Failed to save profile",
+      });
       throw error;
     } finally {
       setOnboardingLoading(false);
@@ -283,12 +257,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     try {
       disconnectWallet();
-
-      // Clear Redux stores
       dispatch(resetChats());
       dispatch(clearLeaderboard());
 
-      // 1. Clear specific auth items
       const authItems = [
         "zklogin_jwt",
         "enoki_jwt",
@@ -300,42 +271,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionStorage.removeItem(item);
       });
 
-      // 2. Clear all tovira-specific cached data (chats, messages, settings etc)
+      // Clear session onboarding cache
+      sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
+
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('tovira_')) {
-          keysToRemove.push(key);
-        }
+        if (key && key.startsWith("tovira_")) keysToRemove.push(key);
       }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+      // Reset refs
+      checkingRef.current = false;
+      checkedWalletRef.current = null;
 
       setUserEmail(null);
       setIsOnboarded(false);
-
       navigate("/signin", { replace: true });
-
-      sileo.success({ title: "Logged Out", description: "Successfully logged out" });
+      sileo.success({
+        title: "Logged Out",
+        description: "Successfully logged out",
+      });
     } catch (error: any) {
-      sileo.error({ title: "Error", description: "Failed to log out completely" });
+      sileo.error({
+        title: "Error",
+        description: "Failed to log out completely",
+      });
     }
   };
 
-  if (isInitializing) {
-    return <LoadingSpinner fullScreen />;
-  }
+  if (isInitializing) return <LoadingSpinner fullScreen />;
 
   return (
-    <AuthContext.Provider
-      value={{
-        isOnboarded,
-        userEmail,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={{ isOnboarded, userEmail, signOut }}>
       {children}
 
-      {/* Onboarding Modal */}
       <OnboardingModal
         isOpen={isOnboardingOpen && !isOnboarded}
         loading={onboardingLoading}
@@ -343,6 +313,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         initialEmail={userEmail}
         onSubmit={(email, data) => handleOnboardingSubmit(email, data)}
         onComplete={() => {
+          // Mark as onboarded in session cache so reloads are instant
+          if (currentAccount?.address) {
+            sessionStorage.setItem(
+              SESSION_ONBOARDED_KEY,
+              currentAccount.address,
+            );
+          }
           dispatch(invalidateCache());
           dispatch(fetchLeaderboard(false));
           setIsOnboarded(true);
