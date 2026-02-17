@@ -34,18 +34,10 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
 import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
-import { AutoCheckIn } from "@/components/features/CheckInButton";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export type LayoutContextType = {
-  toggleWallet: () => void;
-  walletBalanceUSD: string;
-  setMobileActions?: (
-    actions: { onRecentClick: () => void; onNewClick: () => void } | null,
-  ) => void;
-  tokens?: any[];
-};
+import { LayoutContextType } from "@/types/LayoutTypes";
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -554,7 +546,7 @@ const WalletModalOverlay = (props: any) => {
             ? "Settings"
             : activeWalletModal
               ? activeWalletModal.charAt(0).toUpperCase() +
-                activeWalletModal.slice(1)
+              activeWalletModal.slice(1)
               : ""}
         </span>
         <div className="w-8" />
@@ -882,43 +874,43 @@ const WalletModalOverlay = (props: any) => {
 
       {((activeWalletModal && activeWalletModal !== "deposit") ||
         (isSettingsOpen && showConfirmation)) && (
-        <div className="mt-8 space-y-3">
-          {!showConfirmation ? (
-            <button
-              onClick={() => setShowConfirmation(true)}
-              className="btn btn-primary btn-block btn-lg"
-            >
-              {activeWalletModal === "send"
-                ? "Send"
-                : activeWalletModal === "swap"
-                  ? "Swap"
-                  : ""}
-            </button>
-          ) : (
-            <div className="flex flex-row gap-3">
+          <div className="mt-8 space-y-3">
+            {!showConfirmation ? (
               <button
-                onClick={() => {
-                  if (activeWalletModal === "send") handleSend();
-                  else if (activeWalletModal === "swap") handleSwap();
-                  else if (isSettingsOpen) signOut();
-                }}
-                disabled={isSending || isSwapping}
-                className="flex-[2] h-14 bg-[#21C25E] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
+                onClick={() => setShowConfirmation(true)}
+                className="btn btn-primary btn-block btn-lg"
               >
-                {isSettingsOpen
-                  ? "Confirm logout?"
-                  : `Confirm ${activeWalletModal}?`}
+                {activeWalletModal === "send"
+                  ? "Send"
+                  : activeWalletModal === "swap"
+                    ? "Swap"
+                    : ""}
               </button>
-              <button
-                onClick={() => setShowConfirmation(false)}
-                className="flex-1 h-14 bg-[#FF5252] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
-              >
-                {isSettingsOpen ? "Go back" : "Cancel"}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+            ) : (
+              <div className="flex flex-row gap-3">
+                <button
+                  onClick={() => {
+                    if (activeWalletModal === "send") handleSend();
+                    else if (activeWalletModal === "swap") handleSwap();
+                    else if (isSettingsOpen) signOut();
+                  }}
+                  disabled={isSending || isSwapping}
+                  className="flex-[2] h-14 bg-[#21C25E] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  {isSettingsOpen
+                    ? "Confirm logout?"
+                    : `Confirm ${activeWalletModal}?`}
+                </button>
+                <button
+                  onClick={() => setShowConfirmation(false)}
+                  className="flex-1 h-14 bg-[#FF5252] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
+                >
+                  {isSettingsOpen ? "Go back" : "Cancel"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
     </div>
   );
 };
@@ -933,8 +925,6 @@ export default function AppLayout() {
 
   // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
-
-  console.log("[Layout] currentAccount:", currentAccount);
 
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(true);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
@@ -952,8 +942,9 @@ export default function AppLayout() {
   const [isAutonomyEnabled, setIsAutonomyEnabled] = useState(false);
   const [isUpdatingAutonomy, setIsUpdatingAutonomy] = useState(false);
   const [mobileActions, setMobileActions] = useState<{
-    onRecentClick: () => void;
-    onNewClick: () => void;
+    onRecentClick?: () => void;
+    onNewClick?: () => void;
+    customAction?: React.ReactNode;
   } | null>(null);
 
   // logic for dashboard check - treats root and dynamic chat IDs as dashboard
@@ -968,27 +959,6 @@ export default function AppLayout() {
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
-
-  // Fetch user preferences on mount
-  useEffect(() => {
-    if (!address) return;
-    const fetchPrefs = async () => {
-      try {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        const res = await fetch(
-          `${baseUrl}/api/users/fetch-user?user_id=${address}`,
-        );
-        const data = await res.json();
-        if (data.exists && data.user?.preferences?.agent_autonomy_enabled) {
-          setIsAutonomyEnabled(true);
-        }
-      } catch (e) {
-        console.error("Failed to fetch user preferences:", e);
-      }
-    };
-    fetchPrefs();
-  }, [address]);
 
   const toggleAutonomy = async () => {
     if (!address || isUpdatingAutonomy) return;
@@ -1122,13 +1092,13 @@ export default function AppLayout() {
           icon: "/assets/images/sui-icon.png",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-          {
-            symbol: "USDC",
-            decimals: 6,
-            price: 1.0,
-            change24h: 0,
-            icon: "/assets/images/usdc-icon.png",
-          },
+        {
+          symbol: "USDC",
+          decimals: 6,
+          price: 1.0,
+          change24h: 0,
+          icon: "/assets/images/usdc-icon.png",
+        },
       };
 
       // Always show SUI and USDC
@@ -1140,14 +1110,14 @@ export default function AppLayout() {
           type: "0x2::sui::SUI",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-          {
-            ...KNOWN_TOKENS[
-              "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
-            ],
-            balance: 0,
-            value: 0,
-            type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
-          },
+        {
+          ...KNOWN_TOKENS[
+          "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
+          ],
+          balance: 0,
+          value: 0,
+          type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
+        },
       };
 
       for (const coin of coins) {
@@ -1362,11 +1332,9 @@ export default function AppLayout() {
 
         {/* Main Content with dynamic margin */}
         <div
-          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${
-            !isDashboard ? "pb-20" : ""
-          } md:pb-0 ${
-            isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
-          }`}
+          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${!isDashboard ? "pb-20" : ""
+            } md:pb-0 ${isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
+            }`}
         >
           <MobileTopBar
             balance={walletBalanceUSD}
@@ -1377,6 +1345,7 @@ export default function AppLayout() {
             onRecentChatsClick={mobileActions?.onRecentClick}
             onNewChatClick={mobileActions?.onNewClick}
             showChatActions={!!mobileActions}
+            customAction={mobileActions?.customAction}
           />
           <Outlet
             context={
@@ -1441,7 +1410,6 @@ export default function AppLayout() {
         />
       </div>
 
-      <AutoCheckIn />
       <SuiWalletSelector
         isOpen={isWalletSelectorOpen}
         onClose={() => setIsWalletSelectorOpen(false)}

@@ -9,7 +9,7 @@ export class NotificationService {
   private ticketMinter = new TicketMinter();
   private telegramBot = getTelegramBot();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
@@ -34,7 +34,7 @@ export class NotificationService {
       if (profile.username) displayName = profile.username;
       else if (profile.first_name) displayName = profile.first_name;
 
-      return { 
+      return {
         chatId: profile.telegram_chat_id as string,
         username: displayName
       };
@@ -50,13 +50,13 @@ export class NotificationService {
   public async sendNotification(userId: string, message: string): Promise<boolean> {
     const details = await this.getUserDetails(userId);
     if (!details || !details.chatId) {
-      console.log(`[NOTIFICATION] No Telegram chat ID for user ${userId}`);
+
       return false;
     }
 
     try {
       await this.telegramBot.sendMessage(details.chatId, message);
-      console.log(`[NOTIFICATION] Sent to ${userId}: ${message.substring(0, 20)}...`);
+
       return true;
     } catch (error) {
       console.error(`[NOTIFICATION] Failed to send to ${userId}:`, error);
@@ -91,9 +91,9 @@ I'd be here to remind you once it is due.
 
     // Use direct sendMessage since we already fetched details
     try {
-        await this.telegramBot.sendMessage(details.chatId, message);
+      await this.telegramBot.sendMessage(details.chatId, message);
     } catch (e) {
-        console.error("Failed to send created notification", e);
+      console.error("Failed to send created notification", e);
     }
   }
 
@@ -124,10 +124,10 @@ Do well to schedule more activities, I look forward to helping you stay producti
 Get to it
     `.trim();
 
-     try {
-        await this.telegramBot.sendMessage(details.chatId, message);
+    try {
+      await this.telegramBot.sendMessage(details.chatId, message);
     } catch (e) {
-        console.error("Failed to send due notification", e);
+      console.error("Failed to send due notification", e);
     }
   }
 }

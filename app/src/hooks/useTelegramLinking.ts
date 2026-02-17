@@ -72,7 +72,7 @@ export function useTelegramLinking() {
             clearInterval(pollInterval);
           }
         }
-      }, 3000);
+      }, 5000);
 
       // Stop polling after 2 minutes
       setTimeout(() => clearInterval(pollInterval), 120000);

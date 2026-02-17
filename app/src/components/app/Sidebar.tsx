@@ -94,25 +94,25 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
       />
 
       {/* Header */}
-      <div className={`flex items-center mb-10 mt-6 h-14 overflow-hidden transition-all p-6 duration-300 ${isCollapsed ? 'justify-center px-0' : 'p-4 justify-between'}`}>
+      <div className={`flex items-center mb-6 mt-6 h-14 overflow-hidden transition-all p-6 duration-300 ${isCollapsed ? 'justify-center px-0' : 'p-4 justify-between'}`}>
         <div className={`flex items-center gap-3 cursor-pointer min-w-0 ${isCollapsed ? 'justify-center' : ''}`} onClick={() => (window.location.href = '/')}>
           <div className="w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0">
             <img src="/assets/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
           </div>
           {!isCollapsed && <span className="sidebar-label text-[25px] font-black text-white tracking-tight truncate">Tovira</span>}
         </div>
-        {/* {!isCollapsed && (
+        {!isCollapsed && (
           <button
             onClick={toggleSidebar}
             className="sidebar-header-toggle text-white/40 hover:text-white transition-colors p-1 cursor-pointer flex-shrink-0"
           >
             <PanelLeft size={20} />
           </button>
-        )} */}
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 space-y-6 overflow-y-auto no-scrollbar py-6">
+      <nav className="flex-1 px-2 space-y-6 no-scrollbar">
         {navItems.map((item) => {
           return (
             <div key={item.name} className="flex flex-col">
@@ -143,12 +143,12 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
       </nav>
 
       {/* Bottom Actions */}
-      <div className="p-2 pt-6 border-t border-white/5 space-y-4 overflow-hidden mb-2">
+      <div className="p-2 pt-4 space-y-4 overflow-hidden mb-2">
         {/* Toggle Sidebar Button moved here to match Image 1 layout */}
         <button
           onClick={toggleSidebar}
           className={`sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300 w-full
-            ${isCollapsed ? 'justify-center px-0' : 'px-4 gap-3'}
+            ${isCollapsed ? 'justify-center px-0' : 'hidden px-4 gap-3'}
           `}
         >
           <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">

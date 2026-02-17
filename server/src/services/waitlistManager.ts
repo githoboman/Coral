@@ -65,9 +65,7 @@ export class WaitlistManager {
       "https://aggregator.walrus-testnet.walrus.space";
     this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
-    console.log("✅ WaitlistManager initialized (with email hashing)");
-    console.log(`   Publisher: ${this.publisherUrl}`);
-    console.log(`   Aggregator: ${this.aggregatorUrl}`);
+
   }
 
   private hashEmail(email: string): string {
@@ -81,7 +79,7 @@ export class WaitlistManager {
 
   async loadFromCSV(csvPath: string): Promise<string[]> {
     try {
-      console.log(`📁 Loading emails from ${csvPath}...`);
+
 
       const content = await fs.readFile(csvPath, "utf-8");
       const lines = content
@@ -101,7 +99,7 @@ export class WaitlistManager {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       });
 
-      console.log(`✅ Loaded ${emails.length} valid emails`);
+
       return emails;
     } catch (error) {
       console.error("❌ Error loading CSV:", error);
@@ -111,13 +109,13 @@ export class WaitlistManager {
 
   async loadFromJSON(jsonPath: string): Promise<string[]> {
     try {
-      console.log(`📁 Loading emails from ${jsonPath}...`);
+
 
       const content = await fs.readFile(jsonPath, "utf-8");
       const data = JSON.parse(content);
 
       const emails = data.emails || [];
-      console.log(`✅ Loaded ${emails.length} emails from backup`);
+
       return emails;
     } catch (error) {
       console.error("❌ Error loading JSON:", error);
@@ -126,7 +124,7 @@ export class WaitlistManager {
   }
 
   createWhitelist(emails: string[], description?: string): Whitelist {
-    console.log(`🔐 Creating whitelist from ${emails.length} emails...`);
+
 
     const uniqueEmails = [
       ...new Set(emails.map((e) => e.toLowerCase().trim())),
@@ -134,7 +132,7 @@ export class WaitlistManager {
 
     const emailHashes = this.hashEmails(uniqueEmails);
 
-    console.log(`🔒 Hashed ${uniqueEmails.length} emails with SHA-256`);
+
 
     const whitelist: Whitelist = {
       version: 1,
@@ -145,9 +143,7 @@ export class WaitlistManager {
         description || "Waitlist - emails hashed with SHA-256 on Walrus",
     };
 
-    console.log("✅ Whitelist created");
-    console.log(`   Total entries: ${whitelist.total_count}`);
-    console.log(`   Storage: Email hashes only (irreversible)`);
+
     return whitelist;
   }
 
@@ -159,9 +155,7 @@ export class WaitlistManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(
-          `📤 Uploading to Walrus (attempt ${attempt}/${maxRetries})...`,
-        );
+
 
         const whitelistJson = JSON.stringify(whitelist, null, 2);
         const whitelistBytes = new TextEncoder().encode(whitelistJson);
@@ -190,14 +184,10 @@ export class WaitlistManager {
           throw new Error("No blob ID returned from Walrus");
         }
 
-        console.log("✅ Upload successful!");
-        console.log(`   Blob ID: ${blobId}`);
-        console.log(`   Size: ${whitelistBytes.length} bytes`);
-        console.log(`   Email hashes: ${whitelist.total_count}`);
-        console.log(`   Storage: ${this.epochs} epochs`);
+
 
         if (result.newlyCreated) {
-          console.log(`   Cost: ${result.newlyCreated.cost} MIST`);
+
         }
 
         return blobId;
@@ -210,7 +200,7 @@ export class WaitlistManager {
 
         if (attempt < maxRetries) {
           const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`   Retrying in ${waitTime}ms...`);
+
           await new Promise((resolve) => setTimeout(resolve, waitTime));
         }
       }
@@ -226,7 +216,7 @@ export class WaitlistManager {
   ): Promise<Whitelist | null> {
     const cached = this.cachedWhitelist.get(blobId);
     if (cached) {
-      console.log(`📋 Returning cached whitelist for ${blobId}`);
+
       return cached;
     }
 
@@ -234,9 +224,7 @@ export class WaitlistManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(
-          `📥 Fetching whitelist: ${blobId} (attempt ${attempt}/${maxRetries})`,
-        );
+
 
         const response = await axios.get(
           `${this.aggregatorUrl}/v1/blobs/${blobId}`,
@@ -250,9 +238,7 @@ export class WaitlistManager {
 
         const whitelist = response.data as Whitelist;
 
-        console.log("✅ Whitelist fetched successfully");
-        console.log(`   Version: ${whitelist.version}`);
-        console.log(`   Email hashes: ${whitelist.total_count}`);
+
 
         this.cachedWhitelist.set(blobId, whitelist);
         return whitelist;
@@ -267,7 +253,7 @@ export class WaitlistManager {
 
         if (attempt < maxRetries) {
           const waitTime = 1500 * attempt;
-          console.log(`   Waiting ${waitTime}ms before retry...`);
+
           await new Promise((r) => setTimeout(r, waitTime));
         }
       }
@@ -292,9 +278,7 @@ export class WaitlistManager {
       const isWhitelisted = whitelist.email_hashes.includes(emailHash);
 
       if (isWhitelisted) {
-        console.log(`✅ Email is whitelisted (hash verified)`);
-      } else {
-        console.log(`❌ Email is NOT whitelisted`);
+
       }
 
       return isWhitelisted;
@@ -309,7 +293,7 @@ export class WaitlistManager {
     currentBlobId: string,
   ): Promise<string | null> {
     try {
-      console.log(`\n➕ Adding ${newEmails.length} new emails to whitelist...`);
+
 
       const currentWhitelist = await this.fetchWhitelist(currentBlobId);
       if (!currentWhitelist) {
@@ -325,7 +309,7 @@ export class WaitlistManager {
       );
 
       if (uniqueNewHashes.length === 0) {
-        console.log("⚠️  No new emails to add (all duplicates)");
+
         return currentBlobId;
       }
 
@@ -346,11 +330,7 @@ export class WaitlistManager {
       const newBlobId = await this.uploadToWalrus(updatedWhitelist);
 
       if (newBlobId) {
-        console.log("\n✅ Whitelist updated!");
-        console.log(`   Old Blob ID: ${currentBlobId}`);
-        console.log(`   New Blob ID: ${newBlobId}`);
-        console.log(`   Added: ${uniqueNewHashes.length} email hashes`);
-        console.log(`   Total: ${combinedHashes.length} email hashes`);
+
       }
 
       return newBlobId;
@@ -361,48 +341,30 @@ export class WaitlistManager {
   }
 
   async migrateFromCSV(csvPath: string): Promise<string | null> {
-    console.log("\n" + "=".repeat(70));
-    console.log("WAITLIST MIGRATION: CSV → WALRUS (HASHED)");
-    console.log("=".repeat(70));
+
 
     const emails = await this.loadFromCSV(csvPath);
     if (emails.length === 0) {
-      console.log("❌ No emails to migrate");
+
       return null;
     }
 
-    console.log("\n🔐 Creating whitelist with hashed emails...");
+
     const whitelist = this.createWhitelist(emails);
 
-    console.log("\n☁️  Uploading to Walrus...");
+
     const blobId = await this.uploadToWalrus(whitelist);
 
     if (!blobId) {
-      console.log("❌ Failed to upload whitelist");
+
       return null;
     }
 
-    console.log("\n📝 Saving migration record...");
+
     await this.saveMigrationRecord(blobId, emails.length, whitelist.version);
 
-    console.log("\n" + "=".repeat(70));
-    console.log("✅ MIGRATION COMPLETE!");
-    console.log("=".repeat(70));
-    console.log(`\nWhitelist Blob ID: ${blobId}`);
-    console.log(`Total Emails: ${emails.length} (hashed)`);
-    console.log("\n⚠️  IMPORTANT:");
-    console.log(
-      "   - Original emails are NOT stored on Walrus (only SHA-256 hashes)",
-    );
-    console.log(
-      "   - You cannot recover the email list from the blob (irreversible)",
-    );
-    console.log("   - Keep your original CSV as backup for reference");
-    console.log("\nNext Steps:");
-    console.log("1. Save this Blob ID in your backend config");
-    console.log("2. Update frontend to verify emails against Walrus");
-    console.log("3. Test with a whitelisted email");
-    console.log("=".repeat(70));
+
+
 
     return blobId;
   }
@@ -429,7 +391,7 @@ export class WaitlistManager {
     const filepath = path.join(recordsDir, filename);
 
     await fs.writeFile(filepath, JSON.stringify(record, null, 2));
-    console.log(`Migration record saved: ${filename}`);
+
   }
 
   async verifyBlob(blobId: string): Promise<boolean> {

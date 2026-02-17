@@ -138,9 +138,8 @@ export class WalrusUserManager {
       "https://aggregator.walrus-testnet.walrus.space";
     this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
-    console.log("✅ WalrusUserManager initialized");
-    console.log(`   Publisher: ${this.publisherUrl}`);
-    console.log(`   Aggregator: ${this.aggregatorUrl}`);
+
+
   }
 
   createUserProfile(
@@ -293,7 +292,7 @@ export class WalrusUserManager {
     maxRetries: number = 3,
   ): Promise<UsersRegistry | null> {
     if (this.registryCache && this.registryCache.blobId === blobId) {
-      console.log(`📋 Returning cached registry for ${blobId}`);
+
       return this.registryCache.registry;
     }
 
@@ -301,9 +300,7 @@ export class WalrusUserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(
-          `📥 Fetching users registry: ${blobId} (attempt ${attempt}/${maxRetries})`,
-        );
+
 
         const response = await axios.get(
           `${this.aggregatorUrl}/v1/blobs/${blobId}`,
@@ -317,9 +314,7 @@ export class WalrusUserManager {
 
         const registry = response.data as UsersRegistry;
 
-        console.log("✅ Users registry fetched successfully (encrypted)");
-        console.log(`   Version: ${registry.version}`);
-        console.log(`   Total users: ${registry.total_users}`);
+
 
         this.registryCache = { blobId, registry };
         return registry;
@@ -334,7 +329,7 @@ export class WalrusUserManager {
 
         if (attempt < maxRetries) {
           const waitTime = 1500 * attempt;
-          console.log(`   Waiting ${waitTime}ms before retry...`);
+
           await new Promise((r) => setTimeout(r, waitTime));
         }
       }
@@ -352,9 +347,7 @@ export class WalrusUserManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(
-          `📤 Uploading users registry (attempt ${attempt}/${maxRetries})...`,
-        );
+
 
         const registryJson = JSON.stringify(registry, null, 2);
         const registryBytes = new TextEncoder().encode(registryJson);
@@ -383,13 +376,10 @@ export class WalrusUserManager {
           throw new Error("No blob ID returned from Walrus");
         }
 
-        console.log("✅ Upload successful!");
-        console.log(`   Blob ID: ${blobId}`);
-        console.log(`   Size: ${registryBytes.length} bytes`);
-        console.log(`   Users: ${registry.total_users}`);
+
 
         if (result.newlyCreated) {
-          console.log(`   Cost: ${result.newlyCreated.cost} MIST`);
+
         }
 
         return blobId;
@@ -402,7 +392,7 @@ export class WalrusUserManager {
 
         if (attempt < maxRetries) {
           const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`   Retrying in ${waitTime}ms...`);
+
           await new Promise((resolve) => setTimeout(resolve, waitTime));
         }
       }
@@ -417,9 +407,7 @@ export class WalrusUserManager {
     userProfile: UserProfile,
   ): Promise<string | null> {
     try {
-      console.log(
-        `\n➕ Adding/updating user: ${userProfile.wallet_address}...`,
-      );
+
 
       let registry: UsersRegistry;
 
@@ -463,12 +451,11 @@ export class WalrusUserManager {
       }
 
       if (newBlobId) {
-        console.log("\n✅ User registry updated!");
+
         if (currentBlobId) {
-          console.log(`   Old Blob ID: ${currentBlobId}`);
+
         }
-        console.log(`   New Blob ID: ${newBlobId}`);
-        console.log(`   Total users: ${registry.total_users}`);
+
       }
 
       return newBlobId;

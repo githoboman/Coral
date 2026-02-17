@@ -59,7 +59,7 @@ export class TaskStorageService {
       "https://aggregator.walrus-testnet.walrus.space";
     this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
-    console.log("✅ TaskStorageService initialized");
+
   }
 
   // Get user's task registry blob ID from their profile
@@ -71,7 +71,7 @@ export class TaskStorageService {
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
-        console.log(`No user registry exists yet`);
+
         return null;
       }
 
@@ -82,7 +82,7 @@ export class TaskStorageService {
       );
 
       if (!userProfile) {
-        console.log(`User profile not found for ${userId}`);
+
         return null;
       }
 
@@ -156,9 +156,7 @@ export class TaskStorageService {
 
       if (newUserRegistryBlobId !== userRegistryBlobId) {
         await ticketMinter.updateBlobRegistry(newUserRegistryBlobId);
-        console.log(
-          `📦 Updated on-chain user registry: ${newUserRegistryBlobId}`,
-        );
+
       }
 
       return true;
@@ -176,7 +174,7 @@ export class TaskStorageService {
     const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
-    console.log(`\n🆕 Creating task: ${taskId} for user: ${userId}`);
+
 
     const task: TaskData = {
       id: taskId,
@@ -245,8 +243,8 @@ export class TaskStorageService {
     // Update user profile
     await this.updateUserTaskRegistryBlobId(userId, registryBlobId);
 
-    console.log(`✅ Task created: ${taskId}`);
-    console.log(`   Registry: ${registryBlobId}`);
+
+
 
     return { taskId, registryBlobId };
   }
@@ -255,18 +253,18 @@ export class TaskStorageService {
   async getTaskRegistry(userId: string): Promise<TaskRegistry | null> {
     const cached = this.registryCache.get(userId);
     if (cached) {
-      console.log(`📋 Using cached task registry for ${userId}`);
+
       return cached.registry;
     }
 
     const registryBlobId = await this.getUserTaskRegistryBlobId(userId);
     if (!registryBlobId) {
-      console.log(`No task registry exists for user ${userId}`);
+
       return null;
     }
 
     try {
-      console.log(`📥 Fetching task registry: ${registryBlobId}`);
+
       const response = await axios.get(
         `${this.aggregatorUrl}/v1/blobs/${registryBlobId}`,
         {
@@ -281,9 +279,7 @@ export class TaskStorageService {
         registry,
       });
 
-      console.log(
-        `✅ Task registry loaded: ${Object.keys(registry.tasks).length} tasks`,
-      );
+
       return registry;
     } catch (error) {
       console.error(`Error fetching task registry for ${userId}:`, error);
@@ -293,7 +289,7 @@ export class TaskStorageService {
 
   // Get all tasks for user
   async getTasks(userId: string): Promise<TaskData[]> {
-    console.log(`\n📖 Getting tasks for user: ${userId}`);
+
 
     const registry = await this.getTaskRegistry(userId);
     if (!registry) {
@@ -311,7 +307,7 @@ export class TaskStorageService {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
 
-    console.log(`✅ Loaded ${tasks.length} tasks`);
+
     return tasks;
   }
 
@@ -381,7 +377,7 @@ export class TaskStorageService {
 
   // Delete task
   async deleteTask(userId: string, taskId: string): Promise<boolean> {
-    console.log(`\n🗑️ Deleting task: ${taskId}`);
+
 
     const registry = await this.getTaskRegistry(userId);
     if (!registry) return false;
@@ -389,7 +385,7 @@ export class TaskStorageService {
     const { [taskId]: removed, ...remainingTasks } = registry.tasks;
 
     if (!removed) {
-      console.log(`Task ${taskId} not found`);
+
       return false;
     }
 
@@ -412,7 +408,7 @@ export class TaskStorageService {
 
     await this.updateUserTaskRegistryBlobId(userId, registryBlobId);
 
-    console.log(`✅ Task deleted: ${taskId}`);
+
 
     return true;
   }

@@ -23,7 +23,7 @@ export class EncryptionService {
     if (!masterPassword) {
       throw new Error(
         "ENCRYPTION_MASTER_KEY not set in environment variables. " +
-          "Generate one with: openssl rand -base64 32",
+        "Generate one with: openssl rand -base64 32",
       );
     }
 
@@ -38,7 +38,7 @@ export class EncryptionService {
       "sha256",
     );
 
-    console.log("✅ EncryptionService initialized with AES-256-GCM");
+
   }
 
   /**

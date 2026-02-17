@@ -9,6 +9,7 @@ interface MobileTopBarProps {
   onRecentChatsClick?: () => void;
   onNewChatClick?: () => void;
   showChatActions?: boolean;
+  customAction?: React.ReactNode;
 }
 
 export function MobileTopBar({
@@ -19,7 +20,8 @@ export function MobileTopBar({
   onMenuClick,
   onRecentChatsClick,
   onNewChatClick,
-  showChatActions
+  showChatActions,
+  customAction
 }: MobileTopBarProps) {
   return (
     <div className={`fixed w-full top-0 md:hidden px-4 py-4 flex items-center justify-between z-50 pointer-events-none`}>
@@ -49,6 +51,7 @@ export function MobileTopBar({
             >
               <Plus size={18} className="text-white/70" />
             </button>
+            {customAction}
           </div>
         )}
       </div>

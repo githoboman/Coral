@@ -147,3 +147,31 @@ export const AccountSkeleton = () => (
     </div>
   </div>
 );
+
+export const ChatSkeleton = () => (
+  <div className="flex flex-col gap-6 py-6 max-w-3xl mx-auto w-full">
+    {[...Array(3)].map((_, i) => (
+      <div key={i} className="flex flex-col gap-6">
+        {/* User Message Skeleton (Right) */}
+        <div className="flex justify-end">
+          <div className="max-w-[80%]">
+            <SkeletonBox className="h-12 w-64 rounded-[20px] rounded-tr-sm" />
+          </div>
+        </div>
+
+        {/* AI Message Skeleton (Left) */}
+        <div className="flex gap-4 max-w-[85%]">
+          <SkeletonBox className="w-8 h-8 rounded-full flex-shrink-0" />
+          <div className="flex flex-col gap-2 flex-1">
+            <SkeletonBox className="h-4 w-24 mb-1" />
+            <SkeletonBox className="h-20 w-full rounded-2xl" />
+            <div className="flex gap-2 mt-2">
+              <SkeletonBox className="h-8 w-8 rounded-lg" />
+              <SkeletonBox className="h-8 w-8 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);

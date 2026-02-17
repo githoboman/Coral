@@ -55,7 +55,8 @@ export async function rateLimitMiddleware(
 ) {
   // ✅ FIX: task_agent has its own subscription-based daily limits (2 free / 5 premium)
   // handled in chat.ts — skip the 6-hour general limiter entirely for it
-  if (req.body.agent_id === "task_agent") {
+  const agentId = req.body.agent_id || req.body.agentId;
+  if (agentId === "task_agent" || agentId === "task") {
     return next();
   }
 

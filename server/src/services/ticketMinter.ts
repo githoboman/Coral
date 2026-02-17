@@ -73,12 +73,7 @@ export class TicketMinter {
       );
     }
 
-    console.log("✅ TicketMinter initialized");
-    console.log(`   Network:         ${network}`);
-    console.log(`   Package:         ${this.packageId}`);
-    console.log(`   PointsRegistry:  ${this.pointsRegistryId}`);
-    console.log(`   BlobRegistry:    ${this.blobRegistryId}`);
-    console.log(`   FeeConfig:       ${this.feeConfigId}`);
+
   }
 
   private normalizeAddress(addr: string): string {
@@ -111,9 +106,7 @@ export class TicketMinter {
         const [bytes] = result.results[0].returnValues[0];
         const view = new DataView(new Uint8Array(bytes).buffer);
         const fee = Number(view.getBigUint64(0, true));
-        console.log(
-          `📊 Current check-in fee: ${fee} MIST (${(fee / 1_000_000_000).toFixed(3)} SUI)`,
-        );
+
         return fee;
       }
 
@@ -127,9 +120,7 @@ export class TicketMinter {
 
   async updateCheckinFee(newFee: number): Promise<string | null> {
     try {
-      console.log(
-        `\n💰 Updating check-in fee → ${newFee} MIST (${(newFee / 1_000_000_000).toFixed(3)} SUI)`,
-      );
+
 
       const tx = new Transaction();
 
@@ -150,7 +141,7 @@ export class TicketMinter {
       });
 
       if (result.effects?.status?.status === "success") {
-        console.log(`✅ Fee updated  tx=${result.digest}`);
+
         return result.digest;
       }
 
@@ -164,7 +155,7 @@ export class TicketMinter {
 
   async setFeeTreasury(treasuryAddress: string): Promise<string | null> {
     try {
-      console.log(`\n🏦 Setting fee treasury → ${treasuryAddress}`);
+
 
       const tx = new Transaction();
 
@@ -185,7 +176,7 @@ export class TicketMinter {
       });
 
       if (result.effects?.status?.status === "success") {
-        console.log(`✅ Treasury set  tx=${result.digest}`);
+
         return result.digest;
       }
 
@@ -231,7 +222,7 @@ export class TicketMinter {
     timestamp: string;
   } | null> {
     try {
-      console.log(`\n🔎 Verifying claim via tx digest: ${digest}`);
+
 
       const tx = await this.client.getTransactionBlock({
         digest,
@@ -254,7 +245,7 @@ export class TicketMinter {
 
       if (claimEvent) {
         const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
-        console.log(`✅ Claim verified on-chain:`, data);
+
         return {
           confirmed: true,
           balance: Number(data.new_balance),
@@ -270,7 +261,7 @@ export class TicketMinter {
       if (taskClaimEvent) {
         const data =
           taskClaimEvent.parsedJson as unknown as TaskPointsClaimedEvent;
-        console.log(`✅ Task claim verified on-chain:`, data);
+
         return {
           confirmed: true,
           balance: Number(data.new_balance),
@@ -286,7 +277,7 @@ export class TicketMinter {
       if (checkinEvent) {
         const data =
           checkinEvent.parsedJson as unknown as CheckInCompletedEvent;
-        console.log(`✅ Check-in verified on-chain:`, data);
+
         return {
           confirmed: true,
           balance: Number(data.new_balance),
@@ -309,9 +300,7 @@ export class TicketMinter {
     reason: string = "Waitlist Bonus",
   ): Promise<string | null> {
     try {
-      console.log(
-        `\n🎟️  Minting ticket → ${walletAddress} (${pointsAmount} pts, ${reason})`,
-      );
+
 
       const tx = new Transaction();
       const reasonBytes = Array.from(new TextEncoder().encode(reason));
@@ -350,7 +339,7 @@ export class TicketMinter {
             : (ticketRef as any).reference?.objectId ||
             (ticketRef as any).objectId;
 
-        console.log(`✅ Ticket minted: ${ticketId}  tx=${result.digest}`);
+
         return ticketId;
       }
 
@@ -368,9 +357,7 @@ export class TicketMinter {
     checkinDate: string,
   ): Promise<string | null> {
     try {
-      console.log(
-        `\n🎟️  Minting check-in ticket → ${walletAddress} for ${checkinDate} (${pointsAmount} pts)`,
-      );
+
 
       const tx = new Transaction();
       const dateBytes = Array.from(new TextEncoder().encode(checkinDate));
@@ -412,9 +399,7 @@ export class TicketMinter {
             : (ticketRef as any).reference?.objectId ||
             (ticketRef as any).objectId;
 
-        console.log(
-          `✅ Check-in ticket minted: ${ticketId}  tx=${result.digest}`,
-        );
+
         return ticketId;
       }
 
@@ -428,7 +413,7 @@ export class TicketMinter {
 
   async updateBlobRegistry(newBlobId: string): Promise<string | null> {
     try {
-      console.log(`\n📦 Updating BlobRegistry → ${newBlobId}`);
+
 
       const tx = new Transaction();
       const blobBytes = Array.from(new TextEncoder().encode(newBlobId));
@@ -450,7 +435,7 @@ export class TicketMinter {
       });
 
       if (result.effects?.status?.status === "success") {
-        console.log(`✅ BlobRegistry updated  tx=${result.digest}`);
+
         return result.digest;
       }
 
@@ -480,16 +465,12 @@ export class TicketMinter {
       for (const ev of allEvents.data) {
         const data = ev.parsedJson as unknown as PointsClaimedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-          console.log(
-            `✅ hasClaimed → true (found event for ${walletAddress})`,
-          );
+
           return true;
         }
       }
 
-      console.log(
-        `📝 No event found, running devInspect fallback for ${walletAddress}`,
-      );
+
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
@@ -563,15 +544,11 @@ export class TicketMinter {
       if (snapshots.length > 0) {
         snapshots.sort((a: BalanceSnapshot, b: BalanceSnapshot) => b.timestamp - a.timestamp);
         const latestBalance = snapshots[0].balance;
-        console.log(
-          `✅ getBalance → ${latestBalance} (most recent of ${snapshots.length} events for ${walletAddress.substring(0, 10)}...)`,
-        );
+
         return latestBalance;
       }
 
-      console.log(
-        `📝 No events found, running devInspect fallback for balance of ${walletAddress}`,
-      );
+
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
@@ -614,16 +591,12 @@ export class TicketMinter {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
           const timestamp = Number(data.timestamp);
-          console.log(
-            `✅ getLastCheckin → ${timestamp} (from event for ${walletAddress})`,
-          );
+
           return timestamp;
         }
       }
 
-      console.log(
-        `📝 No check-in event found, running devInspect for ${walletAddress}`,
-      );
+
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
@@ -665,16 +638,12 @@ export class TicketMinter {
       for (const ev of allEvents.data) {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-          console.log(
-            `✅ getLastCheckinDate → ${data.checkin_date} (from event for ${walletAddress})`,
-          );
+
           return data.checkin_date;
         }
       }
 
-      console.log(
-        `📝 No check-in event found, running devInspect for date of ${walletAddress}`,
-      );
+
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
@@ -717,16 +686,12 @@ export class TicketMinter {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
           const streak = Number(data.current_streak);
-          console.log(
-            `✅ getCurrentStreak → ${streak} (from event for ${walletAddress})`,
-          );
+
           return streak;
         }
       }
 
-      console.log(
-        `📝 No check-in event found, running devInspect for streak of ${walletAddress}`,
-      );
+
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 
@@ -779,15 +744,11 @@ export class TicketMinter {
           const total = Number(view.getBigUint64(0, true));
 
           if (total > 0) {
-            console.log(
-              `✅ getTotalCheckins (contract) → ${total} for ${walletAddress.substring(0, 10)}...`,
-            );
+
             return total;
           }
 
-          console.log(
-            `📝 Contract returned 0, falling back to event counting for ${walletAddress.substring(0, 10)}...`,
-          );
+
         }
       } catch (contractError) {
         console.warn(
@@ -797,9 +758,8 @@ export class TicketMinter {
       }
 
       try {
-        console.log(
-          `📊 Counting check-in events for ${walletAddress.substring(0, 10)}...`,
-        );
+
+
 
         let count = 0;
         let cursor: EventId | null = null;
@@ -834,15 +794,11 @@ export class TicketMinter {
         }
 
         if (count > 0) {
-          console.log(
-            `✅ getTotalCheckins (events) → ${count} for ${walletAddress.substring(0, 10)}... (checked ${pagesChecked} pages)`,
-          );
+
           return count;
         }
 
-        console.log(
-          `⚠️  No check-in events found after checking ${pagesChecked} pages`,
-        );
+
       } catch (eventError) {
         console.warn(
           `⚠️  Event counting failed for getTotalCheckins:`,
@@ -853,18 +809,14 @@ export class TicketMinter {
       try {
         const streak = await this.getCurrentStreak(walletAddress);
         if (streak > 0) {
-          console.log(
-            `⚠️  Using streak (${streak}) as total_checkins estimate for ${walletAddress.substring(0, 10)}...`,
-          );
+
           return streak;
         }
       } catch (streakError) {
         console.warn(`⚠️  Streak fallback failed:`, streakError);
       }
 
-      console.log(
-        `📝 No check-ins found for ${walletAddress.substring(0, 10)}...`,
-      );
+
       return 0;
     } catch (error) {
       console.error("Error in getTotalCheckins:", error);
@@ -884,7 +836,7 @@ export class TicketMinter {
         let currentBlobId = fields?.current_blob_id;
 
         if (!currentBlobId) {
-          console.log("⚠️  BlobRegistry is empty");
+
           return null;
         }
 
@@ -910,15 +862,15 @@ export class TicketMinter {
           .trim();
 
         if (!currentBlobId) {
-          console.log("⚠️  BlobRegistry contains empty string");
+
           return null;
         }
 
-        console.log(`📖 Read blob ID from BlobRegistry: "${currentBlobId}"`);
+
         return currentBlobId;
       }
 
-      console.log("⚠️  BlobRegistry not found or invalid format");
+
       return null;
     } catch (error) {
       console.error("Error reading BlobRegistry:", error);
@@ -931,9 +883,7 @@ export class TicketMinter {
     taskCount: number,
   ): Promise<string | null> {
     try {
-      console.log(
-        `\n🎟️  Minting task claim ticket → ${walletAddress} (${taskCount} tasks)`,
-      );
+
 
       const tx = new Transaction();
 
@@ -973,9 +923,7 @@ export class TicketMinter {
             : (ticketRef as any).reference?.objectId ||
             (ticketRef as any).objectId;
 
-        console.log(
-          `✅ Task claim ticket minted: ${ticketId}  tx=${result.digest}`,
-        );
+
         return ticketId;
       }
 
@@ -995,9 +943,7 @@ export class TicketMinter {
     error?: string;
   }> {
     try {
-      console.log(
-        `\n💰 [SPONSORED] Claiming waitlist points for: ${walletAddress}`,
-      );
+
 
       const tx = new Transaction();
       tx.setGasBudget(10_000_000);
@@ -1032,7 +978,7 @@ export class TicketMinter {
         };
       }
 
-      console.log(`✅ Sponsored claim successful  tx=${result.digest}`);
+
 
       const events = result.events || [];
       const claimEvent = events.find(
@@ -1043,7 +989,7 @@ export class TicketMinter {
       if (claimEvent) {
         const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
         balance = Number(data.new_balance);
-        console.log(`   User balance: ${balance} points`);
+
       }
 
       return {

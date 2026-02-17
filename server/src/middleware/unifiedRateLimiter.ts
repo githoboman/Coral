@@ -59,6 +59,7 @@ export async function unifiedRateLimitMiddleware(
           reset_at: "midnight UTC",
         });
       }
+      return;
     }
 
     // Track usage AFTER successful message send (not before)

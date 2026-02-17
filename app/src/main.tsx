@@ -17,7 +17,7 @@ import { RegisterEnokiWallets } from './components/auth/RegisterEnokiWallets';
 // Configure Sui network
 const network = (import.meta.env.VITE_SUI_NETWORK || 'testnet') as 'testnet' | 'mainnet';
 const { networkConfig } = createNetworkConfig({
-  testnet: { url: getFullnodeUrl('testnet') },
+  testnet: { url: import.meta.env.DEV ? "/sui-rpc" : getFullnodeUrl('testnet') },
   mainnet: { url: getFullnodeUrl('mainnet') },
 });
 

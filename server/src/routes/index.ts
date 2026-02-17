@@ -5,11 +5,14 @@ import tasksRouter from "./tasks";
 import eventsRouter from "./events";
 import waitlistRouter from "./waitlist";
 import accountRouter from "./account";
+import chatRouter from "./chat";
 
 import checkinRouter from "./checkin";
 import taskPointsRouter from "./taskPoints";
 import subscriptionRoutes from "./subscription";
 import telegramRouter from "./telegram";
+
+import chatsRouter from "./chats";
 
 const router = Router();
 
@@ -24,6 +27,8 @@ router.use("/checkin", checkinRouter);
 router.use("/task-points", taskPointsRouter);
 router.use("/subscription", subscriptionRoutes);
 router.use("/telegram", telegramRouter);
+router.use("/chat", chatRouter);
+router.use("/chats", chatsRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({

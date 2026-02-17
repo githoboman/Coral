@@ -16,5 +16,12 @@ export default defineConfig({
         host: true,
         port: 5173,
         allowedHosts: ["tovira.onrender.com", "localhost", "tovira.xyz"],
+        proxy: {
+            '/sui-rpc': {
+                target: 'https://fullnode.testnet.sui.io',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/sui-rpc/, ''),
+            },
+        },
     },
 });

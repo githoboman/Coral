@@ -56,7 +56,7 @@ export async function awardTaskCompletionPoints(
       return { success: false, points_awarded: 0, total_points: currentPoints };
     }
 
-    console.log(`[POINTS] Awarded ${pointsToAward} points for ${priority} task completion to ${userId.substring(0, 10)}...`);
+
 
     return {
       success: true,
@@ -141,7 +141,7 @@ export async function awardChatPoints(userId: string): Promise<PointsResult> {
       // Table doesn't exist, we'll just skip tracking
     }
 
-    console.log(`[POINTS] Awarded ${pointsToAward} chat points to ${userId.substring(0, 10)}... (${dailyEarned + pointsToAward}/${POINTS_CONFIG.CHAT_DAILY_LIMIT} today)`);
+
 
     return {
       success: true,

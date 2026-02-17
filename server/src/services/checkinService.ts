@@ -118,7 +118,7 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
 
 export async function processCheckIn(userId: string): Promise<CheckInResult> {
   try {
-    console.log(`[CHECKIN] Processing check-in for user ${userId.substring(0, 10)}...`);
+
 
     // Check if user can check in
     const status = await getCheckInStatus(userId);
@@ -195,7 +195,7 @@ export async function processCheckIn(userId: string): Promise<CheckInResult> {
       message = `Check-in complete! Day ${newStreak} +${pointsEarned} point${pointsEarned > 1 ? 's' : ''}. Total: ${newTotalPoints}. Next milestone: Day ${nextMilestone} for ${nextReward} points!`;
     }
 
-    console.log(`[CHECKIN] Success for ${userId.substring(0, 10)}... - Day ${newStreak}, +${pointsEarned} pts`);
+
 
     return {
       success: true,

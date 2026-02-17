@@ -21,9 +21,10 @@ export class SubscriptionService {
     this.packageId = process.env.SUI_PACKAGE_ID || "";
     this.subscriptionRegistryId =
       process.env.SUI_SUBSCRIPTION_REGISTRY_ID || "";
-
-    console.log("✅ SubscriptionService initialized");
   }
+
+  // In-memory fallback if Redis/Walrus fails
+  private memoryCache = new Map<string, { count: number, date: string }>();
 
   private getTodayDate(): string {
     return new Date().toISOString().split("T")[0];
@@ -34,61 +35,61 @@ export class SubscriptionService {
     return lastDate !== this.getTodayDate();
   }
 
+  // Cache tier for 5 minutes to avoid spamming RPC
+  private tierCache = new Map<string, { data: any, timestamp: number }>();
+
   async getCurrentTier(walletAddress: string): Promise<{
     tier: number;
     expires_at: number;
     isActivePremium: boolean;
   }> {
+    // Check cache
+    const cached = this.tierCache.get(walletAddress);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < 5 * 60 * 1000)) {
+      return cached.data;
+    }
+
     try {
       const onChain = await this.getOnChainSubscription(walletAddress);
+      let result;
 
       if (onChain) {
-        const now = Date.now();
         const isActivePremium = onChain.tier === 1 && onChain.expires_at > now;
-
-        console.log(
-          `[SUBSCRIPTION] On-chain tier check for ${walletAddress.substring(0, 10)}...:`,
-        );
-        console.log(`   Tier: ${onChain.tier}`);
-        console.log(
-          `   Expires: ${new Date(onChain.expires_at).toISOString()}`,
-        );
-        console.log(`   Active Premium: ${isActivePremium}`);
-
-        return {
+        result = {
           tier: isActivePremium ? 1 : 0,
           expires_at: onChain.expires_at,
           isActivePremium,
         };
-      }
-
-      console.warn(
-        `[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`,
-      );
-      const walrusData = await this.getWalrusSubscription(walletAddress);
-
-      if (walrusData) {
-        const now = Date.now();
-        // ✅ FIX: Ensure boolean type
-        const isActivePremium = Boolean(
-          walrusData.tier === 1 &&
-          walrusData.expires_at &&
-          new Date(walrusData.expires_at).getTime() > now,
+      } else {
+        console.warn(
+          `[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`,
         );
+        const walrusData = await this.getWalrusSubscription(walletAddress);
 
-        return {
-          tier: isActivePremium ? 1 : 0,
-          expires_at: walrusData.expires_at
-            ? new Date(walrusData.expires_at).getTime()
-            : 0,
-          isActivePremium,
-        };
+        if (walrusData) {
+          // ✅ FIX: Ensure boolean type
+          const isActivePremium = Boolean(
+            walrusData.tier === 1 &&
+            walrusData.expires_at &&
+            new Date(walrusData.expires_at).getTime() > now,
+          );
+
+          result = {
+            tier: isActivePremium ? 1 : 0,
+            expires_at: walrusData.expires_at
+              ? new Date(walrusData.expires_at).getTime()
+              : 0,
+            isActivePremium,
+          };
+        } else {
+          result = { tier: 0, expires_at: 0, isActivePremium: false };
+        }
       }
 
-      console.log(
-        `[SUBSCRIPTION] No subscription found, defaulting to free tier`,
-      );
-      return { tier: 0, expires_at: 0, isActivePremium: false };
+      this.tierCache.set(walletAddress, { data: result, timestamp: now });
+      return result;
+
     } catch (error) {
       console.error("[SUBSCRIPTION] Error getting tier:", error);
       return { tier: 0, expires_at: 0, isActivePremium: false };
@@ -262,10 +263,8 @@ export class SubscriptionService {
       const tierStatus = await this.getCurrentTier(walletAddress);
       const limit = tierStatus.isActivePremium ? 5 : 2;
 
-      console.log(
-        `[SUBSCRIPTION] Checking canUsePrompt for ${walletAddress.substring(0, 10)}...`,
-      );
-      console.log(`   Tier: ${tierStatus.tier}, Limit: ${limit}`);
+
+
 
       // Layer 1: Redis fast check
       if (redisClient && redisClient.isOpen) {
@@ -273,27 +272,21 @@ export class SubscriptionService {
 
         try {
           const count = await redisClient.get(redisKey);
-          console.log(`   Redis key: ${redisKey}, value: ${count}`);
+
 
           if (count) {
             const used = parseInt(count);
 
             if (used < limit) {
-              console.log(
-                `[SUBSCRIPTION] ✅ Redis: ALLOWED ${used}/${limit} (tier ${tierStatus.tier})`,
-              );
+
               return true;
             } else {
-              console.log(
-                `[SUBSCRIPTION] ❌ Redis: BLOCKED ${used}/${limit} (tier ${tierStatus.tier})`,
-              );
+
               return false;
             }
           } else {
             // No Redis data - new user or daily reset happened
-            console.log(
-              `[SUBSCRIPTION] ✅ Redis: No data found, allowing (new user or reset)`,
-            );
+
             return true;
           }
         } catch (redisError) {
@@ -302,6 +295,19 @@ export class SubscriptionService {
             redisError,
           );
         }
+        // Layer 1.5: In-Memory fallback (if Redis is down)
+        const mem = this.memoryCache.get(walletAddress);
+        if (mem && mem.date === today) {
+          if (mem.count >= limit) {
+            return false;
+          }
+          // If memory says OK, we still check Walrus/Redis to be sure? 
+          // No, if memory has it, trust it for blocking (failsafe).
+          // Actually, let's treat memory as authoritative for blocking if it exceeds limit.
+        } else if (mem && mem.date !== today) {
+          // Reset memory for new day
+          this.memoryCache.delete(walletAddress);
+        }
       }
 
       // Layer 2: Walrus cache check
@@ -309,25 +315,21 @@ export class SubscriptionService {
 
       if (!walrusData) {
         // New user - allow first prompts
-        console.log(`[SUBSCRIPTION] ✅ Walrus: No data, allowing (new user)`);
+
         return true;
       }
 
-      console.log(
-        `   Walrus data: used=${walrusData.daily_prompts_used}, last_date=${walrusData.last_prompt_date}`,
-      );
+
 
       // Check if needs daily reset
       if (this.needsDailyReset(walrusData.last_prompt_date)) {
-        console.log(`[SUBSCRIPTION] ✅ Walrus: Daily reset needed, allowing`);
+
         return true;
       }
 
       const canUse = walrusData.daily_prompts_used < limit;
 
-      console.log(
-        `[SUBSCRIPTION] ${canUse ? "✅" : "❌"} Walrus: ${walrusData.daily_prompts_used}/${limit} (blockchain tier: ${tierStatus.tier}, cached: ${walrusData.tier})`,
-      );
+
 
       return canUse;
     } catch (error) {
@@ -340,45 +342,46 @@ export class SubscriptionService {
     try {
       const today = this.getTodayDate();
 
-      console.log(
-        `\n[SUBSCRIPTION] 📊 Tracking prompt usage for ${walletAddress.substring(0, 10)}...`,
-      );
-
       const tierStatus = await this.getCurrentTier(walletAddress);
-
       const walrusData = await this.getWalrusSubscription(walletAddress);
 
       const needsReset = this.needsDailyReset(walrusData?.last_prompt_date);
-      const currentUsed = needsReset ? 0 : walrusData?.daily_prompts_used || 0;
-      const newUsed = currentUsed + 1;
+      let currentUsed = needsReset ? 0 : walrusData?.daily_prompts_used || 0;
 
-      console.log(
-        `   Current: ${currentUsed}, New: ${newUsed}, Reset: ${needsReset}`,
-      );
-
-      await this.updateWalrusSubscription(walletAddress, {
-        tier: tierStatus.tier,
-        expires_at:
-          tierStatus.expires_at > 0
-            ? new Date(tierStatus.expires_at).toISOString()
-            : undefined,
-        daily_prompts_used: newUsed,
-        last_prompt_date: today,
-      });
-
-      if (redisClient && redisClient.isOpen) {
-        const redisKey = `prompts:${walletAddress}:${today}`;
-
-        await redisClient.set(redisKey, newUsed.toString(), {
-          EX: 86400,
-        });
-
-        console.log(`   Redis updated: ${redisKey} = ${newUsed}`);
+      // Layer 1.5: Check In-Memory Cache for more recent usage
+      const mem = this.memoryCache.get(walletAddress);
+      if (mem && mem.date === today && mem.count > currentUsed) {
+        currentUsed = mem.count;
+      } else if (mem && mem.date !== today) {
+        this.memoryCache.delete(walletAddress);
       }
 
-      console.log(
-        `✅ [SUBSCRIPTION] Tracked: ${newUsed} prompts (tier ${tierStatus.tier})`,
-      );
+      const newUsed = currentUsed + 1;
+
+      // Update In-Memory Cache IMMEDIATELY
+      this.memoryCache.set(walletAddress, { count: newUsed, date: today });
+
+      // Try persistent storage updates (fail safe)
+      try {
+        await this.updateWalrusSubscription(walletAddress, {
+          tier: tierStatus.tier,
+          expires_at:
+            tierStatus.expires_at > 0
+              ? new Date(tierStatus.expires_at).toISOString()
+              : undefined,
+          daily_prompts_used: newUsed,
+          last_prompt_date: today,
+        });
+
+        if (redisClient && redisClient.isOpen) {
+          const redisKey = `prompts:${walletAddress}:${today}`;
+          await redisClient.set(redisKey, newUsed.toString(), {
+            EX: 86400,
+          });
+        }
+      } catch (externalError) {
+        console.warn("[SUBSCRIPTION] Failed to update persistent storage, relying on memory:", externalError);
+      }
 
       return true;
     } catch (error) {
@@ -404,7 +407,31 @@ export class SubscriptionService {
       }
 
       const needsReset = this.needsDailyReset(walrusData.last_prompt_date);
-      const used = needsReset ? 0 : walrusData.daily_prompts_used;
+      let used = needsReset ? 0 : walrusData.daily_prompts_used;
+      const today = this.getTodayDate();
+
+      // Layer 1: Check Redis fast check (Primary Source of Trurth for blocking)
+      if (redisClient && redisClient.isOpen) {
+        const redisKey = `prompts:${walletAddress}:${today}`;
+        try {
+          const count = await redisClient.get(redisKey);
+          if (count) {
+            const redisUsed = parseInt(count);
+            if (redisUsed > used) {
+              used = redisUsed;
+            }
+          }
+        } catch (e) {
+          console.warn("[SUBSCRIPTION] Redis check failed in getPromptsRemaining:", e);
+        }
+      }
+
+      // Layer 1.5: Check In-Memory Cache for more recent usage
+      const mem = this.memoryCache.get(walletAddress);
+
+      if (mem && mem.date === today && mem.count > used) {
+        used = mem.count;
+      }
 
       return {
         used,

@@ -12,7 +12,7 @@ export class TaskScheduler {
   private ticketMinter = new TicketMinter();
   private isRunning = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): TaskScheduler {
     if (!TaskScheduler.instance) {
@@ -23,8 +23,8 @@ export class TaskScheduler {
 
   public start() {
     if (this.isRunning) return;
-    
-    console.log("⏰ Task Scheduler started");
+
+
     this.isRunning = true;
 
     // Run every minute
@@ -47,7 +47,7 @@ export class TaskScheduler {
       if (!registry || !registry.users) return;
 
       const userIds = Object.keys(registry.users);
-      
+
       for (const userId of userIds) {
         await this.processUserTasks(userId);
       }
@@ -64,7 +64,7 @@ export class TaskScheduler {
       // Find tasks that are due (or past due) and haven't been notified
       const dueTasks = tasks.filter(task => {
         if (!task.due_date || task.status === "completed" || task.due_notification_sent) return false;
-        
+
         const dueDate = new Date(task.due_date);
         // Add a small buffer (e.g. 1 minute) to ensure we catch tasks that just became due
         // But mainly we want to notify when Current Time >= Due Time
@@ -72,8 +72,8 @@ export class TaskScheduler {
       });
 
       for (const task of dueTasks) {
-        console.log(`[SCHEDULER] Sending reminder for task ${task.id} to user ${userId}`);
-        
+
+
         // Send notification
         await this.notificationService.sendTaskDueNotification(userId, task);
 

@@ -8,9 +8,9 @@ export class TelegramBot {
   private bot: Telegraf | null = null;
   private userManager = new WalrusUserManager();
   private ticketMinter = new TicketMinter();
-  
+
   private log(message: string, ...args: any[]) {
-    console.log(`[TELEGRAM BOT] ${message}`, ...args);
+    // console.log(`[TELEGRAM BOT] ${message}`, ...args);
   }
 
   private constructor() {
@@ -23,7 +23,7 @@ export class TelegramBot {
     this.log(`Initializing with token: ${token.substring(0, 5)}...`);
     this.bot = new Telegraf(token);
     this.setupHandlers();
-    
+
     // Explicitly set polling mode and clear webhook info if any
     this.bot.launch({ dropPendingUpdates: true })
       .then(() => {
@@ -36,7 +36,7 @@ export class TelegramBot {
         }
         this.bot = null; // Disable the bot on failure
       });
-      
+
     // Enable graceful stop
     process.once('SIGINT', () => this.bot?.stop('SIGINT'));
     process.once('SIGTERM', () => this.bot?.stop('SIGTERM'));
@@ -55,24 +55,25 @@ export class TelegramBot {
     this.bot.use((ctx, next) => {
       this.log(`Received update type: ${ctx.updateType}`);
       if (ctx.message && 'text' in ctx.message) {
-         this.log(`Message from ${ctx.from?.username} (${ctx.from?.id}): ${ctx.message.text}`);
+        this.log(`Message from ${ctx.from?.username} (${ctx.from?.id}): ${ctx.message.text}`);
       }
       return next();
     });
 
     this.bot.start(async (ctx) => {
       this.log("Processing /start command");
-      const payload = (ctx as any).payload; 
+      const payload = (ctx as any).payload;
       this.log(`Payload received: ${payload}`);
 
       if (payload && payload.startsWith("link_")) {
-        const token = payload.replace("link_", "");
-        const telegramService = getTelegramService();
-        const walletAddress = telegramService.validateToken(token);
-        
-        this.log(`Validating token: ${token} -> Wallet: ${walletAddress}`);
+        const walletAddress = payload.replace("link_", "");
 
-        if (walletAddress) {
+        // Basic validation of wallet address format (starts with 0x, reasonable length)
+        const isValidWallet = walletAddress.startsWith("0x") && walletAddress.length > 10;
+
+        this.log(`Received linking request for Wallet: ${walletAddress}`);
+
+        if (isValidWallet) {
           try {
             const chatId = ctx.chat?.id.toString();
             const telegramUsername = ctx.from?.username || "User";
@@ -104,7 +105,6 @@ export class TelegramBot {
                   await this.ticketMinter.updateBlobRegistry(newBlobId);
                 }
 
-                telegramService.consumeToken(token);
                 await ctx.reply(`✅ Successfully linked to Tovira Dashboard!\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\nNotifications are now enabled.`);
                 return;
               }
@@ -115,7 +115,7 @@ export class TelegramBot {
             await ctx.reply("❌ Linking failed. Please try again later.");
           }
         } else {
-          await ctx.reply("❌ Invalid or expired linking token. Please go back to the web app and try again.");
+          await ctx.reply("❌ Invalid wallet address. Please go back to the web app and try again.");
         }
       } else {
         // Handle standard /start without payload
@@ -129,14 +129,14 @@ export class TelegramBot {
               if (walletAddress) {
                 const profile = await this.userManager.getUserProfile(blobId, walletAddress);
                 if (profile) {
-                   await ctx.reply(`✅ You are already connected!\n\nUser: ${profile.telegram_username || "Unknown"}\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n\nUse /info to see more details.`);
-                   return;
+                  await ctx.reply(`✅ You are already connected!\n\nUser: ${profile.telegram_username || "Unknown"}\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\n\nUse /info to see more details.`);
+                  return;
                 }
               }
             }
           }
         } catch (err) {
-            this.log("Error checking existing link status:", err);
+          this.log("Error checking existing link status:", err);
         }
 
         await ctx.reply("Welcome to Tovira! Link your wallet in the web app to receive notifications here.");
@@ -162,8 +162,8 @@ export class TelegramBot {
 
         const profile = await this.userManager.getUserProfile(blobId, walletAddress);
         if (!profile) {
-           await ctx.reply("❌ User profile not found.");
-           return;
+          await ctx.reply("❌ User profile not found.");
+          return;
         }
 
         let displayName = "User";
@@ -207,7 +207,7 @@ _Use /disconnect in the web app to unlink._
 
         const walletAddress = await this.userManager.findWalletByTelegramChatId(blobId, chatId);
         this.log(`Tasks command: ChatID ${chatId} -> Wallet ${walletAddress}`);
-        
+
         if (!walletAddress) {
           await ctx.reply("❌ You are not connected. Link your account in the dashboard.");
           return;

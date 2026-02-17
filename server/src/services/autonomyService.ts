@@ -31,7 +31,7 @@ export class AutonomyService {
    * For this demo/setup, we'll simulate the execution or use Enoki's API if available.
    */
   async executeTokenTransfer(taskId: number, userId: string, params: { recipientAddress: string, amount: string, coinType: string }): Promise<string> {
-    console.log(`[AUTONOMY] Executing autonomous transfer for user ${userId}, task ${taskId}`);
+
 
     // In a real Enoki implementation, we would use the Enoki API key 
     // and the user's session/subject to sign and execute.
@@ -57,7 +57,7 @@ export class AutonomyService {
   }
 
   async executeTokenSwap(taskId: number, userId: string, params: { fromCoin: string, toCoin: string, amountToSwap: string }): Promise<string> {
-    console.log(`[AUTONOMY] Executing autonomous swap for user ${userId}, task ${taskId}`);
+
 
     await new Promise(resolve => setTimeout(resolve, 1500));
 
