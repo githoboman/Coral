@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useConnectWallet, useWallets, useCurrentAccount } from "@mysten/dapp-kit";
 import { isEnokiWallet, type AuthProvider } from "@mysten/enoki";
-import { toast } from "react-toastify";
+import { sileo } from "sileo";
 import { useNavigate } from "react-router-dom";
 
 const SocialIconGoogle = () => (
@@ -65,14 +65,15 @@ export default function Signin() {
           },
           onError: (error) => {
             setIsConnecting(false);
-            toast.error(error.message || "Failed to connect with Google");
+            sileo.error({ title: "Connection Failed", description: error.message || "Failed to connect with Google" });
           },
         },
       );
     } else {
-      toast.error(
-        "Google sign-in not available. Check your Enoki configuration.",
-      );
+      sileo.error({ 
+        title: "Google Sign-in Unavailable", 
+        description: "Check your Enoki configuration." 
+      });
     }
   };
 
@@ -87,7 +88,7 @@ export default function Signin() {
         },
         onError: (error) => {
           setIsConnecting(false);
-          toast.error(error.message || "Failed to connect wallet");
+          sileo.error({ title: "Connection Failed", description: error.message || "Failed to connect wallet" });
         },
       },
     );

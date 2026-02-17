@@ -34,8 +34,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
 import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { sileo } from "sileo";
 
 import { LayoutContextType } from "@/types/LayoutTypes";
 
@@ -752,9 +751,7 @@ const WalletModalOverlay = (props: any) => {
               </div>
               <button
                 onClick={() =>
-                  toast.info("Share functionality coming soon!", {
-                    theme: "dark",
-                  })
+                  sileo.success({ title: "Coming Soon", description: "Share functionality is coming soon!" })
                 }
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
               >
@@ -977,12 +974,9 @@ export default function AppLayout() {
         }),
       });
       setIsAutonomyEnabled(newValue);
-      toast.success(
-        newValue ? "Agent Autonomy Enabled" : "Agent Autonomy Disabled",
-        { theme: "dark" },
-      );
+      sileo.success({ title: "Autonomy Updated", description: newValue ? "Agent Autonomy Enabled" : "Agent Autonomy Disabled" });
     } catch (e) {
-      toast.error("Failed to update autonomy settings");
+      sileo.error({ title: "Update Failed", description: "Failed to update autonomy settings" });
     } finally {
       setIsUpdatingAutonomy(false);
     }
@@ -1022,7 +1016,7 @@ export default function AppLayout() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard!", { theme: "dark", autoClose: 2000 });
+      sileo.success({ title: "Copied", description: "Copied to clipboard!" });
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -1033,16 +1027,13 @@ export default function AppLayout() {
       const text = await navigator.clipboard.readText();
       if (text.trim().startsWith("0x")) {
         setSendRecipient(text.trim());
-        toast.success("Address pasted!", { theme: "dark", autoClose: 2000 });
+        sileo.success({ title: "Pasted", description: "Address pasted!" });
       } else {
-        toast.error("No wallet address found", {
-          theme: "dark",
-          autoClose: 2000,
-        });
+        sileo.error({ title: "Error", description: "No wallet address found" });
       }
     } catch (err) {
       console.error("Failed to paste:", err);
-      toast.error("Unable to paste", { theme: "dark", autoClose: 2000 });
+      sileo.error({ title: "Error", description: "Unable to paste" });
     }
   };
 
@@ -1253,13 +1244,11 @@ export default function AppLayout() {
       const result = await signAndExecuteTransaction({ transaction: tx });
 
       console.log("Swap executed:", result.digest);
-      toast.success(`Swap Submitted! Digest: ${result.digest.slice(0, 6)}...`, {
-        theme: "dark",
-      });
+      sileo.success({ title: "Swap Submitted", description: `Digest: ${result.digest.slice(0, 6)}...` });
       setActiveWalletModal(null); // Close modal on success
     } catch (e: any) {
       console.error("Swap failed", e);
-      toast.error(`Swap Failed: ${e.message?.slice(0, 50)}`, { theme: "dark" });
+      sileo.error({ title: "Swap Failed", description: e.message?.slice(0, 50) });
     } finally {
       setIsSwapping(false);
     }

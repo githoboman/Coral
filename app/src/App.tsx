@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
 
 import {
   AppLayout,
@@ -14,6 +13,7 @@ import {
 } from "@/pages/";
 import Subscription from "@/pages/Subscription";
 import { SplashScreen } from "@/components/ui/SplashScreen";
+import { SileoToaster } from "@/components/SileoToaster";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -43,7 +43,7 @@ function App() {
         </Route>
       </Routes>
 
-      <ToastContainer />
+      <SileoToaster />
     </div>
   );
 }

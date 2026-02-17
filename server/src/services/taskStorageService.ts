@@ -1,8 +1,8 @@
 // server/src/services/taskStorageService.ts
 import axios from "axios";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
-import { TicketMinter } from "./ticketMinter";
-import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 
 export interface TaskData {
   id: string;
@@ -67,7 +67,7 @@ export class TaskStorageService {
     userId: string,
   ): Promise<string | null> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -75,7 +75,7 @@ export class TaskStorageService {
         return null;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -99,7 +99,7 @@ export class TaskStorageService {
     taskRegistryBlobId: string,
   ): Promise<boolean> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -107,7 +107,7 @@ export class TaskStorageService {
         return false;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -189,16 +189,21 @@ export class TaskStorageService {
     try {
       currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
     } catch (error) {
-      console.warn(`Could not fetch registry blob ID, assuming none or error: ${error}`);
-      // If it was a network error, we should probably fail here too, but for now strictness is in the `get` method.
-      // Actually, we MUST fail here if it's a network error, otherwise we overwrite.
-      throw error;
+      console.error(`❌ Critical Error: Could not fetch user profile/registry for ${userId}:`, error);
+      // CRITICAL: Return null to abort task creation and protect existing data.
+      // Do NOT proceed to create a new registry if the fetch failed due to network error.
+      return null; 
     }
 
     let currentRegistry: TaskRegistry | null = null;
 
     if (currentRegistryBlobId) {
-      currentRegistry = await this.getTaskRegistry(userId);
+      try {
+        currentRegistry = await this.getTaskRegistry(userId);
+      } catch (error) {
+        console.error(`❌ Critical Error: Could not fetch task registry ${currentRegistryBlobId}:`, error);
+        return null;
+      }
     }
 
     // Encrypt task data

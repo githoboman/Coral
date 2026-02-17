@@ -1,17 +1,24 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { WalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
 
 const router = Router();
 
-const USER_REGISTRY_BLOB_ID = process.env.USER_REGISTRY_BLOB_ID || "";
-
 let userManager: WalrusUserManager | null = null;
+let ticketMinter: TicketMinter | null = null;
 
 function getUserManager(): WalrusUserManager {
   if (!userManager) {
-    userManager = new WalrusUserManager();
+    userManager = getWalrusUserManager();
   }
   return userManager;
+}
+
+function getLocalTicketMinter(): TicketMinter {
+  if (!ticketMinter) {
+    ticketMinter = getTicketMinter();
+  }
+  return ticketMinter;
 }
 
 router.get(
@@ -27,7 +34,10 @@ router.get(
         });
       }
 
-      if (!USER_REGISTRY_BLOB_ID) {
+      const minter = getLocalTicketMinter();
+      const userRegistryBlobId = await minter.getCurrentBlobId();
+
+      if (!userRegistryBlobId) {
         return res.json({
           exists: false,
           user: null,
@@ -38,7 +48,7 @@ router.get(
       const manager = getUserManager();
       // getUserProfile returns DecryptedUserProfile | null
       const userProfile = await manager.getUserProfile(
-        USER_REGISTRY_BLOB_ID,
+        userRegistryBlobId,
         user_id,
       );
 
@@ -85,11 +95,15 @@ router.post(
       }
 
       const manager = getUserManager();
-
-      const existingProfile = await manager.getUserProfile(
-        USER_REGISTRY_BLOB_ID,
+      const minter = getLocalTicketMinter();
+      
+      const userRegistryBlobId = await minter.getCurrentBlobId();
+      // If no registry exists yet on-chain, we'll start a new one (passed as null to addOrUpdateUser)
+      
+      const existingProfile = userRegistryBlobId ? await manager.getUserProfile(
+        userRegistryBlobId,
         user_id,
-      );
+      ) : null;
 
       const updatedProfile = manager.createUserProfile(
         email || existingProfile?.email || "",
@@ -106,7 +120,7 @@ router.post(
       );
 
       const newBlobId = await manager.addOrUpdateUser(
-        USER_REGISTRY_BLOB_ID || null,
+        userRegistryBlobId || null,
         updatedProfile,
       );
 
@@ -117,8 +131,8 @@ router.post(
         });
       }
 
-      if (newBlobId !== USER_REGISTRY_BLOB_ID) {
-        console.log(`\n⚠️  Update .env: USER_REGISTRY_BLOB_ID=${newBlobId}`);
+      if (newBlobId !== userRegistryBlobId) {
+        await minter.updateBlobRegistry(newBlobId);
       }
 
       return res.json({

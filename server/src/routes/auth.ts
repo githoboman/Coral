@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { WaitlistManager } from "../services/waitlistManager";
-import { WalrusUserManager } from "../services/walrusUserManager";
-import { TicketMinter } from "../services/ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 
 const router = Router();
 
@@ -16,11 +16,11 @@ function getWaitlistManager(): WaitlistManager {
   return waitlistManager;
 }
 function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = new WalrusUserManager();
+  if (!userManager) userManager = getWalrusUserManager();
   return userManager;
 }
-function getTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = new TicketMinter();
+function getLocalTicketMinter(): TicketMinter {
+  if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
 }
 
@@ -156,7 +156,7 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       console.log(
         `\n🔍 [SPONSORED CLAIM] Checking eligibility for: ${wallet_address}`,
@@ -282,7 +282,7 @@ router.get(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const blobId = await minter.getCurrentBlobId();
 
       console.log(`check-user: blobId from chain = ${blobId || "null"}`);
@@ -352,7 +352,7 @@ router.get(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       if (tx_digest && typeof tx_digest === "string") {
         console.log(

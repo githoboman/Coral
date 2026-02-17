@@ -1,14 +1,14 @@
 import { Telegraf } from "telegraf";
 import { getTelegramService } from "./telegramService";
-import { WalrusUserManager } from "./walrusUserManager";
-import { TicketMinter } from "./ticketMinter";
+import { getWalrusUserManager } from "./walrusUserManager";
+import { getTicketMinter } from "./ticketMinter";
 
 export class TelegramBot {
   private static instance: TelegramBot;
   private bot: Telegraf | null = null;
-  private userManager = new WalrusUserManager();
-  private ticketMinter = new TicketMinter();
-
+  private userManager = getWalrusUserManager();
+  private ticketMinter = getTicketMinter();
+  
   private log(message: string, ...args: any[]) {
     // console.log(`[TELEGRAM BOT] ${message}`, ...args);
   }

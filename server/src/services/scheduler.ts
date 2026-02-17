@@ -1,15 +1,15 @@
 import cron from "node-cron";
 import { getTaskStorageService } from "./taskStorageService";
 import { getNotificationService } from "./notificationService";
-import { WalrusUserManager } from "./walrusUserManager";
-import { TicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
 
 export class TaskScheduler {
   private static instance: TaskScheduler;
   private taskStorage = getTaskStorageService();
   private notificationService = getNotificationService();
-  private userManager = new WalrusUserManager();
-  private ticketMinter = new TicketMinter();
+  private userManager = getWalrusUserManager();
+  private ticketMinter = getTicketMinter();
   private isRunning = false;
 
   private constructor() { }

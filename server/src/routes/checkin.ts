@@ -1,19 +1,19 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { TicketMinter } from "../services/ticketMinter";
-import { WalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
 
 const router = Router();
 
 let ticketMinter: TicketMinter | null = null;
 let userManager: WalrusUserManager | null = null;
 
-function getTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = new TicketMinter();
+function getLocalTicketMinter(): TicketMinter {
+  if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
 }
 
 function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = new WalrusUserManager();
+  if (!userManager) userManager = getWalrusUserManager();
   return userManager;
 }
 
@@ -136,7 +136,7 @@ router.get(
       const timezoneOffset = timezone_offset
         ? parseInt(timezone_offset as string)
         : 0;
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       const [lastCheckinDate, currentStreak, balance, checkinFee] =
         await Promise.all([
@@ -241,7 +241,7 @@ router.post(
       statusCache.delete(wallet_address);
 
       const timezoneOffset = timezone_offset || 0;
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       const lastCheckinDate = await minter.getLastCheckinDate(wallet_address);
       const currentStreak = await minter.getCurrentStreak(wallet_address);

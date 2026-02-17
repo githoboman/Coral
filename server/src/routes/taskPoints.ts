@@ -1,19 +1,19 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { TicketMinter } from "../services/ticketMinter";
-import { WalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
 
 const router = Router();
 
 let ticketMinter: TicketMinter | null = null;
 let userManager: WalrusUserManager | null = null;
 
-function getTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = new TicketMinter();
+function getLocalTicketMinter(): TicketMinter {
+  if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
 }
 
 function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = new WalrusUserManager();
+  if (!userManager) userManager = getWalrusUserManager();
   return userManager;
 }
 
@@ -43,7 +43,7 @@ router.get(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const manager = getUserManager();
 
       const userRegistryBlobId = await minter.getCurrentBlobId();
@@ -129,7 +129,7 @@ router.post(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const manager = getUserManager();
 
       const userRegistryBlobId = await minter.getCurrentBlobId();
@@ -221,7 +221,7 @@ router.post(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const manager = getUserManager();
 
       const userRegistryBlobId = await minter.getCurrentBlobId();
@@ -330,7 +330,7 @@ router.post(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const manager = getUserManager();
 
       const userRegistryBlobId = await minter.getCurrentBlobId();
@@ -439,7 +439,7 @@ router.get(
         return;
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const manager = getUserManager();
 
       const userRegistryBlobId = await minter.getCurrentBlobId();
