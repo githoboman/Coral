@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import {
   AppLayout,
@@ -15,6 +14,7 @@ import {
 import Subscription from "@/pages/Subscription";
 import { TelegramProvider } from "@/components/TelegramProvider";
 import { SplashScreen } from "@/components/ui/SplashScreen";
+import { SileoToaster } from "@/components/SileoToaster";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -40,13 +40,13 @@ function App() {
             <Route path="/account" element={<Account />} />
             <Route path="/subscription" element={<Subscription />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/" element={<Dashboard />}>
-              <Route path="/:chatId" element={<Dashboard />} />
-            </Route>
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/chat" element={<Dashboard />} />
+            <Route path="/chat/:chatId" element={<Dashboard />} />
           </Route>
         </Routes>
 
-        <ToastContainer />
+        <SileoToaster />
       </div>
     </TelegramProvider>
   );

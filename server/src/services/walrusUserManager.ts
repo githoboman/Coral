@@ -122,6 +122,7 @@ export interface WalrusUploadResponse {
 }
 
 export class WalrusUserManager {
+  private static instance: WalrusUserManager;
   private publisherUrl: string;
   private aggregatorUrl: string;
   private epochs: number;
@@ -129,7 +130,7 @@ export class WalrusUserManager {
     null;
   private encryption = getEncryptionService();
 
-  constructor() {
+  private constructor() {
     this.publisherUrl =
       process.env.WALRUS_PUBLISHER_URL ||
       "https://publisher.walrus-testnet.walrus.space";
@@ -141,6 +142,13 @@ export class WalrusUserManager {
     console.log("✅ WalrusUserManager initialized");
     console.log(`   Publisher: ${this.publisherUrl}`);
     console.log(`   Aggregator: ${this.aggregatorUrl}`);
+  }
+
+  public static getInstance(): WalrusUserManager {
+    if (!WalrusUserManager.instance) {
+      WalrusUserManager.instance = new WalrusUserManager();
+    }
+    return WalrusUserManager.instance;
   }
 
   createUserProfile(
@@ -341,7 +349,7 @@ export class WalrusUserManager {
     }
 
     console.error("❌ Failed to fetch users registry after all retries");
-    return null;
+    throw lastError || new Error("Failed to fetch users registry");
   }
 
   async uploadUsersRegistry(
@@ -482,22 +490,20 @@ export class WalrusUserManager {
     registryBlobId: string,
     walletAddress: string,
   ): Promise<DecryptedUserProfile | null> {
-    try {
-      const registry = await this.fetchUsersRegistry(registryBlobId);
-      if (!registry) {
-        return null;
-      }
-
-      const encryptedProfile = registry.users[walletAddress];
-      if (!encryptedProfile) {
-        return null;
-      }
-
-      return this.decryptProfile(encryptedProfile);
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
+    // Propagate errors so caller knows if fetch failed vs user not found
+    const registry = await this.fetchUsersRegistry(registryBlobId);
+    
+    // If registry is null (shouldn't happen with throw change, but for type safety)
+    if (!registry) { 
+      throw new Error("Failed to retrieve user registry");
     }
+
+    const encryptedProfile = registry.users[walletAddress];
+    if (!encryptedProfile) {
+      return null; // User genuinely doesn't exist in this registry
+    }
+
+    return this.decryptProfile(encryptedProfile);
   }
 
   async findWalletByEmail(
@@ -584,7 +590,38 @@ export class WalrusUserManager {
     }
   }
 
+  async findWalletByUsername(
+    registryBlobId: string,
+    username: string,
+  ): Promise<string | null> {
+    try {
+      const registry = await this.fetchUsersRegistry(registryBlobId);
+      if (!registry) return null;
+
+      const targetUsername = username.toLowerCase().trim();
+
+      for (const [walletAddress, encryptedProfile] of Object.entries(
+        registry.users,
+      )) {
+        const decryptedUsername = this.encryption.decryptOptional(
+          encryptedProfile.username,
+        );
+        if (decryptedUsername?.toLowerCase().trim() === targetUsername) {
+          return walletAddress;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in findWalletByUsername:", error);
+      return null;
+    }
+  }
+
   getBlobUrl(blobId: string): string {
     return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 }
+
+export const getWalrusUserManager = () => WalrusUserManager.getInstance();
+

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
-import { toast } from 'react-toastify';
+import { sileo } from 'sileo';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -81,13 +81,13 @@ export function useProfile() {
       if (!res.ok) {
         // Revert on failure
         setProfile(previousProfile);
-        toast.error("Failed to update preferences");
+        sileo.error({ title: "Update Failed", description: "Failed to update preferences" });
       } else {
-        toast.success("Preferences updated");
+        sileo.success({ title: "Success", description: "Preferences updated" });
       }
     } catch (err) {
       setProfile(previousProfile);
-      toast.error("Error updating preferences");
+      sileo.error({ title: "Error", description: "Error updating preferences" });
       console.error(err);
     }
   };

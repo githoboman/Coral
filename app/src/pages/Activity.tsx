@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Plus, Search, Filter, X } from "lucide-react";
+import { ChevronRight, Search, Filter, X } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -178,11 +178,6 @@ const Activity = () => {
       }, 100);
     });
   }, [userId, dispatch]);
-
-  const openAddModal = () => {
-    setSelectedItem(null);
-    setIsModalOpen(true);
-  };
 
   const openViewModal = (item: Item) => {
     setSelectedItem(item);
@@ -549,8 +544,8 @@ const Activity = () => {
 
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <div className="flex items-center gap-6">
-          <h1 className="text-[28px] font-medium text-white">
+        <div className="mb-8 text-center md:text-left">
+          <h1 className="text-2xl md:text-3xl font-bold">
             Tasks
           </h1>
         </div>
@@ -564,7 +559,7 @@ const Activity = () => {
         <div className="flex-1 flex flex-col justify-between bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 relative overflow-hidden">
           <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-[#B7FC0D]/5 blur-[60px] rounded-full pointer-events-none" />
 
-          <div className="flex justify-between">
+          <div className="flex justify-between mb-4">
             <div className="flex items-center gap-4">
               <span className="text-[40px] font-light text-white leading-none">
                 {stats.totalTasks}
@@ -573,12 +568,6 @@ const Activity = () => {
                 Total number of tasks
               </span>
             </div>
-            <button
-              onClick={() => openAddModal()}
-              className="bg-[#246AFC] hover:bg-[#1a55cc] text-white px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all shadow-[0_4px_20px_rgba(36,106,252,0.3)] hover:shadow-[0_6px_25px_rgba(36,106,252,0.4)] active:scale-95"
-            >
-              <Plus size={16} /> New Task
-            </button>
           </div>
 
           {/* Progress Bar Container */}
@@ -746,12 +735,6 @@ const Activity = () => {
           <div className="flex flex-col items-center justify-center h-[300px] text-white/30">
             <Search size={40} className="mb-4 opacity-20" />
             <p>No tasks found</p>
-            <button
-              onClick={() => openAddModal()}
-              className="mt-4 text-[#246AFC] hover:underline text-sm"
-            >
-              Create a new task
-            </button>
           </div>
         )}
       </div>

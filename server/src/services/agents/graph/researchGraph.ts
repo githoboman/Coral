@@ -16,6 +16,7 @@ function createResearchAgent() {
     model: process.env.LLM_MODEL || "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.3,
+    streaming: true,
   }).bindTools(tools);
 
   return model;

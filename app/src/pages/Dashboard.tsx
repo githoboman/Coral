@@ -14,6 +14,11 @@ import {
   ChevronDown,
   Crown,
   AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  RotateCcw,
+  Clock,
 } from "lucide-react";
 import WorkflowSteps from "@/components/WorkflowSteps";
 import AgentSelector from "@/components/AgentSelector";
@@ -83,7 +88,6 @@ import rust from "highlight.js/lib/languages/rust";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchChats,
@@ -314,8 +318,10 @@ const Dashboard = () => {
     limit: number;
     remaining: number;
     tier: number;
+    resetInSeconds?: number;
   } | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [taskCountdown, setTaskCountdown] = useState<number | null>(null);
 
   // Pending transaction action state (for immediate token transfers)
   interface PendingTxAction {
@@ -495,7 +501,7 @@ const Dashboard = () => {
             console.warn("Failed to parse cached messages:", e);
           }
         }
-        navigate(`/${lastChatId}`, { replace: true });
+        navigate(`/chat/${lastChatId}`, { replace: true });
       }
     }
   }, [user_id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -527,10 +533,29 @@ const Dashboard = () => {
     if (selectedAgentId === "task_agent" && user_id) {
       getTaskPromptStatus(user_id).then((status) => {
         setTaskPromptStatus(status);
+        if (status.resetInSeconds) {
+          setTaskCountdown(status.resetInSeconds);
+        }
         console.log("[TASK PROMPTS] Status:", status);
       });
     }
   }, [selectedAgentId, user_id]);
+
+  // Task Countdown timer effect
+  useEffect(() => {
+    if (taskCountdown === null || taskCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setTaskCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [taskCountdown]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -1134,7 +1159,7 @@ const Dashboard = () => {
             );
           });
           setTempMessages([]);
-          navigate(`/${activeChatId}`);
+          navigate(`/chat/${activeChatId}`);
         }
 
         const aiMessage: Message = {
@@ -1205,7 +1230,7 @@ const Dashboard = () => {
     localStorage.removeItem("tovira_last_chat_id");
 
     // Navigate to home (no chat ID)
-    navigate("/");
+    navigate("/chat");
 
     // Clear current chat in Redux
     dispatch(setCurrentChat(null));
@@ -1316,7 +1341,13 @@ const Dashboard = () => {
   if (isHistoryLoading && messages.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[100dvh] w-full bg-transparent">
-        <LoadingSpinner size="lg" />
+        <div className="relative flex items-center justify-center">
+          <img
+            src="/assets/images/signin-logo.png"
+            alt="Loading..."
+            className="w-24 h-24 object-contain animate-pulse"
+          />
+        </div>
       </div>
     );
   }
@@ -1436,7 +1467,7 @@ const Dashboard = () => {
                   className={`flex flex-col ${message.sender === "user" ? "items-end" : "items-start"} group`}
                 >
                   <div
-                    className={`md:max-w-[85%] overflow-hidden ${message.sender === "user" ? "bg-gradient-to-r from-emerald-600 to-emerald-800 text-white rounded-[24px] rounded-tr-none px-5 py-3.5 shadow-xl md:w-auto md:ml-auto w-fit" : ""}`}
+                    className={`md:max-w-[85%] overflow-hidden ${message.sender === "user" ? "bg-[#326AFD] text-white rounded-[24px] px-5 py-2.5 shadow-xl md:w-auto md:ml-auto w-fit" : ""}`}
                   >
                     {message.sender === "ai" && (
                       <div className="flex items-center gap-2 mb-2 text-white/40 text-xs font-semibold tracking-wider">
@@ -1448,7 +1479,7 @@ const Dashboard = () => {
                             getAgentConfig(message.agentId || "task_agent")
                               .displayName
                           }
-                          className="w-6 h-6 rounded-full object-cover"
+                          className="w-6 h-6 object-cover"
                         />
                         <span>
                           {message.agentType?.toUpperCase() || "TOVIRA"}
@@ -1566,28 +1597,7 @@ const Dashboard = () => {
                           className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           title="Copy message"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-white/80"
-                          >
-                            <rect
-                              x="9"
-                              y="9"
-                              width="13"
-                              height="13"
-                              rx="2"
-                              ry="2"
-                            ></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
+                          <Copy size={14} className="text-white/40 hover:text-white/80" />
                         </button>
                         <button
                           onClick={() => {
@@ -1699,32 +1709,14 @@ const Dashboard = () => {
                             }}
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                            <Copy
+                              size={14}
                               className={
                                 copiedId === message.id.toString()
                                   ? "text-[#B7FC0D]"
                                   : "text-white/40 hover:text-white/80"
                               }
-                            >
-                              <rect
-                                x="9"
-                                y="9"
-                                width="13"
-                                height="13"
-                                rx="2"
-                                ry="2"
-                              ></rect>
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
 
@@ -1735,28 +1727,19 @@ const Dashboard = () => {
                             }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
+                            <ThumbsUp
+                              size={14}
                               fill={
                                 feedback[message.id.toString()] === "like"
                                   ? "currentColor"
                                   : "none"
                               }
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
                               className={
                                 feedback[message.id.toString()] === "like"
                                   ? "text-blue-400"
                                   : "text-white/40 hover:text-blue-400"
                               }
-                            >
-                              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
 
@@ -1767,28 +1750,19 @@ const Dashboard = () => {
                             }
                             className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
+                            <ThumbsDown
+                              size={14}
                               fill={
                                 feedback[message.id.toString()] === "dislike"
                                   ? "currentColor"
                                   : "none"
                               }
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
                               className={
                                 feedback[message.id.toString()] === "dislike"
                                   ? "text-red-400"
                                   : "text-white/40 hover:text-red-400"
                               }
-                            >
-                              <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                            </svg>
+                            />
                           </button>
                         </Tooltip>
                         <button
@@ -1798,23 +1772,7 @@ const Dashboard = () => {
                           className="p-1 rounded hover:bg-white/10 transition-colors cursor-pointer"
                           title="Retry"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white/40 hover:text-white/80"
-                          >
-                            <path d="M21 2v6h-6"></path>
-                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                            <path d="M3 22v-6h6"></path>
-                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                          </svg>
+                          <RotateCcw size={14} className="text-white/40 hover:text-white/80" />
                         </button>
                       </div>
                     )}
@@ -1833,7 +1791,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {/* Streaming Text */}
+              {/* Streaming Text with Smooth Typewriter Effect */}
               {streamingText && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -1852,30 +1810,10 @@ const Dashboard = () => {
                       </span>
                     </div>
                     <div className="prose prose-invert prose-sm max-w-none break-words">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[
-                          [
-                            rehypeHighlight,
-                            {
-                              languages: {
-                                move: moveLanguage,
-                                sui: moveLanguage,
-                                javascript,
-                                typescript,
-                                python,
-                                bash,
-                                json,
-                                rust,
-                              },
-                            },
-                          ],
-                          rehypeKatex,
-                        ]}
-                        components={MarkdownComponents(handleOpenArtifact)}
-                      >
-                        {streamingText}
-                      </ReactMarkdown>
+                      <TypewriterEffect
+                        content={streamingText}
+                        onOpenArtifact={handleOpenArtifact}
+                      />
                     </div>
                   </div>
                 </motion.div>
@@ -2064,6 +2002,12 @@ const Dashboard = () => {
                       </strong>{" "}
                       task prompts today.
                     </div>
+                    {taskCountdown !== null && (
+                      <div className="text-white/60 text-xs mt-3 flex items-center gap-2 border-t border-white/10 pt-2">
+                        <Clock size={12} />
+                        Resets in: <span className="font-mono text-white/90 font-bold">{formatCountdown(taskCountdown)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2133,12 +2077,12 @@ const Dashboard = () => {
               selectedAgentId === "task_agent" &&
                 taskPromptStatus &&
                 taskPromptStatus.remaining <= 0
-                ? "Upgrade to premium to continue using task agent..."
+                ? "Upgrade to premium to continue..."
                 : rateLimitStatus?.isLimited && countdown !== null
                   ? `Rate limit reached. Try again in ${formatCountdown(countdown)}`
                   : "Ask anything..."
             }
-            className={`flex-1 min-h-[40px] max-h-[120px] py-2.5 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited || (selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`flex-1 min-h-[48px] max-h-[120px] py-3 placeholder-white/20 border-0 focus:outline-none resize-none bg-transparent text-[15px] font-medium leading-relaxed overflow-hidden ${rateLimitStatus?.isLimited || (selectedAgentId === "task_agent" && taskPromptStatus && taskPromptStatus.remaining <= 0) ? "opacity-50 cursor-not-allowed" : ""}`}
             disabled={
               isLoading ||
               !!rateLimitStatus?.isLimited ||
@@ -2162,8 +2106,13 @@ const Dashboard = () => {
           {/* Task prompt limit indicator */}
           {selectedAgentId === "task_agent" && taskPromptStatus && (
             <span
-              className={`text-xs absolute -top-6 left-5 ${taskPromptStatus.remaining === 0
-                ? "text-red-400"
+              onClick={() => {
+                if (taskPromptStatus.remaining === 0) {
+                  setShowUpgradeModal(true);
+                }
+              }}
+              className={`text-xs absolute -top-6 left-5 transition-colors py-1 px-2 rounded-full ${taskPromptStatus.remaining === 0
+                ? "text-purple-400 hover:text-purple-300 cursor-pointer hover:underline"
                 : taskPromptStatus.remaining <= 1
                   ? "text-yellow-400/70"
                   : "text-white/40"
@@ -2225,7 +2174,7 @@ const Dashboard = () => {
         currentChatId={currentChatId}
         selectedAgentId={selectedAgentId}
         onChatSelect={(chatId) => {
-          navigate(`/${chatId}`);
+          navigate(`/chat/${chatId}`);
         }}
         onAgentChange={(agentId) => {
           setSelectedAgentId(agentId);
@@ -2234,11 +2183,76 @@ const Dashboard = () => {
           dispatch(deleteChat(chatId));
           // If the deleted chat was the current chat, navigate to home
           if (chatId === currentChatId) {
-            navigate("/");
+            navigate("/chat");
           }
         }}
       />
     </div>
+  );
+};
+
+// Smooth Typewriter Effect Component
+const TypewriterEffect = ({
+  content,
+  onOpenArtifact
+}: {
+  content: string;
+  onOpenArtifact?: any;
+}) => {
+  const [displayedLength, setDisplayedLength] = useState(0);
+  const contentRef = useRef(content);
+
+  // Keep ref in sync with content prop
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisplayedLength((current) => {
+        if (current < contentRef.current.length) {
+          // Type faster if we are far behind
+          const diff = contentRef.current.length - current;
+          const step = diff > 50 ? 5 : 1;
+          return current + step;
+        }
+        return current;
+      });
+    }, 15); // 15ms per character
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Jump to end if content effectively resets (new message)
+  useEffect(() => {
+    if (content.length === 0) setDisplayedLength(0);
+  }, [content]);
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[
+        [
+          rehypeHighlight,
+          {
+            languages: {
+              move: moveLanguage,
+              sui: moveLanguage,
+              javascript,
+              typescript,
+              python,
+              bash,
+              json,
+              rust,
+            },
+          },
+        ],
+        rehypeKatex,
+      ]}
+      components={MarkdownComponents(onOpenArtifact)}
+    >
+      {content.slice(0, displayedLength)}
+    </ReactMarkdown>
   );
 };
 

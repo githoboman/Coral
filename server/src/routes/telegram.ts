@@ -1,11 +1,11 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { getTelegramService } from "../services/telegramService";
-import { WalrusUserManager } from "../services/walrusUserManager";
-import { TicketMinter } from "../services/ticketMinter";
+import { getWalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 
 const router = Router();
-const userManager = new WalrusUserManager();
-const ticketMinter = new TicketMinter();
+const userManager = getWalrusUserManager();
+const ticketMinter = getTicketMinter();
 
 /**
  * Initiates the linking process by generating a token.

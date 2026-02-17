@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { WalrusUserManager } from "../services/walrusUserManager";
-import { TicketMinter } from "../services/ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 
 const router = Router();
 
@@ -8,11 +8,11 @@ let userManager: WalrusUserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
 
 function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = new WalrusUserManager();
+  if (!userManager) userManager = getWalrusUserManager();
   return userManager;
 }
-function getTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = new TicketMinter();
+function getLocalTicketMinter(): TicketMinter {
+  if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
 }
 
@@ -35,7 +35,7 @@ router.get(
         });
       }
 
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       const blobId = await minter.getCurrentBlobId();
       if (!blobId) {
@@ -84,7 +84,7 @@ router.get(
   "/leaderboard",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
 
       const blobId = await minter.getCurrentBlobId();
       if (!blobId) {

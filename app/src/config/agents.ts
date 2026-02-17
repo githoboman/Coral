@@ -20,7 +20,7 @@ export const agentConfigs: Record<string, AgentConfig> = {
     id: 'task_agent',
     name: 'task',
     displayName: 'Task Manager',
-    description: 'Automate your Web3 tasks: swaps, reminders, and on-chain actions',
+    description: 'Manage your Web3 to-dos and reminders',
     icon: '📋',
     iconUrl: '/assets/images/agents/task-agent.svg',
     color: '#3b82f6',
@@ -29,11 +29,11 @@ export const agentConfigs: Record<string, AgentConfig> = {
     feeDisplay: 'Free',
     suggestions: [
       'Remind me to check the market in 2 hours',
-      'Swap 10 SUI for USDC',
-      'Set a price alert for SUI at $5',
-      'Schedule a weekly DCA',
+      'Remind me to claim my staking rewards tomorrow',
+      'Track the upcoming SUI hackathon dates',
+      'Remind me to vote on the new governance proposal',
     ],
-    placeholder: 'Tell me what task you want to automate...',
+    placeholder: 'Add a reminder or task...',
   },
 };
 

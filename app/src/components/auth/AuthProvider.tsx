@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "react-toastify";
+import { sileo } from "sileo";
 import { OnboardingModal } from "./Onboarding";
 import {
   useCurrentAccount,
@@ -7,7 +7,6 @@ import {
   useDisconnectWallet,
 } from "@mysten/dapp-kit";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import "react-toastify/dist/ReactToastify.css";
 import { useAppDispatch } from "@/store/hooks";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -127,46 +126,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/api/auth/check-user?wallet_address=${encodeURIComponent(walletAddress)}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
+    const maxRetries = 3;
+    let attempt = 0;
 
-      if (!response.ok) {
-        if (response.status === 404) {
+    while (attempt < maxRetries) {
+      try {
+        const response = await fetch(
+          `${apiBaseUrl}/api/auth/check-user?wallet_address=${encodeURIComponent(walletAddress)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          // If 404, user definitely doesn't exist, don't retry
+          if (response.status === 404) {
+            setIsOnboarded(false);
+            setIsOnboardingOpen(true);
+            setCheckingOnboarding(false);
+            return;
+          }
+          // For other errors (500s), throw to trigger retry
+          throw new Error(`Failed to check user status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.exists) {
           setIsOnboarded(false);
           setIsOnboardingOpen(true);
-          setCheckingOnboarding(false);
-          return;
+        } else if (!data.user.email) {
+          setIsOnboarded(false);
+          setIsOnboardingOpen(true);
+          setUserEmail(data.user.email);
+        } else {
+          setIsOnboarded(true);
+          setIsOnboardingOpen(false);
+          setUserEmail(data.user.email);
         }
-        throw new Error("Failed to check user status");
+        return; // Success, exit function
+      } catch (error: any) {
+        attempt++;
+        console.warn(`Attempt ${attempt} to check user failed:`, error);
+        
+        if (attempt >= maxRetries) {
+          // Only show onboarding if all retries failed (assuming network issue or valid missing user)
+           // But be careful: if the backend is down, showing onboarding might be confusing. 
+           // However, blocking access is worse. 
+           // Let's assume if we can't verify, we prompt to verify.
+          setIsOnboarded(false);
+          setIsOnboardingOpen(true);
+        } else {
+           // Wait before retry (exponential backoff: 1s, 2s, 4s)
+           await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        }
+      } finally {
+        if (attempt >= maxRetries) {
+          setCheckingOnboarding(false);
+        }
       }
-
-      const data = await response.json();
-
-      if (!data.exists) {
-        setIsOnboarded(false);
-        setIsOnboardingOpen(true);
-      } else if (!data.user.email) {
-        setIsOnboarded(false);
-        setIsOnboardingOpen(true);
-        setUserEmail(data.user.email);
-      } else {
-        setIsOnboarded(true);
-        setIsOnboardingOpen(false);
-        setUserEmail(data.user.email);
-      }
-    } catch (error: any) {
-      setIsOnboarded(false);
-      setIsOnboardingOpen(true);
-    } finally {
-      setCheckingOnboarding(false);
     }
   };
 
@@ -184,7 +205,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const walletAddress = currentAccount?.address;
 
     if (!walletAddress) {
-      toast.error("Wallet not connected");
+      sileo.error({ title: "Error", description: "Wallet not connected" });
       return { success: false };
     }
 
@@ -246,12 +267,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
 
-      toast.success("Profile saved! Checking waitlist status...");
+      sileo.success({ title: "Profile Saved", description: "Checking waitlist status..." });
 
       return { success: true, data };
     } catch (error: any) {
       setOnboardingMessage(error.message || "Failed to save profile");
-      toast.error(error.message || "Failed to save profile");
+      sileo.error({ title: "Error", description: error.message || "Failed to save profile" });
 
       throw error;
     } finally {
@@ -294,9 +315,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       navigate("/signin", { replace: true });
 
-      toast.success("Successfully logged out");
+      sileo.success({ title: "Logged Out", description: "Successfully logged out" });
     } catch (error: any) {
-      toast.error("Failed to log out completely");
+      sileo.error({ title: "Error", description: "Failed to log out completely" });
     }
   };
 

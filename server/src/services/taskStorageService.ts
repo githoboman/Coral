@@ -1,8 +1,8 @@
 // server/src/services/taskStorageService.ts
 import axios from "axios";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
-import { TicketMinter } from "./ticketMinter";
-import { WalrusUserManager } from "./walrusUserManager";
+import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 
 export interface TaskData {
   id: string;
@@ -18,6 +18,7 @@ export interface TaskData {
   action_status?: string;
   created_at: string;
   updated_at: string;
+  due_notification_sent?: boolean;
 }
 
 export interface TaskRegistry {
@@ -66,7 +67,7 @@ export class TaskStorageService {
     userId: string,
   ): Promise<string | null> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -74,7 +75,7 @@ export class TaskStorageService {
         return null;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -88,7 +89,7 @@ export class TaskStorageService {
       return userProfile.task_registry_blob_id || null;
     } catch (error) {
       console.error("Error getting user task registry blob ID:", error);
-      return null;
+      throw error;
     }
   }
 
@@ -98,7 +99,7 @@ export class TaskStorageService {
     taskRegistryBlobId: string,
   ): Promise<boolean> {
     try {
-      const ticketMinter = new TicketMinter();
+      const ticketMinter = getTicketMinter();
       const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
 
       if (!userRegistryBlobId) {
@@ -106,7 +107,7 @@ export class TaskStorageService {
         return false;
       }
 
-      const userManager = new WalrusUserManager();
+      const userManager = getWalrusUserManager();
       const userProfile = await userManager.getUserProfile(
         userRegistryBlobId,
         userId,
@@ -137,6 +138,9 @@ export class TaskStorageService {
           subscription_expires_at: userProfile.subscription_expires_at,
           daily_prompts_used: userProfile.daily_prompts_used,
           last_prompt_date: userProfile.last_prompt_date,
+          telegram_chat_id: userProfile.telegram_chat_id,
+          telegram_username: userProfile.telegram_username,
+          telegram_linked_at: userProfile.telegram_linked_at,
         },
       );
 
@@ -183,11 +187,25 @@ export class TaskStorageService {
     };
 
     // Get current registry
-    const currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
+    let currentRegistryBlobId: string | null = null;
+    try {
+      currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
+    } catch (error) {
+      console.error(`❌ Critical Error: Could not fetch user profile/registry for ${userId}:`, error);
+      // CRITICAL: Return null to abort task creation and protect existing data.
+      // Do NOT proceed to create a new registry if the fetch failed due to network error.
+      return null; 
+    }
+
     let currentRegistry: TaskRegistry | null = null;
 
     if (currentRegistryBlobId) {
-      currentRegistry = await this.getTaskRegistry(userId);
+      try {
+        currentRegistry = await this.getTaskRegistry(userId);
+      } catch (error) {
+        console.error(`❌ Critical Error: Could not fetch task registry ${currentRegistryBlobId}:`, error);
+        return null;
+      }
     }
 
     // Encrypt task data
@@ -196,24 +214,24 @@ export class TaskStorageService {
     // Update registry
     const updatedRegistry: TaskRegistry = currentRegistry
       ? {
-          ...currentRegistry,
-          version: currentRegistry.version + 1,
-          updated_at: now,
-          tasks: {
-            ...currentRegistry.tasks,
-            [taskId]: encryptedTask,
-          },
-          active_task_ids: [...currentRegistry.active_task_ids, taskId],
-        }
+        ...currentRegistry,
+        version: currentRegistry.version + 1,
+        updated_at: now,
+        tasks: {
+          ...currentRegistry.tasks,
+          [taskId]: encryptedTask,
+        },
+        active_task_ids: [...currentRegistry.active_task_ids, taskId],
+      }
       : {
-          version: 1,
-          user_id: userId,
-          updated_at: now,
-          tasks: {
-            [taskId]: encryptedTask,
-          },
-          active_task_ids: [taskId],
-        };
+        version: 1,
+        user_id: userId,
+        updated_at: now,
+        tasks: {
+          [taskId]: encryptedTask,
+        },
+        active_task_ids: [taskId],
+      };
 
     // Upload registry
     const registryBlobId = await this.uploadRegistry(updatedRegistry);
@@ -274,7 +292,7 @@ export class TaskStorageService {
       return registry;
     } catch (error) {
       console.error(`Error fetching task registry for ${userId}:`, error);
-      return null;
+      throw error;
     }
   }
 

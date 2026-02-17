@@ -11,11 +11,24 @@ const app = express();
 
 app.use(helmet());
 
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['*'];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: (origin, callback) => {
+      // allow requests with no origin (mobile apps, curl, postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json());
