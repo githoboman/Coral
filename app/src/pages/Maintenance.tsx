@@ -61,7 +61,7 @@ export default function Maintenance() {
           </p>
 
           {/* Countdown Timer */}
-          <div className="flex items-center justify-center gap-3 md:gap-4 mb-10">
+          {/* <div className="flex items-center justify-center gap-3 md:gap-4 mb-10">
             {['Hours', 'Minutes', 'Seconds'].map((label, i) => {
               const value = i === 0 ? timeLeft.hours : i === 1 ? timeLeft.minutes : timeLeft.seconds;
               return (
@@ -76,7 +76,7 @@ export default function Maintenance() {
                 </div>
               );
             })}
-          </div>
+          </div> */}
 
           <div className="space-y-6">
             <p className="text-white/40 text-sm font-medium uppercase tracking-widest">
