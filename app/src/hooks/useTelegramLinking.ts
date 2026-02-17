@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -15,6 +15,8 @@ export function useTelegramLinking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const lastFetchRef = useRef<number>(0);
+
   const fetchStatus = useCallback(async () => {
     const addr = currentAccount?.address;
     if (!addr) {
@@ -22,12 +24,25 @@ export function useTelegramLinking() {
       return;
     }
 
+    // Deduplication: Don't fetch if less than 2 seconds since last fetch
+    const now = Date.now();
+    if (now - lastFetchRef.current < 2000) {
+      return;
+    }
+    lastFetchRef.current = now;
+
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE}/api/telegram/status/${encodeURIComponent(addr)}`);
       if (response.ok) {
         const data = await response.json();
-        setStatus(data);
+        // Only update state if data actually changed to avoid re-renders
+        setStatus(prev => {
+          if (JSON.stringify(prev) !== JSON.stringify(data)) {
+            return data;
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.error("Error fetching Telegram status:", err);
@@ -40,11 +55,11 @@ export function useTelegramLinking() {
     fetchStatus();
   }, [fetchStatus]);
 
-  const connectTelegram = async () => {
+  const connectTelegram = async (): Promise<{ code: string; bot_username: string } | null> => {
     const addr = currentAccount?.address;
     if (!addr) {
       setError("Wallet not connected");
-      return;
+      return null;
     }
 
     try {
@@ -55,12 +70,9 @@ export function useTelegramLinking() {
         body: JSON.stringify({ wallet_address: addr }),
       });
 
-      if (!response.ok) throw new Error("Failed to generate linking token");
+      if (!response.ok) throw new Error("Failed to generate linking code");
 
-      const { deep_link } = await response.json();
-
-      // Open Telegram in a new tab
-      window.open(deep_link, "_blank");
+      const { code, bot_username } = await response.json();
 
       // Start polling for status update
       const pollInterval = setInterval(async () => {
@@ -72,13 +84,16 @@ export function useTelegramLinking() {
             clearInterval(pollInterval);
           }
         }
-      }, 5000);
+      }, 3000);
 
-      // Stop polling after 2 minutes
-      setTimeout(() => clearInterval(pollInterval), 120000);
+      // Stop polling after 5 minutes
+      setTimeout(() => clearInterval(pollInterval), 300000);
+
+      return { code, bot_username };
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connect failed");
+      return null;
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import getSupabaseClient from '../config/supabase';
+import { withRetry } from '../utils/retryUtils';
 
 const supabase = getSupabaseClient();
 
@@ -50,28 +51,29 @@ function formatTimeRemaining(totalSeconds: number): string {
 export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
   try {
     // Get user's last check-in from database
-    const { data: checkins, error } = await supabase
-      .from('checkins')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const checkins = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('checkins')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-    if (error) {
-      console.error('[CHECKIN] Error fetching check-in status:', error);
-      throw error;
-    }
+      if (error) throw error;
+      return data;
+    }, 3, 1000, 'CheckIn.getStatus');
 
     // Get user's total points
-    const { data: user, error: userError } = await supabase
-      .from('user_profiles')
-      .select('points, checkin_streak')
-      .eq('wallet_address', userId)
-      .single();
+    const user = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('points, checkin_streak')
+        .eq('wallet_address', userId)
+        .single();
 
-    if (userError && userError.code !== 'PGRST116') {
-      console.error('[CHECKIN] Error fetching user:', userError);
-    }
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }, 3, 1000, 'CheckIn.getUser');
 
     const lastCheckin = checkins?.[0];
     const totalPoints = user?.points || 0;
@@ -118,8 +120,6 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
 
 export async function processCheckIn(userId: string): Promise<CheckInResult> {
   try {
-
-
     // Check if user can check in
     const status = await getCheckInStatus(userId);
 
@@ -155,33 +155,31 @@ export async function processCheckIn(userId: string): Promise<CheckInResult> {
     const newTotalPoints = status.total_points + pointsEarned;
 
     // Record check-in
-    const { error: checkinError } = await supabase
-      .from('checkins')
-      .insert({
-        user_id: userId,
-        points_earned: pointsEarned,
-        streak_day: newStreak
-      });
+    await withRetry(async () => {
+      const { error: checkinError } = await supabase
+        .from('checkins')
+        .insert({
+          user_id: userId,
+          points_earned: pointsEarned,
+          streak_day: newStreak
+        });
 
-    if (checkinError) {
-      console.error('[CHECKIN] Error recording check-in:', checkinError);
-      throw checkinError;
-    }
+      if (checkinError) throw checkinError;
+    }, 3, 1000, 'CheckIn.recordCheckIn');
 
     // Update user's points and streak
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({
-        points: newTotalPoints,
-        checkin_streak: newStreak,
-        last_checkin: new Date().toISOString()
-      })
-      .eq('wallet_address', userId);
+    await withRetry(async () => {
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          points: newTotalPoints,
+          checkin_streak: newStreak,
+          last_checkin: new Date().toISOString()
+        })
+        .eq('wallet_address', userId);
 
-    if (updateError) {
-      console.error('[CHECKIN] Error updating user:', updateError);
-      // Still consider success if check-in was recorded
-    }
+      if (updateError) throw updateError;
+    }, 3, 1000, 'CheckIn.updateUser');
 
     // Generate success message
     const milestones = [5, 10, 15, 20, 25, 30];
@@ -194,8 +192,6 @@ export async function processCheckIn(userId: string): Promise<CheckInResult> {
       const nextReward = getStreakRewardPoints(nextMilestone);
       message = `Check-in complete! Day ${newStreak} +${pointsEarned} point${pointsEarned > 1 ? 's' : ''}. Total: ${newTotalPoints}. Next milestone: Day ${nextMilestone} for ${nextReward} points!`;
     }
-
-
 
     return {
       success: true,

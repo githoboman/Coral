@@ -71,21 +71,40 @@ router.post("/disconnect", async (req: Request, res: Response, next: NextFunctio
 
     const profile = await userManager.getUserProfile(blobId, wallet_address);
     if (profile) {
+      // Create cleaner profile without telegram fields
+      const {
+        telegram_chat_id,
+        telegram_username,
+        telegram_linked_at,
+        ...rest
+      } = profile;
+
       const updatedProfile = userManager.createUserProfile(
-        profile.email,
-        profile.wallet_address,
-        profile.is_waitlisted,
-        profile.points_awarded,
+        rest.email,
+        rest.wallet_address,
+        rest.is_waitlisted,
+        rest.points_awarded,
         {
-          ...profile,
+          ...rest,
+          // Explicitly omit these fields just in case
           telegram_chat_id: undefined,
           telegram_username: undefined,
+          telegram_linked_at: undefined,
         }
       );
 
       const newBlobId = await userManager.addOrUpdateUser(blobId, updatedProfile);
+
       if (newBlobId && newBlobId !== blobId) {
-        await ticketMinter.updateBlobRegistry(newBlobId);
+        // Wait for registry update on chain
+        const txDigest = await ticketMinter.updateBlobRegistry(newBlobId);
+
+        if (!txDigest) {
+          console.error("Failed to update blob registry on chain");
+          // Even if chain update fails, we might have updated local cache? 
+          // But consistency is key.
+          return res.status(500).json({ error: "Failed to persist disconnection on-chain" });
+        }
       }
       return res.json({ success: true });
     }

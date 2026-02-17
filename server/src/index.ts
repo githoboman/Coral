@@ -22,6 +22,11 @@ const server = app.listen(PORT, () => {
   import("./services/scheduler").then(({ getTaskScheduler }) => {
     getTaskScheduler().start();
   });
+
+  // Initialize Cache Warmer
+  import("./services/cacheWarmer").then(({ getCacheWarmer }) => {
+    getCacheWarmer().warmup();
+  });
 });
 
 process.on("SIGTERM", () => {

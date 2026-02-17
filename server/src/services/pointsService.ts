@@ -1,4 +1,5 @@
 import getSupabaseClient from '../config/supabase';
+import { withRetry } from '../utils/retryUtils';
 
 const supabase = getSupabaseClient();
 
@@ -31,32 +32,29 @@ export async function awardTaskCompletionPoints(
     const pointsToAward = POINTS_CONFIG.TASK_COMPLETION[priority] || 1;
 
     // Get current points
-    const { data: user, error: fetchError } = await supabase
-      .from('user_profiles')
-      .select('points')
-      .eq('wallet_address', userId)
-      .single();
+    const user = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('points')
+        .eq('wallet_address', userId)
+        .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('[POINTS] Error fetching user:', fetchError);
-      return { success: false, points_awarded: 0, total_points: 0 };
-    }
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }, 3, 1000, 'Points.fetchUser');
 
     const currentPoints = user?.points || 0;
     const newTotal = currentPoints + pointsToAward;
 
     // Update points
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ points: newTotal })
-      .eq('wallet_address', userId);
+    await withRetry(async () => {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ points: newTotal })
+        .eq('wallet_address', userId);
 
-    if (updateError) {
-      console.error('[POINTS] Error updating points:', updateError);
-      return { success: false, points_awarded: 0, total_points: currentPoints };
-    }
-
-
+      if (error) throw error;
+    }, 3, 1000, 'Points.updatePoints');
 
     return {
       success: true,
@@ -78,17 +76,18 @@ export async function awardChatPoints(userId: string): Promise<PointsResult> {
     // Check daily chat points usage
     const today = new Date().toISOString().split('T')[0];
 
-    // Get today's chat point count from a simple tracking approach
-    const { data: todayCheckins, error: checkError } = await supabase
-      .from('chat_points')
-      .select('points_earned')
-      .eq('user_id', userId)
-      .gte('created_at', `${today}T00:00:00Z`)
-      .lte('created_at', `${today}T23:59:59Z`);
+    // Get today's chat point count
+    const todayCheckins = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('chat_points')
+        .select('points_earned')
+        .eq('user_id', userId)
+        .gte('created_at', `${today}T00:00:00Z`)
+        .lte('created_at', `${today}T23:59:59Z`);
 
-    if (checkError && checkError.code !== 'PGRST116' && !checkError.message.includes('does not exist')) {
-      console.error('[POINTS] Error checking chat points:', checkError);
-    }
+      if (error && error.code !== 'PGRST116' && !error.message.includes('does not exist')) throw error;
+      return data;
+    }, 3, 1000, 'Points.checkDailyLimit');
 
     const dailyEarned = todayCheckins?.reduce((sum, r) => sum + (r.points_earned || 0), 0) || 0;
 
@@ -104,44 +103,43 @@ export async function awardChatPoints(userId: string): Promise<PointsResult> {
     const pointsToAward = POINTS_CONFIG.CHAT_MESSAGE;
 
     // Get current points
-    const { data: user, error: fetchError } = await supabase
-      .from('user_profiles')
-      .select('points')
-      .eq('wallet_address', userId)
-      .single();
+    const user = await withRetry(async () => {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('points')
+        .eq('wallet_address', userId)
+        .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('[POINTS] Error fetching user:', fetchError);
-      return { success: false, points_awarded: 0, total_points: 0 };
-    }
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    }, 3, 1000, 'Points.fetchUserForChat');
 
     const currentPoints = user?.points || 0;
     const newTotal = currentPoints + pointsToAward;
 
     // Update user points
-    const { error: updateError } = await supabase
-      .from('user_profiles')
-      .update({ points: newTotal })
-      .eq('wallet_address', userId);
+    await withRetry(async () => {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ points: newTotal })
+        .eq('wallet_address', userId);
 
-    if (updateError) {
-      console.error('[POINTS] Error updating points:', updateError);
-      return { success: false, points_awarded: 0, total_points: currentPoints };
-    }
+      if (error) throw error;
+    }, 3, 1000, 'Points.updateUserPoints');
 
     // Log chat points for daily tracking (table may not exist, that's ok)
     try {
-      await supabase
-        .from('chat_points')
-        .insert({
-          user_id: userId,
-          points_earned: pointsToAward
-        });
+      await withRetry(async () => {
+        await supabase
+          .from('chat_points')
+          .insert({
+            user_id: userId,
+            points_earned: pointsToAward
+          });
+      }, 3, 1000, 'Points.logChatPoints');
     } catch (e) {
-      // Table doesn't exist, we'll just skip tracking
+      // Table doesn't exist or other error, we'll just skip tracking
     }
-
-
 
     return {
       success: true,

@@ -110,6 +110,29 @@ function calculateCheckinPoints(currentStreak: number): {
   };
 }
 
+import { getLeaderboardService } from "../services/leaderboardService";
+
+// ... (keep usage of TicketMinter for fallbacks and writes)
+
+// Cache checkin fee globally
+let cachedCheckinFee: { amount: number; timestamp: number } | null = null;
+const FEE_CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+async function getCachedCheckinFee(minter: TicketMinter): Promise<number> {
+  if (cachedCheckinFee && Date.now() - cachedCheckinFee.timestamp < FEE_CACHE_TTL) {
+    return cachedCheckinFee.amount;
+  }
+
+  try {
+    const fee = await minter.getCheckinFee();
+    cachedCheckinFee = { amount: fee, timestamp: Date.now() };
+    return fee;
+  } catch (e) {
+    console.warn("Failed to fetch checkin fee, using default");
+    return 2_000_000;
+  }
+}
+
 router.get(
   "/status",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -124,11 +147,10 @@ router.get(
         return;
       }
 
+      // 1. Try serving from short-term API cache (highest speed)
       const cached = getCachedStatus(wallet_address);
       if (cached) {
-        console.log(
-          `💨 Serving cached status for ${wallet_address.substring(0, 10)}...`,
-        );
+        // console.log(`💨 Serving cached status for ${wallet_address.substring(0, 10)}...`);
         res.json(cached);
         return;
       }
@@ -136,29 +158,45 @@ router.get(
       const timezoneOffset = timezone_offset
         ? parseInt(timezone_offset as string)
         : 0;
+
       const minter = getLocalTicketMinter();
+      const userManager = getUserManager();
+      const leaderboard = getLeaderboardService();
 
-      const [lastCheckinDate, currentStreak, balance, checkinFee] =
-        await Promise.all([
-          minter.getLastCheckinDate(wallet_address),
-          minter.getCurrentStreak(wallet_address),
-          minter.getBalance(wallet_address),
-          minter.getCheckinFee(),
-        ]);
+      // 2. Fetch data parallelly/from cache
+      // A. Checkin Fee (Global Cache)
+      const checkinFeePromise = getCachedCheckinFee(minter);
 
+      // B. User Balance (Leaderboard Memory Cache - Instant)
+      // Leaderboard service updates in background, so this is non-blocking
+      const balance = leaderboard.getUserBalance(wallet_address);
+
+      // C. User Profile Stats (Walrus Registry - Disk Cache - Instant)
+      let lastCheckinDate = "";
+      let currentStreak = 0;
       let totalCheckins = 0;
+
       try {
-        totalCheckins = await minter.getTotalCheckins(wallet_address);
-        console.log(
-          `📊 Total check-ins for ${wallet_address.substring(0, 10)}: ${totalCheckins}`,
-        );
-      } catch (error) {
-        console.warn(
-          `⚠️  Error fetching total_checkins, using current_streak as fallback:`,
-          error,
-        );
-        totalCheckins = currentStreak;
+        const blobId = await minter.getCurrentBlobId(); // Cached 10s
+        if (blobId) {
+          const profile = await userManager.getUserProfile(blobId, wallet_address); // Cached
+          if (profile) {
+            lastCheckinDate = profile.last_checkin_date || "";
+            currentStreak = profile.current_streak || 0;
+            totalCheckins = profile.total_checkins || 0;
+          }
+        }
+      } catch (err) {
+        console.warn("Error fetching profile for checkin status, falling back to chain:", err);
+        // Fallback to chain if profile fails? 
+        // Or just assume 0 if we assume registry is source of truth.
+        // Let's do a quick chain fallback if missing, to be safe.
+        currentStreak = await minter.getCurrentStreak(wallet_address);
       }
+
+      const checkinFee = await checkinFeePromise;
+
+      // ... (Rest of logic: calculations)
 
       const userDateToday = getUserDate(timezoneOffset);
       const yesterdayDate = getYesterdayDate(timezoneOffset);
@@ -202,7 +240,7 @@ router.get(
           : null,
         next_available_at: nextAvailableMs,
         hours_remaining: hoursRemaining,
-        balance,
+        balance, // From Leaderboard
         current_streak: currentStreak,
         total_checkins: totalCheckins,
         next_streak: nextStreak,

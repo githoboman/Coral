@@ -1,6 +1,8 @@
-// server/src/services/walrusUserManager.ts
 import axios from "axios";
 import "dotenv/config";
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
 
 export interface UserProfile {
@@ -143,8 +145,7 @@ export class WalrusUserManager {
       "https://aggregator.walrus-testnet.walrus.space";
     this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
 
-
-
+    this.loadCache();
   }
 
   public static getInstance(): WalrusUserManager {
@@ -153,6 +154,49 @@ export class WalrusUserManager {
     }
     return WalrusUserManager.instance;
   }
+
+  // --- Persistent Caching Implementation ---
+  private getCacheFilePath(): string {
+    // Determine path essentially relative to this file or project root
+    // Assuming server/src/services, we want server/data
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    return path.join(__dirname, "../../data/user_registry_cache.json");
+  }
+
+  private loadCache() {
+    try {
+      const cachePath = this.getCacheFilePath();
+      if (fs.existsSync(cachePath)) {
+        const raw = fs.readFileSync(cachePath, "utf-8");
+        const data = JSON.parse(raw);
+        // Basic validation
+        if (data && data.blobId && data.registry) {
+          this.registryCache = data;
+          console.log(`[WALRUS_USER_MANAGER] Loaded registry cache for blob: ${data.blobId}`);
+        }
+      }
+    } catch (error) {
+      console.warn("[WALRUS_USER_MANAGER] Failed to load cache:", error);
+    }
+  }
+
+  private saveCache() {
+    try {
+      if (!this.registryCache) return;
+      const cachePath = this.getCacheFilePath();
+      const dataDir = path.dirname(cachePath);
+
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      fs.writeFileSync(cachePath, JSON.stringify(this.registryCache, null, 2), "utf-8");
+      console.log(`[WALRUS_USER_MANAGER] Saved registry cache for blob: ${this.registryCache.blobId}`);
+    } catch (error) {
+      console.error("[WALRUS_USER_MANAGER] Failed to save cache:", error);
+    }
+  }
+  // -----------------------------------------
 
   createUserProfile(
     email: string,
@@ -299,56 +343,73 @@ export class WalrusUserManager {
     };
   }
 
+  private fetchPromises: Map<string, Promise<UsersRegistry | null>> = new Map();
+
   async fetchUsersRegistry(
     blobId: string,
     maxRetries: number = 3,
   ): Promise<UsersRegistry | null> {
     if (this.registryCache && this.registryCache.blobId === blobId) {
-
+      // console.log(`[WALRUS] Memory Cache Hit: ${blobId}`);
       return this.registryCache.registry;
     }
 
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-
-
-        const response = await axios.get(
-          `${this.aggregatorUrl}/v1/blobs/${blobId}`,
-          {
-            timeout: 30000,
-            headers: {
-              Accept: "application/json",
-            },
-          },
-        );
-
-        const registry = response.data as UsersRegistry;
-
-
-
-        this.registryCache = { blobId, registry };
-        return registry;
-      } catch (error: any) {
-        lastError = error as Error;
-        console.warn(`⚠️  Attempt ${attempt} failed:`, lastError.message);
-
-        if (error.response?.status === 404) {
-          console.error("❌ Registry blob not found");
-          return null;
-        }
-
-        if (attempt < maxRetries) {
-          const waitTime = 1500 * attempt;
-
-          await new Promise((r) => setTimeout(r, waitTime));
-        }
-      }
+    // Check if a fetch is already in progress for this blobId
+    if (this.fetchPromises.has(blobId)) {
+      console.log(`[WALRUS] 🔄 Request Coalesced: Waiting for existing fetch of ${blobId}`);
+      return this.fetchPromises.get(blobId)!;
     }
 
-    console.error("❌ Failed to fetch users registry after all retries");
-    throw lastError || new Error("Failed to fetch users registry");
+    const fetchPromise = (async () => {
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`[WALRUS] 🌍 Fetching Registry (Attempt ${attempt}/${maxRetries})...`);
+
+          const response = await axios.get(
+            `${this.aggregatorUrl}/v1/blobs/${blobId}`,
+            {
+              timeout: 30000,
+              headers: {
+                Accept: "application/json",
+              },
+            },
+          );
+
+          const registry = response.data as UsersRegistry;
+
+          this.registryCache = { blobId, registry };
+          this.saveCache();
+          console.log(`[WALRUS] ✅ Fetch Success & Cached: ${blobId} (${registry.total_users} users)`);
+          return registry;
+        } catch (error: any) {
+          lastError = error as Error;
+          console.warn(`[WALRUS] ⚠️  Attempt ${attempt} failed:`, lastError.message);
+
+          if (error.response?.status === 404) {
+            console.error("[WALRUS] ❌ Registry blob not found (404)");
+            return null;
+          }
+
+          if (attempt < maxRetries) {
+            const waitTime = 1500 * attempt;
+            await new Promise((r) => setTimeout(r, waitTime));
+          }
+        }
+      }
+
+      console.error("[WALRUS] ❌ Failed to fetch users registry after all retries");
+      throw lastError || new Error("Failed to fetch users registry");
+    })();
+
+    this.fetchPromises.set(blobId, fetchPromise);
+
+    try {
+      return await fetchPromise;
+    } finally {
+      this.fetchPromises.delete(blobId);
+    }
   }
 
   async uploadUsersRegistry(
@@ -460,6 +521,7 @@ export class WalrusUserManager {
 
       if (newBlobId) {
         this.registryCache = { blobId: newBlobId, registry };
+        this.saveCache();
       }
 
       if (newBlobId) {

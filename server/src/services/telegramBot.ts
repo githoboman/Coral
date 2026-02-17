@@ -8,7 +8,7 @@ export class TelegramBot {
   private bot: Telegraf | null = null;
   private userManager = getWalrusUserManager();
   private ticketMinter = getTicketMinter();
-  
+
   private log(message: string, ...args: any[]) {
     // console.log(`[TELEGRAM BOT] ${message}`, ...args);
   }
@@ -62,8 +62,21 @@ export class TelegramBot {
 
     this.bot.start(async (ctx) => {
       this.log("Processing /start command");
-      const payload = (ctx as any).payload;
-      this.log(`Payload received: ${payload}`);
+
+      this.log("DEBUG: ctx.message:", JSON.stringify(ctx.message, null, 2));
+
+      // Robust payload extraction
+      let payload = (ctx as any).startPayload; // Telegraf 4.x usually has this
+
+      if (!payload && ctx.message && "text" in ctx.message) {
+        const text = ctx.message.text.trim();
+        const parts = text.split(" ");
+        if (parts.length > 1) {
+          payload = parts[1];
+        }
+      }
+
+      this.log(`Payload received: '${payload}'`);
 
       if (payload && payload.startsWith("link_")) {
         const walletAddress = payload.replace("link_", "");
@@ -71,7 +84,7 @@ export class TelegramBot {
         // Basic validation of wallet address format (starts with 0x, reasonable length)
         const isValidWallet = walletAddress.startsWith("0x") && walletAddress.length > 10;
 
-        this.log(`Received linking request for Wallet: ${walletAddress}`);
+        this.log(`Received linking request for Wallet: ${walletAddress} (Valid: ${isValidWallet})`);
 
         if (isValidWallet) {
           try {
@@ -140,6 +153,16 @@ export class TelegramBot {
         }
 
         await ctx.reply("Welcome to Tovira! Link your wallet in the web app to receive notifications here.");
+      }
+    });
+
+    // Handle OTP codes (6 digits)
+    this.bot.on("text", async (ctx) => {
+      const text = ctx.message.text.trim();
+
+      // Check if it's a 6-digit code
+      if (/^\d{6}$/.test(text)) {
+        await this.handleOTP(ctx, text);
       }
     });
 
@@ -249,6 +272,60 @@ _Detailed list is available on the dashboard._
       await this.bot.telegram.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error(`Failed to send Telegram message to ${chatId}:`, error);
+    }
+  }
+
+  private async handleOTP(ctx: any, code: string) {
+    try {
+      const telegramService = getTelegramService();
+      const walletAddress = telegramService.verifyOTP(code);
+
+      if (!walletAddress) {
+        await ctx.reply("❌ Invalid or expired verification code. Please request a new one from the dashboard.");
+        return;
+      }
+
+      this.log(`Linking wallet based on OTP: ${walletAddress}`);
+
+      const chatId = ctx.chat?.id.toString();
+      const telegramUsername = ctx.from?.username || "User";
+
+      if (!chatId) {
+        await ctx.reply("❌ Error: Could not determine chat ID.");
+        return;
+      }
+
+      // Link the user in Walrus
+      const blobId = await this.ticketMinter.getCurrentBlobId();
+      if (blobId) {
+        const profile = await this.userManager.getUserProfile(blobId, walletAddress);
+        if (profile) {
+          const updatedProfile = this.userManager.createUserProfile(
+            profile.email,
+            profile.wallet_address,
+            profile.is_waitlisted,
+            profile.points_awarded,
+            {
+              ...profile,
+              telegram_chat_id: chatId,
+              telegram_username: telegramUsername,
+            }
+          );
+
+          const newBlobId = await this.userManager.addOrUpdateUser(blobId, updatedProfile);
+          if (newBlobId && newBlobId !== blobId) {
+            await this.ticketMinter.updateBlobRegistry(newBlobId);
+          }
+
+          await ctx.reply(`✅ Successfully linked to Tovira Dashboard!\nWallet: ${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}\nNotifications are now enabled.`);
+          return;
+        }
+      }
+      await ctx.reply("❌ Error: User profile not found. Please ensure you are logged in on the web app.");
+
+    } catch (error) {
+      console.error("Error in OTP handler:", error);
+      await ctx.reply("❌ Linking failed. Please try again later.");
     }
   }
 }

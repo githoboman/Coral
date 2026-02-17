@@ -62,7 +62,7 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
         return true;
       }
     }
-  } catch {}
+  } catch { }
 
   try {
     const page = await suiClient.queryEvents({
@@ -82,7 +82,7 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
     }
 
     if (page.hasNextPage && page.nextCursor) {
-      let cursor: string | undefined = page.nextCursor;
+      let cursor: any = page.nextCursor;
       let hasNext = true;
       while (hasNext && cursor) {
         const next = await suiClient.queryEvents({
@@ -101,7 +101,7 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
           }
         }
         hasNext = next.hasNextPage;
-        cursor = next.nextCursor ?? undefined;
+        cursor = next.nextCursor ?? null;
       }
     }
 

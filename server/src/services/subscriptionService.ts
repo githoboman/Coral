@@ -103,48 +103,57 @@ export class SubscriptionService {
     daily_prompts_used: number;
     last_prompt_date: number;
   } | null> {
-    try {
-      const tx = new Transaction();
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const tx = new Transaction();
 
-      tx.moveCall({
-        target: `${this.packageId}::subscriptions::get_subscription`,
-        arguments: [
-          tx.object(this.subscriptionRegistryId),
-          tx.pure.address(walletAddress),
-        ],
-      });
+        tx.moveCall({
+          target: `${this.packageId}::subscriptions::get_subscription`,
+          arguments: [
+            tx.object(this.subscriptionRegistryId),
+            tx.pure.address(walletAddress),
+          ],
+        });
 
-      const result = await this.client.devInspectTransactionBlock({
-        sender: walletAddress,
-        transactionBlock: tx,
-      });
+        const result = await this.client.devInspectTransactionBlock({
+          sender: walletAddress,
+          transactionBlock: tx,
+        });
 
-      if (
-        result.results?.[0]?.returnValues &&
-        result.results[0].returnValues.length >= 5
-      ) {
-        const values = result.results[0].returnValues;
+        if (
+          result.results?.[0]?.returnValues &&
+          result.results[0].returnValues.length >= 5
+        ) {
+          const values = result.results[0].returnValues;
 
-        const tier = this.parseU8(values[0][0]);
-        const started_at = this.parseU64(values[1][0]);
-        const expires_at = this.parseU64(values[2][0]);
-        const daily_prompts_used = this.parseU64(values[3][0]);
-        const last_prompt_date = this.parseU64(values[4][0]);
+          const tier = this.parseU8(values[0][0]);
+          const started_at = this.parseU64(values[1][0]);
+          const expires_at = this.parseU64(values[2][0]);
+          const daily_prompts_used = this.parseU64(values[3][0]);
+          const last_prompt_date = this.parseU64(values[4][0]);
 
-        return {
-          tier,
-          started_at: Number(started_at),
-          expires_at: Number(expires_at),
-          daily_prompts_used: Number(daily_prompts_used),
-          last_prompt_date: Number(last_prompt_date),
-        };
+          return {
+            tier,
+            started_at: Number(started_at),
+            expires_at: Number(expires_at),
+            daily_prompts_used: Number(daily_prompts_used),
+            last_prompt_date: Number(last_prompt_date),
+          };
+        }
+
+        return null;
+      } catch (error) {
+        console.warn(`[SUBSCRIPTION] On-chain check failed (retries left: ${retries - 1}):`, error);
+        retries--;
+        if (retries === 0) {
+          console.error("Error getting on-chain subscription after retries:", error);
+          return null;
+        }
+        await new Promise((res) => setTimeout(res, 1000 * (4 - retries))); // Backoff
       }
-
-      return null;
-    } catch (error) {
-      console.error("Error getting on-chain subscription:", error);
-      return null;
     }
+    return null;
   }
 
   async getWalrusSubscription(walletAddress: string): Promise<{

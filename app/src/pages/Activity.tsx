@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Search, Filter, X } from "lucide-react";
+import { ChevronRight, Search, Filter, X, Check } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -44,6 +44,18 @@ type OptimisticTask = {
   error?: string;
 };
 
+type FilterState = {
+  status: "all" | "pending" | "completed";
+  priority: "all" | "high" | "medium" | "low";
+  date: "all" | "today" | "upcoming" | "overdue";
+};
+
+const defaultFilterState: FilterState = {
+  status: "all",
+  priority: "all",
+  date: "all",
+};
+
 const Activity = () => {
   const currentAccount = useCurrentAccount();
   const userId = currentAccount?.address || "";
@@ -55,6 +67,8 @@ const Activity = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterState>(defaultFilterState);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
     initialLoad: true,
@@ -145,6 +159,36 @@ const Activity = () => {
   const filteredItems = useMemo(() => {
     let result = items.filter((i) => i.type === "task");
 
+    // Status Filter
+    if (activeFilter.status !== "all") {
+      if (activeFilter.status === "pending") {
+        result = result.filter((i) => !i.completed);
+      } else if (activeFilter.status === "completed") {
+        result = result.filter((i) => i.completed);
+      }
+    }
+
+    // Priority Filter
+    if (activeFilter.priority !== "all") {
+      result = result.filter((i) => i.priority === activeFilter.priority);
+    }
+
+    // Date Filter
+    if (activeFilter.date !== "all") {
+      const today = new Date().toISOString().split("T")[0];
+      switch (activeFilter.date) {
+        case "today":
+          result = result.filter((i) => i.dateKey === today);
+          break;
+        case "upcoming":
+          result = result.filter((i) => i.dateKey > today);
+          break;
+        case "overdue":
+          result = result.filter((i) => i.dateKey < today && !i.completed);
+          break;
+      }
+    }
+
     if (debouncedSearchQuery) {
       const q = debouncedSearchQuery.toLowerCase();
       result = result.filter(
@@ -155,7 +199,7 @@ const Activity = () => {
     }
 
     return result;
-  }, [items, debouncedSearchQuery]);
+  }, [items, debouncedSearchQuery, activeFilter]);
 
   // Load data from Redux - OPTIMIZED
   useEffect(() => {
@@ -320,183 +364,8 @@ const Activity = () => {
 
 
 
-  const TaskPointsClaimSection = () => {
-    const currentAccount = useCurrentAccount();
-    const { mutateAsync: signAndExecuteTransaction } =
-      useSignAndExecuteTransaction();
-    const [claimable, setClaimable] = useState<{
-      tasks_created_today: number;
-      tasks_claimed_today: number;
-      claimable_tasks: number;
-      total_claimable_points: number;
-    } | null>(null);
-    const [isClaiming, setIsClaiming] = useState(false);
-
-    useEffect(() => {
-      if (!currentAccount?.address) return;
-
-      fetch(
-        `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
-      )
-        .then((res) => res.json())
-        .then((data) => setClaimable(data))
-        .catch(console.error);
-    }, [currentAccount]);
-
-    const handleClaim = async () => {
-      if (
-        !currentAccount?.address ||
-        !claimable ||
-        claimable.claimable_tasks === 0
-      )
-        return;
-
-      setIsClaiming(true);
-
-      try {
-
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/task-points/request-claim`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: currentAccount.address,
-              task_count: claimable.claimable_tasks,
-            }),
-          },
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || "Failed to request claim ticket");
-        }
-
-        const data = await response.json();
-        const { ticket_object_id } = data;
-
-        if (!ticket_object_id || typeof ticket_object_id !== "string") {
-          console.error("[CLAIM] Invalid ticket object ID received:", data);
-          throw new Error("Failed to mint claim ticket. Please try again.");
-        }
-
-
-
-        const tx = new Transaction();
-
-        const packageId = import.meta.env.VITE_SUI_PACKAGE_ID;
-        const taskPointsRegistryId = import.meta.env
-          .VITE_SUI_TASK_POINTS_REGISTRY_ID;
-        const pointsRegistryId = import.meta.env.VITE_POINTS_REGISTRY_ID;
-
-        if (!packageId || !taskPointsRegistryId || !pointsRegistryId) {
-          throw new Error(
-            "Missing required environment variables for claiming. Please check your .env file.",
-          );
-        }
-
-        tx.moveCall({
-          target: `${packageId}::task_points::claim_task_points`,
-          arguments: [
-            tx.object(taskPointsRegistryId),
-            tx.object(pointsRegistryId),
-            tx.object(ticket_object_id),
-            tx.object("0x6"),
-          ],
-        });
-
-
-        const result = await signAndExecuteTransaction({ transaction: tx });
-
-
-
-        await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: currentAccount.address,
-            task_count: claimable.claimable_tasks
-          })
-        });
-
-        window.dispatchEvent(new Event("pointsUpdated"));
-
-        const refreshResponse = await fetch(
-          `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
-        );
-        const refreshData = await refreshResponse.json();
-        setClaimable(refreshData);
-
-        alert(
-          `🎉 Successfully claimed ${claimable.total_claimable_points} points!\n\nTransaction: ${result.digest.slice(0, 10)}...`,
-        );
-
-
-      } catch (error: any) {
-        console.error("[CLAIM] Claim failed:", error);
-
-        let errorMessage = "Failed to claim points. ";
-
-        if (error.message?.includes("ticket")) {
-          errorMessage +=
-            "There was an issue minting your claim ticket. Please try again.";
-        } else if (error.message?.includes("environment")) {
-          errorMessage += "Configuration error. Please contact support.";
-        } else if (error.message?.includes("User rejected")) {
-          errorMessage += "Transaction was cancelled.";
-        } else {
-          errorMessage += error.message || "Please try again.";
-        }
-
-        alert(errorMessage);
-      } finally {
-        setIsClaiming(false);
-      }
-    };
-
-    if (!claimable || claimable.claimable_tasks === 0) return null;
-
-    return (
-      <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-white mb-1">
-              Task Points Available
-            </h3>
-            <p className="text-white/60 text-sm">
-              You have {claimable.claimable_tasks} unclaimed task
-              {claimable.claimable_tasks !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <button
-            onClick={handleClaim}
-            disabled={isClaiming}
-            className="bg-[#B7FC0D] hover:bg-[#a8ed00] text-black px-6 py-3 rounded-full font-bold text-sm flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isClaiming ? (
-              "Claiming..."
-            ) : (
-              <>
-                Claim {claimable.total_claimable_points} Points
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v8m4-4H8" />
-                </svg>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  };
+  // Moved to separate component file or defined outside
+  // See TaskPointsClaimSection definition below
 
   const getPriorityColor = (p?: string) => {
     switch (p) {
@@ -619,7 +488,7 @@ const Activity = () => {
               >
                 <div className="relative z-40 flex items-center gap-2">
                   <span className="text-white/60 font-medium text-[10px] sm:text-xs hidden md:inline truncate">
-                    Tap to view pending tasks
+                    Pending tasks
                   </span>
                   <span className="text-white font-bold text-sm">{stats.pendingTasks}</span>
                 </div>
@@ -642,9 +511,16 @@ const Activity = () => {
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative">
-            <button className="flex items-center gap-2 bg-[#0A0A0A] border border-white/10 px-4 py-2.5 rounded-full text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all min-w-[120px] justify-between">
-              <span>Filter by</span>
-              <Filter size={14} className="opacity-50" />
+            <button
+              onClick={() => setIsFilterModalOpen(true)}
+              className="flex items-center gap-2 bg-[#0A0A0A] border border-white/10 px-4 py-2.5 rounded-full text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all min-w-[140px] justify-between cursor-pointer"
+            >
+              <span>
+                {Object.values(activeFilter).every(v => v === "all")
+                  ? "Filter"
+                  : `${Object.values(activeFilter).filter(v => v !== "all").length} Active`}
+              </span>
+              <Filter size={14} className={`opacity-50 ${Object.values(activeFilter).some(v => v !== "all") ? "text-[#B7FC0D] opacity-100" : ""}`} />
             </button>
           </div>
 
@@ -844,10 +720,290 @@ const Activity = () => {
               )}
             </div>
           </div>
+
         )
       }
+
+      {/* Filter Modal */}
+      {/* Filter Modal */}
+      {isFilterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="absolute inset-0" onClick={() => setIsFilterModalOpen(false)} />
+          <div className="relative bg-[#0C0E13] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl scale-100 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-white">Filter Tasks</h3>
+                <div className="flex items-center gap-3">
+                  {Object.values(activeFilter).some(v => v !== "all") && (
+                    <button
+                      onClick={() => setActiveFilter(defaultFilterState)}
+                      className="text-xs font-bold text-[#B7FC0D] hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button onClick={() => setIsFilterModalOpen(false)} className="text-white/40 hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* Status Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Status</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "all", label: "All" },
+                      { id: "pending", label: "Pending" },
+                      { id: "completed", label: "Completed" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setActiveFilter(prev => ({ ...prev, status: opt.id as any }))}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter.status === opt.id
+                          ? "bg-white text-black font-bold"
+                          : "bg-white/5 text-white/60 hover:bg-white/10"
+                          }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Priority Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Priority</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "all", label: "All" },
+                      { id: "high", label: "High" },
+                      { id: "medium", label: "Medium" },
+                      { id: "low", label: "Low" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setActiveFilter(prev => ({ ...prev, priority: opt.id as any }))}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter.priority === opt.id
+                          ? "bg-white text-black font-bold"
+                          : "bg-white/5 text-white/60 hover:bg-white/10"
+                          }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Section */}
+                <div>
+                  <h4 className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Date</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: "all", label: "Any Time" },
+                      { id: "today", label: "Today" },
+                      { id: "upcoming", label: "Upcoming" },
+                      { id: "overdue", label: "Overdue" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setActiveFilter(prev => ({ ...prev, date: opt.id as any }))}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeFilter.date === opt.id
+                          ? "bg-white text-black font-bold"
+                          : "bg-white/5 text-white/60 hover:bg-white/10"
+                          }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <button
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  Show {filteredItems.length} Result{filteredItems.length !== 1 ? "s" : ""}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };
 
+const TaskPointsClaimSection = () => {
+  const currentAccount = useCurrentAccount();
+  const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
+  const [claimable, setClaimable] = useState<{
+    tasks_created_today: number;
+    tasks_claimed_today: number;
+    claimable_tasks: number;
+    total_claimable_points: number;
+  } | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  useEffect(() => {
+    if (!currentAccount?.address) return;
+
+    fetch(
+      `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
+    )
+      .then((res) => res.json())
+      .then((data) => setClaimable(data))
+      .catch(console.error);
+  }, [currentAccount]);
+
+  const handleClaim = async () => {
+    if (
+      !currentAccount?.address ||
+      !claimable ||
+      claimable.claimable_tasks === 0
+    )
+      return;
+
+    setIsClaiming(true);
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/task-points/request-claim`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: currentAccount.address,
+            task_count: claimable.claimable_tasks,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to request claim ticket");
+      }
+
+      const data = await response.json();
+      const { ticket_object_id } = data;
+
+      if (!ticket_object_id || typeof ticket_object_id !== "string") {
+        console.error("[CLAIM] Invalid ticket object ID received:", data);
+        throw new Error("Failed to mint claim ticket. Please try again.");
+      }
+
+      const tx = new Transaction();
+
+      const packageId = import.meta.env.VITE_SUI_PACKAGE_ID;
+      const taskPointsRegistryId = import.meta.env
+        .VITE_SUI_TASK_POINTS_REGISTRY_ID;
+      const pointsRegistryId = import.meta.env.VITE_POINTS_REGISTRY_ID;
+
+      if (!packageId || !taskPointsRegistryId || !pointsRegistryId) {
+        throw new Error(
+          "Missing required environment variables for claiming. Please check your .env file.",
+        );
+      }
+
+      tx.moveCall({
+        target: `${packageId}::task_points::claim_task_points`,
+        arguments: [
+          tx.object(taskPointsRegistryId),
+          tx.object(pointsRegistryId),
+          tx.object(ticket_object_id),
+          tx.object("0x6"),
+        ],
+      });
+
+      const result = await signAndExecuteTransaction({ transaction: tx });
+
+      await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentAccount.address,
+          task_count: claimable.claimable_tasks
+        })
+      });
+
+      window.dispatchEvent(new Event("pointsUpdated"));
+
+      const refreshResponse = await fetch(
+        `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
+      );
+      const refreshData = await refreshResponse.json();
+      setClaimable(refreshData);
+
+      alert(
+        `🎉 Successfully claimed ${claimable.total_claimable_points} points!\n\nTransaction: ${result.digest.slice(0, 10)}...`,
+      );
+
+    } catch (error: any) {
+      console.error("[CLAIM] Claim failed:", error);
+
+      let errorMessage = "Failed to claim points. ";
+
+      if (error.message?.includes("ticket")) {
+        errorMessage +=
+          "There was an issue minting your claim ticket. Please try again.";
+      } else if (error.message?.includes("environment")) {
+        errorMessage += "Configuration error. Please contact support.";
+      } else if (error.message?.includes("User rejected")) {
+        errorMessage += "Transaction was cancelled.";
+      } else {
+        errorMessage += error.message || "Please try again.";
+      }
+
+      alert(errorMessage);
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
+  if (!claimable || claimable.claimable_tasks === 0) return null;
+
+  return (
+    <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 mb-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-white mb-1">
+            Task Points Available
+          </h3>
+          <p className="text-white/60 text-sm">
+            You have {claimable.claimable_tasks} unclaimed task
+            {claimable.claimable_tasks !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <button
+          onClick={handleClaim}
+          disabled={isClaiming}
+          className="bg-[#B7FC0D] hover:bg-[#a8ed00] text-black px-6 py-3 rounded-full font-bold text-sm flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isClaiming ? (
+            "Claiming..."
+          ) : (
+            <>
+              Claim {claimable.total_claimable_points} Points
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v8m4-4H8" />
+              </svg>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
 export default Activity;

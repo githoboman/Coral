@@ -1,8 +1,4 @@
-// server/src/services/taskStorageService.ts
-import axios from "axios";
-import { getEncryptionService, type EncryptedData } from "./encryptionService";
-import { TicketMinter, getTicketMinter } from "./ticketMinter";
-import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
+import { getSupabaseClient } from "../config/supabase";
 
 export interface TaskData {
   id: string;
@@ -21,149 +17,11 @@ export interface TaskData {
   due_notification_sent?: boolean;
 }
 
-export interface TaskRegistry {
-  version: number;
-  user_id: string;
-  updated_at: string;
-  tasks: Record<string, EncryptedData>; // task_id -> encrypted task data
-  active_task_ids: string[];
-}
-
-export interface WalrusUploadResponse {
-  newlyCreated?: {
-    blobObject: {
-      blobId: string;
-    };
-  };
-  alreadyCertified?: {
-    blobId: string;
-  };
-}
-
 export class TaskStorageService {
-  private publisherUrl: string;
-  private aggregatorUrl: string;
-  private epochs: number;
-  private encryption = getEncryptionService();
-  private registryCache: Map<
-    string,
-    { blobId: string; registry: TaskRegistry }
-  > = new Map();
+  private supabase = getSupabaseClient();
 
   constructor() {
-    this.publisherUrl =
-      process.env.WALRUS_PUBLISHER_URL ||
-      "https://publisher.walrus-testnet.walrus.space";
-    this.aggregatorUrl =
-      process.env.WALRUS_AGGREGATOR_URL ||
-      "https://aggregator.walrus-testnet.walrus.space";
-    this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
-
-
-  }
-
-  // Get user's task registry blob ID from their profile
-  private async getUserTaskRegistryBlobId(
-    userId: string,
-  ): Promise<string | null> {
-    try {
-      const ticketMinter = getTicketMinter();
-      const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) {
-
-        return null;
-      }
-
-      const userManager = getWalrusUserManager();
-      const userProfile = await userManager.getUserProfile(
-        userRegistryBlobId,
-        userId,
-      );
-
-      if (!userProfile) {
-
-        return null;
-      }
-
-      return userProfile.task_registry_blob_id || null;
-    } catch (error) {
-      console.error("Error getting user task registry blob ID:", error);
-      throw error;
-    }
-  }
-
-  // Update user's profile with new task registry blob ID
-  private async updateUserTaskRegistryBlobId(
-    userId: string,
-    taskRegistryBlobId: string,
-  ): Promise<boolean> {
-    try {
-      const ticketMinter = getTicketMinter();
-      const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) {
-        console.error("Cannot update: user registry doesn't exist");
-        return false;
-      }
-
-      const userManager = getWalrusUserManager();
-      const userProfile = await userManager.getUserProfile(
-        userRegistryBlobId,
-        userId,
-      );
-
-      if (!userProfile) {
-        console.error(`Cannot update: user profile not found for ${userId}`);
-        return false;
-      }
-
-      const updatedProfile = userManager.createUserProfile(
-        userProfile.email,
-        userProfile.wallet_address,
-        userProfile.is_waitlisted,
-        userProfile.points_awarded,
-        {
-          username: userProfile.username,
-          first_name: userProfile.first_name,
-          last_name: userProfile.last_name,
-          preferences: userProfile.preferences,
-          waitlist_verified_at: userProfile.waitlist_verified_at,
-          chat_registry_blob_id: userProfile.chat_registry_blob_id,
-          task_registry_blob_id: taskRegistryBlobId,
-          tasks_created_today: userProfile.tasks_created_today,
-          tasks_claimed_today: userProfile.tasks_claimed_today,
-          last_task_reset_date: userProfile.last_task_reset_date,
-          subscription_tier: userProfile.subscription_tier,
-          subscription_expires_at: userProfile.subscription_expires_at,
-          daily_prompts_used: userProfile.daily_prompts_used,
-          last_prompt_date: userProfile.last_prompt_date,
-          telegram_chat_id: userProfile.telegram_chat_id,
-          telegram_username: userProfile.telegram_username,
-          telegram_linked_at: userProfile.telegram_linked_at,
-        },
-      );
-
-      const newUserRegistryBlobId = await userManager.addOrUpdateUser(
-        userRegistryBlobId,
-        updatedProfile,
-      );
-
-      if (!newUserRegistryBlobId) {
-        console.error("Failed to update user profile");
-        return false;
-      }
-
-      if (newUserRegistryBlobId !== userRegistryBlobId) {
-        await ticketMinter.updateBlobRegistry(newUserRegistryBlobId);
-
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error updating user task registry blob ID:", error);
-      return false;
-    }
+    // No initialization needed for Supabase client
   }
 
   // Create new task
@@ -171,160 +29,95 @@ export class TaskStorageService {
     userId: string,
     taskData: Omit<TaskData, "id" | "user_id" | "created_at" | "updated_at">,
   ): Promise<{ taskId: string; registryBlobId: string } | null> {
-    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-
-
-
-    const task: TaskData = {
-      id: taskId,
-      user_id: userId,
-      ...taskData,
-      created_at: now,
-      updated_at: now,
-    };
-
-    // Get current registry
-    let currentRegistryBlobId: string | null = null;
     try {
-      currentRegistryBlobId = await this.getUserTaskRegistryBlobId(userId);
-    } catch (error) {
-      console.error(`❌ Critical Error: Could not fetch user profile/registry for ${userId}:`, error);
-      // CRITICAL: Return null to abort task creation and protect existing data.
-      // Do NOT proceed to create a new registry if the fetch failed due to network error.
-      return null; 
-    }
+      // Omit ID to let Postgres generate it (bigserial)
+      const { data, error } = await this.supabase
+        .from("tasks")
+        .insert({
+          user_id: userId,
+          task_name: taskData.task_name,
+          description: taskData.description,
+          due_date: taskData.due_date,
+          priority: taskData.priority,
+          tags: taskData.tags,
+          status: taskData.status,
+          action_type: taskData.action_type,
+          action_params: taskData.action_params,
+          action_status: taskData.action_status,
+          due_notification_sent: taskData.due_notification_sent
+        })
+        .select()
+        .single();
 
-    let currentRegistry: TaskRegistry | null = null;
-
-    if (currentRegistryBlobId) {
-      try {
-        currentRegistry = await this.getTaskRegistry(userId);
-      } catch (error) {
-        console.error(`❌ Critical Error: Could not fetch task registry ${currentRegistryBlobId}:`, error);
+      if (error) {
+        console.error("Supabase create task error:", error);
         return null;
       }
-    }
 
-    // Encrypt task data
-    const encryptedTask = this.encryption.encrypt(JSON.stringify(task));
+      const taskId = data.id.toString(); // Convert bigserial to string
 
-    // Update registry
-    const updatedRegistry: TaskRegistry = currentRegistry
-      ? {
-        ...currentRegistry,
-        version: currentRegistry.version + 1,
-        updated_at: now,
-        tasks: {
-          ...currentRegistry.tasks,
-          [taskId]: encryptedTask,
-        },
-        active_task_ids: [...currentRegistry.active_task_ids, taskId],
-      }
-      : {
-        version: 1,
-        user_id: userId,
-        updated_at: now,
-        tasks: {
-          [taskId]: encryptedTask,
-        },
-        active_task_ids: [taskId],
-      };
-
-    // Upload registry
-    const registryBlobId = await this.uploadRegistry(updatedRegistry);
-
-    if (!registryBlobId) {
-      console.error("Failed to upload task registry");
+      // We return a dummy registryBlobId to maintain interface compatibility 
+      // with existing callers until they are refactored
+      return { taskId, registryBlobId: "supabase-managed" };
+    } catch (err) {
+      console.error("Create task exception:", err);
       return null;
-    }
-
-    // Cache the registry
-    this.registryCache.set(userId, {
-      blobId: registryBlobId,
-      registry: updatedRegistry,
-    });
-
-    // Update user profile
-    await this.updateUserTaskRegistryBlobId(userId, registryBlobId);
-
-
-
-
-    return { taskId, registryBlobId };
-  }
-
-  // Get task registry
-  async getTaskRegistry(userId: string): Promise<TaskRegistry | null> {
-    const cached = this.registryCache.get(userId);
-    if (cached) {
-
-      return cached.registry;
-    }
-
-    const registryBlobId = await this.getUserTaskRegistryBlobId(userId);
-    if (!registryBlobId) {
-
-      return null;
-    }
-
-    try {
-
-      const response = await axios.get(
-        `${this.aggregatorUrl}/v1/blobs/${registryBlobId}`,
-        {
-          timeout: 30000,
-        },
-      );
-
-      const registry = response.data as TaskRegistry;
-
-      this.registryCache.set(userId, {
-        blobId: registryBlobId,
-        registry,
-      });
-
-
-      return registry;
-    } catch (error) {
-      console.error(`Error fetching task registry for ${userId}:`, error);
-      throw error;
     }
   }
 
   // Get all tasks for user
   async getTasks(userId: string): Promise<TaskData[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
+      if (error) {
+        console.error("Supabase get tasks error:", error);
+        return [];
+      }
 
-    const registry = await this.getTaskRegistry(userId);
-    if (!registry) {
+      return data.map((t: any) => ({
+        ...t,
+        id: t.id.toString(), // Ensure ID is string
+        tags: t.tags || [],
+        action_params: t.action_params || undefined
+      })) as TaskData[];
+    } catch (err) {
+      console.error("Get tasks exception:", err);
       return [];
     }
-
-    const tasks = Object.values(registry.tasks).map((encrypted) => {
-      const decrypted = this.encryption.decrypt(encrypted);
-      return JSON.parse(decrypted) as TaskData;
-    });
-
-    // Sort by created_at descending
-    tasks.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-
-
-    return tasks;
   }
 
   // Get single task
   async getTask(userId: string, taskId: string): Promise<TaskData | null> {
-    const registry = await this.getTaskRegistry(userId);
-    if (!registry || !registry.tasks[taskId]) {
+    try {
+      const numericId = parseInt(taskId, 10);
+      if (isNaN(numericId)) return null;
+
+      const { data, error } = await this.supabase
+        .from("tasks")
+        .select("*")
+        .eq("id", numericId)
+        .eq("user_id", userId) // Security check
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      return {
+        ...data,
+        id: data.id.toString(),
+        tags: data.tags || [],
+        action_params: data.action_params || undefined
+      } as TaskData;
+    } catch (err) {
+      console.error("Get task exception:", err);
       return null;
     }
-
-    const decrypted = this.encryption.decrypt(registry.tasks[taskId]);
-    return JSON.parse(decrypted) as TaskData;
   }
 
   // Update task
@@ -333,116 +126,63 @@ export class TaskStorageService {
     taskId: string,
     updates: Partial<TaskData>,
   ): Promise<boolean> {
-    const registry = await this.getTaskRegistry(userId);
-    if (!registry || !registry.tasks[taskId]) {
+    try {
+      const numericId = parseInt(taskId, 10);
+      if (isNaN(numericId)) return false;
+
+      // Filter out non-updatable fields or undefineds
+      const cleanUpdates: any = { ...updates };
+      delete cleanUpdates.id;
+      delete cleanUpdates.user_id;
+      delete cleanUpdates.created_at;
+      cleanUpdates.updated_at = new Date().toISOString();
+
+      const { error } = await this.supabase
+        .from("tasks")
+        .update(cleanUpdates)
+        .eq("id", numericId)
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Supabase update task error:", error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Update task exception:", err);
       return false;
     }
-
-    const now = new Date().toISOString();
-
-    // Decrypt existing task
-    const existingTask = JSON.parse(
-      this.encryption.decrypt(registry.tasks[taskId]),
-    ) as TaskData;
-
-    // Merge updates
-    const updatedTask: TaskData = {
-      ...existingTask,
-      ...updates,
-      updated_at: now,
-    };
-
-    // Re-encrypt
-    const encryptedTask = this.encryption.encrypt(JSON.stringify(updatedTask));
-
-    // Update registry
-    const updatedRegistry: TaskRegistry = {
-      ...registry,
-      version: registry.version + 1,
-      updated_at: now,
-      tasks: {
-        ...registry.tasks,
-        [taskId]: encryptedTask,
-      },
-    };
-
-    const newRegistryBlobId = await this.uploadRegistry(updatedRegistry);
-
-    if (newRegistryBlobId) {
-      this.registryCache.set(userId, {
-        blobId: newRegistryBlobId,
-        registry: updatedRegistry,
-      });
-      await this.updateUserTaskRegistryBlobId(userId, newRegistryBlobId);
-      return true;
-    }
-
-    return false;
   }
 
   // Delete task
   async deleteTask(userId: string, taskId: string): Promise<boolean> {
+    try {
+      const numericId = parseInt(taskId, 10);
+      if (isNaN(numericId)) return false;
 
+      const { error } = await this.supabase
+        .from("tasks")
+        .delete()
+        .eq("id", numericId)
+        .eq("user_id", userId);
 
-    const registry = await this.getTaskRegistry(userId);
-    if (!registry) return false;
+      if (error) {
+        console.error("Supabase delete task error:", error);
+        return false;
+      }
 
-    const { [taskId]: removed, ...remainingTasks } = registry.tasks;
-
-    if (!removed) {
-
+      return true;
+    } catch (err) {
+      console.error("Delete task exception:", err);
       return false;
     }
-
-    const updatedRegistry: TaskRegistry = {
-      ...registry,
-      version: registry.version + 1,
-      updated_at: new Date().toISOString(),
-      tasks: remainingTasks,
-      active_task_ids: registry.active_task_ids.filter((id) => id !== taskId),
-    };
-
-    const registryBlobId = await this.uploadRegistry(updatedRegistry);
-
-    if (!registryBlobId) return false;
-
-    this.registryCache.set(userId, {
-      blobId: registryBlobId,
-      registry: updatedRegistry,
-    });
-
-    await this.updateUserTaskRegistryBlobId(userId, registryBlobId);
-
-
-
-    return true;
   }
 
-  // Helper: Upload registry
-  private async uploadRegistry(registry: TaskRegistry): Promise<string | null> {
-    try {
-      const registryJson = JSON.stringify(registry);
-
-      const response = await axios.put(
-        `${this.publisherUrl}/v1/blobs`,
-        registryJson,
-        {
-          headers: { "Content-Type": "application/json" },
-          params: { epochs: this.epochs },
-          timeout: 30000,
-        },
-      );
-
-      const result = response.data as WalrusUploadResponse;
-      return (
-        result.newlyCreated?.blobObject?.blobId ||
-        result.alreadyCertified?.blobId ||
-        null
-      );
-    } catch (error) {
-      console.error("Error uploading task registry:", error);
-      return null;
-    }
+  // Deprecated methods kept for temporary compatibility if needed, 
+  // currently stubbed to prevent errors during transition
+  async getTaskRegistry(userId: string): Promise<any | null> {
+    return null;
   }
 }
 
