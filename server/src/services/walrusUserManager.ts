@@ -128,6 +128,10 @@ export class WalrusUserManager {
   private epochs: number;
   private registryCache: { blobId: string; registry: UsersRegistry } | null =
     null;
+  public getCachedBlobId(): string | null {
+    return this.registryCache?.blobId ?? null;
+  }
+
   private encryption = getEncryptionService();
 
   private constructor() {
@@ -479,9 +483,9 @@ export class WalrusUserManager {
   ): Promise<DecryptedUserProfile | null> {
     // Propagate errors so caller knows if fetch failed vs user not found
     const registry = await this.fetchUsersRegistry(registryBlobId);
-    
+
     // If registry is null (shouldn't happen with throw change, but for type safety)
-    if (!registry) { 
+    if (!registry) {
       throw new Error("Failed to retrieve user registry");
     }
 
@@ -611,4 +615,3 @@ export class WalrusUserManager {
 }
 
 export const getWalrusUserManager = () => WalrusUserManager.getInstance();
-

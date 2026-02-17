@@ -1,11 +1,19 @@
 import { Router, Request, Response, NextFunction } from "express";
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { WaitlistManager } from "../services/waitlistManager";
-import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import {
+  WalrusUserManager,
+  getWalrusUserManager,
+} from "../services/walrusUserManager";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 
 const router = Router();
 
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
+
+const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
+const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
+const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
 
 let waitlistManager: WaitlistManager | null = null;
 let userManager: WalrusUserManager | null = null;
@@ -22,6 +30,94 @@ function getUserManager(): WalrusUserManager {
 function getLocalTicketMinter(): TicketMinter {
   if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
+}
+
+function normalizeAddr(addr: string): string {
+  return (
+    "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0")
+  );
+}
+
+async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
+  if (!PACKAGE_ID) return false;
+
+  const normalized = normalizeAddr(walletAddress);
+
+  try {
+    const result = await suiClient.queryEvents({
+      query: {
+        MoveEventField: {
+          path: "/wallet_address",
+          value: normalized,
+        },
+      } as any,
+      limit: 1,
+      order: "descending",
+    });
+
+    if (result.data.length > 0) {
+      const ev = result.data[0];
+      const eventType: string = (ev as any).type || "";
+      if (eventType.startsWith(PACKAGE_ID)) {
+        return true;
+      }
+    }
+  } catch {}
+
+  try {
+    const page = await suiClient.queryEvents({
+      query: { MoveEventType: `${PACKAGE_ID}::points::PointsClaimed` },
+      limit: 50,
+      order: "descending",
+    });
+
+    for (const ev of page.data) {
+      const data = ev.parsedJson as any;
+      if (
+        data?.wallet_address &&
+        normalizeAddr(data.wallet_address) === normalized
+      ) {
+        return true;
+      }
+    }
+
+    if (page.hasNextPage && page.nextCursor) {
+      let cursor: string | undefined = page.nextCursor;
+      let hasNext = true;
+      while (hasNext && cursor) {
+        const next = await suiClient.queryEvents({
+          query: { MoveEventType: `${PACKAGE_ID}::points::PointsClaimed` },
+          cursor,
+          limit: 50,
+          order: "descending",
+        });
+        for (const ev of next.data) {
+          const data = ev.parsedJson as any;
+          if (
+            data?.wallet_address &&
+            normalizeAddr(data.wallet_address) === normalized
+          ) {
+            return true;
+          }
+        }
+        hasNext = next.hasNextPage;
+        cursor = next.nextCursor ?? undefined;
+      }
+    }
+
+    return false;
+  } catch (rpcErr) {
+    console.warn(
+      "[CLAIM-CHECK] queryEvents failed, using devInspect fallback:",
+      rpcErr,
+    );
+    try {
+      const minter = getLocalTicketMinter();
+      return await minter.hasClaimed(walletAddress);
+    } catch {
+      return false;
+    }
+  }
 }
 
 router.post(
@@ -51,24 +147,17 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
-      const minter = getTicketMinter();
+      const minter = getLocalTicketMinter();
       const um = getUserManager();
 
-      console.log(`📝 Saving profile for: ${normalizedEmail} (encrypted)`);
       const blobRegistry = await minter.getCurrentBlobId();
-
-      console.log(`Current BlobRegistry from chain: ${blobRegistry || "null"}`);
 
       if (blobRegistry) {
         const existingWallet = await um.findWalletByEmail(
           blobRegistry,
           normalizedEmail,
         );
-
         if (existingWallet && existingWallet !== wallet_address) {
-          console.warn(
-            `⛔ Duplicate email: "${normalizedEmail}" already registered to ${existingWallet}`,
-          );
           res.status(409).json({
             error: "Conflict",
             detail:
@@ -102,14 +191,8 @@ router.post(
       }
 
       if (newBlobId !== blobRegistry) {
-        console.log(
-          `📦 Updating BlobRegistry on-chain: ${blobRegistry} -> ${newBlobId}`,
-        );
         await minter.updateBlobRegistry(newBlobId);
-        console.log(`✅ BlobRegistry updated on-chain → ${newBlobId}`);
       }
-
-      console.log(`✅ Encrypted profile saved for ${wallet_address}`);
 
       res.json({
         success: true,
@@ -118,8 +201,7 @@ router.post(
           wallet_address,
           username: username || null,
         },
-        message:
-          "Profile saved successfully. You can now check if you're eligible for points.",
+        message: "Profile saved successfully.",
       });
     } catch (error) {
       console.error("Error in register:", error);
@@ -128,7 +210,6 @@ router.post(
   },
 );
 
-// UPDATED: Now handles the full sponsored claim flow
 router.post(
   "/claim-waitlist-points",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -158,40 +239,29 @@ router.post(
       const normalizedEmail = email.toLowerCase().trim();
       const minter = getLocalTicketMinter();
 
-      console.log(
-        `\n🔍 [SPONSORED CLAIM] Checking eligibility for: ${wallet_address}`,
-      );
-
-      // Step 1: Check if already claimed
-      const alreadyClaimed = await minter.hasClaimed(wallet_address);
+      const alreadyClaimed = await hasClaimedOnChain(wallet_address);
       if (alreadyClaimed) {
         res.json({
           success: false,
           already_claimed: true,
-          message: "Points already claimed for this wallet.",
+          message: "Points already claimed.",
         });
         return;
       }
 
-      // Step 2: Verify waitlist eligibility
-      console.log(`🔍 Checking waitlist for: ${normalizedEmail}`);
       const isWhitelisted = await getWaitlistManager().isEmailWhitelisted(
         normalizedEmail,
         WHITELIST_BLOB_ID,
       );
-
       if (!isWhitelisted) {
         res.status(403).json({
           success: false,
           eligible: false,
-          message:
-            "Email is not on the waitlist. New users do not receive points.",
+          message: "Email is not on the waitlist.",
         });
         return;
       }
 
-      // Step 3: Execute sponsored claim (backend mints ticket & claims in one transaction)
-      console.log(`💰 Executing sponsored claim...`);
       const claimResult =
         await minter.sponsoredClaimWaitlistPoints(wallet_address);
 
@@ -204,63 +274,50 @@ router.post(
         return;
       }
 
-      console.log(`✅ Points successfully claimed! tx=${claimResult.digest}`);
-
-      // Step 4: Update user profile asynchronously (non-blocking)
       (async () => {
         try {
           const um = getUserManager();
           const blobRegistry = await minter.getCurrentBlobId();
-
           if (blobRegistry) {
-            const existingProfile = await um.getUserProfile(
+            const existing = await um.getUserProfile(
               blobRegistry,
               wallet_address,
             );
-
-            if (existingProfile) {
-              const updatedProfile = um.createUserProfile(
-                existingProfile.email,
-                existingProfile.wallet_address,
-                true, // is_waitlisted = true
-                existingProfile.points_awarded,
+            if (existing) {
+              const updated = um.createUserProfile(
+                existing.email,
+                existing.wallet_address,
+                true,
+                existing.points_awarded,
                 {
-                  username: existingProfile.username,
-                  first_name: existingProfile.first_name,
-                  last_name: existingProfile.last_name,
-                  preferences: existingProfile.preferences,
+                  username: existing.username,
+                  first_name: existing.first_name,
+                  last_name: existing.last_name,
+                  preferences: existing.preferences,
                   waitlist_verified_at: new Date().toISOString(),
                 },
               );
-
-              const newBlobId = await um.addOrUpdateUser(
-                blobRegistry,
-                updatedProfile,
-              );
-
+              const newBlobId = await um.addOrUpdateUser(blobRegistry, updated);
               if (newBlobId && newBlobId !== blobRegistry) {
                 await minter.updateBlobRegistry(newBlobId);
-                console.log(`📦 BlobRegistry updated on-chain → ${newBlobId}`);
               }
             }
           }
-        } catch (walrusErr) {
+        } catch (err) {
           console.warn(
-            "⚠️  Walrus profile update failed (non-fatal):",
-            walrusErr,
+            "[CLAIM] Walrus profile update failed (non-fatal):",
+            err,
           );
         }
       })();
 
-      // Step 5: Return success to user
       res.json({
         success: true,
         claimed: true,
         transaction_digest: claimResult.digest,
         points_awarded: 100,
         new_balance: claimResult.balance || 100,
-        message:
-          "🎉 Congratulations! Your waitlist points have been awarded. No gas fees required!",
+        message: "🎉 Waitlist points awarded!",
       });
     } catch (error) {
       console.error("Error in claim-waitlist-points:", error);
@@ -282,24 +339,66 @@ router.get(
         return;
       }
 
-      const minter = getLocalTicketMinter();
-      const blobId = await minter.getCurrentBlobId();
+      console.log(
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... checking Walrus registry`,
+      );
 
-      console.log(`check-user: blobId from chain = ${blobId || "null"}`);
+      let profile = null;
+      let walrusFailed = false;
 
-      if (!blobId) {
-        console.log("No BlobRegistry yet - user needs to register first");
-        res.json({ exists: false, user: null });
+      try {
+        const minter = getLocalTicketMinter();
+        const um = getUserManager();
+        const blobId =
+          um.getCachedBlobId() ?? (await minter.getCurrentBlobId());
+
+        if (blobId) {
+          profile = await um.getUserProfile(blobId, wallet_address);
+        }
+      } catch (walrusErr) {
+        console.warn(
+          "[CHECK-USER] Walrus lookup failed — will try on-chain fallback:",
+          walrusErr,
+        );
+        walrusFailed = true;
+      }
+
+      if (profile) {
+        const isOnboarded = !!profile.email;
+        console.log(
+          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Walrus registry → onboarded ✓`,
+        );
+        res.json({ exists: true, is_onboarded: isOnboarded, user: profile });
         return;
       }
 
-      const um = getUserManager();
-      const userProfile = await um.getUserProfile(blobId, wallet_address);
+      console.log(
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Walrus, checking on-chain (legacy fallback)`,
+      );
 
-      res.json({
-        exists: !!userProfile,
-        user: userProfile || null,
-      });
+      try {
+        const onChain = await hasClaimedOnChain(wallet_address);
+        if (onChain) {
+          console.log(
+            `[CHECK-USER] ${wallet_address.slice(0, 10)}... found on-chain → legacy user, onboarded ✓`,
+          );
+
+          res.json({
+            exists: true,
+            is_onboarded: true,
+            user: null,
+            legacy: true,
+          });
+          return;
+        }
+      } catch (chainErr) {
+        console.warn("[CHECK-USER] On-chain fallback also failed:", chainErr);
+      }
+
+      console.log(
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not found anywhere → new user`,
+      );
+      res.json({ exists: false, is_onboarded: false, user: null });
     } catch (error) {
       console.error("Error in check-user:", error);
       next(error);
@@ -319,18 +418,15 @@ router.get(
           .json({ error: "Bad Request", detail: "Email is required" });
         return;
       }
-
       if (!WHITELIST_BLOB_ID) {
         res.json({ on_waitlist: false });
         return;
       }
 
-      const normalizedEmail = email.toLowerCase().trim();
       const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
-        normalizedEmail,
+        email.toLowerCase().trim(),
         WHITELIST_BLOB_ID,
       );
-
       res.json({ on_waitlist: isWaitlisted });
     } catch (error) {
       console.error("Error in check-waitlist:", error);
@@ -355,12 +451,7 @@ router.get(
       const minter = getLocalTicketMinter();
 
       if (tx_digest && typeof tx_digest === "string") {
-        console.log(
-          `\n⚡ check-claim-status: fast path via digest ${tx_digest}`,
-        );
-
         const verification = await minter.verifyClaimByDigest(tx_digest);
-
         if (verification?.confirmed) {
           res.json({
             claimed: true,
@@ -369,20 +460,11 @@ router.get(
           });
           return;
         }
-
-        console.warn(
-          "⚠️  Digest did not contain PointsClaimed event, falling through to normal read",
-        );
       }
 
-      const claimed = await minter.hasClaimed(wallet_address);
+      const claimed = await hasClaimedOnChain(wallet_address);
       const balance = await minter.getBalance(wallet_address);
-
-      res.json({
-        claimed,
-        balance,
-        wallet_address,
-      });
+      res.json({ claimed, balance, wallet_address });
     } catch (error) {
       console.error("Error in check-claim-status:", error);
       next(error);
