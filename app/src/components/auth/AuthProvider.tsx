@@ -36,7 +36,6 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Session-level cache so onboarding check only runs once per wallet per page session
 const SESSION_ONBOARDED_KEY = "tovira_onboarded_wallet";
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -49,7 +48,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  // Use a ref so the check never runs twice even under StrictMode double-invoke
   const checkingRef = useRef(false);
   const checkedWalletRef = useRef<string | null>(null);
 
@@ -97,24 +95,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isAuthenticated) {
       if (!isSigninPage) navigate("/signin", { replace: true });
       setIsOnboardingOpen(false);
-      // Clear the session cache when wallet disconnects
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
       checkedWalletRef.current = null;
       checkingRef.current = false;
       return;
     }
 
-    // Authenticated
     if (isSigninPage) {
       navigate("/", { replace: true });
     }
 
     const activeAddress = currentAccount.address;
 
-    // If we already checked THIS wallet address in this session, skip
     if (checkedWalletRef.current === activeAddress) return;
 
-    // Check sessionStorage first — if already marked onboarded for this wallet, skip API call
     const cachedOnboardedWallet = sessionStorage.getItem(SESSION_ONBOARDED_KEY);
     if (cachedOnboardedWallet === activeAddress) {
       checkedWalletRef.current = activeAddress;
@@ -123,7 +117,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
-    // Only run the API check once per wallet per mount
     if (!checkingRef.current) {
       checkingRef.current = true;
       checkedWalletRef.current = activeAddress;
@@ -150,8 +143,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         const data = await response.json();
 
-        // is_onboarded: true means the wallet has a profile in the Walrus registry
-        // (set server-side — covers both waitlisted and non-waitlisted users)
         const fullyOnboarded = data.exists && data.is_onboarded;
 
         if (!fullyOnboarded) {
@@ -159,7 +150,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setIsOnboardingOpen(true);
           if (data.user?.email) setUserEmail(data.user.email);
         } else {
-          // Cache so page refreshes skip the API call entirely
           sessionStorage.setItem(SESSION_ONBOARDED_KEY, walletAddress);
           setIsOnboarded(true);
           setIsOnboardingOpen(false);
@@ -175,7 +165,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             setTimeout(r, 1000 * Math.pow(2, attempt - 1)),
           );
         } else {
-          // All retries failed — show onboarding as safe fallback
           setIsOnboarded(false);
           setIsOnboardingOpen(true);
         }
@@ -206,8 +195,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     try {
-      // Single call to /register — saves the profile in Walrus.
-      // This is what makes check-user return is_onboarded: true on subsequent loads.
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -271,7 +258,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionStorage.removeItem(item);
       });
 
-      // Clear session onboarding cache
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
 
       const keysToRemove: string[] = [];
@@ -281,7 +267,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
 
-      // Reset refs
       checkingRef.current = false;
       checkedWalletRef.current = null;
 
@@ -313,7 +298,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         initialEmail={userEmail}
         onSubmit={(email, data) => handleOnboardingSubmit(email, data)}
         onComplete={() => {
-          // Mark as onboarded in session cache so reloads are instant
           if (currentAccount?.address) {
             sessionStorage.setItem(
               SESSION_ONBOARDED_KEY,

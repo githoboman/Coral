@@ -1,7 +1,3 @@
-// server/src/routes/account.ts
-// Leaderboard AND per-user balance both read directly from blockchain events.
-// No Walrus per-user balance calls, no devInspect fallback, consistent everywhere.
-
 import { Router, Request, Response, NextFunction } from "express";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
@@ -24,18 +20,13 @@ function getLocalTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-// ─── Sui client (read-only) ───────────────────────────────────────────────────
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
 
-// ─── Shared address normaliser ────────────────────────────────────────────────
 const normalizeAddr = (addr: string): string =>
   "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0");
 
-// ─── getBalanceFromEvents ─────────────────────────────────────────────────────
-// Queries PointsClaimed + TaskPointsClaimed events and returns the wallet's most
-// recent new_balance.  Two RPC calls max — no devInspect, no per-wallet loops.
 export async function getBalanceFromEvents(
   walletAddress: string,
 ): Promise<number> {
@@ -88,7 +79,6 @@ export async function getBalanceFromEvents(
   return bestBalance;
 }
 
-// ─── In-memory leaderboard cache ─────────────────────────────────────────────
 interface LeaderboardEntry {
   rank: number;
   user_id: string;
@@ -104,10 +94,9 @@ interface LeaderboardCache {
 }
 
 let leaderboardCache: LeaderboardCache | null = null;
-const LEADERBOARD_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+const LEADERBOARD_CACHE_TTL = 3 * 60 * 1000;
 let buildingLeaderboard = false;
 
-// ─── buildLeaderboardFromChain ────────────────────────────────────────────────
 async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
   if (!PACKAGE_ID) {
     console.warn("[LEADERBOARD] SUI_PACKAGE_ID not set, returning empty");
@@ -116,7 +105,6 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
 
   console.log("[LEADERBOARD] Building from blockchain events...");
 
-  // wallet → most-recent {balance, ts} snapshot
   const balanceMap = new Map<string, { balance: number; ts: number }>();
 
   const processEvents = (
@@ -141,7 +129,6 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
     }
   };
 
-  // PointsClaimed events — scan all pages descending (most recent first)
   try {
     let cursor: string | undefined = undefined;
     let hasNext = true;
@@ -161,7 +148,6 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
     console.warn("[LEADERBOARD] Error fetching PointsClaimed:", err);
   }
 
-  // TaskPointsClaimed events — may be more recent for task earners
   try {
     let cursor: string | undefined = undefined;
     let hasNext = true;
@@ -183,12 +169,10 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
     console.warn("[LEADERBOARD] Error fetching TaskPointsClaimed:", err);
   }
 
-  // Sort descending by balance, drop zero-balance wallets
   const sorted = Array.from(balanceMap.entries())
     .filter(([, { balance }]) => balance > 0)
     .sort((a, b) => b[1].balance - a[1].balance);
 
-  // Enrich with usernames — only for wallets that appear in the leaderboard
   const relevantWallets = new Set(sorted.map(([w]) => w));
   const usernameMap = new Map<string, string>();
   try {
@@ -204,9 +188,7 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
           try {
             const profile = await um.getUserProfile(blobId, wallet);
             if (profile?.username) usernameMap.set(norm, profile.username);
-          } catch {
-            // per-user decrypt failures are non-fatal
-          }
+          } catch {}
         }
       }
     }
@@ -214,17 +196,18 @@ async function buildLeaderboardFromChain(): Promise<LeaderboardEntry[]> {
     console.warn("[LEADERBOARD] Username enrichment failed (non-fatal):", err);
   }
 
-  return sorted.map(([wallet, { balance }], idx) => ({
-    rank: idx + 1,
-    user_id: wallet,
-    wallet_address: wallet,
-    username: usernameMap.get(wallet),
-    points: balance,
-    referral_points: 0,
-  }));
+  return sorted
+    .slice(0, 100)
+    .map(([wallet, { balance }], idx) => ({
+      rank: idx + 1,
+      user_id: wallet,
+      wallet_address: wallet,
+      username: usernameMap.get(wallet),
+      points: balance,
+      referral_points: 0,
+    }));
 }
 
-// ─── GET /api/account/:user_id ────────────────────────────────────────────────
 router.get(
   "/account/:user_id",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -262,7 +245,6 @@ router.get(
           .json({ error: "Not Found", detail: "User not found" });
       }
 
-      // Balance from events — same source of truth as the leaderboard
       const balance = await getBalanceFromEvents(user_id);
 
       return res.json({
@@ -289,14 +271,12 @@ router.get(
   },
 );
 
-// ─── GET /api/leaderboard ─────────────────────────────────────────────────────
 router.get(
   "/leaderboard",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const forceRefresh = req.query.refresh === "true";
 
-      // Serve from cache if still fresh
       if (
         !forceRefresh &&
         leaderboardCache &&
@@ -309,7 +289,6 @@ router.get(
         return res.json({ leaderboard: leaderboardCache.entries });
       }
 
-      // If another build is in progress, serve stale or wait
       if (buildingLeaderboard) {
         console.log("[LEADERBOARD] Build in progress, serving stale cache");
         if (leaderboardCache) {

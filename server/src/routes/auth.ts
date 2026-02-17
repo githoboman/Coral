@@ -1,19 +1,3 @@
-// server/src/routes/auth.ts
-//
-// REGISTRATION vs POINTS — two separate concerns:
-//
-//   check-user:             Walrus registry lookup → on-chain fallback for legacy users
-//   claim-waitlist-points:  On-chain events (source of truth for "has this wallet claimed points")
-//
-// Onboarding check priority:
-//   1. Walrus profile exists → onboarded (all users going forward)
-//   2. On-chain PointsClaimed event exists → onboarded (legacy users pre-Walrus)
-//   3. Neither → new user, show onboarding modal
-//
-// On-chain is touched for:
-//   /check-user             — fallback only, for wallets not in Walrus registry
-//   /claim-waitlist-points  — double-claim prevention + actual point minting
-
 import { Router, Request, Response, NextFunction } from "express";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { WaitlistManager } from "../services/waitlistManager";
@@ -27,7 +11,6 @@ const router = Router();
 
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
-// ─── Sui client ───────────────────────────────────────────────────────────────
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
@@ -49,23 +32,17 @@ function getLocalTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-// ─── normalizeAddr ────────────────────────────────────────────────────────────
 function normalizeAddr(addr: string): string {
   return (
     "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0")
   );
 }
 
-// ─── hasClaimedOnChain ────────────────────────────────────────────────────────
-// Used in TWO places:
-//   1. /claim-waitlist-points — prevent double-claiming
-//   2. /check-user fallback   — recognise legacy users not yet in Walrus
 async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
   if (!PACKAGE_ID) return false;
 
   const normalized = normalizeAddr(walletAddress);
 
-  // ── Primary: MoveEventField filter (targeted query for this wallet) ─────────
   try {
     const result = await suiClient.queryEvents({
       query: {
@@ -85,11 +62,8 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
         return true;
       }
     }
-  } catch {
-    // MoveEventField not supported — fall through to scan
-  }
+  } catch {}
 
-  // ── Fallback: scan PointsClaimed events ─────────────────────────────────────
   try {
     const page = await suiClient.queryEvents({
       query: { MoveEventType: `${PACKAGE_ID}::points::PointsClaimed` },
@@ -146,7 +120,6 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
   }
 }
 
-// ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post(
   "/register",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -237,7 +210,6 @@ router.post(
   },
 );
 
-// ─── POST /api/auth/claim-waitlist-points ────────────────────────────────────
 router.post(
   "/claim-waitlist-points",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -267,7 +239,6 @@ router.post(
       const normalizedEmail = email.toLowerCase().trim();
       const minter = getLocalTicketMinter();
 
-      // On-chain: already claimed? (correct use of hasClaimedOnChain — points, not registration)
       const alreadyClaimed = await hasClaimedOnChain(wallet_address);
       if (alreadyClaimed) {
         res.json({
@@ -278,7 +249,6 @@ router.post(
         return;
       }
 
-      // Walrus: email on whitelist?
       const isWhitelisted = await getWaitlistManager().isEmailWhitelisted(
         normalizedEmail,
         WHITELIST_BLOB_ID,
@@ -304,7 +274,6 @@ router.post(
         return;
       }
 
-      // Update Walrus profile async — non-blocking
       (async () => {
         try {
           const um = getUserManager();
@@ -357,19 +326,6 @@ router.post(
   },
 );
 
-// ─── GET /api/auth/check-user ─────────────────────────────────────────────────
-//
-// Hybrid registration check:
-//
-//   Step 1 — Walrus profile lookup (primary, covers all new registrations)
-//   Step 2 — On-chain PointsClaimed fallback (covers ~188 legacy users who
-//             have blockchain activity but no Walrus profile yet)
-//
-// This prevents the onboarding modal from appearing for users who:
-//   a) Registered normally and have a Walrus profile ✓
-//   b) Registered before Walrus was set up / had a Walrus write failure ✓
-//   c) Are genuinely new and have never interacted with the platform ✗ (show modal)
-//
 router.get(
   "/check-user",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -387,7 +343,6 @@ router.get(
         `[CHECK-USER] ${wallet_address.slice(0, 10)}... checking Walrus registry`,
       );
 
-      // ── Step 1: Walrus profile lookup ────────────────────────────────────────
       let profile = null;
       let walrusFailed = false;
 
@@ -417,14 +372,6 @@ router.get(
         return;
       }
 
-      // ── Step 2: On-chain fallback for legacy users ───────────────────────────
-      // Users who registered before Walrus was set up have PointsClaimed events
-      // but no Walrus profile. We check on-chain to recognise them so they don't
-      // see the onboarding modal every time they reload.
-      //
-      // We skip this only if Walrus itself errored AND we're not sure whether
-      // they have a profile (walrusFailed). In that case we still check on-chain
-      // as a best-effort.
       console.log(
         `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Walrus, checking on-chain (legacy fallback)`,
       );
@@ -435,8 +382,7 @@ router.get(
           console.log(
             `[CHECK-USER] ${wallet_address.slice(0, 10)}... found on-chain → legacy user, onboarded ✓`,
           );
-          // Return onboarded but with no profile data — client will still work,
-          // the user just won't have a stored email/username until they update their profile.
+
           res.json({
             exists: true,
             is_onboarded: true,
@@ -447,8 +393,6 @@ router.get(
         }
       } catch (chainErr) {
         console.warn("[CHECK-USER] On-chain fallback also failed:", chainErr);
-        // If both Walrus AND on-chain failed, treat as new user conservatively.
-        // Better to show the modal than to silently break.
       }
 
       console.log(
@@ -462,7 +406,6 @@ router.get(
   },
 );
 
-// ─── GET /api/auth/check-waitlist ─────────────────────────────────────────────
 router.get(
   "/check-waitlist",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -492,7 +435,6 @@ router.get(
   },
 );
 
-// ─── GET /api/auth/check-claim-status ────────────────────────────────────────
 router.get(
   "/check-claim-status",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
