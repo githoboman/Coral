@@ -354,11 +354,7 @@ const Activity = () => {
       setIsClaiming(true);
 
       try {
-        console.log(
-          "[CLAIM] Starting claim process for",
-          claimable.claimable_tasks,
-          "tasks",
-        );
+
 
         const response = await fetch(
           `${API_BASE_URL}/api/task-points/request-claim`,
@@ -385,7 +381,7 @@ const Activity = () => {
           throw new Error("Failed to mint claim ticket. Please try again.");
         }
 
-        console.log("[CLAIM] Got ticket:", ticket_object_id);
+
 
         const tx = new Transaction();
 
@@ -410,10 +406,10 @@ const Activity = () => {
           ],
         });
 
-        console.log("[CLAIM] Signing transaction...");
+
         const result = await signAndExecuteTransaction({ transaction: tx });
 
-        console.log("[CLAIM] Transaction successful:", result.digest);
+
 
         await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
           method: 'POST',
@@ -436,7 +432,7 @@ const Activity = () => {
           `🎉 Successfully claimed ${claimable.total_claimable_points} points!\n\nTransaction: ${result.digest.slice(0, 10)}...`,
         );
 
-        console.log("[CLAIM] Claim completed successfully");
+
       } catch (error: any) {
         console.error("[CLAIM] Claim failed:", error);
 

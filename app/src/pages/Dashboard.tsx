@@ -696,7 +696,7 @@ const Dashboard = () => {
                 case "conversation":
                   // Update conversation ID if it changed (e.g. from temporary to persistent)
                   if (!aborted && parsed.id && parsed.id !== convId) {
-                    console.log("[CHAT] Conversation started:", parsed.id);
+
                     currentConvId = parsed.id;
 
                     if (chatId === convId) {
@@ -724,7 +724,7 @@ const Dashboard = () => {
 
                 case "action":
                   // Side-effect actions (task_created, etc.)
-                  console.log("[CHAT] Action:", parsed);
+
                   break;
 
                 case "error":

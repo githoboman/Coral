@@ -8,7 +8,7 @@ export function RegisterEnokiWallets() {
 
   useEffect(() => {
     if (!isEnokiNetwork(network)) {
-      console.log('[Enoki] Network is not an Enoki network:', network);
+
       return;
     }
 

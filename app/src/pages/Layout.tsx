@@ -1243,7 +1243,7 @@ export default function AppLayout() {
 
       const result = await signAndExecuteTransaction({ transaction: tx });
 
-      console.log("Swap executed:", result.digest);
+
       sileo.success({ title: "Swap Submitted", description: `Digest: ${result.digest.slice(0, 6)}...` });
       setActiveWalletModal(null); // Close modal on success
     } catch (e: any) {

@@ -61,9 +61,7 @@ export function useClaimPoints() {
       });
 
       try {
-        console.log(
-          `🚀 Claiming waitlist points for ${currentAccount.address}...`,
-        );
+
 
         // Call the sponsored claim endpoint (backend handles everything)
         const claimRes = await fetch(
@@ -109,7 +107,7 @@ export function useClaimPoints() {
         }
 
         // Success! Points have been claimed
-        console.log("✅ Points claimed successfully:", claimData);
+
 
         setState({
           status: "success",

@@ -144,24 +144,19 @@ export function useSubscription() {
           transaction: tx,
         },
         {
-          onSuccess: () => {},
-          onError: () => {},
+          onSuccess: () => { },
+          onError: () => { },
         },
       );
 
-      console.log("Subscription transaction:", result.digest);
-      console.log("Full transaction result:", JSON.stringify(result, null, 2));
+
 
       let isSuccess = false;
       let errorMsg = "";
 
       const resultAny = result as any;
 
-      console.log("📊 Checking result structure:");
-      console.log("  - effects type:", typeof result.effects);
-      console.log("  - effects:", result.effects);
-      console.log("  - rawEffects present:", !!resultAny.rawEffects);
-      console.log("  - objectChanges:", resultAny.objectChanges?.length || 0);
+
 
       if (
         resultAny.effects &&
@@ -170,62 +165,36 @@ export function useSubscription() {
       ) {
         if (resultAny.effects.status.status === "success") {
           isSuccess = true;
-          console.log(
-            "✅ Transaction successful (effects.status.status === 'success')",
-          );
+
         } else if (resultAny.effects.status.status === "failure") {
           isSuccess = false;
           errorMsg = resultAny.effects.status.error || "Transaction failed";
-          console.log(
-            "❌ Transaction failed (effects.status.status === 'failure')",
-          );
-          console.log("Error:", errorMsg);
+
         } else if (typeof resultAny.effects.status === "string") {
           isSuccess = resultAny.effects.status === "success";
           errorMsg = resultAny.effects.error || "";
-          console.log(
-            "✅ Transaction status (string):",
-            resultAny.effects.status,
-          );
+
         }
       } else if (typeof result.effects === "string" && resultAny.rawEffects) {
-        console.log("📊 Parsing rawEffects (SDK v1.38 format)");
+
 
         if (
           Array.isArray(resultAny.rawEffects) &&
           resultAny.rawEffects.length > 2
         ) {
-          const version = resultAny.rawEffects[0];
           const format = resultAny.rawEffects[1];
 
-          console.log("  - Version:", version);
-          console.log("  - Format:", format);
-          console.log(
-            "  - rawEffects[0-15]:",
-            resultAny.rawEffects.slice(0, 16),
-          );
+
 
           if (format === 0) {
             isSuccess = true;
-            const gasUsed =
-              resultAny.rawEffects[2] + (resultAny.rawEffects[3] << 8);
-            console.log(
-              "✅ Transaction successful (new format, gas used:",
-              gasUsed,
-              ")",
-            );
           } else if (format === 1) {
             const executionStatus = resultAny.rawEffects[2];
-            console.log(
-              "  - Execution status (rawEffects[2]):",
-              executionStatus,
-            );
+
 
             if (executionStatus === 0) {
               isSuccess = true;
-              console.log(
-                "✅ Transaction successful (old format, execution status === 0)",
-              );
+
             } else {
               isSuccess = false;
 
@@ -236,15 +205,10 @@ export function useSubscription() {
               errorMsg =
                 errorMessages[executionStatus] ||
                 `Transaction failed with error code ${executionStatus}`;
-              console.log(
-                "❌ Transaction failed (execution status ===",
-                executionStatus,
-                ")",
-              );
-              console.log("Error:", errorMsg);
+
             }
           } else {
-            console.log("⚠️ Unknown format byte:", format);
+
             isSuccess = !!(
               resultAny.objectChanges && resultAny.objectChanges.length > 0
             );
@@ -253,9 +217,7 @@ export function useSubscription() {
             }
           }
         } else {
-          console.log(
-            "⚠️ Unexpected rawEffects format, using objectChanges fallback",
-          );
+
           isSuccess = !!(
             resultAny.objectChanges && resultAny.objectChanges.length > 0
           );
@@ -264,27 +226,22 @@ export function useSubscription() {
           }
         }
       } else {
-        console.log("⚠️ Unknown effects format, using fallback checks");
+
         if (result.digest && resultAny.objectChanges?.length > 0) {
           isSuccess = true;
-          console.log("✅ Transaction successful (digest + objectChanges)");
+
         } else {
           isSuccess = false;
           errorMsg = "Unable to verify transaction success";
-          console.log("❌ Unable to verify transaction status");
+
         }
       }
 
-      console.log(
-        "🎯 Final determination - isSuccess:",
-        isSuccess,
-        "errorMsg:",
-        errorMsg,
-      );
+
 
       if (!isSuccess) {
         console.error("❌ Transaction failed on-chain");
-        console.log("Error details:", errorMsg);
+
 
         let userFriendlyError = "Subscription failed. Please try again.";
         const errorStr = String(errorMsg).toLowerCase();
@@ -314,7 +271,7 @@ export function useSubscription() {
       }
 
       try {
-        console.log("✅ Subscription transaction succeeded on-chain");
+
 
         setState((prev) => ({
           ...prev,
@@ -322,13 +279,13 @@ export function useSubscription() {
           error: null,
         }));
 
-        console.log("⏳ Waiting for blockchain to update...");
+
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        console.log("🔄 Refreshing subscription status...");
+
         try {
           await fetchSubscriptionStatus();
-          console.log("✅ Subscription status refreshed successfully");
+
         } catch (refreshError) {
           console.warn(
             "⚠️ Failed to refresh subscription status, but transaction succeeded:",
