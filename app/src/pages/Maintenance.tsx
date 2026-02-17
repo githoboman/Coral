@@ -1,32 +1,32 @@
-import { useState, useEffect } from "react";
+// import { useState, useEffect } from "react";
 import { Hammer } from "lucide-react";
 
 export default function Maintenance() {
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  // const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const target = new Date();
-      target.setHours(19, 0, 0, 0); // 7 PM today
+  // useEffect(() => {
+  //   const calculateTimeLeft = () => {
+  //     const now = new Date();
+  //     const target = new Date();
+  //     target.setHours(19, 0, 0, 0); // 7 PM today
 
-      const difference = target.getTime() - now.getTime();
+  //     const difference = target.getTime() - now.getTime();
 
-      if (difference > 0) {
-        setTimeLeft({
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      } else {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-      }
-    };
+  //     if (difference > 0) {
+  //       setTimeLeft({
+  //         hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+  //         minutes: Math.floor((difference / 1000 / 60) % 60),
+  //         seconds: Math.floor((difference / 1000) % 60),
+  //       });
+  //     } else {
+  //       setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+  //     }
+  //   };
 
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  //   calculateTimeLeft();
+  //   const timer = setInterval(calculateTimeLeft, 1000);
+  //   return () => clearInterval(timer);
+  // }, []);
 
   return (
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
