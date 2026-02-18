@@ -1,8 +1,8 @@
 {
-  "blobId": "WpE844Kqr5w_Ljf-tx3Hhs8kSZ5uAjNbz-CNUz3YkQY",
+  "blobId": "doTAi5WiM6nZECGD9eCP6d0AcfOdtlSHwquB27YzKI0",
   "registry": {
-    "version": 654,
-    "updated_at": "2026-02-18T19:28:09.842Z",
+    "version": 656,
+    "updated_at": "2026-02-18T20:01:44.978Z",
     "total_users": 232,
     "users": {
       "0x7215d78f1085ff399e1cd722f0f940650e2a1aa85ad52fdf475871ca57a62564": {
@@ -5541,24 +5541,27 @@
       },
       "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
         "email": {
-          "iv": "JqvdWHalUCSBajDOkq1q+A==",
-          "salt": "ctdFu9WAPZfKKVL+ywMB7tCv8EPmHf9rxkOVwBeIAXyozR3QsHiaG32zBEfnBrGqXmFTcTwbC4kMFQjMfRoBhQ==",
-          "tag": "M7ak2PrWTAQliFOlqc0RFw==",
-          "encrypted": "StNF8UFF+MOCJyx4gdG/DI1wADrZCvoHNPU="
+          "iv": "rQ9Rik/Ewh0/GSKvy1K2wQ==",
+          "salt": "G7ffqvjvUF2HQlXeIt/ceOqvNVeWVkEXi0k94v+XNknRHyefsYVQXcR05bRrhDCImVqR6cSqhrz+/KtzE80Icg==",
+          "tag": "865B4M0gOUB1SX2jK8+lMg==",
+          "encrypted": "Mrp2n9610z3JQkKNA/5EBK4fXjLk9yEw6zY="
         },
         "wallet_address": "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925",
         "is_waitlisted": false,
         "points_awarded": 109,
-        "joined_at": "2026-02-18T08:11:27.652Z",
+        "joined_at": "2026-02-18T20:01:44.958Z",
         "preferences": {
-          "iv": "1ORz81j3QSLZZ2cY3/aIlw==",
-          "salt": "GTpUYT6Jn/Z4B2oTuDihSe5exO9xA2l7+McTBvYnQ9gaq9WRAEZSutoiQhhTMlsC4fYLLZtew65wviJRl5CEiA==",
-          "tag": "2MN6vFvNWTl/QhWLV9iYNA==",
-          "encrypted": "Xz1hNPqHYDnlNIdSnulF4MFWivga80aAPLRTRT6m3iMVqTnRMvt7Mpxtr27Gg/PSHqZnPqKxdRwfJH7e5tp9OIVi9QCZReOiy1QhDTLyWzP00vFUK47RBw=="
+          "iv": "a7cYwiSrs1geq/NnPyNZ4A==",
+          "salt": "8/xpH89iTbzqhqKMkubxXLPqvFxwmasCsYDv7tmP7MqsKOHhavPiYzaiTyx6+nZEpngQdf6QeyZvEWYOkXED6A==",
+          "tag": "andIEc1IHHfMnJ0JnZ39nw==",
+          "encrypted": "qnDfYyGJ9+MS8mkymtsaiQv0yuxM4IYRqZtC+CNpbn0DFiKypIUwoyYqLSReBPuUMwmS9a1A+mAdJo0Ds0oT51GoPUig6LnYuZjFPTZ8jrNzevecdUZwNw=="
         },
         "tasks_created_today": 2,
         "tasks_claimed_today": 2,
         "last_task_reset_date": "2026-02-18",
+        "current_streak": 1,
+        "last_checkin_date": "2026-02-18",
+        "total_checkins": 2,
         "subscription_tier": 0,
         "daily_prompts_used": 0
       },
@@ -6173,7 +6176,7 @@
         "last_prompt_date": "2026-02-18"
       }
     },
-    "description": "Updated user: 0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf",
-    "previous_blob": "NavhJHJzUQois_yLRu9XKzMEEvqkE0vqcX9m1oXp_Po"
+    "description": "Updated user: 0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925",
+    "previous_blob": "QjGzrUC1UGK6OAGapXTTWDsDs9iFq8i12vPNI3eW0fE"
   }
 }

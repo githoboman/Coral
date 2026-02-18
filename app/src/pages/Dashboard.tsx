@@ -139,10 +139,10 @@ const CATEGORIES: Record<string, Category[]> = {
     { label: "NFTs", value: "NFTs", icon: Image, description: "Collections and galleries" },
   ],
   task: [
-    { label: "Staking", value: "Staking", icon: Layers, description: "Stake, unstake, and rewards" },
-    { label: "Portfolio", value: "Portfolio", icon: PieChart, description: "Rebalance and allocation" },
-    { label: "Governance", value: "Governance", icon: Vote, description: "Proposals and voting" },
-    { label: "Reminders", value: "Remind me", icon: Bell, description: "Alerts and schedules" },
+    { label: "Schedule", value: "Schedule", icon: Clock, description: "Daily plans and reminders" },
+    { label: "Social", value: "Social", icon: MessageCircle, description: "Tweets, discord, and engagement" },
+    { label: "Finance", value: "Finance", icon: Wallet, description: "Balances, gas, and portfolio" },
+    { label: "Routine", value: "Routine", icon: Repeat, description: "Recurring tasks and habits" },
   ],
   alert: [
     { label: "Price", value: "Price Alert", icon: Bell, description: "Price targets and movements" },
@@ -170,12 +170,12 @@ const PROMPTS: Record<string, Prompt[]> = {
     { label: "Send Tokens", prompt: "Send 10 SUI to...", keywords: ["wallet", "send", "transfer"], icon: Send },
   ],
   task: [
-    { label: "Stake SUI", prompt: "Stake 100 SUI with a high-APY validator", keywords: ["staking", "earn", "yield"], icon: Layers },
-    { label: "Check Rewards", prompt: "Check my pending staking rewards", keywords: ["staking", "rewards", "claim"], icon: Gift },
-    { label: "Rebalance Portfolio", prompt: "Create a task to rebalance my portfolio", keywords: ["portfolio", "management", "risk"], icon: PieChart },
-    { label: "Governance Vote", prompt: "Remind me to check active proposals", keywords: ["governance", "vote", "dao"], icon: Vote },
-    { label: "Claim Airdrop", prompt: "Check eligibility for recent airdrops", keywords: ["staking", "airdrop", "claim"], icon: Star },
-    { label: "Set Reminder", prompt: "Remind me to check charts in 2h", keywords: ["reminders", "alert", "schedule"], icon: Clock },
+    { label: "Daily Schedule", prompt: "I need to visit the spa by 2pm, check my crypto portfolio at 3pm, and attend a DAO meeting by 7pm today. Kindly remind me when due.", keywords: ["schedule", "plan", "remind"], icon: Clock },
+    { label: "NFT Launch", prompt: "Remind me to make a tweet about my latest NFT drop for tomorrow at 10am and remind me to check the engagement at 2pm same day", keywords: ["nft", "social", "marketing"], icon: Image },
+    { label: "Check Balance", prompt: "Remind me to check my ETH balance at 5pm", keywords: ["balance", "wallet", "check"], icon: Wallet },
+    { label: "Gas Check", prompt: "Remind me to check gas fees before the mint starts at 8pm", keywords: ["gas", "mint", "fees"], icon: Zap },
+    { label: "WL Grind", prompt: "Remind me to interact with the protocol discord every 6 hours for whitelist grinding", keywords: ["social", "discord", "whitelist"], icon: MessageCircle },
+    { label: "Weekly Review", prompt: "Create a task to review my trading performance every Sunday at 9pm", keywords: ["review", "trading", "recurring"], icon: PieChart },
   ],
   alert: [
     { label: "Price Alert", prompt: "Alert me when SUI hits $2.50", keywords: ["price", "target", "market"], icon: Bell },
@@ -1372,7 +1372,7 @@ const Dashboard = () => {
               {selectedAgentId === "task" && taskPromptStatus && (
                 <div className="flex justify-between items-center px-4 mb-2 text-xs font-medium">
                   <span className={`${taskPromptStatus.remaining === 0 ? "text-red-400" : "text-white/40"}`}>
-                    {taskPromptStatus.remaining} / {taskPromptStatus.limit} prompts remaining
+                    {taskPromptStatus.used} / {taskPromptStatus.limit} prompts used
                   </span>
                   {taskPromptStatus.remaining === 0 && (
                     <button
