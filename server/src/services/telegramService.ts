@@ -183,10 +183,10 @@ export class TelegramService {
     return { wallet_address: walletAddress };
   }
 
-  public async sendMessage(chatId: string | number, message: string): Promise<boolean> {
+  public async sendMessage(chatId: string | number, message: string, parseMode: 'Markdown' | 'HTML' = 'HTML'): Promise<boolean> {
     if (!this.bot) return false;
     try {
-      await this.bot.telegram.sendMessage(chatId, message);
+      await this.bot.telegram.sendMessage(chatId, message, { parse_mode: parseMode });
       return true;
     } catch (e) {
       console.error('Failed to send telegram message:', e);

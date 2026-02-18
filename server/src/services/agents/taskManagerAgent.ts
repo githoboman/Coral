@@ -168,7 +168,7 @@ class BackgroundTaskQueue {
         if (result) {
           // Send notification (fire-and-forget)
           const notificationService = getNotificationService();
-          notificationService.sendTaskCreatedNotification(task.userId, task.data.task_name)
+          notificationService.sendTaskCreatedNotification(task.userId, task.data)
             .catch(err => console.error("Failed to send creation notification:", err));
         }
         break;

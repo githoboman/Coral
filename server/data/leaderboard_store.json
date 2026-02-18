@@ -1,8 +1,8 @@
 {
   "users": {
     "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf": {
-      "balance": 123,
-      "ts": 1771378392529
+      "balance": 132,
+      "ts": 1771399672285
     },
     "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
       "balance": 104,
@@ -1173,8 +1173,8 @@
       "ts": 1771197845814
     },
     "0xc520904c74264a3765cafcdd0d850a6927d4fc50e3e90e47e63129321d08afa5": {
-      "balance": 1,
-      "ts": 1771198265019
+      "balance": 2,
+      "ts": 1771380886900
     },
     "0xe5e74de50d7c5b94a7db2120c95f308bf9d86487c0419a75e47957fbd18f5bdd": {
       "balance": 100,
@@ -1711,13 +1711,13 @@
   },
   "cursors": {
     "points": {
-      "txDigest": "EbqWLR6EKtTVVUrPn8J1F9GBG5qabLaJWxkGTkRaKUiB",
+      "txDigest": "GtT621xsqSSuCYNXzMXWL9TXeXPq8wBa4cBK4j6rzSDu",
       "eventSeq": "3"
     },
     "tasks": {
-      "txDigest": "4gKKDanWZAYzRc6K6bD61BqpFp9KBo7GzDW312fZ3cKw",
+      "txDigest": "CCXcX6BKGiZSFRMbTsA8VaFw1iuG7K9BoiFku7xpMes6",
       "eventSeq": "0"
     }
   },
-  "lastUpdated": 1771379512307
+  "lastUpdated": 1771400028554
 }
