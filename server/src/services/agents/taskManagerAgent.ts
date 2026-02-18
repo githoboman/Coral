@@ -60,7 +60,7 @@ const fastLlm = new ChatGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
   temperature: 0, // Lower = faster
   maxRetries: 0,
-  maxOutputTokens: 50, // CRITICAL: 5x speed boost - limits output length
+  maxOutputTokens: 1000, // Increased to allow full JSON extraction for long tasks
 });
 
 const structuredExtractLlm = fastLlm.withStructuredOutput(IntentExtractionSchema);
@@ -168,10 +168,8 @@ class BackgroundTaskQueue {
         if (result) {
           // Send notification (fire-and-forget)
           const notificationService = getNotificationService();
-          notificationService.sendTaskCreatedNotification(task.userId, {
-            ...task.data,
-            id: result.taskId
-          }).catch(err => console.error("Failed to send creation notification:", err));
+          notificationService.sendTaskCreatedNotification(task.userId, task.data.task_name)
+            .catch(err => console.error("Failed to send creation notification:", err));
         }
         break;
       case 'update':
@@ -406,6 +404,10 @@ async function extractIntent(
   try {
     const extraction = await Promise.race([
       structuredExtractLlm.invoke([
+        {
+          role: "system",
+          content: "You are a smart task extractor. If the user describes a task without a clear title (e.g. 'I should do X'), summarize it into a concise `task_name`. For 'create task' intent, `task_name` is REQUIRED."
+        },
         {
           role: "human",
           content: `Time: ${new Date().toISOString()}\nUser: "${state.message}"\n\nExtract intent & params.`
@@ -775,7 +777,7 @@ async function executeTask(
           chatLlm.invoke([
             {
               role: "system",
-              content: `You are a helpful Task Manager assistant. Be concise (max 2-3 sentences). Help users create, view, complete, or delete tasks.`,
+              content: `You are a helpful Task Manager assistant. Be concise. You CANNOT create or modify tasks directly in this chat mode. If the user wants to create a task, guide them to use the specific syntax or say "Create task: [task name]". Do NOT say you have created a task unless you are sure.`,
             },
             { role: "human", content: state.message },
           ]),

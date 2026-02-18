@@ -183,6 +183,17 @@ export class TelegramService {
     return { wallet_address: walletAddress };
   }
 
+  public async sendMessage(chatId: string | number, message: string): Promise<boolean> {
+    if (!this.bot) return false;
+    try {
+      await this.bot.telegram.sendMessage(chatId, message);
+      return true;
+    } catch (e) {
+      console.error('Failed to send telegram message:', e);
+      return false;
+    }
+  }
+
   public async unlinkAccount(walletAddress: string): Promise<void> {
     const { error } = await this.supabase
       .from('telegram_accounts')

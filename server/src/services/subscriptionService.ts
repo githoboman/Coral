@@ -38,15 +38,15 @@ export class SubscriptionService {
   // Cache tier for 5 minutes to avoid spamming RPC
   private tierCache = new Map<string, { data: any, timestamp: number }>();
 
-  async getCurrentTier(walletAddress: string): Promise<{
+  async getCurrentTier(walletAddress: string, forceRefresh = false): Promise<{
     tier: number;
     expires_at: number;
     isActivePremium: boolean;
   }> {
-    // Check cache
+    // Check cache (unless forced)
     const cached = this.tierCache.get(walletAddress);
     const now = Date.now();
-    if (cached && (now - cached.timestamp < 5 * 60 * 1000)) {
+    if (!forceRefresh && cached && (now - cached.timestamp < 5 * 60 * 1000)) {
       return cached.data;
     }
 

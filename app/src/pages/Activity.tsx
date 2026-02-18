@@ -296,10 +296,12 @@ const Activity = () => {
 
 
   const toggleTaskComplete = async (id: string | number) => {
-    // Cannot toggle optimistic tasks
-    if (typeof id === 'string') {
-      const optimisticTask = optimisticTasks.find(t => t.id === id);
-      if (optimisticTask?.status === "failed") {
+
+
+    // Check if it's an optimistic task
+    const optimisticTask = optimisticTasks.find(t => t.id === id);
+    if (optimisticTask) {
+      if (optimisticTask.status === "failed") {
         // Allow retrying failed 
         // Logic to re-submit could go here, or just let user delete it
       }
@@ -313,16 +315,20 @@ const Activity = () => {
       setTogglingItems((prev) => new Set(prev).add(id));
       setToast(null);
 
-      // Direct API call
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}/complete`, {
-        method: "POST",
+      // Calculate new status
+      const newStatus = task.completed ? "pending" : "completed";
+
+      // Use PATCH to update status
+      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
+          status: newStatus
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to complete task");
+      if (!response.ok) throw new Error("Failed to update task status");
 
       // Refresh tasks
       dispatch(invalidateCache());
@@ -547,13 +553,13 @@ const Activity = () => {
             {filteredItems.map((item, index) => (
               <div
                 key={item.id}
-                className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 rounded-xl`}
+                className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 rounded-xl relative`} // Added relative
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <button
                     onClick={() => toggleTaskComplete(item.id)}
                     disabled={togglingItems.has(item.id)}
-                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${item.completed ? "bg-[#246AFC] border-[#246AFC]" : "border-white/20 hover:border-white/40"} ${togglingItems.has(item.id) ? "opacity-50 cursor-wait" : ""}`}
+                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all cursor-pointer relative z-10 ${item.completed ? "bg-[#246AFC] border-[#246AFC]" : "border-white/20 hover:border-white/40"} ${togglingItems.has(item.id) ? "opacity-50 cursor-wait" : ""}`}
                   >
                     {togglingItems.has(item.id) ? (
                       <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -563,7 +569,7 @@ const Activity = () => {
                   </button>
 
                   <span
-                    className={`text-[16px] font-medium truncate ${item.completed ? "text-white/30 line-through" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
+                    className={`text-[16px] font-medium truncate max-w-[180px] sm:max-w-xs md:max-w-md ${item.completed ? "text-white/30 line-through" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
                   >
                     {item.title}
                   </span>
@@ -612,7 +618,7 @@ const Activity = () => {
               {selectedItem ? (
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-6">
-                    <h3 className="text-xl font-bold text-white pr-8">
+                    <h3 className="text-xl font-bold text-white pr-8 break-words line-clamp-2">
                       {selectedItem.title}
                     </h3>
                     <button
