@@ -601,7 +601,13 @@ const Dashboard = () => {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, agentId, message, chatId: convId }),
+          body: JSON.stringify({
+            userId,
+            agentId,
+            message,
+            chatId: convId,
+            client_time: new Date().toISOString(), // Send local time
+          }),
         });
 
         if (response.status === 429) {

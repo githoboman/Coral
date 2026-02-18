@@ -48,7 +48,7 @@ const TaskAgentState = Annotation.Root({
   cachedTasks: Annotation<Array<any>>,
   responseText: Annotation<string>,
   actionEvent: Annotation<Record<string, unknown> | null>,
-  fastPath: Annotation<boolean>,
+  clientTime: Annotation<string>,
 });
 
 // ══════════════════════════════════════════════════════════════════════
@@ -188,176 +188,6 @@ class BackgroundTaskQueue {
 const bgQueue = new BackgroundTaskQueue();
 
 // ══════════════════════════════════════════════════════════════════════
-// FAST PATH MATCHER - Expanded with greetings
-// ══════════════════════════════════════════════════════════════════════
-
-interface FastPathResult {
-  matched: boolean;
-  intent?: string;
-  extraction?: Record<string, unknown>;
-}
-
-function tryFastPath(message: string): FastPathResult {
-  const msg = message.toLowerCase().trim();
-
-  // ─────────────────────────────────────────────────────────────────
-  // GREETINGS & CASUAL - Instant responses (no LLM needed)
-  // ─────────────────────────────────────────────────────────────────
-  const greetings = [
-    "hi", "hello", "hey", "gm", "good morning", "good afternoon",
-    "good evening", "good night", "howdy", "sup", "what's up", "whats up",
-    "yo", "hola", "greetings", "hi there", "hello there"
-  ];
-
-  const casual = [
-    "thanks", "thank you", "thx", "ty", "cool", "nice", "ok", "okay",
-    "sure", "got it", "alright", "kk", "k", "i'm good", "im good",
-    "i'm chill", "im chill", "nothing much", "nm", "not much", "nah"
-  ];
-
-  if (greetings.includes(msg) || casual.includes(msg)) {
-    return {
-      matched: true,
-      intent: "greeting",
-      extraction: { greeting_type: msg }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // LIST TASKS
-  // ─────────────────────────────────────────────────────────────────
-  const listExact = [
-    "list", "tasks", "my tasks", "show tasks", "list tasks",
-    "list my tasks", "show my tasks", "get tasks", "view tasks",
-    "see tasks", "display tasks", "what are my tasks", "show me my tasks"
-  ];
-
-  if (listExact.includes(msg) ||
-    /^(list|show|display|see|get|view|what are|whats?)\s+(my\s+)?(all\s+)?(tasks?|todos?)$/i.test(msg)) {
-    return { matched: true, intent: "list_tasks", extraction: {} };
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // COMPLETE TASK
-  // ─────────────────────────────────────────────────────────────────
-  const completeMatch =
-    msg.match(/^(complete|finish|done|mark\s+(?:done|complete|as\s+done)|finished?)\s+(.+)/) ||
-    msg.match(/^(.+?)\s+(?:is\s+)?(?:done|complete|finished)$/);
-
-  if (completeMatch) {
-    const taskId = completeMatch[2] || completeMatch[1];
-    return {
-      matched: true,
-      intent: "complete_task",
-      extraction: { task_identifier: taskId?.trim() }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // DELETE TASK
-  // ─────────────────────────────────────────────────────────────────
-  const deleteMatch =
-    msg.match(/^(delete|remove|cancel|drop)\s+(.+)/) ||
-    msg.match(/^(.+?)\s+(delete|remove)$/);
-
-  if (deleteMatch) {
-    const taskId = deleteMatch[2] || deleteMatch[1];
-    return {
-      matched: true,
-      intent: "delete_task",
-      extraction: { task_identifier: taskId?.trim() }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // UPDATE TASK
-  // ─────────────────────────────────────────────────────────────────
-  const updateMatch = msg.match(/^(update|change|edit|modify)\s+(.+)/);
-
-  if (updateMatch) {
-    return {
-      matched: true,
-      intent: "update_task",
-      extraction: { task_identifier: updateMatch[2]?.trim() }
-    };
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // CREATE TASK
-  // ─────────────────────────────────────────────────────────────────
-  const createPatterns = [
-    /^(create|add|new|make)\s+(?:a\s+)?(?:task|todo|reminder)\s*:?\s*(.+)/,
-    /^(remind|schedule)\s+me\s+to\s+(.+)/,
-    /^i\s+need\s+to\s+(.+)/,
-    /^todo\s*:?\s*(.+)/,
-  ];
-
-  for (const pattern of createPatterns) {
-    const match = msg.match(pattern);
-    if (match) {
-      const taskName = match[match.length - 1]?.trim();
-      if (taskName && taskName.length > 2) {
-        return {
-          matched: true,
-          intent: "create_task",
-          extraction: extractTaskDetails(taskName)
-        };
-      }
-    }
-  }
-
-  return { matched: false };
-}
-
-function extractTaskDetails(taskName: string): Record<string, unknown> {
-  let priority: "low" | "medium" | "high" = "medium";
-
-  if (/\b(urgent|important|critical|asap|high|emergency|!!|!!!)\b/i.test(taskName)) {
-    priority = "high";
-  } else if (/\b(low|minor|someday|eventually|maybe)\b/i.test(taskName)) {
-    priority = "low";
-  }
-
-  let due_date: string | undefined;
-  const now = new Date();
-
-  if (/\btomorrow\b/i.test(taskName)) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    due_date = tomorrow.toISOString();
-  } else if (/\btoday\b/i.test(taskName)) {
-    const today = new Date(now);
-    today.setHours(17, 0, 0, 0);
-    due_date = today.toISOString();
-  } else if (/\bnext week\b/i.test(taskName)) {
-    const nextWeek = new Date(now);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    nextWeek.setHours(9, 0, 0, 0);
-    due_date = nextWeek.toISOString();
-  } else if (/\bin (\d+) (hour|day|week)s?\b/i.test(taskName)) {
-    const timeMatch = taskName.match(/\bin (\d+) (hour|day|week)s?\b/i);
-    if (timeMatch) {
-      const amount = parseInt(timeMatch[1]);
-      const unit = timeMatch[2].toLowerCase();
-      const future = new Date(now);
-
-      if (unit === "hour") future.setHours(future.getHours() + amount);
-      else if (unit === "day") future.setDate(future.getDate() + amount);
-      else if (unit === "week") future.setDate(future.getDate() + amount * 7);
-
-      due_date = future.toISOString();
-    }
-  }
-
-  return {
-    task_name: taskName,
-    priority,
-    ...(due_date && { due_date })
-  };
-}
-
-// ══════════════════════════════════════════════════════════════════════
 // GRAPH NODES
 // ══════════════════════════════════════════════════════════════════════
 
@@ -375,28 +205,11 @@ async function extractIntent(
     return {
       intent: cached.intent,
       extraction: cached.extraction,
-      fastPath: true,
-    };
-  }
-
-  // ═══ TRY FAST PATH ═══
-  const fastResult = tryFastPath(state.message);
-
-  if (fastResult.matched) {
-    console.log(`[TASK] ⚡ FAST PATH: ${fastResult.intent} (${Date.now() - startMs}ms)`);
-
-    // Cache for next time
-    setCachedIntent(state.message, fastResult.intent!, fastResult.extraction!);
-
-    return {
-      intent: fastResult.intent!,
-      extraction: fastResult.extraction!,
-      fastPath: true,
     };
   }
 
   // ═══ SLOW PATH: LLM (optimized with shorter prompt) ═══
-  console.log(`[TASK] 🐌 SLOW PATH: Using LLM`);
+  console.log(`[TASK] 🤖 processing with LLM...`);
   state.sse.status("Interpreting your request");
 
   const llmStartMs = Date.now();
@@ -410,11 +223,11 @@ async function extractIntent(
         },
         {
           role: "human",
-          content: `Time: ${new Date().toISOString()}\nUser: "${state.message}"\n\nExtract intent & params.`
+          content: `Current Time: ${state.clientTime ?? new Date().toISOString()}\nUser: "${state.message}"\n\nExtract intent & params.`,
         }
       ]),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("LLM timeout")), 5000)
+        setTimeout(() => reject(new Error("LLM timeout")), 8000)
       )
     ]) as IntentExtraction;
 
@@ -426,25 +239,30 @@ async function extractIntent(
     return {
       intent: extraction.intent,
       extraction: extraction as unknown as Record<string, unknown>,
-      fastPath: false,
     };
 
   } catch (error) {
     console.error(`[TASK] ❌ LLM failed after ${Date.now() - startMs}ms:`, error);
+
+    // Fallback based on message content
+    if (state.message.trim().toLowerCase().includes("create")) {
+      return {
+        intent: "create_task",
+        extraction: { task_name: state.message.replace(/create/i, '').trim() || "New Task" },
+      };
+    }
 
     // Smart fallback based on message length
     if (state.message.trim().length < 15) {
       return {
         intent: "greeting",
         extraction: {},
-        fastPath: false,
       };
     }
 
     return {
       intent: "general_question",
       extraction: {},
-      fastPath: false,
     };
   }
 }
@@ -757,14 +575,14 @@ async function executeTask(
       };
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // GENERAL QUESTION - Use faster non-streaming approach
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
+    // GENERAL QUESTION - Use faster non-streaming approach with Tool Calling
+    // ══════════════════════════════════════════════════════════════════════
     case "general_question": {
       // For very short messages, provide instant help
-      if (state.message.trim().length < 15) {
+      if (state.message.trim().length < 5) {
         return {
-          responseText: "I'm your task manager! I can help you:\n\n• Create tasks: 'remind me to [task]'\n• View tasks: 'list my tasks'\n• Complete tasks: 'complete [task name]'\n• Delete tasks: 'delete [task name]'\n\nWhat would you like to do?",
+          responseText: "I'm your task manager! I can help you create, list, completed, and delete tasks. What would you like to do?",
           actionEvent: null,
         };
       }
@@ -772,19 +590,80 @@ async function executeTask(
       state.sse.status("Thinking");
 
       try {
+        // Define tool for task creation
+        const createTaskTool = {
+          name: "create_task",
+          description: "Create a new task when the user explicitly asks to.",
+          schema: z.object({
+            task_name: z.string().describe("The concise title of the task"),
+            description: z.string().describe("A short, encouraging description (generated by you if missing)"),
+            due_date: z.string().optional().describe("Calculated ISO 8601 date string based on Current Time (e.g. '2024-01-01T10:00:00.000Z')"),
+            priority: z.enum(["low", "medium", "high"]).optional().describe("Priority level"),
+          })
+        };
+
+        const llmWithTools = chatLlm.bindTools([createTaskTool]);
+
         // Use non-streaming for faster response
         const response = await Promise.race([
-          chatLlm.invoke([
+          llmWithTools.invoke([
             {
               role: "system",
-              content: `You are a helpful Task Manager assistant. Be concise. You CANNOT create or modify tasks directly in this chat mode. If the user wants to create a task, guide them to use the specific syntax or say "Create task: [task name]". Do NOT say you have created a task unless you are sure.`,
+              content: `You are a helpful Task Manager assistant.
+              Current Time: ${state.clientTime}
+              
+              If the user wants to create a task, you MUST use the 'create_task' tool.
+              
+              RULES FOR 'create_task':
+              1. **task_name**: Keep it concise.
+              2. **description**: You MUST generate a short, encouraging description if the user didn't provide one.
+              3. **due_date**: Calculate the absolute ISO 8601 string based on Current Time.
+                 - "in 1 min" -> Add 1 minute to Current Time
+                 - "tomorrow" -> Tomorrow at 9:00 AM
+                 - "tonight" -> Today at 8:00 PM
+                 Example: If Current Time is 2024-01-01T10:00:00.000Z and user says "in 1 min", due_date MUST be 2024-01-01T10:01:00.000Z.
+              
+              Do not hallucinate tasks.`,
             },
             { role: "human", content: state.message },
           ]),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Chat timeout")), 5000)
+            setTimeout(() => reject(new Error("Chat timeout")), 8000)
           )
         ]);
+
+        // Check for tool calls
+        if (response.tool_calls && response.tool_calls.length > 0) {
+          const toolCall = response.tool_calls[0];
+          if (toolCall.name === "create_task") {
+            const args = toolCall.args as any;
+            console.log(`[TASK] 🛠️ Tool Call: create_task`, args);
+
+            // Execute creation logic directly
+            bgQueue.add({
+              type: 'create',
+              userId: state.userId,
+              data: {
+                task_name: args.task_name,
+                description: args.description,
+                due_date: args.due_date,
+                priority: args.priority || "medium",
+                status: "pending",
+                tags: [],
+                action_type: "reminder",
+              },
+              retries: 0
+            });
+
+            // Fire-and-forget points tracking
+            trackTaskCreation(state.userId).catch(() => { });
+
+            return {
+              responseText: `✅ Task created: **${args.task_name}**`,
+              actionEvent: { type: "task_created", taskId: "temp_tool_created" },
+            };
+          }
+        }
 
         const text = typeof response.content === "string"
           ? response.content
@@ -799,12 +678,11 @@ async function executeTask(
           responseText: text || "I'm here to help you manage tasks! Try 'list tasks' or 'create task: [your task]'",
           actionEvent: null,
         };
-      } catch (error) {
-        console.error(`[TASK] ❌ Chat failed:`, error);
 
-        // Fallback response if LLM fails
+      } catch (error) {
+        console.error(`[TASK] ❌ Chat LLM error:`, error);
         return {
-          responseText: "I'm your task assistant! 📋\n\nI can help you:\n• Create tasks\n• View your task list\n• Mark tasks complete\n• Delete tasks\n\nTry saying 'list my tasks' or 'remind me to [task]'",
+          responseText: "I'm having trouble connecting right now. Please try again.",
           actionEvent: null,
         };
       }
@@ -935,7 +813,7 @@ export class TaskManagerAgent {
           cachedTasks: [],
           responseText: "",
           actionEvent: null,
-          fastPath: false
+          clientTime: req.clientTime || new Date().toISOString(),
         }
       );
 

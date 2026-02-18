@@ -1,9 +1,9 @@
 {
-  "blobId": "wnOTVXPswa2vmMzC3l7FyPwDgK7HAnDax2Ub4sE3nvY",
+  "blobId": "5AhdjmBct0qmFiLehbwFS0QoTZ90TjMOrKVPLubYOs4",
   "registry": {
-    "version": 618,
-    "updated_at": "2026-02-18T06:06:55.899Z",
-    "total_users": 230,
+    "version": 639,
+    "updated_at": "2026-02-18T10:42:02.932Z",
+    "total_users": 231,
     "users": {
       "0x7215d78f1085ff399e1cd722f0f940650e2a1aa85ad52fdf475871ca57a62564": {
         "email": {
@@ -623,61 +623,64 @@
       },
       "0x792857e4b8ab8d820699cad8edde2c0870e192fa95bdc14959ea8713274a5649": {
         "email": {
-          "iv": "oKTFjBU2JS4UpJTLqmzITg==",
-          "salt": "shHMli/R+QCIj6OmiA0KnAV042LBTfyzWeIysR8TjLtYmZLod8y0v6HFJY4eHNc3/nPihMeFNuEVrpFUtr0Baw==",
-          "tag": "lXg5673/WqPCvh4brghhAg==",
-          "encrypted": "rI7ACk9sIjksfhFw1Exqc9O5FOT+rw=="
+          "iv": "BnMih8gaymCDLJN9f7BlLg==",
+          "salt": "lHdQ5DW35vrhUaUUY6ORTH6xyPlZfpboVRo7jJutLDZs/nTQfS6dQ1MZJlx7e/bNrjg9K/rRAkGLG+cl1pnReA==",
+          "tag": "cD5u9XIRJKJoy/0fZukHVQ==",
+          "encrypted": "CSJFHRzEqYj7cqmhYlfWY0RPfln2NA=="
         },
         "wallet_address": "0x792857e4b8ab8d820699cad8edde2c0870e192fa95bdc14959ea8713274a5649",
         "is_waitlisted": false,
-        "points_awarded": 0,
-        "joined_at": "2026-02-14T10:49:37.700Z",
+        "points_awarded": 107,
+        "joined_at": "2026-02-18T08:59:16.058Z",
         "username": {
-          "iv": "iLyaFrOpXAOMAZS2Wf2lPg==",
-          "salt": "z4hNLLesVSlVkCAdjCp0Enb0dAwpF8bDEiyuhUkaNzJyLofLui7nXjL3TU1DwbvPX63r74hApiWbW+LgVmD3WQ==",
-          "tag": "+j3fd3bSFiCHWwwl16cMCQ==",
-          "encrypted": "GuCMExU/JEGrJq4="
+          "iv": "2AUttzYolljb/fIkOR5G7Q==",
+          "salt": "kLiPI+vKjCAdHuEBEaFvfZOJja8jf6XJl4iUYU8vvXKaf4KtsYxIrDgtcNWjWrxESnlrzwNZCxAx0d1rJ00IEg==",
+          "tag": "sEDHp1skBEv0n0+7nQiwoA==",
+          "encrypted": "PW1IKm30U1L8/tQ="
         },
         "preferences": {
-          "iv": "pLUqtQoJ+7IhUuxtKVW/1g==",
-          "salt": "2vrJ3HvLsOFglBwpLyfwfGRR5aFVXIXDU2CMD0T2nPvRnTG2pyyHnN12inD2NBLFPo7EFRbVtrdREF5nz8j16Q==",
-          "tag": "g7K2oUJ0rw7fAF0Cw1JkOw==",
-          "encrypted": "jAfySVoYuMUwgYYTBpHkEYX+q3NTMdXPbpg1NAYurSfPuUJm0KPpoOXLt6ZUHZ/LLoeUbUuPiKplHVCkZgDfiyrF2Qj0A9LjkJ/5oodU2LkRdK6JXD4="
+          "iv": "iQpE6v5eO+ekw5fXpCwlWA==",
+          "salt": "2PummwCj9UlmI6JOdHEgSJyq+e7HqhQfjsLEB7NNBHaOSKb/Z611xuHs53W82S+mgsJG0dllfU6FG053WHlP4w==",
+          "tag": "FKZeVLfahCQPaVrL0XWGxQ==",
+          "encrypted": "mlYq0y3i8DamwJbfuKtnQuE+xQLwvMs2VIeMP90fJ0jcahEGC0sIhBqlhyL0GRDyyBBY3IMgOjVUEcaEMP14oaXVWgyinELNFe27KCQxCidBUVYgPXk="
         },
-        "tasks_created_today": 0,
-        "tasks_claimed_today": 0,
-        "subscription_tier": 0,
-        "daily_prompts_used": 1,
-        "last_prompt_date": "2026-02-14"
+        "tasks_created_today": 2,
+        "tasks_claimed_today": 2,
+        "last_task_reset_date": "2026-02-18",
+        "subscription_tier": 1,
+        "subscription_expires_at": "2026-03-17T12:32:53.705Z",
+        "daily_prompts_used": 3,
+        "last_prompt_date": "2026-02-18"
       },
       "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf": {
         "email": {
-          "iv": "Rc7MY0TplvS0RbtTQrbbVw==",
-          "salt": "8/DzevmKY7b9Gzn4Yw6eFqNcc8gPU9+GGO0kUhVjL7M5t0YuemeJ4Pd4XM7xlgNg5ugPKtoVt5EbvNM5Gd1Bbg==",
-          "tag": "oM/W5fjGLgkdfJ/qoNoXzA==",
-          "encrypted": "184ar276+/MsbLwfNRzHDOoPCbzN"
+          "iv": "y9T0ptPjlYT2zNlOzPtafg==",
+          "salt": "v4fJxrm/Hs1g1FpjdaW4p5Fr9tmkh+BbiHPWCxxtKBTIOMb6PycpD+78HIDnbGwSHJhwWf/4TAb65sl7dGm2oQ==",
+          "tag": "7nZExCMOkqpWhBvZcEJzFg==",
+          "encrypted": "BZgdQQBt58R1M/o3R4yoCVaSXZzs"
         },
         "wallet_address": "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf",
         "is_waitlisted": false,
-        "points_awarded": 123,
-        "joined_at": "2026-02-18T01:33:17.694Z",
+        "points_awarded": 134,
+        "joined_at": "2026-02-18T10:42:02.390Z",
         "username": {
-          "iv": "WH9dj9m8ixrz7ZyZs3/UzQ==",
-          "salt": "jvCyxtgOOTJAg40eZxsO6x/6zsUIyx+YLO4ZDrPQeRRZuIVjPpx8CAAxbqZl6+mspagJnsMIgugrNeaRfwqzQw==",
-          "tag": "bKQTIQI5wb9MZzJSmKv1oA==",
-          "encrypted": "3vB8"
+          "iv": "Vo4UqA28yFisNjS5D8LqwQ==",
+          "salt": "I2IVGpbeDwHmj1iMeiGmq3k5s8udVdWRyYTvbm9vN8s7LAKXzu28e46htP2VN4ltJZFaPSqrDt9dXk2aW6QruA==",
+          "tag": "8G8RnoH6sjhfsq1us3yYWQ==",
+          "encrypted": "WIv0"
         },
         "preferences": {
-          "iv": "laz7QIL6S8htzETBYfBoug==",
-          "salt": "EjhzW23/zuMcYUd0W8ViLN034tpj431I+C7SwpqwoxUyt4h8hpDTUwmrqWRURDhDja0hCo+5rF5GHd49HQJj4g==",
-          "tag": "Gf3DGtViVnIOHx0LFQDStQ==",
-          "encrypted": "fA6njByHDmBNeKFWESui4t3nfJ8l9IWLNTvyKYsu7tM8gcUaPH4H8tuiNRU/38nvhqFDtzbyKOHYo6AOWNnDWT5X01X2+XoVbz8DVmTxzcERek5BGAE="
+          "iv": "/LuBeKF4Z8p2YRvaYVb88g==",
+          "salt": "m4xBuosza7OClC+FxoHbzchNSi74LQKyTDa4ftfAmdtQpSOBBPvSRAjSoQvE2O8RiO45E190kx0je/zsPQWARA==",
+          "tag": "0nwQwmf0oJZuOD2VYyMF9w==",
+          "encrypted": "ttgRVufipCw/TSYeglqWmAslQ17dNMAxH3cfnhqrXiM8LU3UazhY1KjvYexttb4FsCuwI8aB5u7KaJyC0ATKqzhlLtyiHgiFupflhzAp15hQp2pLCCo="
         },
-        "tasks_created_today": 1,
-        "tasks_claimed_today": 1,
+        "tasks_created_today": 2,
+        "tasks_claimed_today": 2,
         "last_task_reset_date": "2026-02-18",
-        "subscription_tier": 0,
-        "daily_prompts_used": 2,
+        "subscription_tier": 1,
+        "subscription_expires_at": "2026-03-20T01:44:30.439Z",
+        "daily_prompts_used": 3,
         "last_prompt_date": "2026-02-18"
       },
       "0xd3c2b465a21822081c4b06f5681b2b7e28dcae82a7014476b3fd46d06a574e3b": {
@@ -3476,35 +3479,33 @@
       },
       "0x0e6614aab0c5886a725dc9d0f496efc4ba773106ee02baac80d8ad88d754313a": {
         "email": {
-          "iv": "k7LNB5CCBoWXQ6cDRJ3xRQ==",
-          "salt": "HOBlr8/dLa9rfi+b+qTxrVHQKMgDHHIOIpIUKBXpQjMZygwOWpD9WhhM40hCDnEvkgPozE/4lBM+hJc312rPRQ==",
-          "tag": "ZJaAjsQQ5Yfov5iELASRIg==",
-          "encrypted": "nX3E9UL44W0oplRlaYICHWQsaw=="
+          "iv": "GSFd5/XjuF1fh9/NRKG9IA==",
+          "salt": "CiP01BR8M1lgkHg+hvybsb0n2mgt/bWD10gNu8jfcmPzGNzdyMU64Om0CU5MoHdlYJZ77PoTtBqBvOruQa9G2Q==",
+          "tag": "7T/XqX7FyWZAahItbSgwWg==",
+          "encrypted": "rhxm5g5aUQK88zeemDTU/jfuyQ=="
         },
         "wallet_address": "0x0e6614aab0c5886a725dc9d0f496efc4ba773106ee02baac80d8ad88d754313a",
         "is_waitlisted": false,
         "points_awarded": 0,
-        "joined_at": "2026-02-17T04:17:22.462Z",
+        "joined_at": "2026-02-18T07:39:53.794Z",
         "username": {
-          "iv": "Qv/3Y/Xh8lsnbBEvVtJWsA==",
-          "salt": "RDkn6BI+a00Ime+wZlrsaNaPD9YfNQdnHSG5cZYxIb6cW+iS60pITTplU5kEYco+uzyko9QDLD5nrWDTSGppsA==",
-          "tag": "S8QUo02lneK5Zhksj3IrzQ==",
-          "encrypted": "OHhh0nvb"
+          "iv": "etxowI+K9pGRUZxk9/ykIw==",
+          "salt": "yAtd12QBUgnBal+MGk67ejTIkmOxvPC4nMjuxPcE75JbIXTZefHL2bwTtf8bLK0dFsn6b4G1QDWwGt94yXV4kg==",
+          "tag": "gWvKrnH5F/DNnsd0QXMJJg==",
+          "encrypted": "GszcrITS"
         },
         "preferences": {
-          "iv": "WF3T0csrj7kzOyr//aCcZQ==",
-          "salt": "M5WoCretQAtsXcHwm04oZdbqwnof/Tm6VBVc0CFV7MufKegqQNtObgTjC377COAfKiSAmUtiZdQM0y3yNtfB5Q==",
-          "tag": "GnL9hDmnhZP6Qs/hqThKAg==",
-          "encrypted": "36NFlWp1y0ulpVVyzuQvaljRT/Mti5CwEApuUL0WX4N/HDBYb4P60klhVJQENW/VzeCLEtGqgw5iFiNcj903WSQJgmzGPHgDEVQdDjcwlCP3A7kMYaA="
+          "iv": "HwsFtr1LCZTS0XkCPmVyFw==",
+          "salt": "S/jIJ69UAVPquf5ZiJHE6kpF/Ikimd+0l7H9M5dcUoYabuuUJL8Fdo2xIT+esAL2yO+AjAMXHd18bqtaRJF8RA==",
+          "tag": "4eDrumLOkvmh2UHfEtRC0w==",
+          "encrypted": "Nir7k1WXAx1rkrU5ijiUF3lp2pyomKYcw0DVPhqINctAnJbz9LFlAEMzAEFsrPjxedxeHErSiyZ0miCxDjkPB/Ytgzf4QxQURwXuep/nTX5m/hiQg6A="
         },
-        "tasks_created_today": 0,
+        "tasks_created_today": 1,
         "tasks_claimed_today": 0,
-        "current_streak": 1,
-        "last_checkin_date": "2026-02-17",
-        "total_checkins": 2,
+        "last_task_reset_date": "2026-02-18",
         "subscription_tier": 0,
         "daily_prompts_used": 1,
-        "last_prompt_date": "2026-02-17"
+        "last_prompt_date": "2026-02-18"
       },
       "0xd41f0c85f720e987c00385ba00019beec137cf40f76e3aed25e6f9dbbea7f7b2": {
         "email": {
@@ -5534,21 +5535,26 @@
       },
       "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
         "email": {
-          "iv": "l++KKwCbrT2xV7gLRIdEBA==",
-          "salt": "fwEUGgw75fZq7na5SQwE0hMIjIPeL9NlIFjlaOZymWDnmTjXk/Pj/EBBsxpowEJQqKVfJq61INDXHN0XkaoI7w==",
-          "tag": "sKCxSW0n/rYSI6lDwk4tJA==",
-          "encrypted": "ADXXtGx8E0qihngNHDpdNDK7iJtklXAsMok="
+          "iv": "JqvdWHalUCSBajDOkq1q+A==",
+          "salt": "ctdFu9WAPZfKKVL+ywMB7tCv8EPmHf9rxkOVwBeIAXyozR3QsHiaG32zBEfnBrGqXmFTcTwbC4kMFQjMfRoBhQ==",
+          "tag": "M7ak2PrWTAQliFOlqc0RFw==",
+          "encrypted": "StNF8UFF+MOCJyx4gdG/DI1wADrZCvoHNPU="
         },
         "wallet_address": "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925",
         "is_waitlisted": false,
-        "points_awarded": 0,
-        "joined_at": "2026-02-17T10:17:57.419Z",
+        "points_awarded": 109,
+        "joined_at": "2026-02-18T08:11:27.652Z",
         "preferences": {
-          "iv": "K68g1c4Y7BgAio4djoEpXg==",
-          "salt": "KLDF3jOMf7P+Dp9dKH1qszwhX04IYO0dRWYc31qThppYDfTfFK5DPkDLv6kG/tCyAiO1SSdHk+3aqPWojHY15A==",
-          "tag": "pPAn6kpZgYxeiJrsKvli/Q==",
-          "encrypted": "ScZYrs5E9PdtpX789TFnbkbMCzfRbFoFHG2vVbezAus7qW6TDlOx3LrGJweJrUDw3LPXutEhV6KbVmoG5zZCmyRu0LBblJf4xt3Veq6T6cM5fWLvUBVkaA=="
-        }
+          "iv": "1ORz81j3QSLZZ2cY3/aIlw==",
+          "salt": "GTpUYT6Jn/Z4B2oTuDihSe5exO9xA2l7+McTBvYnQ9gaq9WRAEZSutoiQhhTMlsC4fYLLZtew65wviJRl5CEiA==",
+          "tag": "2MN6vFvNWTl/QhWLV9iYNA==",
+          "encrypted": "Xz1hNPqHYDnlNIdSnulF4MFWivga80aAPLRTRT6m3iMVqTnRMvt7Mpxtr27Gg/PSHqZnPqKxdRwfJH7e5tp9OIVi9QCZReOiy1QhDTLyWzP00vFUK47RBw=="
+        },
+        "tasks_created_today": 2,
+        "tasks_claimed_today": 2,
+        "last_task_reset_date": "2026-02-18",
+        "subscription_tier": 0,
+        "daily_prompts_used": 0
       },
       "0x7f4d9485ea39246e55bc3bf18d7910dc4f7d12f75bea9c62dba33ee8c5d73ac9": {
         "email": {
@@ -5948,27 +5954,34 @@
       },
       "0x6e73d641c646bf90d43a11bf6623ffbf8a035970175e21ca02c0d6ac91547191": {
         "email": {
-          "iv": "TmJTZ8szscmGAFCtIZklfw==",
-          "salt": "uVfODIQjlyf+0wjzg5b3jwNTaSA6d9wKLgGSUB1PqyXVqpthGEq/cCC2TQFjk59AV5lHM33JNzF8ZfEzNALgJw==",
-          "tag": "OFxlrSkVZF/rn5dXDRS1gA==",
-          "encrypted": "Z98JJbShL9cra9Hfp2iRs2hatJgon77yhnGthYtT4oPIaC8="
+          "iv": "yCfPl5KmX9eBjMgmBXqVSA==",
+          "salt": "P9SCqkKB1d8FMBKSPqo4nPQdGS69l5hd4a3X+sY+2zhM5suEb4BNr9LnBVASzVv5uv3s3nW8PMk4196a+eEpzw==",
+          "tag": "Fg/QK2qtcyl3Cb8b0VNxXA==",
+          "encrypted": "CkLC+UUdlPCFUF5usVJRfjL9BdWHmt6KGxpMvMpYItu0obI="
         },
         "wallet_address": "0x6e73d641c646bf90d43a11bf6623ffbf8a035970175e21ca02c0d6ac91547191",
         "is_waitlisted": false,
         "points_awarded": 0,
-        "joined_at": "2026-02-17T15:26:31.056Z",
+        "joined_at": "2026-02-18T09:38:21.971Z",
         "username": {
-          "iv": "Aq4CeOfy4m0bdxs2HRhPGg==",
-          "salt": "ArcBqgob7GT8B6j71xSdTjuKkz+tDeFclz8/Fj6Qf9NlifvrmMJa82PctyiYrawdCp5RetwjZTeOOAdDUlfBWg==",
-          "tag": "BU+tTA88YZQsyG5z2v4zBw==",
-          "encrypted": "AE3fdNtXTQ=="
+          "iv": "4XV5uldmc99kzP/5VIUTzw==",
+          "salt": "W0BEfQCfLT1A+8fCINFWmtZJoY7kooknDRI3ukCqAEhIQalqB8WmuD/sMTajX/Aoj8xa7LjUnFEgsO3Sv8ZAeA==",
+          "tag": "nGQ53FGK79C3YnjaB6Q+rQ==",
+          "encrypted": "rFLQ4/QUQQ=="
         },
         "preferences": {
-          "iv": "vz3MvHoThVc6xVCjpQM+pw==",
-          "salt": "3MMpF5W2EF5L2jl3BO8QA4A8IkfgXwSajXi+8I2xm7uXjL5XtbhKpQS0NMzQ8biSEoMZteYkFPdUjfPqi9P9ig==",
-          "tag": "eNBLf9/flvG6KTxH51/MoA==",
-          "encrypted": "bOMt/2JvQUgJCUOfyxDILa/YaWkg9huXTwWufKZmxbpM56Ts9jDMSWn4VAjJMEoCtwMiDSWChcem/QWbQx8gWqKx0BWlYa5ItxaHl6fDJ4e9rz2BW6gHtQ=="
-        }
+          "iv": "/3uTV8YRnrFFvvwbNkPhzw==",
+          "salt": "vcf7fa79Mj4rfUrqVVWMpb3+sw11PWUm6CjatzMz1jHTMN1AvbnVYh18cGGHoMpprLghZElUaWw7OgZRYzbNdA==",
+          "tag": "YvX6u6sxS8CrhCZlC0cz4Q==",
+          "encrypted": "zeaouzHQ5M+g6QBOoX0PMDow0HkNtkhZWz3oC/6AtdKyD0zwB2XFycIVrsNJgZtEiUsKAcY1HMmfBeQLXelvSQCQT+V54tHx0PZ4cyDPH8D38b+p5I7VKw=="
+        },
+        "tasks_created_today": 0,
+        "tasks_claimed_today": 0,
+        "current_streak": 1,
+        "last_checkin_date": "2026-02-18",
+        "total_checkins": 1,
+        "subscription_tier": 0,
+        "daily_prompts_used": 0
       },
       "0x7200fa3292693868bad89d4bf921890c863965a569e62ba6108533a21035c286": {
         "email": {
@@ -6077,9 +6090,39 @@
           "tag": "COpqDWQWhgbxE1CA35otEA==",
           "encrypted": "QReXXhxaCEx/UNWfO1E3el/SrrmkORR+hIl6u2DgxxMFIJdX3nUBMdFM42lmglpVHoGPv1ssDMoH8QKeQvw0i2EU2N6v0wcX03A2A9vyRii0nVbunPqYgw=="
         }
+      },
+      "0xb3d42ad57ef7e91c34ee43128500fb928a38ffbdd0d836701375c4120d8c2866": {
+        "email": {
+          "iv": "Fi6mjzuUad/5FC6f4k1dZQ==",
+          "salt": "nsCZhXH4EQc35Jg+fIdBbyYL5X/wSZUwmJsuLp8Wz4gfmUqrsyhUvqDtFNYxWqyjnIp5Ve+eDB4rvqIHyLXGaw==",
+          "tag": "lDs2N4AjEFfqwTp2SxDX1A==",
+          "encrypted": "33a93T4OiMCtPqdnNBSRj17iXAbVwbha"
+        },
+        "wallet_address": "0xb3d42ad57ef7e91c34ee43128500fb928a38ffbdd0d836701375c4120d8c2866",
+        "is_waitlisted": false,
+        "points_awarded": 0,
+        "joined_at": "2026-02-18T08:33:12.986Z",
+        "username": {
+          "iv": "vW8UG/8Fk+eox82v/tld8Q==",
+          "salt": "u9fGkD7lJlZIJmj3uR5lESUStIGXbrNuSvAzKhXebwWqHHqFDHQtasu49gvFEC9Cx/Dd5TxFs9QZnsGb81GpRg==",
+          "tag": "rjgvlTGCZjKPdtNVmXaP1A==",
+          "encrypted": "47uiCw=="
+        },
+        "preferences": {
+          "iv": "Lc1zK3ynSrqJumyMoEJvYA==",
+          "salt": "kI42SPfBOK2Zn8Ej0BXxzTAm5jhlFsxTMZHbeF7itnhFo4fovUTIyyvI8nC5UOhzglaNUxiUJCd7LS5s/Viwyw==",
+          "tag": "bvxQjhH5ODefnaXdGOL1vQ==",
+          "encrypted": "73bHvWWAxwIJgZtqQejuEHgKYRfdlImLEWRNAWpHmZraucR25zIGzTWOUzd6TwIsrxPB8c9Gd3e6xtEB4ELE8s/Qc0ZknWTvaKZsOqvHrXsb5EGABw8="
+        },
+        "tasks_created_today": 1,
+        "tasks_claimed_today": 0,
+        "last_task_reset_date": "2026-02-18",
+        "subscription_tier": 0,
+        "daily_prompts_used": 1,
+        "last_prompt_date": "2026-02-18"
       }
     },
-    "description": "Updated user: 0x6788ee9589dd75784972b52fd3415336ef8938b5ff92f6fb18fc80d8a7d4fd5c",
-    "previous_blob": "tukbN-hHTJehO3b1UptPi2kAUgxIJNvwVRLkuSWEoqg"
+    "description": "Updated user: 0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf",
+    "previous_blob": "xTnlgfdf_fgtTdYsoIyOnEEqKjo6DhwDzfKrI59ezpw"
   }
 }

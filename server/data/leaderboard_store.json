@@ -1,12 +1,12 @@
 {
   "users": {
     "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf": {
-      "balance": 126,
-      "ts": 1771381000067
+      "balance": 132,
+      "ts": 1771399672285
     },
     "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
-      "balance": 104,
-      "ts": 1770922004574
+      "balance": 109,
+      "ts": 1771402286251
     },
     "0xef5bbf465660b77bee00f8fd8ff5edd20df2c4bab5fe3d24e61c0863fb01f04d": {
       "balance": 117,
@@ -125,8 +125,8 @@
       "ts": 1770920659990
     },
     "0x67708de75f9a30a903f6afafec5237ea3ad7f653508b4eb1f45cb2b16328f18e": {
-      "balance": 1,
-      "ts": 1770921229872
+      "balance": 2,
+      "ts": 1771404855387
     },
     "0x93ff3c1f568f1bf38e703aa3cda328091f73cefe04cf7ca4f3eb87e262317911": {
       "balance": 100,
@@ -337,8 +337,8 @@
       "ts": 1771063929284
     },
     "0x792857e4b8ab8d820699cad8edde2c0870e192fa95bdc14959ea8713274a5649": {
-      "balance": 102,
-      "ts": 1771159557880
+      "balance": 107,
+      "ts": 1771405155253
     },
     "0x06c4d995ffc4d8927d5b98cfbb1f763b5c6a0305f93eac62a331fa983058d63c": {
       "balance": 100,
@@ -1569,8 +1569,8 @@
       "ts": 1771272807575
     },
     "0x0e6614aab0c5886a725dc9d0f496efc4ba773106ee02baac80d8ad88d754313a": {
-      "balance": 101,
-      "ts": 1771301844637
+      "balance": 102,
+      "ts": 1771400322561
     },
     "0xa7fc1f8ea339c481d71ccfe53df845f5944e206894fc58461a4d99f6b22f8c81": {
       "balance": 100,
@@ -1711,13 +1711,13 @@
   },
   "cursors": {
     "points": {
-      "txDigest": "GtT621xsqSSuCYNXzMXWL9TXeXPq8wBa4cBK4j6rzSDu",
+      "txDigest": "BaxkSDEi1i3UuFaT1R7NUNmYxGEHYxphHgN6xQS6Pd6r",
       "eventSeq": "3"
     },
     "tasks": {
-      "txDigest": "E7rcjQFDqpMeAk6tQNPKxYHq8FmvvTqpZ4Sc6K6u8j7L",
+      "txDigest": "F9sPEUh1j3Mfjw9mUdtW9zA5aJxkzbMPSg4XjijjELtM",
       "eventSeq": "0"
     }
   },
-  "lastUpdated": 1771395110738
+  "lastUpdated": 1771410795244
 }
