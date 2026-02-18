@@ -1,98 +1,59 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useState, useEffect, useCallback } from 'react';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export interface TelegramStatus {
   is_linked: boolean;
-  telegram_chat_id?: string;
   telegram_username?: string;
+  telegram_chat_id?: string;
 }
 
 export function useTelegramLinking() {
-  const currentAccount = useCurrentAccount();
+  const account = useCurrentAccount();
   const [status, setStatus] = useState<TelegramStatus>({ is_linked: false });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lastFetchRef = useRef<number>(0);
-
   const fetchStatus = useCallback(async () => {
-    const addr = currentAccount?.address;
-    if (!addr) {
-      setLoading(false);
-      return;
-    }
-
-    // Deduplication: Don't fetch if less than 2 seconds since last fetch
-    const now = Date.now();
-    if (now - lastFetchRef.current < 2000) {
-      return;
-    }
-    lastFetchRef.current = now;
-
-    setLoading(true);
+    if (!account?.address) return;
     try {
-      const response = await fetch(`${API_BASE}/api/telegram/status/${encodeURIComponent(addr)}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Only update state if data actually changed to avoid re-renders
-        setStatus(prev => {
-          if (JSON.stringify(prev) !== JSON.stringify(data)) {
-            return data;
-          }
-          return prev;
-        });
+      const res = await fetch(`${API_BASE}/api/telegram/status?walletAddress=${account.address}`);
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+      } else {
+        // Fallback or ignore if endpoint missing (since backend might be gone)
+        console.warn("Telegram status check failed:", res.status);
       }
-    } catch (err) {
-      console.error("Error fetching Telegram status:", err);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error("Failed to fetch telegram status", e);
     }
-  }, [currentAccount?.address]);
+  }, [account]);
 
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
 
-  const connectTelegram = async (): Promise<{ code: string; bot_username: string } | null> => {
-    const addr = currentAccount?.address;
-    if (!addr) {
-      setError("Wallet not connected");
-      return null;
-    }
-
+  const connectTelegram = async (): Promise<{ code: string, botUsername: string } | null> => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/api/telegram/link`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet_address: addr }),
+      const res = await fetch(`${API_BASE}/api/telegram/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: account?.address })
       });
 
-      if (!response.ok) throw new Error("Failed to generate linking code");
-
-      const { code, bot_username } = await response.json();
-
-      // Start polling for status update
-      const pollInterval = setInterval(async () => {
-        const checkRes = await fetch(`${API_BASE}/api/telegram/status/${encodeURIComponent(addr)}`);
-        if (checkRes.ok) {
-          const data = await checkRes.json();
-          if (data.is_linked) {
-            setStatus(data);
-            clearInterval(pollInterval);
-          }
-        }
-      }, 3000);
-
-      // Stop polling after 5 minutes
-      setTimeout(() => clearInterval(pollInterval), 300000);
-
-      return { code, bot_username };
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Connect failed");
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      } else {
+        throw new Error("Failed to generate connection code");
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Failed to connect Telegram");
       return null;
     } finally {
       setLoading(false);
@@ -100,33 +61,23 @@ export function useTelegramLinking() {
   };
 
   const disconnectTelegram = async () => {
-    const addr = currentAccount?.address;
-    if (!addr) return;
-
+    if (!account?.address) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/api/telegram/disconnect`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet_address: addr }),
+      await fetch(`${API_BASE}/api/telegram/unlink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: account.address })
       });
-
-      if (response.ok) {
-        setStatus({ is_linked: false });
-      }
-    } catch (err) {
-      console.error("Disconnect failed:", err);
+      setStatus({ is_linked: false });
+      await fetchStatus();
+    } catch (e) {
+      console.error(e);
+      setError("Failed to disconnect Telegram");
     } finally {
       setLoading(false);
     }
   };
 
-  return {
-    status,
-    loading,
-    error,
-    connectTelegram,
-    disconnectTelegram,
-    refreshStatus: fetchStatus,
-  };
+  return { status, connectTelegram, disconnectTelegram, loading, error, refetch: fetchStatus };
 }

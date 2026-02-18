@@ -1,24 +1,17 @@
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Copy,
-  Settings as SettingsIcon,
   Wallet,
   Plus,
   X,
   ChevronRight,
   Eye,
   EyeOff,
-  RefreshCcw,
-  ArrowUp,
   ChevronDown,
   Share2,
-  Key,
-  ShieldCheck,
-  Mail,
-  ArrowUpDown,
   Gamepad2,
-  Clock,
   ClipboardPaste,
+  ArrowUp,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import gsap from "gsap";
@@ -26,9 +19,8 @@ import { useGSAP } from "@gsap/react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
   useCurrentAccount,
-  useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
-import { Transaction } from "@mysten/sui/transactions";
+
 import { Sidebar } from "@/components/app/Sidebar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
@@ -124,8 +116,6 @@ const WalletManager = ({
   setIsBalanceVisible,
   activeWalletModal,
   setActiveWalletModal,
-  isSettingsOpen,
-  toggleSettings,
   showConfirmation,
   setShowConfirmation,
   sendAmount,
@@ -136,14 +126,6 @@ const WalletManager = ({
   handlePasteRecipient,
   isSending,
   handleSend,
-  swapFromAmount,
-  setSwapFromAmount,
-  swapFromToken,
-  swapToAmount,
-  swapToToken,
-  isSwapping,
-  handleSwap,
-  swapRate,
   signOut,
   tokens,
   activeTab,
@@ -222,9 +204,6 @@ const WalletManager = ({
         className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
       >
         <div className="flex justify-between items-center w-full mb-8">
-          <button onClick={toggleSettings} className="btn btn-icon btn-ghost">
-            <SettingsIcon size={16} className="text-white/60" />
-          </button>
           <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
             <span className="font-bold text-white text-sm">Main Account</span>
             <ChevronDown size={14} className="text-white/60" />
@@ -256,12 +235,6 @@ const WalletManager = ({
           >
             <Plus size={20} />
             <span className="text-sm font-bold">Deposit</span>
-          </button>
-          <button
-            onClick={() => setActiveWalletModal("swap")}
-            className="btn btn-icon btn-outline"
-          >
-            <RefreshCcw size={18} className="text-white/60" />
           </button>
           <button
             onClick={() => setActiveWalletModal("send")}
@@ -432,8 +405,6 @@ const WalletManager = ({
         <WalletModalOverlay
           activeWalletModal={activeWalletModal}
           setActiveWalletModal={setActiveWalletModal}
-          isSettingsOpen={isSettingsOpen}
-          toggleSettings={toggleSettings}
           showConfirmation={showConfirmation}
           setShowConfirmation={setShowConfirmation}
           {...{
@@ -445,14 +416,6 @@ const WalletManager = ({
             handlePasteRecipient,
             isSending,
             handleSend,
-            swapFromAmount,
-            setSwapFromAmount,
-            swapFromToken,
-            swapToAmount,
-            swapToToken,
-            isSwapping,
-            handleSwap,
-            swapRate,
             signOut,
             address,
             copyToClipboard,
@@ -470,8 +433,6 @@ const WalletModalOverlay = (props: any) => {
   const {
     activeWalletModal,
     setActiveWalletModal,
-    isSettingsOpen,
-    toggleSettings,
     showConfirmation,
     setShowConfirmation,
     sendAmount,
@@ -480,30 +441,16 @@ const WalletModalOverlay = (props: any) => {
     sendRecipient,
     setSendRecipient,
     handlePasteRecipient,
-    isSending,
-    handleSend,
-    swapFromAmount,
-    setSwapFromAmount,
-    swapFromToken,
-    swapToAmount,
-    swapToToken,
-    isSwapping,
-    handleSwap,
-    swapRate,
-    signOut,
     address,
     copyToClipboard,
-    isAutonomyEnabled,
-    toggleAutonomy,
-    isUpdatingAutonomy,
   } = props;
   const overlayRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(
-    !!activeWalletModal || isSettingsOpen,
+    !!activeWalletModal,
   );
 
   useGSAP(() => {
-    if (activeWalletModal || isSettingsOpen) {
+    if (activeWalletModal) {
       setShouldRender(true);
       gsap.fromTo(
         overlayRef.current,
@@ -518,7 +465,7 @@ const WalletModalOverlay = (props: any) => {
         onComplete: () => setShouldRender(false),
       });
     }
-  }, [activeWalletModal, isSettingsOpen]);
+  }, [activeWalletModal]);
 
   if (!shouldRender) return null;
 
@@ -533,21 +480,12 @@ const WalletModalOverlay = (props: any) => {
             if (showConfirmation) setShowConfirmation(false);
             else {
               setActiveWalletModal(null);
-              if (isSettingsOpen) toggleSettings();
             }
           }}
           className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer"
         >
           <ChevronRight size={18} className="text-white rotate-180" />
         </button>
-        <span className="font-bold text-white text-base">
-          {isSettingsOpen
-            ? "Settings"
-            : activeWalletModal
-              ? activeWalletModal.charAt(0).toUpperCase() +
-              activeWalletModal.slice(1)
-              : ""}
-        </span>
         <div className="w-8" />
       </div>
 
@@ -629,87 +567,6 @@ const WalletModalOverlay = (props: any) => {
           </div>
         )}
 
-        {activeWalletModal === "swap" && (
-          <div className="space-y-2">
-            <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-5 space-y-4">
-              <div className="flex justify-between items-center text-sm font-bold text-white">
-                <span>You pay</span>
-                <span className="text-[11px] text-white/40">
-                  Balance: {swapFromToken?.balance?.toFixed(4) || "0.0000"}
-                </span>
-              </div>
-              <div className="flex justify-between items-end">
-                <input
-                  type="text"
-                  value={swapFromAmount}
-                  onChange={(e) => setSwapFromAmount(e.target.value)}
-                  placeholder="0"
-                  className="text-[32px] font-bold text-white leading-tight bg-transparent focus:outline-none w-2/3"
-                />
-                <button className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 cursor-pointer">
-                  <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
-                    <img
-                      src={swapFromToken?.icon || "/assets/images/sui-icon.png"}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-white">
-                    {swapFromToken?.symbol || "SUI"}
-                  </span>
-                  <ChevronDown size={14} className="text-white/40" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-center -my-2 relative z-10">
-              <button className="w-8 h-8 rounded-full bg-[#070B0F] border border-white/10 flex items-center justify-center cursor-pointer">
-                <ArrowUpDown className="text-white/40" size={14} />
-              </button>
-            </div>
-
-            <div className="p-[1px] bg-gradient-to-r from-[#B7FC0D] to-[#246AFC] rounded-3xl">
-              <div className="bg-[#070B0F] rounded-[inherit] p-5 space-y-4">
-                <div className="flex justify-between items-center text-sm font-bold text-white">
-                  <span>You recieve</span>
-                  <span className="text-[11px] text-white/40">
-                    Balance: {swapToToken?.balance?.toFixed(4) || "0.0000"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-end">
-                  <span className="text-[32px] font-bold text-white">
-                    {swapToAmount || "0"}
-                  </span>
-                  <button className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 cursor-pointer">
-                    <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
-                      <img
-                        src={
-                          swapToToken?.icon || "/assets/images/usdc-icon.png"
-                        }
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-white">
-                      {swapToToken?.symbol || "USDC"}
-                    </span>
-                    <ChevronDown size={14} className="text-white/40" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[10px] font-bold text-white/40">
-                1 SUI = ${swapRate.toFixed(2)}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Clock size={10} className="text-white/40" />
-                <span className="text-[10px] font-bold text-white/40">
-                  Resetting in 30s
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {activeWalletModal === "deposit" && (
           <div className="flex flex-col items-center gap-6 pt-4">
             <div className="p-[1px] bg-gradient-to-r from-[#B7FC0D] to-[#246AFC] rounded-2xl w-full">
@@ -760,154 +617,7 @@ const WalletModalOverlay = (props: any) => {
             </div>
           </div>
         )}
-
-        {isSettingsOpen && !showConfirmation && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-[11px] font-bold text-white/20 uppercase px-1">
-                Security details
-              </h3>
-              {[
-                { icon: <Key size={18} />, label: "View SUI private key" },
-                { icon: <ShieldCheck size={18} />, label: "View passkeys" },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/10 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-white/40 group-hover:text-white">
-                      {item.icon}
-                    </div>
-                    <span className="text-[15px] font-bold text-white">
-                      {item.label}
-                    </span>
-                  </div>
-                  <ChevronRight size={16} className="text-white/20" />
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-[11px] font-bold text-white/20 uppercase px-1">
-                Agent Settings
-              </h3>
-              <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl transition-all group">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-xl ${isAutonomyEnabled ? "bg-[#B7FC0D]/10 text-[#B7FC0D]" : "bg-white/5 text-white/40"}`}
-                  >
-                    <ShieldCheck size={18} />
-                  </div>
-                  <div>
-                    <span className="text-[15px] font-bold text-white block">
-                      Full Agent Autonomy
-                    </span>
-                    <span className="text-[10px] text-white/40">
-                      Agent can execute transactions in background
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={toggleAutonomy}
-                  disabled={isUpdatingAutonomy}
-                  className={`w-12 h-6 rounded-full relative transition-colors cursor-pointer ${isAutonomyEnabled ? "bg-[#B7FC0D]" : "bg-white/10"}`}
-                >
-                  <div
-                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isAutonomyEnabled ? "right-1" : "left-1"}`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-[11px] font-bold text-white/20 uppercase px-1">
-                Connected Accounts
-              </h3>
-              {[
-                {
-                  icon: (
-                    <img
-                      src="/assets/images/signin-logo.png"
-                      className="w-4.5 h-4.5 brightness-200"
-                    />
-                  ),
-                  label: "Google account",
-                },
-                { icon: <Mail size={18} />, label: "Email account" },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/10 transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-white/40 group-hover:text-white">
-                      {item.icon}
-                    </div>
-                    <span className="text-[15px] font-bold text-white">
-                      {item.label}
-                    </span>
-                  </div>
-                  <ChevronRight size={16} className="text-white/20" />
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setShowConfirmation(true)}
-              className="btn btn-danger btn-block btn-lg"
-            >
-              Log out
-            </button>
-          </div>
-        )}
-
-        {isSettingsOpen && showConfirmation && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-            {/* This will be handled by the footer confirmation area below */}
-          </div>
-        )}
       </div>
-
-      {((activeWalletModal && activeWalletModal !== "deposit") ||
-        (isSettingsOpen && showConfirmation)) && (
-          <div className="mt-8 space-y-3">
-            {!showConfirmation ? (
-              <button
-                onClick={() => setShowConfirmation(true)}
-                className="btn btn-primary btn-block btn-lg"
-              >
-                {activeWalletModal === "send"
-                  ? "Send"
-                  : activeWalletModal === "swap"
-                    ? "Swap"
-                    : ""}
-              </button>
-            ) : (
-              <div className="flex flex-row gap-3">
-                <button
-                  onClick={() => {
-                    if (activeWalletModal === "send") handleSend();
-                    else if (activeWalletModal === "swap") handleSwap();
-                    else if (isSettingsOpen) signOut();
-                  }}
-                  disabled={isSending || isSwapping}
-                  className="flex-[2] h-14 bg-[#21C25E] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  {isSettingsOpen
-                    ? "Confirm logout?"
-                    : `Confirm ${activeWalletModal}?`}
-                </button>
-                <button
-                  onClick={() => setShowConfirmation(false)}
-                  className="flex-1 h-14 bg-[#FF5252] text-white font-bold text-[15px] rounded-3xl cursor-pointer transition-all active:scale-[0.98]"
-                >
-                  {isSettingsOpen ? "Go back" : "Cancel"}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
     </div>
   );
 };
@@ -916,8 +626,7 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecuteTransaction } =
-    useSignAndExecuteTransaction();
+
   const { signOut } = useAuth();
 
   // Use address from dApp Kit wallet
@@ -925,9 +634,8 @@ export default function AppLayout() {
 
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(true);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeWalletModal, setActiveWalletModal] = useState<
-    "deposit" | "send" | "swap" | null
+    "deposit" | "send" | null
   >(null);
   const [activeTab, setActiveTab] = useState<
     "Tokens" | "Collectibles" | "Activity"
@@ -996,14 +704,6 @@ export default function AppLayout() {
   const [selectedSendToken, setSelectedSendToken] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // Swap Form State
-  const [swapFromToken, setSwapFromToken] = useState<any>(null);
-  const [swapToToken, setSwapToToken] = useState<any>(null);
-  const [swapFromAmount, setSwapFromAmount] = useState("");
-  const [swapToAmount, setSwapToAmount] = useState("");
-  const [isSwapping, setIsSwapping] = useState(false);
-  const swapRate = 1.85;
-
   const suiClient = useMemo(() => {
     const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
       | "testnet"
@@ -1039,9 +739,7 @@ export default function AppLayout() {
 
   const toggleWallet = () => {
     setIsWalletCollapsed((prev) => !prev);
-    setIsSettingsOpen(false);
   };
-  const toggleSettings = () => setIsSettingsOpen((prev) => !prev);
 
   const fetchSuiPriceUSD = useCallback(async (): Promise<{
     price: number;
@@ -1133,8 +831,6 @@ export default function AppLayout() {
       setTokens(tokenList);
       if (tokenList.length > 0) {
         if (!selectedSendToken) setSelectedSendToken(tokenList[0]);
-        if (!swapFromToken) setSwapFromToken(tokenList[0]);
-        if (tokenList.length > 1 && !swapToToken) setSwapToToken(tokenList[1]);
       }
       setLastFetched(now);
     } catch (err) {
@@ -1146,8 +842,6 @@ export default function AppLayout() {
     suiClient,
     fetchSuiPriceUSD,
     selectedSendToken,
-    swapFromToken,
-    swapToToken,
   ]);
 
   const debouncedFetchBalance = useMemo(
@@ -1167,101 +861,6 @@ export default function AppLayout() {
     setIsSending(true);
     setTimeout(() => setIsSending(false), 2000);
   };
-
-  const handleSwap = async () => {
-    if (!address || !swapFromAmount) return;
-    setIsSwapping(true);
-
-    try {
-      const tx = new Transaction();
-
-      // Basic ToMist Util
-      const toMist = (amount: string, decimals: number = 9) => {
-        const factor = Math.pow(10, decimals);
-        return BigInt(Math.floor(parseFloat(amount) * factor));
-      };
-
-      const amountMist = toMist(swapFromAmount, swapFromToken?.decimals || 9);
-      const [coinToSwap] = tx.splitCoins(tx.gas, [amountMist]);
-
-      // 2. Network-Aware Configuration
-      const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
-        | "testnet"
-        | "mainnet";
-
-      const SWAP_CONFIG = {
-        mainnet: {
-          packageId:
-            "0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb",
-          globalConfig:
-            "0x2442434b9d07399f24ba504627be2f5c2288164d142163354366624e527d7506",
-          pools: {
-            "SUI-USDC":
-              "0xcf994611fd4c486e7a23c8983e20ec68df53844f24300e84b1625902047ac8e4",
-          },
-        },
-        testnet: {
-          packageId:
-            "0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3",
-          globalConfig:
-            "0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3",
-          pools: {
-            // Using valid object ID for testnet structure validity
-            "SUI-USDC":
-              "0x25ebb9a7c50eb17b3fa9c5a30fb8b5ad8f97caaf4928943acbcff7153dfee5e3",
-          },
-        },
-      };
-
-      const config = SWAP_CONFIG[network] || SWAP_CONFIG.testnet;
-
-      const fromCoinType = swapFromToken?.type || "0x2::sui::SUI";
-      const toCoinType =
-        swapToToken?.type ||
-        "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN";
-
-      if (toCoinType.includes("USD") || toCoinType.includes("coin::COIN")) {
-        const poolId = config.pools["SUI-USDC"];
-
-        tx.moveCall({
-          target: `${config.packageId}::router::swap_exact_input`,
-          typeArguments: [fromCoinType, toCoinType],
-          arguments: [
-            tx.object(config.globalConfig),
-            tx.object(poolId),
-            coinToSwap,
-            tx.pure.u64(0), // True means amount_in is exact
-          ],
-        });
-      } else {
-        // Fallback for unknown pairs
-        tx.transferObjects([coinToSwap], address);
-        console.warn(
-          "Unknown pool, performing Loopback Transfer as safe fallback",
-        );
-      }
-
-      const result = await signAndExecuteTransaction({ transaction: tx });
-
-
-      sileo.success({ title: "Swap Submitted", description: `Digest: ${result.digest.slice(0, 6)}...` });
-      setActiveWalletModal(null); // Close modal on success
-    } catch (e: any) {
-      console.error("Swap failed", e);
-      sileo.error({ title: "Swap Failed", description: e.message?.slice(0, 50) });
-    } finally {
-      setIsSwapping(false);
-    }
-  };
-
-  // Sync swap amount (satisfies lint for setSwapToAmount)
-  useEffect(() => {
-    if (swapFromAmount) {
-      setSwapToAmount((Number(swapFromAmount) * swapRate).toFixed(4));
-    } else {
-      setSwapToAmount("");
-    }
-  }, [swapFromAmount]);
 
   // Satisfy lint for setNfts and setActivity
   useEffect(() => {
@@ -1363,9 +962,6 @@ export default function AppLayout() {
           setIsBalanceVisible={setIsBalanceVisible}
           activeWalletModal={activeWalletModal}
           setActiveWalletModal={setActiveWalletModal}
-          isSettingsOpen={isSettingsOpen}
-          setIsSettingsOpen={setIsSettingsOpen}
-          toggleSettings={toggleSettings}
           showConfirmation={showConfirmation}
           setShowConfirmation={setShowConfirmation}
           sendAmount={sendAmount}
@@ -1379,14 +975,6 @@ export default function AppLayout() {
           isUpdatingAutonomy={isUpdatingAutonomy}
           isSending={isSending}
           handleSend={handleSend}
-          swapFromAmount={swapFromAmount}
-          setSwapFromAmount={setSwapFromAmount}
-          swapFromToken={swapFromToken}
-          swapToAmount={swapToAmount}
-          swapToToken={swapToToken}
-          isSwapping={isSwapping}
-          handleSwap={handleSwap}
-          swapRate={swapRate}
           signOut={signOut}
           tokens={tokens}
           activeTab={activeTab}

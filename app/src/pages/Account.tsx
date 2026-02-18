@@ -3,19 +3,164 @@ import { useEffect, useState } from "react";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
-import { useTelegramLinking } from "@/hooks/useTelegramLinking";
+
 import { AccountSkeleton } from "@/components/ui/SkeletonLoader";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
 import {
   Flame,
   Wallet,
-  Send,
+
   User,
   Bell,
   ShieldCheck,
-  Zap
+  Zap,
+  Loader2,
+  X,
+  Copy,
+  Check,
+  Link as LinkIcon
 } from "lucide-react";
+import { useTelegramLinking } from "@/hooks/useTelegramLinking";
+import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
+import { Tooltip } from "@/components/ui/Tooltip";
+
+const TelegramModal = ({ isOpen, onClose, code, botUsername }: { isOpen: boolean; onClose: () => void; code: string; botUsername: string }) => {
+  if (!isOpen) return null;
+  const botLink = `https://t.me/${botUsername}?start=${code}`;
+
+  const [copied, setCopied] = useState(false);
+  const [botCopied, setBotCopied] = useState(false);
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#1A1A1A] border border-white/10 rounded-3xl p-6 w-full max-w-md relative shadow-2xl">
+        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 flex justify-center">
+          <div className="p-4 bg-[#24A1DE]/10 rounded-full">
+            <TelegramIcon size={40} className="text-[#24A1DE]" />
+          </div>
+        </div>
+
+        <h3 className="text-xl font-bold text-white mb-2 text-center">Connect Telegram</h3>
+        <p className="text-white/60 text-sm mb-6 text-center">
+          Send the code below to our Telegram bot (
+          <Tooltip content={botCopied ? "Copied!" : "Click to copy"} side="top">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("@ToviraBot");
+                setBotCopied(true);
+                setTimeout(() => setBotCopied(false), 2000);
+              }}
+              className="text-[#B7FC0D] font-bold hover:underline cursor-pointer transition-colors"
+            >
+              @{botUsername}
+            </button>
+          </Tooltip>
+          ) to verify and link your account.
+        </p>
+
+        <div
+          className="bg-white/5 rounded-xl p-4 mb-6 flex justify-between items-center group cursor-pointer border border-white/5 hover:border-white/20 transition-all"
+          onClick={copyCode}
+        >
+          <span className="text-2xl font-mono font-bold text-[#B7FC0D] tracking-widest">{code}</span>
+          <button className="text-white/40 group-hover:text-white transition-colors">
+            {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+          </button>
+        </div>
+
+        <a
+          href={botLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-primary w-full justify-center"
+        >
+          Open Telegram Bot
+        </a>
+      </div>
+    </div>
+  );
+};
+
+const TelegramConnect = () => {
+  const { status, connectTelegram, disconnectTelegram, loading, error, refetch } = useTelegramLinking();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [connectData, setConnectData] = useState<{ code: string, botUsername: string } | null>(null);
+
+  const handleConnect = async () => {
+    const data = await connectTelegram();
+    if (data) {
+      setConnectData(data);
+      setModalOpen(true);
+    }
+  };
+
+  const handleClose = () => {
+    setModalOpen(false);
+    refetch();
+  }
+
+  // Poll for status update when modal is open
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (modalOpen && !status.is_linked) {
+      interval = setInterval(() => {
+        refetch();
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [modalOpen, status.is_linked, refetch]);
+
+  // Auto close when linked
+  useEffect(() => {
+    if (status.is_linked && modalOpen) {
+      setModalOpen(false);
+    }
+  }, [status.is_linked, modalOpen]);
+
+  return (
+    <>
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <TelegramIcon size={28} className="text-[#24A1DE] shrink-0" />
+          <div className="flex flex-col">
+            <span className="text-white/80 text-sm sm:text-base">Telegram</span>
+            {status.telegram_username && <span className="text-white/40 text-xs">@{status.telegram_username}</span>}
+            {error && <span className="text-red-400 text-xs">{error}</span>}
+          </div>
+        </div>
+        <button
+          onClick={status.is_linked ? disconnectTelegram : handleConnect}
+          disabled={loading}
+          className={status.is_linked ? "btn btn-danger" : "btn btn-primary"}
+        >
+          {loading ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            status.is_linked ? "Disconnect" : "Connect"
+          )}
+        </button>
+      </div>
+
+      <TelegramModal
+        isOpen={modalOpen}
+        onClose={handleClose}
+        code={connectData?.code || ''}
+        botUsername={connectData?.botUsername || ''}
+      />
+    </>
+  );
+};
 
 const Account = () => {
   const currentAccount = useCurrentAccount();
@@ -23,7 +168,7 @@ const Account = () => {
   const { mutate: disconnectWallet } = useDisconnectWallet();
   const { checkin, checkinState } = useCheckin();
   const { profile, updatePreferences, loading } = useProfile();
-  const { status: tgStatus, connectTelegram, disconnectTelegram, loading: tgLoading } = useTelegramLinking();
+
   const { entries: leaderboard } = useAppSelector((state) => state.leaderboard);
 
   const [permissions, setPermissions] = useState({
@@ -150,7 +295,9 @@ const Account = () => {
               </div>
             ))}
           </div>
-          
+
+
+
           {/* <div className="bg-white/5 p-4 sm:p-6 rounded-3xl">
             <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider mb-4">Debug</h3>
             <button
@@ -163,25 +310,32 @@ const Account = () => {
         </div>
 
         <div className="flex flex-col gap-6 sm:gap-8">
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                <div className="p-3 bg-white/5 rounded-xl shrink-0">
-                  <Send size={18} className="text-white/40 rotate-12" />
-                </div>
-                <span className="text-white text-lg font-medium truncate">
-                  {tgStatus.is_linked ? `@${tgStatus.telegram_username}` : "Telegram account"}
-                </span>
+          <div className="bg-[#1A1A1A] border border-white/10 rounded-[32px] p-6 sm:p-8 relative overflow-hidden">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 shrink-0">
+                <LinkIcon size={24} className="text-white" />
               </div>
-              <button
-                onClick={() => tgStatus.is_linked ? disconnectTelegram() : connectTelegram()}
-                disabled={tgLoading}
-                className={`w-full sm:w-auto px-6 py-2 rounded-full font-bold text-sm transition-colors ${tgStatus.is_linked ? 'bg-[#EF4444] text-white' : 'bg-[#326AFD] text-white'} disabled:opacity-50`}
-              >
-                {tgStatus.is_linked ? "Disconnect" : (tgLoading ? "Connecting..." : "Connect")}
-              </button>
+              <div>
+                <h3 className="text-white font-bold text-lg">Connected Accounts</h3>
+                <p className="text-white/40 text-xs">Manage your linked social accounts</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <GoogleIcon size={28} className="shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-white/80 text-sm sm:text-base">Google</span>
+                    <span className="text-white/40 text-xs">{profile?.email || "Not connected"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <TelegramConnect />
             </div>
           </div>
+
 
           <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />

@@ -13,10 +13,7 @@ const server = app.listen(PORT, () => {
 ╚════════════════════════════════════════╝
   `);
 
-  // Initialize Telegram Bot
-  import("./services/telegramBot").then(({ getTelegramBot }) => {
-    getTelegramBot();
-  });
+
 
   // Initialize Task Scheduler
   import("./services/scheduler").then(({ getTaskScheduler }) => {

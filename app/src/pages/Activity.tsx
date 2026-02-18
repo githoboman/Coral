@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Search, Filter, X, Check } from "lucide-react";
+import { ChevronRight, Search, Filter, X } from "lucide-react";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";

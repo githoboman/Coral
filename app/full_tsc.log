@@ -1,0 +1,21 @@
+src/pages/Activity.tsx(2,43): error TS6133: 'Check' is declared but its value is never read.
+src/pages/Layout.tsx(4,15): error TS6133: 'SettingsIcon' is declared but its value is never read.
+src/pages/Layout.tsx(15,3): error TS6133: 'Key' is declared but its value is never read.
+src/pages/Layout.tsx(16,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+src/pages/Layout.tsx(17,3): error TS6133: 'Mail' is declared but its value is never read.
+src/pages/Layout.tsx(433,13): error TS18004: No value exists in scope for the shorthand property 'swapFromAmount'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(434,13): error TS18004: No value exists in scope for the shorthand property 'setSwapFromAmount'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(435,13): error TS18004: No value exists in scope for the shorthand property 'swapFromToken'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(436,13): error TS18004: No value exists in scope for the shorthand property 'swapToAmount'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(437,13): error TS18004: No value exists in scope for the shorthand property 'swapToToken'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(438,13): error TS18004: No value exists in scope for the shorthand property 'isSwapping'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(439,13): error TS18004: No value exists in scope for the shorthand property 'handleSwap'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(440,13): error TS18004: No value exists in scope for the shorthand property 'swapRate'. Either declare one or provide an initializer.
+src/pages/Layout.tsx(466,5): error TS6133: 'isSending' is declared but its value is never read.
+src/pages/Layout.tsx(467,5): error TS6133: 'handleSend' is declared but its value is never read.
+src/pages/Layout.tsx(473,5): error TS6133: 'isSwapping' is declared but its value is never read.
+src/pages/Layout.tsx(474,5): error TS6133: 'handleSwap' is declared but its value is never read.
+src/pages/Layout.tsx(476,5): error TS6133: 'signOut' is declared but its value is never read.
+src/pages/Layout.tsx(479,5): error TS6133: 'isAutonomyEnabled' is declared but its value is never read.
+src/pages/Layout.tsx(480,5): error TS6133: 'toggleAutonomy' is declared but its value is never read.
+src/pages/Layout.tsx(481,5): error TS6133: 'isUpdatingAutonomy' is declared but its value is never read.

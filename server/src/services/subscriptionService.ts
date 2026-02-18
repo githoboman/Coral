@@ -239,9 +239,7 @@ export class SubscriptionService {
               : profile.daily_prompts_used,
           last_prompt_date:
             updates.last_prompt_date || profile.last_prompt_date,
-          telegram_chat_id: profile.telegram_chat_id,
-          telegram_username: profile.telegram_username,
-          telegram_linked_at: profile.telegram_linked_at,
+
         },
       );
 

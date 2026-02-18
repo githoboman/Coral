@@ -269,9 +269,7 @@ router.post(
           subscription_expires_at: profile.subscription_expires_at,
           daily_prompts_used: profile.daily_prompts_used,
           last_prompt_date: profile.last_prompt_date,
-          telegram_chat_id: profile.telegram_chat_id,
-          telegram_username: profile.telegram_username,
-          telegram_linked_at: profile.telegram_linked_at,
+
         },
       );
 
@@ -385,9 +383,7 @@ router.post(
           subscription_expires_at: profile.subscription_expires_at,
           daily_prompts_used: profile.daily_prompts_used,
           last_prompt_date: profile.last_prompt_date,
-          telegram_chat_id: profile.telegram_chat_id,
-          telegram_username: profile.telegram_username,
-          telegram_linked_at: profile.telegram_linked_at,
+
         },
       );
 

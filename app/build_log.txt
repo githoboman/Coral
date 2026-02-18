@@ -1,0 +1,20 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+src/pages/Activity.tsx(2,43): error TS6133: 'Check' is declared but its value is never read.
+src/pages/Layout.tsx(4,15): error TS6133: 'SettingsIcon' is declared but its value is never read.
+src/pages/Layout.tsx(11,3): error TS6133: 'RefreshCcw' is declared but its value is never read.
+src/pages/Layout.tsx(15,3): error TS6133: 'Key' is declared but its value is never read.
+src/pages/Layout.tsx(16,3): error TS6133: 'ShieldCheck' is declared but its value is never read.
+src/pages/Layout.tsx(17,3): error TS6133: 'Mail' is declared but its value is never read.
+src/pages/Layout.tsx(18,3): error TS6133: 'ArrowUpDown' is declared but its value is never read.
+src/pages/Layout.tsx(20,3): error TS6133: 'Clock' is declared but its value is never read.
+src/pages/Layout.tsx(31,1): error TS6133: 'Transaction' is declared but its value is never read.
+src/pages/Layout.tsx(452,5): error TS6133: 'isSending' is declared but its value is never read.
+src/pages/Layout.tsx(453,5): error TS6133: 'handleSend' is declared but its value is never read.
+src/pages/Layout.tsx(454,5): error TS6133: 'signOut' is declared but its value is never read.
+src/pages/Layout.tsx(457,5): error TS6133: 'isAutonomyEnabled' is declared but its value is never read.
+src/pages/Layout.tsx(458,5): error TS6133: 'toggleAutonomy' is declared but its value is never read.
+src/pages/Layout.tsx(459,5): error TS6133: 'isUpdatingAutonomy' is declared but its value is never read.
+src/pages/Layout.tsx(643,9): error TS6133: 'signAndExecuteTransaction' is declared but its value is never read.

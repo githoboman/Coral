@@ -1,0 +1,31 @@
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+[36mvite v7.1.5 [32mbuilding for production...[36m[39m
+transforming...
+[33mnode_modules/@mysten/enoki/node_modules/@noble/curves/esm/ed25519.js (416:0): A comment
+
+"/* @__PURE__ */"
+
+in "node_modules/@mysten/enoki/node_modules/@noble/curves/esm/ed25519.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.[39m
+[33mnode_modules/@mysten/enoki/node_modules/@noble/curves/esm/ed25519.js (419:0): A comment
+
+"/* @__PURE__ */"
+
+in "node_modules/@mysten/enoki/node_modules/@noble/curves/esm/ed25519.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.[39m
+[32m✓[39m 2923 modules transformed.
+[33m[plugin vite:reporter] 
+(!) C:/Users/HP/Desktop/Copilot/app/node_modules/sileo/dist/index.mjs is dynamically imported by C:/Users/HP/Desktop/Copilot/app/src/hooks/useCheckIn.ts but also statically imported by C:/Users/HP/Desktop/Copilot/app/src/components/SileoToaster.tsx, C:/Users/HP/Desktop/Copilot/app/src/components/auth/AuthProvider.tsx, C:/Users/HP/Desktop/Copilot/app/src/hooks/useProfile.ts, C:/Users/HP/Desktop/Copilot/app/src/pages/Layout.tsx, C:/Users/HP/Desktop/Copilot/app/src/pages/Signin.tsx, dynamic import will not move module into another chunk.
+[39m
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                 [39m[1m[2m    6.00 kB[22m[1m[22m[2m │ gzip:   1.88 kB[22m
+[2mdist/[22m[35massets/index-CL5oHydZ.css  [39m[1m[2m   85.44 kB[22m[1m[22m[2m │ gzip:  14.13 kB[22m
+[2mdist/[22m[36massets/index-GnL2zl4i.js   [39m[1m[33m1,195.93 kB[39m[22m[2m │ gzip: 378.36 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 55.03s[39m

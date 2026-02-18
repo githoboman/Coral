@@ -112,7 +112,7 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 space-y-6 no-scrollbar">
+      <nav className="flex-1 px-2 space-y-2 no-scrollbar">
         {navItems.map((item) => {
           return (
             <div key={item.name} className="flex flex-col">
