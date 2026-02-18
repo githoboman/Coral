@@ -26,8 +26,6 @@ import {
   Eye,
   LucideIcon,
   Layers,
-  Gift,
-  Vote,
   Shield,
   Repeat,
   Image,
