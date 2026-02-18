@@ -12,6 +12,7 @@ import {
   Gamepad2,
   ClipboardPaste,
   ArrowUp,
+  Check,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import gsap from "gsap";
@@ -19,7 +20,9 @@ import { useGSAP } from "@gsap/react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
   useCurrentAccount,
+  useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
 
 import { Sidebar } from "@/components/app/Sidebar";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -138,6 +141,9 @@ const WalletManager = ({
   isAutonomyEnabled,
   toggleAutonomy,
   isUpdatingAutonomy,
+  sendSuccess,
+  setSendSuccess,
+  lastTxDigest,
 }: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(!isWalletCollapsed);
@@ -204,9 +210,9 @@ const WalletManager = ({
         className="bg-[#18181B] md:bg-white/5 backdrop-blur-xl border-0 md:border md:border-white/10 rounded-none md:rounded-[30px] w-full md:w-80 h-full flex flex-col items-center relative p-6 mb-0 md:mb-6 overflow-hidden shadow-none md:shadow-none"
       >
         <div className="flex justify-between items-center w-full mb-8">
-          <div className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-3 py-1.5 rounded-full transition-colors">
-            <span className="font-bold text-white text-sm">Main Account</span>
-            <ChevronDown size={14} className="text-white/60" />
+          <div className="flex items-center gap-2 bg-[#B7FC0D]/10 px-3 py-1.5 rounded-full border border-[#B7FC0D]/20">
+            <div className="w-2 h-2 rounded-full bg-[#B7FC0D] animate-pulse" />
+            <span className="font-bold text-[#B7FC0D] text-xs uppercase tracking-wide">Testnet</span>
           </div>
           <button onClick={toggleWallet} className="btn btn-icon btn-ghost">
             <X size={16} className="text-white/60" />
@@ -422,6 +428,9 @@ const WalletManager = ({
             isAutonomyEnabled,
             toggleAutonomy,
             isUpdatingAutonomy,
+            sendSuccess,
+            setSendSuccess,
+            lastTxDigest,
           }}
         />
       </div>
@@ -443,6 +452,11 @@ const WalletModalOverlay = (props: any) => {
     handlePasteRecipient,
     address,
     copyToClipboard,
+    handleSend,
+    isSending,
+    sendSuccess,
+    setSendSuccess,
+    lastTxDigest,
   } = props;
   const overlayRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(
@@ -492,78 +506,133 @@ const WalletModalOverlay = (props: any) => {
       <div className="flex-1 overflow-y-auto scrollbar-none">
         {activeWalletModal === "send" && (
           <div className="space-y-4">
-            <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-5 space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-white">
-                  You are sending
-                </span>
-                <span className="text-[11px] text-white/40">
-                  Balance: {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
-                </span>
-              </div>
-              <div className="flex justify-between items-end">
-                <div className="flex flex-col">
-                  <input
-                    type="text"
-                    value={sendAmount}
-                    onChange={(e) => setSendAmount(e.target.value)}
-                    placeholder="0"
-                    className="text-[32px] font-bold text-white leading-tight bg-transparent focus:outline-none w-full"
-                  />
-                  <span className="text-sm text-white/20 font-medium">
-                    ≈ $
-                    {(
-                      Number(sendAmount || 0) * (selectedSendToken?.price || 0)
-                    ).toFixed(2)}
-                  </span>
+            {sendSuccess ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center space-y-6">
+                <div className="w-20 h-20 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full bg-[#B7FC0D] flex items-center justify-center">
+                    <Check size={24} className="text-black" />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <button
-                    onClick={() =>
-                      setSendAmount(
-                        selectedSendToken?.balance?.toString() || "0",
-                      )
-                    }
-                    className="text-[10px] font-bold text-[#82E131] hover:underline mb-2 cursor-pointer"
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Transaction Sent!</h3>
+                  <a
+                    href={`https://suiscan.xyz/testnet/tx/${lastTxDigest}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#B7FC0D] hover:underline flex items-center justify-center gap-1"
                   >
-                    MAX
+                    View on SuiScan <Share2 size={10} />
+                  </a>
+                </div>
+
+                <div className="w-full space-y-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setSendSuccess(false);
+                      setActiveWalletModal(null);
+                      setSendAmount("");
+                      setSendRecipient("");
+                    }}
+                    className="w-full btn btn-primary py-3 justify-center"
+                  >
+                    Done
                   </button>
-                  <button className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
-                    <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
-                      <img
-                        src={
-                          selectedSendToken?.icon ||
-                          "/assets/images/sui-icon.png"
-                        }
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-white">
-                      {selectedSendToken?.symbol || "SUI"}
-                    </span>
-                    <ChevronDown size={14} className="text-white/40" />
+                  <button
+                    onClick={() => {
+                      setSendSuccess(false);
+                      setSendAmount("");
+                      setSendRecipient("");
+                    }}
+                    className="w-full btn btn-ghost py-3 text-white/60 hover:text-white"
+                  >
+                    Send Another
                   </button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-5 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-white">
+                      You are sending
+                    </span>
+                    <span className="text-[11px] text-white/40">
+                      Balance: {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        value={sendAmount}
+                        onChange={(e) => setSendAmount(e.target.value)}
+                        placeholder="0"
+                        className="text-[32px] font-bold text-white leading-tight bg-transparent focus:outline-none w-full"
+                      />
+                      <span className="text-sm text-white/20 font-medium">
+                        ≈ $
+                        {(
+                          Number(sendAmount || 0) * (selectedSendToken?.price || 0)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        onClick={() =>
+                          setSendAmount(
+                            selectedSendToken?.balance?.toString() || "0",
+                          )
+                        }
+                        className="text-[10px] font-bold text-[#82E131] hover:underline mb-2 cursor-pointer"
+                      >
+                        MAX
+                      </button>
+                      <button className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+                        <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0">
+                          <img
+                            src={
+                              selectedSendToken?.icon ||
+                              "/assets/images/sui-icon.png"
+                            }
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-white">
+                          {selectedSendToken?.symbol || "SUI"}
+                        </span>
+                        <ChevronDown size={14} className="text-white/40" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="p-[1px] bg-gradient-to-r from-[#B7FC0D] to-[#246AFC] rounded-2xl">
-              <div className="relative group bg-[#070B0F] rounded-[inherit]">
-                <input
-                  type="text"
-                  placeholder="Paste recieving address..."
-                  value={sendRecipient}
-                  onChange={(e) => setSendRecipient(e.target.value)}
-                  className="input input-filled pr-14"
-                />
+                <div className="p-[1px] bg-gradient-to-r from-[#B7FC0D] to-[#246AFC] rounded-2xl">
+                  <div className="relative group bg-[#070B0F] rounded-[inherit]">
+                    <input
+                      type="text"
+                      placeholder="Paste recieving address..."
+                      value={sendRecipient}
+                      onChange={(e) => setSendRecipient(e.target.value)}
+                      className="input input-filled pr-14"
+                    />
+                    <button
+                      onClick={handlePasteRecipient}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer"
+                    >
+                      <ClipboardPaste size={14} className="text-white/40" />
+                    </button>
+                  </div>
+                </div>
+
                 <button
-                  onClick={handlePasteRecipient}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors border border-white/5 cursor-pointer"
+                  onClick={handleSend}
+                  disabled={isSending || !sendAmount || !sendRecipient}
+                  className="w-full btn btn-primary py-4 text-base font-bold justify-center mt-4 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  <ClipboardPaste size={14} className="text-white/40" />
+                  {isSending ? "Sending..." : "Send Now"}
                 </button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -628,6 +697,7 @@ export default function AppLayout() {
   const currentAccount = useCurrentAccount();
 
   const { signOut } = useAuth();
+  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
@@ -637,6 +707,8 @@ export default function AppLayout() {
   const [activeWalletModal, setActiveWalletModal] = useState<
     "deposit" | "send" | null
   >(null);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  const [lastTxDigest, setLastTxDigest] = useState("");
   const [activeTab, setActiveTab] = useState<
     "Tokens" | "Collectibles" | "Activity"
   >("Tokens");
@@ -858,8 +930,52 @@ export default function AppLayout() {
   }, [address, debouncedFetchBalance, fetchBalance]);
 
   const handleSend = async () => {
+    if (!address || !sendAmount || !sendRecipient) {
+      sileo.error({ title: "Error", description: "Please fill all fields" });
+      return;
+    }
+
     setIsSending(true);
-    setTimeout(() => setIsSending(false), 2000);
+
+    try {
+      const amountMIST = Math.floor(parseFloat(sendAmount) * 1_000_000_000);
+      const tx = new Transaction();
+
+      // Split coin for transfer
+      const [coin] = tx.splitCoins(tx.gas, [amountMIST]);
+
+      // Transfer the split coin
+      tx.transferObjects([coin], sendRecipient);
+
+      await signAndExecute(
+        { transaction: tx },
+        {
+          onSuccess: (result) => {
+            console.log("Transaction digest:", result.digest);
+            setLastTxDigest(result.digest);
+            setSendSuccess(true);
+            fetchBalance(); // Immediate refresh
+            // Don't close modal yet, show success screen
+          },
+          onError: (err) => {
+            console.error("Transaction failed:", err);
+            sileo.error({
+              title: "Transaction Failed",
+              description: err.message || "Unknown error occurred"
+            });
+          }
+        }
+      );
+
+    } catch (e: any) {
+      console.error("Send error:", e);
+      sileo.error({
+        title: "Error",
+        description: e.message || "Failed to send transaction"
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // Satisfy lint for setNfts and setActivity
@@ -984,6 +1100,9 @@ export default function AppLayout() {
           address={address}
           setIsWalletSelectorOpen={setIsWalletSelectorOpen}
           copyToClipboard={copyToClipboard}
+          sendSuccess={sendSuccess}
+          setSendSuccess={setSendSuccess}
+          lastTxDigest={lastTxDigest}
         />
       </div>
 

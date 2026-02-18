@@ -17,12 +17,14 @@ export const SileoToaster = () => {
   }, []);
 
   return (
-    <Toaster
-      position={position}
-      options={{
-        fill: "#171717",
-        styles: { description: "text-white/75!" },
-      }}
-    />
+    <div style={{ position: 'fixed', zIndex: 9999, pointerEvents: 'none' }}>
+      <Toaster
+        position={position}
+        options={{
+          fill: "#171717",
+          styles: { description: "text-white/75!" },
+        }}
+      />
+    </div>
   );
 };

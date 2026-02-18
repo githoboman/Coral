@@ -10,6 +10,7 @@ export interface ChatRequest {
   agentId: string; // "task" | "research" | "tovira" | "alert"
   message: string;
   conversationId?: string;
+  clientTime?: string; // ISO string from frontend
 }
 
 /**

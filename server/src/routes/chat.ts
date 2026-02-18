@@ -11,8 +11,6 @@ import { getChatService } from "../services/chatService";
 
 const router = Router();
 
-// ✅ LEGACY RESTORATION: Using inline checks for task agent
-
 /**
  * POST /api/chat
  * Body: { user_id, message, chat_id, agent_id, ... }
@@ -37,6 +35,7 @@ router.post("/", async (req: Request, res: Response) => {
     const msgContent = message || req.body.message;
     const agentId = agent_id || req.body.agentId;
     const chatId = chat_id || req.body.chatId; // Optional
+    const clientTime = req.body.client_time || new Date().toISOString(); // Default to server time if missing
 
     if (!userId || !msgContent) {
       return res.status(400).json({ error: "user_id and message are required" });
@@ -137,7 +136,7 @@ router.post("/", async (req: Request, res: Response) => {
         case "task": {
           const agent = getTaskManagerAgent();
           fullResponse = await agent.handle(
-            { userId, agentId: "task", message: msgContent, conversationId: finalConversationId },
+            { userId, agentId: "task", message: msgContent, conversationId: finalConversationId, clientTime },
             sse,
           );
           break;

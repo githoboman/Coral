@@ -42,6 +42,30 @@ export class NotificationService {
     return null;
   }
 
+  // Helper to get formatted date
+  private formatDate(dateStr?: string): string {
+    if (!dateStr) return "ASAP";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }
+
+  // Helper to get username or default
+  private async getUsername(blobId: string, walletAddress: string): Promise<string> {
+    try {
+      const profile = await this.walrusUserManager.getUserProfile(blobId, walletAddress);
+      if (profile && profile.username) {
+        return profile.username;
+      }
+    } catch (e) {
+      console.warn('Error fetching username:', e);
+    }
+    return "User";
+  }
+
   public async sendNotification(walletAddress: string, message: string): Promise<boolean> {
     const telegramAccount = await this.telegramService.getStatus(walletAddress);
     if (!telegramAccount || !telegramAccount.telegram_chat_id) {
@@ -51,43 +75,107 @@ export class NotificationService {
     return await this.telegramService.sendMessage(telegramAccount.telegram_chat_id, message);
   }
 
-  public async sendTaskCreatedNotification(walletAddress: string, taskTitle: string) {
-    // 1. Telegram
-    const message = `📋 New Task Created:\n\nBold: *${taskTitle}*\n\nCheck it out in the app!`;
+  // Helper to escape HTML for Telegram
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  public async sendTaskCreatedNotification(walletAddress: string, task: any) {
+    // 1. Telegram (HTML Format)
+    const blobId = await this.ticketMinter.getCurrentBlobId();
+    const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
+    const safeUsername = this.escapeHtml(username);
+
+    const taskName = task.task_name || "New Task";
+    const safeTaskName = this.escapeHtml(taskName);
+
+    const desc = task.description ? this.escapeHtml(task.description) : "";
+    const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
+
+    const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleString("en-US", {
+      month: "numeric", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit", second: "2-digit"
+    }) : "";
+
+    const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}\n${desc}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
+
     await this.sendNotification(walletAddress, message);
 
     // 2. Email (Premium only)
     const email = await this.getPremiumEmail(walletAddress);
     if (email) {
+
       const html = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
-            <h2>📋 New Task Created</h2>
-            <p>You have a new task waiting for you:</p>
-            <p style="font-size: 18px; font-weight: bold; color: #000;">${taskTitle}</p>
-            <p><a href="https://testnet.tovira.xyz" style="color: #00c4b4;">Open App</a></p>
+            <p>Hey <b>${username}</b>,</p>
+            <p>You just created a new task!</p>
+            
+            <p>Here's the <b>Details</b></p>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+              <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
+              ${task.description ? `<p>${task.description}</p>` : ''}
+            </div>
+
+            ${task.due_date ? `<p><b>Due Date</b><br>${new Date(task.due_date).toLocaleString("en-US", {
+        month: "numeric", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit", second: "2-digit"
+      })}</p>` : ''}
+
+            ${task.priority ? `<p><b>Priority</b><br>${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</p>` : ''}
+
+            <p>I'd be here to remind you once it is due.</p>
+            <p>Thanks,<br>Tovira Team</p>
         </div>
         `;
-      await this.emailService.sendEmail(email, `New Task: ${taskTitle}`, html);
+      await this.emailService.sendEmail(email, `New Notification!`, html);
     }
   }
 
-  public async sendTaskDueNotification(walletAddress: string, taskTitle: string) {
-    // 1. Telegram
-    const message = `⏰ Task Due Reminder:\n\n*${taskTitle}* is due now!`;
+  public async sendTaskDueNotification(walletAddress: string, task: any) {
+    const taskName = task.task_name || "Task";
+    const desc = task.description ? task.description : "";
+    const dueDate = this.formatDate(task.due_date);
+
+    // 1. Telegram (HTML Format)
+    const blobId = await this.ticketMinter.getCurrentBlobId();
+    const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
+    const safeUsername = this.escapeHtml(username);
+    const safeTaskName = this.escapeHtml(taskName);
+    const safeDesc = this.escapeHtml(desc);
+
+    const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}\n${safeDesc}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
+
     await this.sendNotification(walletAddress, message);
 
     // 2. Email (Premium only)
     const email = await this.getPremiumEmail(walletAddress);
     if (email) {
+      const blobId = await this.ticketMinter.getCurrentBlobId();
+      const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
+
       const html = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
-            <h2>⏰ Task Due Reminder</h2>
-            <p>Your task is due now:</p>
-            <p style="font-size: 18px; font-weight: bold; color: #000;">${taskTitle}</p>
-            <p><a href="https://testnet.tovira.xyz" style="color: #00c4b4;">Open App</a></p>
+            <p>Hey <b>${username}</b>,</p>
+            <p>Your task is due! Kindly attend to it.</p>
+            
+            <p>Here's the <b>details of what you asked me to remind you</b></p>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+              <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
+              <p>${desc}</p>
+            </div>
+
+            <p><b>Due Date</b><br>${dueDate}</p>
+
+            <p>Do well to schedule more activities, I look forward to helping you stay productive.</p>
+            <p>Thanks,<br>Tovira Team</p>
         </div>
         `;
-      await this.emailService.sendEmail(email, `Task Due: ${taskTitle}`, html);
+      await this.emailService.sendEmail(email, `Reminder Alert!!`, html);
     }
   }
 }

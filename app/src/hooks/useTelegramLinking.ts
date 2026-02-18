@@ -11,25 +11,52 @@ export interface TelegramStatus {
 
 export function useTelegramLinking() {
   const account = useCurrentAccount();
-  const [status, setStatus] = useState<TelegramStatus>({ is_linked: false });
-  const [loading, setLoading] = useState(false);
+
+  // Initialize from cache if available
+  const [status, setStatus] = useState<TelegramStatus>(() => {
+    if (!account?.address) return { is_linked: false };
+    const cached = localStorage.getItem(`telegram_status_${account.address}`);
+    return cached ? JSON.parse(cached) : { is_linked: false };
+  });
+
+  const [loading, setLoading] = useState(false); // Action loading
+  const [initialLoading, setInitialLoading] = useState(true); // Initial fetch loading
   const [error, setError] = useState<string | null>(null);
+
+  // Update cache helper
+  const updateStatus = useCallback((newStatus: TelegramStatus) => {
+    setStatus(newStatus);
+    if (account?.address) {
+      localStorage.setItem(`telegram_status_${account.address}`, JSON.stringify(newStatus));
+    }
+  }, [account?.address]);
 
   const fetchStatus = useCallback(async () => {
     if (!account?.address) return;
+
+    // Only set initial loading if we don't have a cache
+    const hasCache = !!localStorage.getItem(`telegram_status_${account.address}`);
+    if (!hasCache) setInitialLoading(true);
+
     try {
       const res = await fetch(`${API_BASE}/api/telegram/status?walletAddress=${account.address}`);
       if (res.ok) {
         const data = await res.json();
-        setStatus(data);
+        const currentCache = localStorage.getItem(`telegram_status_${account.address}`);
+
+        // Only update if changed to avoid renders
+        if (JSON.stringify(data) !== currentCache) {
+          updateStatus(data);
+        }
       } else {
-        // Fallback or ignore if endpoint missing (since backend might be gone)
         console.warn("Telegram status check failed:", res.status);
       }
     } catch (e) {
       console.error("Failed to fetch telegram status", e);
+    } finally {
+      setInitialLoading(false);
     }
-  }, [account]);
+  }, [account, updateStatus]);
 
   useEffect(() => {
     fetchStatus();
@@ -69,8 +96,7 @@ export function useTelegramLinking() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: account.address })
       });
-      setStatus({ is_linked: false });
-      await fetchStatus();
+      updateStatus({ is_linked: false });
     } catch (e) {
       console.error(e);
       setError("Failed to disconnect Telegram");
@@ -79,5 +105,12 @@ export function useTelegramLinking() {
     }
   };
 
-  return { status, connectTelegram, disconnectTelegram, loading, error, refetch: fetchStatus };
+  return {
+    status,
+    connectTelegram,
+    disconnectTelegram,
+    loading: loading || (initialLoading && !status.is_linked), // Show loading if actioning OR (fetching AND no cache/not linked)
+    error,
+    refetch: fetchStatus
+  };
 }
