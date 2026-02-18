@@ -100,7 +100,7 @@ const TelegramConnect = () => {
   const handleConnect = async () => {
     const data = await connectTelegram();
     if (data) {
-      setConnectData(data);
+      setConnectData({ ...data, botUsername: "ToviraBot" });
       setModalOpen(true);
     }
   };

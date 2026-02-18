@@ -530,7 +530,7 @@ export class TicketMinter {
 
       tx.moveCall({
         target: `${this.packageId}::points::has_claimed`,
-        arguments: [tx.object(this.pointsRegistryId), tx.pure.address(moveAddr)],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
@@ -612,7 +612,7 @@ export class TicketMinter {
 
       tx.moveCall({
         target: `${this.packageId}::points::get_balance`,
-        arguments: [tx.object(this.pointsRegistryId), tx.pure.address(moveAddr)],
+        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
       const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
