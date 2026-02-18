@@ -1,8 +1,8 @@
 {
-  "blobId": "sRk24dmUato730DsOdXxxrCEW9fC29c0usID-AIYlkQ",
+  "blobId": "7WbFn3G9e3UyyIkskAwea0V_8VsWp7wIKZYzwxX6bkk",
   "registry": {
-    "version": 607,
-    "updated_at": "2026-02-17T22:18:05.017Z",
+    "version": 608,
+    "updated_at": "2026-02-18T00:46:00.590Z",
     "total_users": 228,
     "users": {
       "0x7215d78f1085ff399e1cd722f0f940650e2a1aa85ad52fdf475871ca57a62564": {
@@ -5264,26 +5264,26 @@
       },
       "0xc520904c74264a3765cafcdd0d850a6927d4fc50e3e90e47e63129321d08afa5": {
         "email": {
-          "iv": "Zp+CBx/VoFcBDgjsmx1T+A==",
-          "salt": "Hkr6YFSTDKn20pFSLbJsPutuk9u+3/QSCcdi3IVl35LKJknhe0oou4Ys4YKQoNAe3agjHOR6K9nslKsV+Qq29g==",
-          "tag": "Jy5qaUOLXlD3VAyA0w42zw==",
-          "encrypted": "0m9jnFJ3wP6xuc+c9mLrR2YZxQ=="
+          "iv": "59j0M184SidJoPq83e4www==",
+          "salt": "3/f2e8yC0m7pgfMSuQ0BFAMurRkeSI0UH0JwyAYQkxAsEaJ6LLgaov/ITv0FLoP8PppKfH1m2XjxvDvi8+7oLw==",
+          "tag": "2MCGOM+yvNhumEjQFtQYbg==",
+          "encrypted": "8NEz2MmT1+lF015L3aUsitKUKg=="
         },
         "wallet_address": "0xc520904c74264a3765cafcdd0d850a6927d4fc50e3e90e47e63129321d08afa5",
         "is_waitlisted": false,
         "points_awarded": 0,
-        "joined_at": "2026-02-17T07:54:57.780Z",
+        "joined_at": "2026-02-18T00:46:00.502Z",
         "username": {
-          "iv": "ySY0+gLjiN+69iQZL5QYaA==",
-          "salt": "L6IJzEhIZZ2QsFcC1QwccYDF3rOqNCEYxuviqAJH7KK5qkFwQCE46LYX7Vvd2ICYsEY55ZZ8AHPGqEORunM0jA==",
-          "tag": "hot4G3WKY9HBp3X4GjCMEw==",
-          "encrypted": "TeeK4bYZ"
+          "iv": "534mMj96YTwNiyXar2mFDA==",
+          "salt": "HCc7bf06XiHpuiG++Uy59Q7QAGOxUYI/7H1J2pCLyxrdgWm81/2Dea6b3nvCPKwZF3RfVSsUa6+XgK43zaxHqQ==",
+          "tag": "FClZMwqxEnMHuR3xBl5VvA==",
+          "encrypted": "wzEbHp1I"
         },
         "preferences": {
-          "iv": "r6YuB9MW3mSeBA5x3Gkzdw==",
-          "salt": "I6stv5zMcP86/YFZt7MrwhfWlFSowGh5BHRTBx3yZcip1VnG4lPNm2HvJG933YQXl4Z7FbsKdx8H+7+c0PJG3g==",
-          "tag": "v+ie1Af9GOwlRBIJJf/uVA==",
-          "encrypted": "nRUPD19g15sBPycy9iowRk2izSwGFbI17YqhDUhnoLcR+Ywx13J+neA44a/6e/Qe5Aukm5Ehu2NEFm/V2LAuMterfinJ92q5/DzeB96LAWga/xG5htTV+Q=="
+          "iv": "qZ52Jml0NQteDJc7ayK74Q==",
+          "salt": "CVhB5g9bjE6whNZwQ/4IOhCmBzwqIsdhxrugghV89RLn9y8tPKAucts3134fV0Nqgp1FT7H26OZI3YgnJKALTA==",
+          "tag": "rZmHwvFX7b/yj7ebSfPAaA==",
+          "encrypted": "RJHq2YrIEehO62bi9y6pUGb6X6VSqiEgh6hALv+BJPCcvCDYot6oNk1jqeVxsw4GAIX/G5Fh2iCvU1LrzdHYce38e3MVur3Tlbdw2yX6jKaEYE+GFxuI+Q=="
         }
       },
       "0xaddfd18eaa5c5ce656466e6c80cddad94488b65d7ac6dbe957f7af62e2fd2d82": {
@@ -6026,7 +6026,7 @@
         }
       }
     },
-    "description": "Updated user: 0x6788ee9589dd75784972b52fd3415336ef8938b5ff92f6fb18fc80d8a7d4fd5c",
-    "previous_blob": "o595YyBGC8Wr60Mza1MQOcUp9s0A-JRGLQ7Bt23QnSo"
+    "description": "Updated user: 0xc520904c74264a3765cafcdd0d850a6927d4fc50e3e90e47e63129321d08afa5",
+    "previous_blob": "sRk24dmUato730DsOdXxxrCEW9fC29c0usID-AIYlkQ"
   }
 }
