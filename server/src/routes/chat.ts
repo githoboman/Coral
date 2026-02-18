@@ -45,7 +45,7 @@ router.post("/", async (req: Request, res: Response) => {
     if (agentId === "task" || agentId === "task_agent") {
       const subscriptionService = getSubscriptionService();
       // Use the robust in-memory+redis check
-      const canUse = await subscriptionService.canUsePrompt(userId);;
+      const canUse = await subscriptionService.canUsePrompt(userId);
 
       if (!canUse) {
         const remaining = await subscriptionService.getPromptsRemaining(userId);

@@ -1231,8 +1231,8 @@ const Dashboard = () => {
         {/* ── Messages Area ─────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Scrollable messages */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-16 pt-24 pb-32 space-y-6">
-            <div className="max-w-[880px] mx-auto ">
+          <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-16 pt-32 pb-36">
+            <div className="max-w-[880px] mx-auto space-y-16">
               {/* Loading State */}
               {isLoadingMessages && <ChatSkeleton />}
 
