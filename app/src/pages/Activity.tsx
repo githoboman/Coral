@@ -8,6 +8,7 @@ import { fetchEvents } from "@/store/slices/eventsSlice";
 import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { Toast, ToastType } from "@/components/ui/Toast";
 import { useDebounce } from "@/hooks/useDebounce";
+import { sileo } from "sileo";
 
 
 const API_BASE_URL =
@@ -925,7 +926,7 @@ const TaskPointsClaimSection = () => {
         ],
       });
 
-      const result = await signAndExecuteTransaction({ transaction: tx });
+      await signAndExecuteTransaction({ transaction: tx });
 
       await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
         method: 'POST',
@@ -944,9 +945,10 @@ const TaskPointsClaimSection = () => {
       const refreshData = await refreshResponse.json();
       setClaimable(refreshData);
 
-      alert(
-        `🎉 Successfully claimed ${claimable.total_claimable_points} points!\n\nTransaction: ${result.digest.slice(0, 10)}...`,
-      );
+      sileo.success({
+        title: "Points Claimed!",
+        description: `🎉 Successfully claimed ${claimable.total_claimable_points} points!`,
+      });
 
     } catch (error: any) {
       console.error("[CLAIM] Claim failed:", error);
@@ -964,7 +966,10 @@ const TaskPointsClaimSection = () => {
         errorMessage += error.message || "Please try again.";
       }
 
-      alert(errorMessage);
+      sileo.error({
+        title: "Claim Failed",
+        description: errorMessage,
+      });
     } finally {
       setIsClaiming(false);
     }

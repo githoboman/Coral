@@ -1,5 +1,9 @@
 import { Telegraf, Context } from 'telegraf';
 import { getSupabaseClient } from '../config/supabase';
+import { getTaskStorageService } from './taskStorageService';
+import { getTicketMinter } from './ticketMinter';
+import { getSubscriptionService } from './subscriptionService';
+import { getWalrusUserManager } from './walrusUserManager';
 
 export interface TelegramAccount {
   wallet_address: string;
@@ -44,24 +48,130 @@ export class TelegramService {
     }
 
     this.bot.start(async (ctx: Context) => {
-      // @ts-ignore - payload exists on start command in newer telegraf or via stripping
-      // fast way to get payload from /start <payload>
       const payload = ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ')[1] : '';
 
+      // Check if user is already linked
+      const existingAccount = await this.getAccountByTelegramId(ctx.from!.id.toString());
+
       if (!payload) {
-        return ctx.reply('Welcome to Tovira! Please use the link provided in the Tovira app to connect your account.');
+        if (existingAccount) {
+          const addr = existingAccount.wallet_address;
+          return ctx.reply(
+            `👋 Welcome back to Tovira!\n\n` +
+            `🔗 Linked wallet: ${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}\n\n` +
+            `Use /info to see your profile or /tasks to view your tasks.`
+          );
+        }
+        return ctx.reply('Welcome to Tovira! Please follow the process indicated in the Tovira app to connect your account.');
+      }
+
+      // If already linked, don't re-link
+      if (existingAccount) {
+        const addr = existingAccount.wallet_address;
+        return ctx.reply(
+          `⚠️ You are already linked to wallet ${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}.\n` +
+          `To unlink, please use the app.`
+        );
       }
 
       try {
         const linked = await this.verifyAndLink(payload, ctx.from);
         if (linked) {
-          await ctx.reply(`✅ Successfully linked to wallet ${linked.wallet_address.substring(0, 6)}...${linked.wallet_address.substring(linked.wallet_address.length - 4)}!`);
+          await ctx.reply(
+            `✅ Successfully linked to wallet ${linked.wallet_address.substring(0, 6)}...${linked.wallet_address.substring(linked.wallet_address.length - 4)}!\n\n` +
+            `Use /info to see your profile or /tasks to view your tasks.`
+          );
         } else {
           await ctx.reply('❌ Invalid or expired connection code. Please try generating a new link in the app.');
         }
       } catch (error) {
         console.error('Error linking account:', error);
         await ctx.reply('❌ An error occurred while linking your account. Please try again later.');
+      }
+    });
+
+    // /info command - show linked profile
+    this.bot.command('info', async (ctx) => {
+      try {
+        const account = await this.getAccountByTelegramId(ctx.from.id.toString());
+        if (!account) {
+          return ctx.reply('❌ Your Telegram is not linked to any Tovira account.\nPlease link it from the Tovira app first.');
+        }
+
+        const addr = account.wallet_address;
+
+        // Fetch dashboard username from Walrus profile
+        let displayName = 'Unknown';
+        let streak = 0;
+        try {
+          const blobId = await getTicketMinter().getCurrentBlobId();
+          if (blobId) {
+            const profile = await getWalrusUserManager().getUserProfile(blobId, addr);
+            if (profile) {
+              displayName = profile.username || profile.first_name || 'Unknown';
+              streak = profile.current_streak || 0;
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching Walrus profile for /info:', e);
+        }
+
+        // Fetch subscription tier
+        let planLabel = 'Free';
+        try {
+          const sub = await getSubscriptionService().getCurrentTier(addr);
+          if (sub.isActivePremium) planLabel = 'Premium';
+        } catch (e) {
+          console.error('Error fetching subscription for /info:', e);
+        }
+
+        const connectedAt = account.created_at ? new Date(account.created_at).toLocaleDateString() : 'Unknown';
+
+        await ctx.reply(
+          `🏙 *Your Tovira Profile*\n\n` +
+          `👤 User: ${displayName}\n` +
+          `👛 Wallet: \`${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}\`\n` +
+          `💎 Plan: ${planLabel}\n` +
+          `🔥 Streak: ${streak} days\n` +
+          `📅 Connected: ${connectedAt}\n`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Error handling /info:', error);
+        await ctx.reply('❌ An error occurred. Please try again later.');
+      }
+    });
+
+    // /tasks command - show task stats summary
+    this.bot.command('tasks', async (ctx) => {
+      try {
+        const account = await this.getAccountByTelegramId(ctx.from.id.toString());
+        if (!account) {
+          return ctx.reply('❌ Your Telegram is not linked to any Tovira account.\nPlease link it from the Tovira app first.');
+        }
+
+        const taskStorage = getTaskStorageService();
+        const tasks = await taskStorage.getTasks(account.wallet_address);
+
+        const total = tasks.length;
+        const pending = tasks.filter(t => t.status === 'pending').length;
+        const completed = tasks.filter(t => t.status === 'completed').length;
+        const overdue = tasks.filter(t =>
+          t.status === 'pending' && t.due_date && new Date(t.due_date) < new Date()
+        ).length;
+
+        await ctx.reply(
+          `� *Your Tasks*\n\n` +
+          `Total: ${total}\n` +
+          `🟡 Pending: ${pending}\n` +
+          `🟢 Completed: ${completed}\n` +
+          `🔴 Overdue: ${overdue}\n\n` +
+          `_Detailed list is available on the dashboard._`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Error handling /tasks:', error);
+        await ctx.reply('❌ An error occurred. Please try again later.');
       }
     });
 
@@ -72,19 +182,13 @@ export class TelegramService {
       const text = ctx.message.text.trim();
 
       // Strict check: Only process if it is EXACTLY a 6-digit number
-      // This prevents the bot from replying to normal messages like "hello" or "100 coins"
       if (/^\d{6}$/.test(text)) {
         try {
           // Check if user is already linked
-          const telegramUserId = ctx.from.id.toString();
-          const { data: existingLink } = await this.supabase
-            .from('telegram_accounts')
-            .select('wallet_address')
-            .eq('telegram_user_id', telegramUserId)
-            .single();
+          const existingAccount = await this.getAccountByTelegramId(ctx.from.id.toString());
 
-          if (existingLink) {
-            const addr = existingLink.wallet_address;
+          if (existingAccount) {
+            const addr = existingAccount.wallet_address;
             return ctx.reply(`⚠️ You are already linked to wallet ${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}.\nTo unlink, please use the app.`);
           }
 
@@ -99,8 +203,6 @@ export class TelegramService {
           await ctx.reply('❌ An error occurred. Please try again later.');
         }
       }
-      // If it's not a code, we simply ignore it effectively allowing other potential handlers (if any were added via middleware) 
-      // or simply remaining silent so we don't spam the user.
     });
 
     this.bot.launch().catch(err => {
@@ -122,9 +224,30 @@ export class TelegramService {
     return this.botUsername;
   }
 
+  // Look up linked account by Telegram user ID
+  public async getAccountByTelegramId(telegramUserId: string): Promise<TelegramAccount | null> {
+    const { data, error } = await this.supabase
+      .from('telegram_accounts')
+      .select('*')
+      .eq('telegram_user_id', telegramUserId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching account by telegram ID:', error);
+      return null;
+    }
+
+    return data;
+  }
+
   // Generate 6-digit code
   public async generateCode(walletAddress: string): Promise<string> {
-    // Generate a random 6-character alphanumeric code to avoid collisions and make it slightly harder to guess
+    // Clean up expired codes first
+    await this.supabase
+      .from('telegram_codes')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+
     const chars = '0123456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
