@@ -219,7 +219,23 @@ async function extractIntent(
       structuredExtractLlm.invoke([
         {
           role: "system",
-          content: "You are a smart task extractor. If the user describes a task without a clear title (e.g. 'I should do X'), summarize it into a concise `task_name`. For 'create task' intent, `task_name` is REQUIRED."
+          content: `You are a smart task extractor. If the user describes a task without a clear title (e.g. 'I should do X'), summarize it into a concise \`task_name\`. For 'create task' intent, \`task_name\` is REQUIRED.
+
+RULES FOR \`description\`:
+- NEVER set description to the raw user message.
+- Only set description if the user provides additional context BEYOND the task name itself.
+- If the task_name already captures the full intent, leave description empty.
+- Example: "remind me to check Solana price in 2 min" -> task_name: "Check Solana Price", description: empty (not needed).
+
+CRITICAL RULES FOR \`due_date\`:
+- due_date MUST be a calculated absolute ISO 8601 string based on Current Time.
+- "in 2 minutes" -> Add 2 minutes to Current Time
+- "in 1 hour" -> Add 1 hour to Current Time  
+- "tomorrow" -> Tomorrow at 9:00 AM
+- "tonight" -> Today at 8:00 PM
+- "in 30 minutes" -> Add 30 minutes to Current Time
+Example: If Current Time is 2024-01-01T10:00:00.000Z and user says "in 2 minutes", due_date MUST be "2024-01-01T10:02:00.000Z".
+You MUST always calculate and return due_date when the user specifies any time reference.`
         },
         {
           role: "human",
@@ -339,8 +355,11 @@ async function executeTask(
         };
       }
 
-      // Default to 24 hours from now if no due date provided
+      // Try LLM-extracted due_date first, then parse from user message, then default to 24h
       let finalDueDate = ext.due_date;
+      if (!finalDueDate) {
+        finalDueDate = parseRelativeTime(state.message, state.clientTime) ?? undefined;
+      }
       if (!finalDueDate) {
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         finalDueDate = tomorrow.toISOString();
@@ -387,7 +406,7 @@ async function executeTask(
         response += `\n${emoji} Priority: ${ext.priority}`;
       }
 
-      if (ext.description) {
+      if (ext.description && ext.task_name && !ext.description.toLowerCase().includes(ext.task_name.toLowerCase()) && !ext.task_name.toLowerCase().includes(ext.description.toLowerCase())) {
         response += `\n📝 ${ext.description}`;
       }
 
@@ -646,8 +665,11 @@ async function executeTask(
             const args = toolCall.args as any;
             console.log(`[TASK] 🛠️ Tool Call: create_task`, args);
 
-            // Default to 24h if not provided
+            // Try LLM due_date, then parse from message, then default to 24h
             let finalDueDate = args.due_date;
+            if (!finalDueDate) {
+              finalDueDate = parseRelativeTime(state.message, state.clientTime) ?? undefined;
+            }
             if (!finalDueDate) {
               finalDueDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
             }
@@ -774,6 +796,68 @@ function findTaskByName(
   const exact = tasks.find((t) => t.task_name.toLowerCase() === lower);
   if (exact) return exact;
   return tasks.find((t) => t.task_name.toLowerCase().includes(lower));
+}
+
+/**
+ * Parse relative time expressions from user message and return an ISO date string.
+ * Handles: "in X minutes/hours/days", "tomorrow", "tonight", "next week", etc.
+ */
+function parseRelativeTime(message: string, clientTime?: string): string | null {
+  const msg = message.toLowerCase();
+  const now = clientTime ? new Date(clientTime) : new Date();
+
+  // Match "in X minute(s)/min(s)"
+  const minuteMatch = msg.match(/in\s+(\d+)\s*(?:minute|minutes|min|mins)/);
+  if (minuteMatch) {
+    const minutes = parseInt(minuteMatch[1], 10);
+    return new Date(now.getTime() + minutes * 60 * 1000).toISOString();
+  }
+
+  // Match "in X hour(s)/hr(s)"
+  const hourMatch = msg.match(/in\s+(\d+)\s*(?:hour|hours|hr|hrs)/);
+  if (hourMatch) {
+    const hours = parseInt(hourMatch[1], 10);
+    return new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
+  }
+
+  // Match "in X day(s)"
+  const dayMatch = msg.match(/in\s+(\d+)\s*(?:day|days)/);
+  if (dayMatch) {
+    const days = parseInt(dayMatch[1], 10);
+    return new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+  }
+
+  // Match "in X second(s)/sec(s)"
+  const secMatch = msg.match(/in\s+(\d+)\s*(?:second|seconds|sec|secs)/);
+  if (secMatch) {
+    const secs = parseInt(secMatch[1], 10);
+    return new Date(now.getTime() + secs * 1000).toISOString();
+  }
+
+  // "tomorrow" -> tomorrow at 9:00 AM
+  if (msg.includes("tomorrow")) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    return tomorrow.toISOString();
+  }
+
+  // "tonight" -> today at 8:00 PM
+  if (msg.includes("tonight")) {
+    const tonight = new Date(now);
+    tonight.setHours(20, 0, 0, 0);
+    return tonight.toISOString();
+  }
+
+  // "next week" -> 7 days from now at 9:00 AM
+  if (msg.includes("next week")) {
+    const nextWeek = new Date(now);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    nextWeek.setHours(9, 0, 0, 0);
+    return nextWeek.toISOString();
+  }
+
+  return null;
 }
 
 async function trackTaskCreation(userId: string): Promise<void> {

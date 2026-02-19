@@ -94,7 +94,9 @@ export class NotificationService {
     const taskName = task.task_name || "New Task";
     const safeTaskName = this.escapeHtml(taskName);
 
-    const desc = task.description ? this.escapeHtml(task.description) : "";
+    const rawDesc = task.description ? this.escapeHtml(task.description) : "";
+    // Only show description if it's meaningfully different from task name
+    const desc = (rawDesc && !rawDesc.toLowerCase().includes(safeTaskName.toLowerCase()) && !safeTaskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
     const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
 
     const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleString("en-US", {
@@ -102,7 +104,8 @@ export class NotificationService {
       hour: "numeric", minute: "2-digit", second: "2-digit"
     }) : "";
 
-    const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}\n${desc}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
+    const descLine = desc ? `\n${desc}` : "";
+    const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
 
     await this.sendNotification(walletAddress, message);
 
@@ -118,7 +121,7 @@ export class NotificationService {
             <p>Here's the <b>Details</b></p>
             <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
               <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
-              ${task.description ? `<p>${task.description}</p>` : ''}
+              ${(task.description && !task.description.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(task.description.toLowerCase())) ? `<p>${task.description}</p>` : ''}
             </div>
 
             ${task.due_date ? `<p><b>Due Date</b><br>${new Date(task.due_date).toLocaleString("en-US", {
@@ -138,7 +141,8 @@ export class NotificationService {
 
   public async sendTaskDueNotification(walletAddress: string, task: any) {
     const taskName = task.task_name || "Task";
-    const desc = task.description ? task.description : "";
+    const rawDesc = task.description ? task.description : "";
+    const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
     const dueDate = this.formatDate(task.due_date);
 
     // 1. Telegram (HTML Format)
@@ -148,7 +152,8 @@ export class NotificationService {
     const safeTaskName = this.escapeHtml(taskName);
     const safeDesc = this.escapeHtml(desc);
 
-    const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}\n${safeDesc}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
+    const descLine = desc ? `\n${safeDesc}` : "";
+    const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
 
     await this.sendNotification(walletAddress, message);
 
@@ -166,7 +171,7 @@ export class NotificationService {
             <p>Here's the <b>details of what you asked me to remind you</b></p>
             <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
               <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
-              <p>${desc}</p>
+              ${(desc) ? `<p>${desc}</p>` : ''}
             </div>
 
             <p><b>Due Date</b><br>${dueDate}</p>
