@@ -93,14 +93,24 @@ export class TicketMinter {
     try {
       return await operation();
     } catch (error: any) {
+      const msg = error?.message || "";
       const isRateLimit =
-        error?.message?.includes("429") ||
+        msg.includes("429") ||
         error?.status === 429 ||
         (error?.body && JSON.stringify(error.body).includes("Too Many Requests"));
 
-      if (retries > 0 && isRateLimit) {
+      const isNetworkError =
+        msg.includes("ECONNRESET") ||
+        msg.includes("ETIMEDOUT") ||
+        msg.includes("UND_ERR_SOCKET") ||
+        msg.includes("fetch failed") ||
+        msg.includes("SocketError") ||
+        error?.code === "ECONNRESET" ||
+        error?.code === "ETIMEDOUT";
+
+      if (retries > 0 && (isRateLimit || isNetworkError)) {
         console.warn(
-          `⚠️  RPC Rate Limit (429) hit. Waiting ${delay}ms before retry... (${retries} attempts left)`
+          `⚠️  RPC Error (${isRateLimit ? "429 Rate Limit" : "Network"}). Waiting ${delay}ms before retry... (${retries} attempts left)`
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
         // Exponential backoff with jitter
@@ -134,10 +144,10 @@ export class TicketMinter {
         arguments: [tx.object(this.feeConfigId)],
       });
 
-      const result = await this.client.devInspectTransactionBlock({
+      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
         sender: this.keypair.toSuiAddress(),
         transactionBlock: tx,
-      });
+      }));
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -234,10 +244,10 @@ export class TicketMinter {
         arguments: [tx.object(this.feeConfigId)],
       });
 
-      const result = await this.client.devInspectTransactionBlock({
+      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
         sender: this.keypair.toSuiAddress(),
         transactionBlock: tx,
-      });
+      }));
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -473,13 +483,13 @@ export class TicketMinter {
 
       if (result.effects?.status?.status === "success") {
         console.log(`✅ BlobRegistry updated  tx=${result.digest}`);
-        
+
         // Update cache immediately so we don't serve stale data
         this.blobRegistryCache = {
           id: newBlobId,
           timestamp: Date.now()
         };
-        
+
         return result.digest;
       }
 
@@ -523,10 +533,10 @@ export class TicketMinter {
         arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
+      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
+        sender: this.keypair.toSuiAddress(),
         transactionBlock: tx,
-      });
+      }));
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -605,10 +615,10 @@ export class TicketMinter {
         arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
+      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
+        sender: this.keypair.toSuiAddress(),
         transactionBlock: tx,
-      });
+      }));
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -627,6 +637,31 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
+      // 1. Try direct contract call (Fastest)
+      try {
+        const tx = new Transaction();
+        const moveAddr = this.toMoveAddressFormat(walletAddress);
+
+        tx.moveCall({
+          target: `${this.packageId}::points::get_last_checkin`,
+          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+        });
+
+        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }));
+
+        if (result.results?.[0]?.returnValues?.[0]) {
+          const [bytes] = result.results[0].returnValues[0];
+          const view = new DataView(new Uint8Array(bytes).buffer);
+          return Number(view.getBigUint64(0, true));
+        }
+      } catch (err) {
+        console.warn("⚠️  get_last_checkin devInspect failed, falling back to events:", err);
+      }
+
+      // 2. Fallback to indexing
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -639,29 +674,8 @@ export class TicketMinter {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
           const timestamp = Number(data.timestamp);
-
           return timestamp;
         }
-      }
-
-
-      const tx = new Transaction();
-      const moveAddr = this.toMoveAddressFormat(walletAddress);
-
-      tx.moveCall({
-        target: `${this.packageId}::points::get_last_checkin`,
-        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
-      });
-
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
-        transactionBlock: tx,
-      });
-
-      if (result.results?.[0]?.returnValues?.[0]) {
-        const [bytes] = result.results[0].returnValues[0];
-        const view = new DataView(new Uint8Array(bytes).buffer);
-        return Number(view.getBigUint64(0, true));
       }
 
       return 0;
@@ -675,6 +689,36 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
+      // 1. Try direct contract call (Fastest & Most Reliable)
+      try {
+        const tx = new Transaction();
+        const moveAddr = this.toMoveAddressFormat(walletAddress);
+
+        tx.moveCall({
+          target: `${this.packageId}::points::get_last_checkin_date`,
+          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+        });
+
+        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }));
+
+        if (result.results?.[0]?.returnValues?.[0]) {
+          const [bytes] = result.results[0].returnValues[0];
+          const dateStr = new TextDecoder().decode(new Uint8Array(bytes));
+          const trimmed = dateStr.trim();
+          if (trimmed && trimmed.length > 0) return trimmed;
+        } else {
+          console.warn("⚠️ devInspect returned no values:", JSON.stringify(result.effects?.status || result));
+        }
+      } catch (err) {
+        console.warn("⚠️  get_last_checkin_date devInspect failed, falling back to events:", err);
+      }
+
+      // 2. Fallback to indexing (Slow & potentially incomplete history)
+      console.log(`[TICKET_MINTER] Falling back to queryEvents for ${walletAddress.substring(0, 8)}`);
+
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -686,29 +730,8 @@ export class TicketMinter {
       for (const ev of allEvents.data) {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-
           return data.checkin_date;
         }
-      }
-
-
-      const tx = new Transaction();
-      const moveAddr = this.toMoveAddressFormat(walletAddress);
-
-      tx.moveCall({
-        target: `${this.packageId}::points::get_last_checkin_date`,
-        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
-      });
-
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
-        transactionBlock: tx,
-      });
-
-      if (result.results?.[0]?.returnValues?.[0]) {
-        const [bytes] = result.results[0].returnValues[0];
-        const dateStr = new TextDecoder().decode(new Uint8Array(bytes));
-        return dateStr.trim();
       }
 
       return "";
@@ -722,6 +745,33 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
+      // 1. Try direct contract call (Fastest)
+      try {
+        const tx = new Transaction();
+        const moveAddr = this.toMoveAddressFormat(walletAddress);
+
+        tx.moveCall({
+          target: `${this.packageId}::points::get_current_streak`,
+          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+        });
+
+        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }));
+
+        if (result.results?.[0]?.returnValues?.[0]) {
+          const [bytes] = result.results[0].returnValues[0];
+          const view = new DataView(new Uint8Array(bytes).buffer);
+          return Number(view.getBigUint64(0, true));
+        }
+      } catch (err) {
+        console.warn("⚠️  get_current_streak devInspect failed, falling back to events:", err);
+      }
+
+      // 2. Fallback to indexing
+      console.log(`[TICKET_MINTER] Falling back to queryEvents (streak) for ${walletAddress.substring(0, 8)}`);
+
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -734,29 +784,8 @@ export class TicketMinter {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
           const streak = Number(data.current_streak);
-
           return streak;
         }
-      }
-
-
-      const tx = new Transaction();
-      const moveAddr = this.toMoveAddressFormat(walletAddress);
-
-      tx.moveCall({
-        target: `${this.packageId}::points::get_current_streak`,
-        arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
-      });
-
-      const result = await this.client.devInspectTransactionBlock({
-        sender: normalized,
-        transactionBlock: tx,
-      });
-
-      if (result.results?.[0]?.returnValues?.[0]) {
-        const [bytes] = result.results[0].returnValues[0];
-        const view = new DataView(new Uint8Array(bytes).buffer);
-        return Number(view.getBigUint64(0, true));
       }
 
       return 0;
@@ -930,13 +959,13 @@ export class TicketMinter {
           }
 
           console.log(`📖 Read blob ID from BlobRegistry: "${currentBlobId}"`);
-          
+
           // 3. Update Cache
           this.blobRegistryCache = {
             id: currentBlobId,
             timestamp: Date.now(),
           };
-          
+
           return currentBlobId;
         }
 

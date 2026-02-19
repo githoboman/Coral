@@ -339,6 +339,13 @@ async function executeTask(
         };
       }
 
+      // Default to 24 hours from now if no due date provided
+      let finalDueDate = ext.due_date;
+      if (!finalDueDate) {
+        const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        finalDueDate = tomorrow.toISOString();
+      }
+
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
       // Queue database save in background
@@ -348,7 +355,7 @@ async function executeTask(
         data: {
           task_name: ext.task_name,
           description: ext.description,
-          due_date: ext.due_date,
+          due_date: finalDueDate,
           priority: ext.priority || "medium",
           status: "pending",
           tags: ext.tags || [],
@@ -364,8 +371,8 @@ async function executeTask(
       // Format response immediately
       let response = `✅ Task created: **${ext.task_name}**`;
 
-      if (ext.due_date) {
-        const d = new Date(ext.due_date);
+      if (finalDueDate) {
+        const d = new Date(finalDueDate);
         response += `\n📅 Due: ${d.toLocaleString("en-US", {
           weekday: "short",
           month: "short",
@@ -639,6 +646,12 @@ async function executeTask(
             const args = toolCall.args as any;
             console.log(`[TASK] 🛠️ Tool Call: create_task`, args);
 
+            // Default to 24h if not provided
+            let finalDueDate = args.due_date;
+            if (!finalDueDate) {
+              finalDueDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+            }
+
             // Execute creation logic directly
             bgQueue.add({
               type: 'create',
@@ -646,7 +659,7 @@ async function executeTask(
               data: {
                 task_name: args.task_name,
                 description: args.description,
-                due_date: args.due_date,
+                due_date: finalDueDate,
                 priority: args.priority || "medium",
                 status: "pending",
                 tags: [],
@@ -658,8 +671,12 @@ async function executeTask(
             // Fire-and-forget points tracking
             trackTaskCreation(state.userId).catch(() => { });
 
+            const dateStr = new Date(finalDueDate).toLocaleString("en-US", {
+              weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+            });
+
             return {
-              responseText: `✅ Task created: **${args.task_name}**`,
+              responseText: `✅ Task created: **${args.task_name}**\n📅 Due: ${dateStr}`,
               actionEvent: { type: "task_created", taskId: "temp_tool_created" },
             };
           }

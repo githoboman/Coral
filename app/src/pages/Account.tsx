@@ -100,7 +100,7 @@ const TelegramConnect = () => {
   const handleConnect = async () => {
     const data = await connectTelegram();
     if (data) {
-      setConnectData(data);
+      setConnectData({ ...data, botUsername: "ToviraBot" });
       setModalOpen(true);
     }
   };
@@ -166,7 +166,7 @@ const Account = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
   const { mutate: disconnectWallet } = useDisconnectWallet();
-  const { checkin, checkinState } = useCheckin();
+  const { checkin, checkinState, refetchStatus } = useCheckin();
   const { profile, updatePreferences, loading } = useProfile();
 
   const { entries: leaderboard } = useAppSelector((state) => state.leaderboard);
@@ -350,14 +350,23 @@ const Account = () => {
                 </div>
               </div>
               <button
-                onClick={checkin}
-                disabled={!checkinState.canCheckin}
-                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${checkinState.canCheckin ? 'bg-[#B7FC0D] text-black hover:scale-105 active:scale-95' : 'bg-white/5 text-white/20'}`}
+                onClick={() => {
+                  if (checkinState.status === "error") {
+                    refetchStatus();
+                    return;
+                  }
+                  checkin();
+                }}
+                disabled={!checkinState.canCheckin && checkinState.status !== "error"}
+                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${checkinState.canCheckin || checkinState.status === 'error' ? 'bg-[#B7FC0D] text-black hover:scale-105 active:scale-95' : 'bg-white/5 text-white/20'}`}
               >
                 {(() => {
+                  if (checkinState.status === "checking") return <Loader2 className="w-4 h-4 animate-spin" />;
+
                   if (checkinState.status === "signing") return "Signing...";
                   if (checkinState.status === "confirming") return "Confirming...";
                   if (checkinState.status === "requesting") return "Requesting...";
+                  if (checkinState.status === "error") return "Retry";
 
                   if (checkinState.canCheckin) return "Check In";
 
@@ -365,18 +374,35 @@ const Account = () => {
                   return `Next: ${timeLeft}`;
                 })()}
               </button>
+              {checkinState.status === "error" && (
+                <div className="absolute -bottom-8 right-0 text-red-400 text-xs font-medium">
+                  {checkinState.error || "Connection failed"}
+                </div>
+              )}
             </div>
-            <div className="space-y-3 relative z-10">
-              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
-                <span>Progress</span>
-                <span className="text-[#B7FC0D]">{checkinState.currentStreak} / {checkinState.nextMilestone}</span>
-              </div>
-              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div
-                  className="h-full bg-gradient-to-r from-[#B7FC0D] to-[#97D600] transition-all duration-700"
-                  style={{ width: `${(checkinState.currentStreak / checkinState.nextMilestone) * 100}%` }}
-                />
-              </div>
+            <div className="space-y-3 relative z-10 min-h-[40px]">
+              {checkinState.status === "checking" ? (
+                <div className="animate-pulse space-y-3 opacity-50">
+                  <div className="flex justify-between">
+                    <div className="h-3 w-16 bg-white/20 rounded"></div>
+                    <div className="h-3 w-8 bg-white/20 rounded"></div>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full w-full"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                    <span>Progress</span>
+                    <span className="text-[#B7FC0D]">{checkinState.currentStreak} / {checkinState.nextMilestone}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#B7FC0D] to-[#97D600] transition-all duration-700"
+                      style={{ width: `${(checkinState.currentStreak / checkinState.nextMilestone) * 100}%` }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

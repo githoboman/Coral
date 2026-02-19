@@ -17,7 +17,7 @@ export const SileoToaster = () => {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', zIndex: 9999, pointerEvents: 'none' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 99999, pointerEvents: 'none' }}>
       <Toaster
         position={position}
         options={{

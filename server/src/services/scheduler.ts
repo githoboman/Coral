@@ -77,10 +77,17 @@ export class TaskScheduler {
         // Send notification
         await this.notificationService.sendTaskDueNotification(userId, task);
 
-        // Mark as notified
+        // RECURRING LOGIC: Reschedule for 24 hours later
+        // precisely 24 hours after the *current* due date to maintain the cadence
+        const currentDueDate = new Date(task.due_date!);
+        const nextDueDate = new Date(currentDueDate.getTime() + 24 * 60 * 60 * 1000);
+
         await this.taskStorage.updateTask(userId, task.id, {
-          due_notification_sent: true
+          due_date: nextDueDate.toISOString(),
+          due_notification_sent: false // Reset so it triggers again next time
         });
+
+        console.log(`[SCHEDULER] Rescheduled task ${task.id} to ${nextDueDate.toISOString()}`);
       }
 
     } catch (error) {
