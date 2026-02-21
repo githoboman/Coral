@@ -96,10 +96,10 @@ router.post(
 
       const manager = getUserManager();
       const minter = getLocalTicketMinter();
-      
+
       const userRegistryBlobId = await minter.getCurrentBlobId();
       // If no registry exists yet on-chain, we'll start a new one (passed as null to addOrUpdateUser)
-      
+
       const existingProfile = userRegistryBlobId ? await manager.getUserProfile(
         userRegistryBlobId,
         user_id,
@@ -146,6 +146,49 @@ router.post(
       next(error);
     }
   },
+);
+
+router.get(
+  "/stats",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const minter = getLocalTicketMinter();
+      const userRegistryBlobId = await minter.getCurrentBlobId();
+
+      if (!userRegistryBlobId) {
+        return res.json({
+          totalUsers: 0,
+        });
+      }
+
+      const manager = getUserManager();
+      const registry = await manager.fetchUsersRegistry(userRegistryBlobId);
+
+      let activeSubscribers = 0;
+      let freeUsers = 0;
+
+      if (registry && registry.users) {
+        Object.values(registry.users).forEach((u) => {
+          if (u.subscription_tier === 1) {
+            activeSubscribers++;
+          } else {
+            freeUsers++;
+          }
+        });
+      }
+
+      return res.json({
+        totalUsers: registry?.total_users || 0,
+        activeSubscribers,
+        freeUsers,
+        blobId: userRegistryBlobId
+      });
+
+    } catch (error) {
+      console.error("Error in /stats:", error);
+      next(error);
+    }
+  }
 );
 
 export default router;

@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #070B0F;
+  --color-foreground: #ffffff;
+  --color-primary: #B7FC0D;
+  --color-primary-dark: #97D600;
+  --color-surface: #1A1A1A;
+  --color-surface-dark: #0A0A0A;
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Base Styles */
+:root {
+  --background: #070B0F;
+  --foreground: #ffffff;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}

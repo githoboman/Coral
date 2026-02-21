@@ -1,5 +1,6 @@
 // src/services/priceService.ts
 import axios from 'axios';
+import { getBlockVisionService } from './blockVisionService';
 
 interface PriceCache {
   [coinType: string]: {
@@ -21,9 +22,8 @@ interface BlockVisionCoinDetail {
 
 class PriceService {
   private cache: PriceCache = {};
-  private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private BLOCKVISION_API_KEY = process.env.BLOCKVISION_API_KEY;
-  private BLOCKVISION_BASE_URL = process.env.BLOCKVISION_BASE_URL || 'https://api.blockvision.org/v1/sui';
+  private CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+  private blockVision = getBlockVisionService();
 
   /**
    * Get token price from BlockVision API (primary) or CoinGecko (fallback)
@@ -35,29 +35,29 @@ class PriceService {
       return { price: cached.price, change24h: cached.change24h };
     }
 
-    // Try BlockVision first
+    // Try BlockVision centralized service
     try {
-      const price = await this.getBlockVisionPrice(coinType);
-      if (price) {
-        // Update cache
-        this.cache[coinType] = {
-          ...price,
-          timestamp: Date.now(),
-        };
-        return price;
+      const info = await this.blockVision.getTokenInfo(coinType);
+      if (info) {
+        const result = { price: info.price, change24h: info.change24h };
+        this.cache[coinType] = { ...result, timestamp: Date.now() };
+        return result;
       }
     } catch (error) {
-      console.error(`BlockVision error for ${coinType}:`, error);
+      console.error(`[PriceService] BlockVision fallback check failed for ${coinType}`);
     }
 
-    // Fallback to CoinGecko if BlockVision fails
+    // Fallback to CoinGecko if BlockVision fails or is bypassed
     const coinGeckoId = this.getCoinGeckoId(coinType);
     if (coinGeckoId) {
       try {
+        console.log(`[PriceService] Fetching ${coinGeckoId} from CoinGecko...`);
         return await this.getCoinGeckoPrice(coinGeckoId);
       } catch (error) {
         console.error(`CoinGecko error for ${coinGeckoId}:`, error);
       }
+    } else {
+      console.warn(`[PriceService] No CoinGecko ID for ${coinType}`);
     }
 
     // Return cached value if available, even if expired
@@ -66,45 +66,6 @@ class PriceService {
     }
 
     return { price: 0, change24h: 0 };
-  }
-
-  /**
-   * Get price from BlockVision API
-   */
-  private async getBlockVisionPrice(coinType: string): Promise<{ price: number; change24h: number } | null> {
-    if (!this.BLOCKVISION_API_KEY) {
-      console.warn('BlockVision API key not configured');
-      return null;
-    }
-
-    try {
-      const response = await axios.get<BlockVisionCoinDetail>(
-        `${this.BLOCKVISION_BASE_URL}/coin/info`,
-        {
-          params: { coinType },
-          headers: {
-            'X-API-KEY': this.BLOCKVISION_API_KEY,
-          },
-          timeout: 5000,
-        }
-      );
-
-      const data = response.data;
-      if (data && typeof data.price === 'number') {
-        return {
-          price: data.price,
-          change24h: data.priceChangePercentage24h || 0,
-        };
-      }
-
-      return null;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        // Token not found in BlockVision, will try CoinGecko
-        return null;
-      }
-      throw error;
-    }
   }
 
   /**

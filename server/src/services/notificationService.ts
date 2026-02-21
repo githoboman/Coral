@@ -178,6 +178,103 @@ export class NotificationService {
       await this.emailService.sendEmail(email, `Reminder Alert!!`, html);
     }
   }
+
+  // ── Phase 2: Proactive Suggestion Delivery ────────────────────────
+
+  /**
+   * Sends a proactive suggestion via Telegram with Accept/Dismiss inline buttons.
+   */
+  public async sendSuggestionNotification(
+    walletAddress: string,
+    suggestionId: number,
+    suggestionText: string,
+    suggestionType: string
+  ): Promise<boolean> {
+    const telegramAccount = await this.telegramService.getStatus(walletAddress);
+    if (!telegramAccount || !telegramAccount.telegram_chat_id) {
+      console.warn(`[NotificationService] No Telegram linked for ${walletAddress.slice(0, 10)}...`);
+      return false;
+    }
+
+    // Format the suggestion message
+    const typeLabels: Record<string, string> = {
+      research_new_token: "New Token Detected",
+      stake_idle: "Staking Opportunity",
+      price_alert: "Price Alert Suggestion",
+      portfolio_review: "Portfolio Review",
+      research_followup: "Research Follow-up",
+      trending_token: "Trending Token",
+      epoch_reward: "Staking Reward",
+    };
+
+    const label = typeLabels[suggestionType] || "Suggestion";
+
+    const message =
+      `<b>Tovira Suggestion</b>\n` +
+      `<i>${label}</i>\n\n` +
+      `${this.escapeHtml(suggestionText)}\n\n` +
+      `<i>Tap Accept to create a task, or Dismiss to skip.</i>`;
+
+    const buttons = [
+      { text: "Accept", callbackData: `suggestion:accept:${suggestionId}` },
+      { text: "Dismiss", callbackData: `suggestion:dismiss:${suggestionId}` },
+    ];
+
+    return await this.telegramService.sendMessageWithButtons(
+      telegramAccount.telegram_chat_id,
+      message,
+      buttons,
+      'HTML'
+    );
+  }
+
+  // ── Phase 4: Simulation Result Delivery ────────────────────────────
+
+  /**
+   * Sends a simulation result via Telegram with Execute/Dismiss inline buttons.
+   */
+  public async sendSimulationResult(
+    walletAddress: string,
+    simulationId: number,
+    narrative: string,
+    warnings: string[],
+    simulationType: string
+  ): Promise<boolean> {
+    const telegramAccount = await this.telegramService.getStatus(walletAddress);
+    if (!telegramAccount || !telegramAccount.telegram_chat_id) {
+      return false;
+    }
+
+    const typeLabels: Record<string, string> = {
+      transfer: "Transfer Simulation",
+      swap: "Swap Estimation",
+      stake: "Staking Simulation",
+    };
+    const label = typeLabels[simulationType] || "Simulation";
+
+    let message =
+      `<b>Tovira ${label}</b>\n\n` +
+      `${this.escapeHtml(narrative)}`;
+
+    if (warnings.length > 0) {
+      message += `\n\n<b>Warnings</b>\n`;
+      message += warnings.map((w) => `- ${this.escapeHtml(w)}`).join("\n");
+    }
+
+    message += `\n\n<i>Tap Execute to proceed with your wallet, or Dismiss to skip.</i>`;
+
+    const buttons = [
+      { text: "Execute", callbackData: `simulation:execute:${simulationId}` },
+      { text: "Dismiss", callbackData: `simulation:dismiss:${simulationId}` },
+    ];
+
+    return await this.telegramService.sendMessageWithButtons(
+      telegramAccount.telegram_chat_id,
+      message,
+      buttons,
+      'HTML'
+    );
+  }
 }
 
 export const getNotificationService = () => NotificationService.getInstance();

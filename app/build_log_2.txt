@@ -1,8 +1,0 @@
-
-> frontend@0.0.0 build
-> tsc -b && vite build
-
-src/pages/Layout.tsx(445,5): error TS6133: 'signOut' is declared but its value is never read.
-src/pages/Layout.tsx(448,5): error TS6133: 'isAutonomyEnabled' is declared but its value is never read.
-src/pages/Layout.tsx(449,5): error TS6133: 'toggleAutonomy' is declared but its value is never read.
-src/pages/Layout.tsx(450,5): error TS6133: 'isUpdatingAutonomy' is declared but its value is never read.

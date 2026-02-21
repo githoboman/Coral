@@ -9,6 +9,8 @@ dotenv.config();
 
 const app = express();
 
+console.log(`[INIT] LangChain Tracing: ${process.env.LANGCHAIN_TRACING_V2 === 'true' ? 'ENABLED' : 'DISABLED'}`);
+
 app.use(helmet());
 
 const allowedOrigins = process.env.CORS_ORIGIN

@@ -1,9 +1,10 @@
-// server/src/services/subscriptionService.ts
+
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { TicketMinter, getTicketMinter } from "./ticketMinter";
 import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
 import { redisClient } from "../middleware/rateLimiter";
+import { getSupabaseClient } from "../config/supabase";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -11,6 +12,7 @@ export class SubscriptionService {
   private client: SuiClient;
   private packageId: string;
   private subscriptionRegistryId: string;
+  private isIndexing = false;
 
   constructor() {
     const network = process.env.SUI_NETWORK || "testnet";
@@ -25,6 +27,120 @@ export class SubscriptionService {
 
   // In-memory fallback if Redis/Walrus fails
   private memoryCache = new Map<string, { count: number, date: string }>();
+
+  async startRevenueIndexer(intervalMs = 60000) {
+    console.log("[REVENUE INDEXER] Starting...");
+    this.indexRevenueEvents(); // Run immediately
+    setInterval(() => this.indexRevenueEvents(), intervalMs);
+  }
+
+  async indexRevenueEvents() {
+    if (this.isIndexing) return;
+    this.isIndexing = true;
+
+    try {
+      const supabase = getSupabaseClient();
+
+      // 1. Get last indexed timestamp
+      const { data: lastEvent } = await supabase
+        .from('revenue_events')
+        .select('timestamp')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+
+      let lastTime = lastEvent?.timestamp
+        ? new Date(lastEvent.timestamp).getTime()
+        : 0;
+
+      // Helper to fetch and insert events with pagination
+      const fetchAndInsert = async (eventType: string, typeName: string, defaultAmount: number = 0) => {
+        let hasNext = true;
+        let cursor = null;
+        let totalInserted = 0;
+
+        while (hasNext) {
+          const response: any = await this.client.queryEvents({
+            query: { MoveEventType: eventType },
+            limit: 50,
+            order: "descending",
+            cursor: cursor,
+          });
+
+          const newEvents: any[] = [];
+
+          for (const ev of response.data) {
+            // Stop if we reach events older than our last checkpoint
+            // FORCE FULL SCAN for now to ensure backfill
+            // if (Number(ev.timestampMs) <= lastTime) {
+            //   hasNext = false;
+            //   continue;
+            // }
+
+            const data = ev.parsedJson as any;
+
+            // Check if exists (deduplication)
+            const { count } = await supabase.from('revenue_events').select('id', { count: 'exact', head: true }).eq('tx_digest', ev.id.txDigest);
+            if (count && count > 0) continue;
+
+            // Determine amount based on event type
+            let amount = defaultAmount;
+            if (amount === 0) {
+              // PremiumSubscribed uses 'amount_paid'
+              // PointsClaimed uses 'points' (usually) or 'amount'
+              amount = Number(data.amount || data.amount_paid || data.fee || data.points || 0);
+            }
+
+            newEvents.push({
+              tx_digest: ev.id.txDigest,
+              sender: data.user || data.sender || data.wallet_address || data.claimer,
+              amount: amount,
+              event_type: typeName,
+              timestamp: new Date(Number(ev.timestampMs)).toISOString()
+            });
+          }
+
+          if (newEvents.length > 0) {
+            const { error } = await supabase.from('revenue_events').insert(newEvents);
+            if (!error) totalInserted += newEvents.length;
+            else console.error(`[REVENUE INDEXER] Insert error for ${typeName}:`, error);
+          }
+
+          if (hasNext && response.hasNextPage) {
+            cursor = response.nextCursor;
+          } else {
+            hasNext = false;
+          }
+        }
+        if (totalInserted > 0) console.log(`[REVENUE INDEXER] Indexed ${totalInserted} ${typeName} events.`);
+      };
+
+      // 2. Fetch Subscription Events
+      await fetchAndInsert(
+        `${this.packageId}::subscriptions::PremiumSubscribed`,
+        'subscription'
+      );
+
+      // 3. Fetch CheckIn Fee Events
+      await fetchAndInsert(
+        `${this.packageId}::points::CheckInCompleted`,
+        'checkin_fee',
+        2000000 // 2M MIST est.
+      );
+
+      // 4. Fetch Task Claim Events (PointsClaimed)
+      // Assuming PointsClaimed represents task completion revenue/activity
+      await fetchAndInsert(
+        `${this.packageId}::points::PointsClaimed`,
+        'task_claim'
+      );
+
+    } catch (e) {
+      console.error("[REVENUE INDEXER] Error:", e);
+    } finally {
+      this.isIndexing = false;
+    }
+  }
 
   private getTodayDate(): string {
     return new Date().toISOString().split("T")[0];
@@ -43,7 +159,6 @@ export class SubscriptionService {
     expires_at: number;
     isActivePremium: boolean;
   }> {
-    // Check cache (unless forced)
     const cached = this.tierCache.get(walletAddress);
     const now = Date.now();
     if (!forceRefresh && cached && (now - cached.timestamp < 5 * 60 * 1000)) {
@@ -62,13 +177,10 @@ export class SubscriptionService {
           isActivePremium,
         };
       } else {
-        console.warn(
-          `[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`,
-        );
+        console.warn(`[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`);
         const walrusData = await this.getWalrusSubscription(walletAddress);
 
         if (walrusData) {
-          // ✅ FIX: Ensure boolean type
           const isActivePremium = Boolean(
             walrusData.tier === 1 &&
             walrusData.expires_at &&
@@ -150,7 +262,7 @@ export class SubscriptionService {
           console.error("Error getting on-chain subscription after retries:", error);
           return null;
         }
-        await new Promise((res) => setTimeout(res, 1000 * (4 - retries))); // Backoff
+        await new Promise((res) => setTimeout(res, 1000 * (4 - retries)));
       }
     }
     return null;
@@ -195,6 +307,8 @@ export class SubscriptionService {
       expires_at?: string;
       daily_prompts_used?: number;
       last_prompt_date?: string;
+      daily_research_prompts_used?: number;
+      last_research_prompt_date?: string;
     },
   ): Promise<boolean> {
     try {
@@ -211,7 +325,6 @@ export class SubscriptionService {
 
       if (!profile) return false;
 
-      // Update profile
       const updatedProfile = userManager.createUserProfile(
         profile.email,
         profile.wallet_address,
@@ -239,7 +352,12 @@ export class SubscriptionService {
               : profile.daily_prompts_used,
           last_prompt_date:
             updates.last_prompt_date || profile.last_prompt_date,
-
+          daily_research_prompts_used:
+            updates.daily_research_prompts_used !== undefined
+              ? updates.daily_research_prompts_used
+              : profile.daily_research_prompts_used,
+          last_research_prompt_date:
+            updates.last_research_prompt_date || profile.last_research_prompt_date,
         },
       );
 
@@ -250,7 +368,6 @@ export class SubscriptionService {
 
       if (!newBlobId) return false;
 
-      // Update on-chain registry if changed
       if (newBlobId !== userRegistryBlobId) {
         await ticketMinter.updateBlobRegistry(newBlobId);
       }
@@ -262,142 +379,128 @@ export class SubscriptionService {
     }
   }
 
-  async canUsePrompt(walletAddress: string): Promise<boolean> {
+  async canUsePrompt(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<boolean> {
     try {
       const today = this.getTodayDate();
-
-      // Get current tier from blockchain (source of truth)
       const tierStatus = await this.getCurrentTier(walletAddress);
-      const limit = tierStatus.isActivePremium ? 5 : 2;
 
+      let limit = 0;
+      if (type === 'task') {
+        limit = tierStatus.isActivePremium ? 5 : 2;
+      } else {
+        // Research Agent: 6 for premium, 3 for free
+        limit = tierStatus.isActivePremium ? 6 : 3;
+      }
 
-
-
-      // Layer 1: Redis fast check
       if (redisClient && redisClient.isOpen) {
-        const redisKey = `prompts:${walletAddress}:${today}`;
-
+        const redisKey = `${type}:prompts:${walletAddress}:${today}`;
         try {
           const count = await redisClient.get(redisKey);
-
-
           if (count) {
             const used = parseInt(count);
-
             if (used < limit) {
-
               return true;
             } else {
-
               return false;
             }
           } else {
-            // No Redis data - new user or daily reset happened
-
             return true;
           }
         } catch (redisError) {
-          console.warn(
-            "[SUBSCRIPTION] Redis check failed, falling back to Walrus",
-            redisError,
-          );
-        }
-        // Layer 1.5: In-Memory fallback (if Redis is down)
-        const mem = this.memoryCache.get(walletAddress);
-        if (mem && mem.date === today) {
-          if (mem.count >= limit) {
-            return false;
-          }
-          // If memory says OK, we still check Walrus/Redis to be sure? 
-          // No, if memory has it, trust it for blocking (failsafe).
-          // Actually, let's treat memory as authoritative for blocking if it exceeds limit.
-        } else if (mem && mem.date !== today) {
-          // Reset memory for new day
-          this.memoryCache.delete(walletAddress);
+          console.warn(`[SUBSCRIPTION] Redis check failed for ${type}, falling back to Walrus`, redisError);
         }
       }
 
-      // Layer 2: Walrus cache check
+      // Memory cache logic updated for types
+      const memKey = `${type}:${walletAddress}`;
+      const mem = this.memoryCache.get(memKey);
+      if (mem && mem.date === today) {
+        if (mem.count >= limit) {
+          return false;
+        }
+      } else if (mem && mem.date !== today) {
+        this.memoryCache.delete(memKey);
+      }
+
       const walrusData = await this.getWalrusSubscription(walletAddress);
+      if (!walrusData) return true;
 
-      if (!walrusData) {
-        // New user - allow first prompts
+      const lastDate = type === 'task' ? walrusData.last_prompt_date : walrusData.last_research_prompt_date;
+      const used = type === 'task' ? walrusData.daily_prompts_used : walrusData.daily_research_prompts_used;
 
+      if (this.needsDailyReset(lastDate)) {
         return true;
       }
 
-
-
-      // Check if needs daily reset
-      if (this.needsDailyReset(walrusData.last_prompt_date)) {
-
-        return true;
-      }
-
-      const canUse = walrusData.daily_prompts_used < limit;
-
-
-
-      return canUse;
+      return used < limit;
     } catch (error) {
-      console.error("Error checking prompt limit:", error);
+      console.error(`Error checking ${type} prompt limit:`, error);
       return true;
     }
   }
 
-  async trackPromptUsage(walletAddress: string): Promise<boolean> {
+  async trackPromptUsage(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<boolean> {
     try {
       const today = this.getTodayDate();
-
       const tierStatus = await this.getCurrentTier(walletAddress);
       const walrusData = await this.getWalrusSubscription(walletAddress);
 
-      const needsReset = this.needsDailyReset(walrusData?.last_prompt_date);
-      let currentUsed = needsReset ? 0 : walrusData?.daily_prompts_used || 0;
+      const lastDate = type === 'task' ? walrusData?.last_prompt_date : walrusData?.last_research_prompt_date;
+      const needsReset = this.needsDailyReset(lastDate);
 
-      // Layer 1.5: Check In-Memory Cache for more recent usage
-      const mem = this.memoryCache.get(walletAddress);
+      let currentUsed = 0;
+      if (!needsReset) {
+        currentUsed = type === 'task' ? walrusData?.daily_prompts_used || 0 : walrusData?.daily_research_prompts_used || 0;
+      }
+
+      const memKey = `${type}:${walletAddress}`;
+      const mem = this.memoryCache.get(memKey);
       if (mem && mem.date === today && mem.count > currentUsed) {
         currentUsed = mem.count;
       } else if (mem && mem.date !== today) {
-        this.memoryCache.delete(walletAddress);
+        this.memoryCache.delete(memKey);
       }
 
       const newUsed = currentUsed + 1;
+      this.memoryCache.set(memKey, { count: newUsed, date: today });
 
-      // Update In-Memory Cache IMMEDIATELY
-      this.memoryCache.set(walletAddress, { count: newUsed, date: today });
-
-      // Try persistent storage updates (fail safe)
       try {
-        await this.updateWalrusSubscription(walletAddress, {
+        const updates: any = {
           tier: tierStatus.tier,
           expires_at:
             tierStatus.expires_at > 0
               ? new Date(tierStatus.expires_at).toISOString()
               : undefined,
-          daily_prompts_used: newUsed,
-          last_prompt_date: today,
-        });
+        };
+
+        if (type === 'task') {
+          updates.daily_prompts_used = newUsed;
+          updates.last_prompt_date = today;
+        } else {
+          updates.daily_research_prompts_used = newUsed;
+          updates.last_research_prompt_date = today;
+        }
+
+        await this.updateWalrusSubscription(walletAddress, updates);
 
         if (redisClient && redisClient.isOpen) {
-          const redisKey = `prompts:${walletAddress}:${today}`;
+          const redisKey = `${type}:prompts:${walletAddress}:${today}`;
           await redisClient.set(redisKey, newUsed.toString(), {
             EX: 86400,
           });
         }
       } catch (externalError) {
-        console.warn("[SUBSCRIPTION] Failed to update persistent storage, relying on memory:", externalError);
+        console.warn(`[SUBSCRIPTION] Failed to update persistent storage for ${type}, relying on memory:`, externalError);
       }
 
       return true;
     } catch (error) {
-      console.error("Error tracking prompt usage:", error);
+      console.error(`Error tracking ${type} prompt usage:`, error);
       return false;
     }
   }
 
-  async getPromptsRemaining(walletAddress: string): Promise<{
+  async getPromptsRemaining(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<{
     used: number;
     limit: number;
     remaining: number;
@@ -405,7 +508,13 @@ export class SubscriptionService {
   }> {
     try {
       const tierStatus = await this.getCurrentTier(walletAddress);
-      const limit = tierStatus.isActivePremium ? 5 : 2;
+
+      let limit = 0;
+      if (type === 'task') {
+        limit = tierStatus.isActivePremium ? 5 : 2;
+      } else {
+        limit = tierStatus.isActivePremium ? 6 : 3;
+      }
 
       const walrusData = await this.getWalrusSubscription(walletAddress);
 
@@ -413,13 +522,15 @@ export class SubscriptionService {
         return { used: 0, limit, remaining: limit, tier: tierStatus.tier };
       }
 
-      const needsReset = this.needsDailyReset(walrusData.last_prompt_date);
-      let used = needsReset ? 0 : walrusData.daily_prompts_used;
+      const lastDate = type === 'task' ? walrusData.last_prompt_date : walrusData.last_research_prompt_date;
+      const walrusUsed = type === 'task' ? walrusData.daily_prompts_used : walrusData.daily_research_prompts_used;
+
+      const needsReset = this.needsDailyReset(lastDate);
+      let used = needsReset ? 0 : walrusUsed;
       const today = this.getTodayDate();
 
-      // Layer 1: Check Redis fast check (Primary Source of Trurth for blocking)
       if (redisClient && redisClient.isOpen) {
-        const redisKey = `prompts:${walletAddress}:${today}`;
+        const redisKey = `${type}:prompts:${walletAddress}:${today}`;
         try {
           const count = await redisClient.get(redisKey);
           if (count) {
@@ -429,13 +540,12 @@ export class SubscriptionService {
             }
           }
         } catch (e) {
-          console.warn("[SUBSCRIPTION] Redis check failed in getPromptsRemaining:", e);
+          console.warn(`[SUBSCRIPTION] Redis check failed in getPromptsRemaining for ${type}:`, e);
         }
       }
 
-      // Layer 1.5: Check In-Memory Cache for more recent usage
-      const mem = this.memoryCache.get(walletAddress);
-
+      const memKey = `${type}:${walletAddress}`;
+      const mem = this.memoryCache.get(memKey);
       if (mem && mem.date === today && mem.count > used) {
         used = mem.count;
       }
@@ -447,8 +557,9 @@ export class SubscriptionService {
         tier: tierStatus.tier,
       };
     } catch (error) {
-      console.error("Error getting prompts remaining:", error);
-      return { used: 0, limit: 2, remaining: 2, tier: 0 };
+      console.error(`Error getting ${type} prompts remaining:`, error);
+      const defaultLimit = type === 'task' ? 2 : 3;
+      return { used: 0, limit: defaultLimit, remaining: defaultLimit, tier: 0 };
     }
   }
 
@@ -467,6 +578,7 @@ let subscriptionService: SubscriptionService | null = null;
 export function getSubscriptionService(): SubscriptionService {
   if (!subscriptionService) {
     subscriptionService = new SubscriptionService();
+    subscriptionService.startRevenueIndexer();
   }
   return subscriptionService;
 }

@@ -1,4 +1,4 @@
-import { Telegraf, Context } from 'telegraf';
+import { Telegraf, Context, Markup } from 'telegraf';
 import { getSupabaseClient } from '../config/supabase';
 import { getTaskStorageService } from './taskStorageService';
 import { getTicketMinter } from './ticketMinter';
@@ -205,6 +205,45 @@ export class TelegramService {
       }
     });
 
+    // ── Phase 2: Suggestion inline button callbacks ─────────────────
+    this.bot.on('callback_query', async (ctx) => {
+      try {
+        const data = (ctx.callbackQuery as any).data as string;
+        if (!data || !data.startsWith('suggestion:')) return;
+
+        const parts = data.split(':');
+        // Format: suggestion:accept:123 or suggestion:dismiss:123
+        if (parts.length !== 3) return;
+
+        const action = parts[1]; // "accept" or "dismiss"
+        const suggestionId = parseInt(parts[2], 10);
+        if (isNaN(suggestionId)) return;
+
+        // Lazy import to avoid circular dependency
+        const { getSuggestionEngine } = await import('./suggestionEngine');
+        const engine = getSuggestionEngine();
+
+        if (action === 'accept') {
+          const success = await engine.acceptSuggestion(suggestionId);
+          await ctx.answerCbQuery(success ? 'Task created!' : 'Suggestion expired');
+          if (success) {
+            await ctx.editMessageText(
+              (ctx.callbackQuery as any).message?.text + '\n\n-- Accepted. Task created.'
+            );
+          }
+        } else if (action === 'dismiss') {
+          await engine.dismissSuggestion(suggestionId);
+          await ctx.answerCbQuery('Dismissed');
+          await ctx.editMessageText(
+            (ctx.callbackQuery as any).message?.text + '\n\n-- Dismissed.'
+          );
+        }
+      } catch (err) {
+        console.error('[Telegram] Callback query error:', err);
+        try { await ctx.answerCbQuery('Error processing'); } catch { }
+      }
+    });
+
     this.bot.launch().catch(err => {
       console.error('Failed to launch Telegram bot:', err);
     });
@@ -316,6 +355,34 @@ export class TelegramService {
       return false;
     }
   }
+
+  /**
+   * Phase 2: Send a message with inline keyboard buttons.
+   * Each button has a label and a callback data string.
+   */
+  public async sendMessageWithButtons(
+    chatId: string | number,
+    message: string,
+    buttons: Array<{ text: string; callbackData: string }>,
+    parseMode: 'Markdown' | 'HTML' = 'HTML'
+  ): Promise<boolean> {
+    if (!this.bot) return false;
+    try {
+      const keyboard = Markup.inlineKeyboard(
+        buttons.map((b) => Markup.button.callback(b.text, b.callbackData))
+      );
+
+      await this.bot.telegram.sendMessage(chatId, message, {
+        parse_mode: parseMode,
+        ...keyboard,
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to send telegram message with buttons:', e);
+      return false;
+    }
+  }
+
 
   public async unlinkAccount(walletAddress: string): Promise<void> {
     const { error } = await this.supabase

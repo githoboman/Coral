@@ -15,8 +15,6 @@ import {
   Check,
   Bell,
   Activity,
-  BookOpen,
-  FileText,
   TrendingUp,
   Search,
   Wallet,
@@ -25,7 +23,6 @@ import {
   Send,
   Eye,
   LucideIcon,
-  Layers,
   Shield,
   Repeat,
   Image,
@@ -85,6 +82,12 @@ const AGENTS: Agent[] = [
     icon: "/assets/images/agents/task-agent.svg",
     cost: "Free",
   },
+  {
+    id: "research",
+    name: "Research Agent",
+    icon: "/assets/images/agents/research-agent.svg",
+    cost: "Free", // Or set a cost if applicable
+  },
 ];
 
 
@@ -125,10 +128,10 @@ const AGENT_THINKING_STEPS: Record<string, string[]> = {
 
 const CATEGORIES: Record<string, Category[]> = {
   research: [
-    { label: "Market Analysis", value: "Market Analysis", icon: TrendingUp, description: "Trends, charts, and sentiment" },
-    { label: "Deep Dives", value: "Deep Dive", icon: Search, description: "Detailed protocol research" },
-    { label: "Explainers", value: "Explain", icon: BookOpen, description: "Concepts and definitions" },
-    { label: "Summaries", value: "Summarize", icon: FileText, description: "TLDRs of reports and news" },
+    { label: "On-Chain Insights", value: "on-chain", icon: Activity, description: "Wallet holdings, portfolios, & NFT assets" },
+    { label: "Simulations", value: "simulate", icon: Shield, description: "Preview transfers, swaps, & staking risk" },
+    { label: "Token Research", value: "token", icon: PieChart, description: "Real-time pricing, stats, & performance" },
+    { label: "Ecosystem Search", value: "search", icon: Search, description: "Protocol deep dives & market news" },
   ],
   tovira: [
     { label: "Wallet", value: "Wallet", icon: Wallet, description: "Balances and holdings" },
@@ -152,12 +155,14 @@ const CATEGORIES: Record<string, Category[]> = {
 
 const PROMPTS: Record<string, Prompt[]> = {
   research: [
-    { label: "Sui Ecosystem", prompt: "Explain the key protocols in the Sui ecosystem", keywords: ["explain", "sui", "ecosystem"], icon: BookOpen },
-    { label: "Proof of Stake", prompt: "Explain Proof of Stake vs Proof of Work", keywords: ["explain", "staking", "consensus"], icon: Layers },
-    { label: "DeFi Trends", prompt: "Analyze current DeFi trends on Sui", keywords: ["market", "analysis", "defi"], icon: TrendingUp },
-    { label: "Sui Whitepaper", prompt: "Summarize the Sui Whitepaper", keywords: ["summarize", "whitepaper", "tech"], icon: FileText },
-    { label: "Audit Reports", prompt: "Find audit reports for...", keywords: ["deep dive", "audit", "security"], icon: Shield },
-    { label: "Tokenomics", prompt: "Analyze the tokenomics of...", keywords: ["market", "analysis", "token"], icon: PieChart },
+    { label: "Wallet Portfolio", prompt: "Show me the portfolio and top holdings of wallet: 0x...", keywords: ["on-chain", "wallet", "portfolio"], icon: Wallet },
+    { label: "NFT Holdings", prompt: "Analyze the NFT assets held by wallet: 0x...", keywords: ["on-chain", "nfts", "wallet"], icon: Image },
+    { label: "Transfer Simulation", prompt: "Simulate a transfer of 10 SUI to recipient: 0x...", keywords: ["simulate", "transfer", "send"], icon: Send },
+    { label: "Swap Simulation", prompt: "Simulate swapping 50 SUI for USDC and check for risks", keywords: ["simulate", "swap", "defi"], icon: Repeat },
+    { label: "Staking Simulation", prompt: "Simulate staking 100 SUI with validator: 0x...", keywords: ["simulate", "stake", "earn"], icon: Zap },
+    { label: "Token Price", prompt: "Check the price and performance for token: 0x2::sui::SUI", keywords: ["token", "price", "stats"], icon: PieChart },
+    { label: "Protocol Deep Dive", prompt: "Deep dive into the Aftermath Finance protocol on Sui", keywords: ["search", "protocol", "aftermath"], icon: Search },
+    { label: "Latest Sui News", prompt: "Find the latest news about the Sui ecosystem expansion", keywords: ["search", "news", "sui"], icon: TrendingUp },
   ],
   tovira: [
     { label: "Check Balance", prompt: "What is my current SUI balance?", keywords: ["wallet", "balance"], icon: Wallet },
@@ -253,7 +258,7 @@ function renderMarkdown(text: string, cursor?: React.ReactNode) {
 
     // Regular paragraph
     elements.push(
-      <p key={i} className="mb-1 leading-relaxed">
+      <p key={i} className="mb-1 leading-relaxed break-words">
         {renderInline(line)}{suffix}
       </p>
     );
@@ -392,8 +397,16 @@ const Dashboard = () => {
     tier: number;
     resetInSeconds?: number;
   } | null>(null);
+  const [researchPromptStatus, setResearchPromptStatus] = useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    tier: number;
+    resetInSeconds?: number;
+  } | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [taskCountdown, setTaskCountdown] = useState<number | null>(null);
+  const [researchCountdown, setResearchCountdown] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -415,26 +428,31 @@ const Dashboard = () => {
 
   // ── Effects ─────────────────────────────────────────────────────────
 
-  // Fetch task prompt status with caching
+  // Fetch prompt status with caching
   useEffect(() => {
-    if (selectedAgentId !== "task" || !currentAccount?.address) return;
+    if (!currentAccount?.address) return;
+    if (selectedAgentId !== "task" && selectedAgentId !== "research") return;
 
-    const CACHE_KEY = `taskPromptStatus-${currentAccount.address}`;
+    const CACHE_KEY = `${selectedAgentId}PromptStatus-${currentAccount.address}`;
+    const endpoint = selectedAgentId === "task" ? "task-prompts" : "research-prompts";
+    const setter = selectedAgentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
+    const countdownSetter = selectedAgentId === "task" ? setTaskCountdown : setResearchCountdown;
+    const currentCountdown = selectedAgentId === "task" ? taskCountdown : researchCountdown;
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/chat/task-prompts/${currentAccount.address}`);
+        const res = await fetch(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`);
         if (res.ok) {
           const status = await res.json();
-          setTaskPromptStatus(status);
+          setter(status);
           if (status.resetInSeconds) {
-            setTaskCountdown(status.resetInSeconds);
+            countdownSetter(status.resetInSeconds);
           }
           // Update cache
           localStorage.setItem(CACHE_KEY, JSON.stringify(status));
         }
       } catch (e) {
-        console.error("Failed to fetch task prompts:", e);
+        console.error(`Failed to fetch ${selectedAgentId} prompts:`, e);
       }
     };
 
@@ -443,10 +461,9 @@ const Dashboard = () => {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        // Set initial state from cache if not already set
-        setTaskPromptStatus((prev) => prev || parsed);
-        if (parsed.resetInSeconds && taskCountdown === null) {
-          setTaskCountdown(parsed.resetInSeconds);
+        setter((prev: any) => prev || parsed);
+        if (parsed.resetInSeconds && currentCountdown === null) {
+          countdownSetter(parsed.resetInSeconds);
         }
       } catch (e) {
         console.error("Failed to parse cached status", e);
@@ -456,12 +473,12 @@ const Dashboard = () => {
     // 2. Fetch fresh data
     fetchStatus();
 
-    // Refresh every minute to keep countdown loosely synced if tab inactive
+    // Refresh every minute to keep countdown loosely synced
     const interval = setInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
   }, [selectedAgentId, currentAccount?.address]);
 
-  // Countdown timer
+  // Countdown timer for Task Agent
   useEffect(() => {
     if (taskCountdown === null || taskCountdown <= 0) return;
     const timer = setInterval(() => {
@@ -472,6 +489,18 @@ const Dashboard = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, [taskCountdown]);
+
+  // Countdown timer for Research Agent
+  useEffect(() => {
+    if (researchCountdown === null || researchCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setResearchCountdown((prev) => {
+        if (prev === null || prev <= 1) return null;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [researchCountdown]);
 
 
   // Fetch Chats on Mount
@@ -617,11 +646,15 @@ const Dashboard = () => {
 
             // Refresh status
             if (currentAccount?.address) {
-              fetch(`${API_BASE_URL}/api/chat/task-prompts/${currentAccount.address}`)
+              const endpoint = agentId === "task" ? "task-prompts" : "research-prompts";
+              const setter = agentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
+              const countdownSetter = agentId === "task" ? setTaskCountdown : setResearchCountdown;
+
+              fetch(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`)
                 .then(r => r.json())
                 .then(s => {
-                  setTaskPromptStatus(s);
-                  if (s.resetInSeconds) setTaskCountdown(s.resetInSeconds);
+                  setter(s);
+                  if (s.resetInSeconds) countdownSetter(s.resetInSeconds);
                 });
             }
             return false;
@@ -654,10 +687,12 @@ const Dashboard = () => {
         }
 
         // Refresh prompt usage if successful start
-        if (selectedAgentId === "task") {
-          fetch(`${API_BASE_URL}/api/chat/task-prompts/${userId}`)
+        if (agentId === "task" || agentId === "research") {
+          const endpoint = agentId === "task" ? "task-prompts" : "research-prompts";
+          const setter = agentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
+          fetch(`${API_BASE_URL}/api/chat/${endpoint}/${userId}`)
             .then(r => r.json())
-            .then(s => setTaskPromptStatus(s));
+            .then(s => setter(s));
         }
 
         const reader = response.body?.getReader();
@@ -788,9 +823,15 @@ const Dashboard = () => {
     const text = (textOverride || input).trim();
     if (!text || isStreaming || isThinking) return;
 
-    // Client-side check for task limits
+    // Client-side check for limits
     if (selectedAgentId === "task" && taskPromptStatus) {
       if (taskPromptStatus.remaining <= 0) {
+        setShowUpgradeModal(true);
+        return;
+      }
+    }
+    if (selectedAgentId === "research" && researchPromptStatus) {
+      if (researchPromptStatus.remaining <= 0) {
         setShowUpgradeModal(true);
         return;
       }
@@ -1051,7 +1092,7 @@ const Dashboard = () => {
 
               <h2 className="text-lg font-bold text-white mb-2 text-center md:text-left">Upgrade to Premium</h2>
               <p className="text-white/60 mb-4 text-sm leading-relaxed text-center md:text-left">
-                You need to upgrade to premium to continue. Free tier gets 2 prompts per day.
+                You need to upgrade to premium to continue. {selectedAgentId === "task" ? "Task Manager" : "Research Agent"} free tier only gets {selectedAgentId === "task" ? "2" : "3"} prompts per day.
               </p>
 
               {/* Usage Warning Card */}
@@ -1062,12 +1103,17 @@ const Dashboard = () => {
                   <span className="text-white font-medium text-xs">Limit Reached</span>
                 </div>
                 <p className="text-white/60 text-xs mb-2 pl-6">
-                  Used <span className="text-white font-bold">{taskPromptStatus?.used}/{taskPromptStatus?.limit}</span> prompts.
+                  Used <span className="text-white font-bold">
+                    {selectedAgentId === "task" ? taskPromptStatus?.used : researchPromptStatus?.used}/
+                    {selectedAgentId === "task" ? taskPromptStatus?.limit : researchPromptStatus?.limit}
+                  </span> prompts.
                 </p>
-                {taskCountdown !== null && (
+                {(selectedAgentId === "task" ? taskCountdown : researchCountdown) !== null && (
                   <div className="flex items-center gap-1.5 text-[10px] text-white/40 pl-6 bg-black/20 w-fit px-2 py-1 rounded-md border border-white/5">
                     <Clock size={10} />
-                    <span>Resets in <span className="text-white font-medium font-mono tracking-wide">{formatCountdown(taskCountdown)}</span></span>
+                    <span>Resets in <span className="text-white font-medium font-mono tracking-wide">
+                      {formatCountdown((selectedAgentId === "task" ? taskCountdown : researchCountdown)!)}
+                    </span></span>
                   </div>
                 )}
               </div>
@@ -1082,7 +1128,7 @@ const Dashboard = () => {
                     <div className="w-4 h-4 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center flex-shrink-0">
                       <Check size={8} className="text-[#B7FC0D]" strokeWidth={3} />
                     </div>
-                    <span>5 daily task prompts</span>
+                    <span>{selectedAgentId === "task" ? "5 daily task prompts" : "6 daily research prompts"}</span>
                   </li>
                   <li className="flex items-center gap-2.5 text-xs text-white/80">
                     <div className="w-4 h-4 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center flex-shrink-0">
@@ -1265,7 +1311,8 @@ const Dashboard = () => {
                         <button
                           key={idx}
                           onClick={() => {
-                            if (taskPromptStatus?.remaining === 0 && selectedAgentId === "task") {
+                            const currentStatus = selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus;
+                            if (currentStatus?.remaining === 0) {
                               setShowUpgradeModal(true);
                               return;
                             }
@@ -1274,7 +1321,7 @@ const Dashboard = () => {
                           }}
                           disabled={isStreaming || isThinking}
                           className={`flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-left transition-all duration-200 backdrop-blur-md group
-                            ${taskPromptStatus?.remaining === 0 && selectedAgentId === "task"
+                            ${((selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0)
                               ? "opacity-50 cursor-not-allowed"
                               : "hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             }`}
@@ -1367,12 +1414,12 @@ const Dashboard = () => {
           <div className="absolute bottom-0 w-full flex-shrink-0 px-4 md:px-8 lg:px-16 pb-4 md:pb-6 pt-2 z-50">
             <div className="relative max-w-[900px] mx-auto">
               {/* Rate Limit Notice */}
-              {selectedAgentId === "task" && taskPromptStatus && (
+              {(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus) && (
                 <div className="flex justify-between items-center px-4 mb-2 text-xs font-medium">
-                  <span className={`${taskPromptStatus.remaining === 0 ? "text-red-400" : "text-white/40"}`}>
-                    {taskPromptStatus.used} / {taskPromptStatus.limit} prompts used
+                  <span className={`${(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)!.remaining === 0 ? "text-red-400" : "text-white/40"}`}>
+                    {(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)!.used} / {(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)!.limit} prompts used
                   </span>
-                  {taskPromptStatus.remaining === 0 && (
+                  {(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)!.remaining === 0 && (
                     <button
                       onClick={() => setShowUpgradeModal(true)}
                       className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
@@ -1404,11 +1451,24 @@ const Dashboard = () => {
                           <button
                             key={idx}
                             onClick={() => {
-                              if (taskPromptStatus?.remaining === 0 && selectedAgentId === "task") {
+                              const currentStatus = selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus;
+                              if (currentStatus?.remaining === 0) {
                                 setShowUpgradeModal(true);
                                 return;
                               }
-                              handleSend(prompt.prompt);
+
+                              // Check if prompt has placeholders that need user input
+                              const hasPlaceholder = prompt.prompt.includes("0x...") ||
+                                prompt.prompt.includes("[...]") ||
+                                prompt.prompt.includes("...") ||
+                                prompt.prompt.includes("[payload]");
+
+                              if (hasPlaceholder) {
+                                setInput(prompt.prompt);
+                                inputRef.current?.focus();
+                              } else {
+                                handleSend(prompt.prompt);
+                              }
                             }}
                             disabled={isStreaming || isThinking}
                             className={`w-full flex items-center gap-3 p-4 transition-colors text-left group border-b border-white/5 last:border-0
@@ -1448,9 +1508,9 @@ const Dashboard = () => {
                         Math.min(e.target.scrollHeight, 120) + "px";
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder={taskPromptStatus && taskPromptStatus.remaining === 0 && selectedAgentId === "task" ? "Daily limit reached. Upgrade to continue." : `Message ${activeAgent.name}...`}
+                    placeholder={(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0 ? "Daily limit reached. Upgrade to continue." : `Message ${activeAgent.name}...`}
                     rows={1}
-                    disabled={isStreaming || isThinking || (taskPromptStatus?.remaining === 0 && selectedAgentId === "task")}
+                    disabled={isStreaming || isThinking || (selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0}
                     className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 px-5 py-4 pr-14 resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed w-full max-h-[120px] overflow-y-auto"
                     style={{ minHeight: "52px" }}
                   />
@@ -1500,7 +1560,7 @@ function MessageBubble({
         animate={{ opacity: 1, y: 0 }}
         className="flex justify-end"
       >
-        <div className="max-w-[80%] md:max-w-md bg-[#326AFD] text-white px-5 py-3 rounded-[24px] rounded-br-lg text-[14px] leading-relaxed shadow-lg shadow-[#326AFD]/10">
+        <div className="max-w-[80%] md:max-w-md bg-[#326AFD] text-white px-5 py-3 rounded-[24px] rounded-br-lg text-[14px] leading-relaxed shadow-lg shadow-[#326AFD]/10 break-words">
           {message.content}
         </div>
       </motion.div>
@@ -1525,7 +1585,7 @@ function MessageBubble({
         <span className="text-xs font-medium text-white/40 mb-2 block">
           {agent.name}
         </span>
-        <div className="text-[14px] leading-relaxed text-white/80">
+        <div className="text-[14px] leading-relaxed text-white/80 break-words">
           {renderMarkdown(message.content)}
         </div>
 
