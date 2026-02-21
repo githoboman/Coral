@@ -1,8 +1,8 @@
 {
   "users": {
     "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf": {
-      "balance": 136,
-      "ts": 1771449033710
+      "balance": 153,
+      "ts": 1771679591803
     },
     "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
       "balance": 109,
@@ -33,8 +33,8 @@
       "ts": 1771583139483
     },
     "0xa3c0c6c978d8c61566347f304dba92cea6c2da279005d623522cc50a36a621e4": {
-      "balance": 13,
-      "ts": 1771607754187
+      "balance": 16,
+      "ts": 1771676444562
     },
     "0x0254ce841c32af6f7fc3be8c2578a7eec90bcca33ae83b9917071df679d194a8": {
       "balance": 13,
@@ -405,8 +405,8 @@
       "ts": 1771079237893
     },
     "0xeb92b53bc0b7c1e633e64ab1f229daf99f6dee9150cb8dbd3a66069a1f4eb566": {
-      "balance": 11,
-      "ts": 1771604920387
+      "balance": 12,
+      "ts": 1771674071534
     },
     "0x6cf81169d16f8eddf8ea081d4cbae9e3cd9aebe08c7291482fc6d5820132e079": {
       "balance": 1,
@@ -733,8 +733,8 @@
       "ts": 1771144955398
     },
     "0xe708359d86b50d8cdba8877d06a86a13d2f59f42eb9b2cc88ab7f812560f5bb3": {
-      "balance": 121,
-      "ts": 1771659644553
+      "balance": 129,
+      "ts": 1771673487711
     },
     "0x9c818530631603d239fb0ef3c9bb4b447d86709f66c4fb404c80d9faafb03742": {
       "balance": 4,
@@ -765,8 +765,8 @@
       "ts": 1771479850121
     },
     "0x53394b2b9e113f5d125298a0d19549c502994001aee2f53be38b6f4182eb2879": {
-      "balance": 103,
-      "ts": 1771608415192
+      "balance": 104,
+      "ts": 1771677153741
     },
     "0x4599eb643da052157306905dddf58d77d23f45b19ef16b2f061486b0cf913054": {
       "balance": 101,
@@ -1301,8 +1301,8 @@
       "ts": 1771225023280
     },
     "0xc1cf33e41c7f655ff07ec233fc9f54f02c99b9061012dc7a6c45d1e83de34527": {
-      "balance": 3,
-      "ts": 1771605521838
+      "balance": 4,
+      "ts": 1771677563502
     },
     "0x4f9dda0b1362e51a2524f59f0683725df19ff0d35cab96a16212d83e3a425f0f": {
       "balance": 3,
@@ -1485,8 +1485,8 @@
       "ts": 1771247472582
     },
     "0xee2fe629b8a9a6435ebffabeb0e6112c748e2f74c977488ef7be63550d053f05": {
-      "balance": 15,
-      "ts": 1771589000491
+      "balance": 24,
+      "ts": 1771674546875
     },
     "0x6d819bcb9407ad5cfde4a8ba3ffe376478b1f62c26802e7d8c8f19e15d2e8620": {
       "balance": 100,
@@ -1513,8 +1513,8 @@
       "ts": 1771254506789
     },
     "0xa664c6069e4725bb2fa4ceede7ad3fc3bd68d45404bb70569a91603b6339f9f8": {
-      "balance": 22,
-      "ts": 1771664888055
+      "balance": 24,
+      "ts": 1771676732760
     },
     "0x39f93c79b75b7a738f8bf2f552f29b5984b9f518bafcd5946b52cde2a9dacd68": {
       "balance": 100,
@@ -1809,8 +1809,8 @@
       "ts": 1771472004594
     },
     "0x9000c5b6cb226df0c1436740724dad0173a52e821e7d9789856456dd73bc8d79": {
-      "balance": 102,
-      "ts": 1771472807626
+      "balance": 103,
+      "ts": 1771674656796
     },
     "0xcbba2fb03b6849d12b102a8a81eec0a778861da57b381d899541dbc0a2a65593": {
       "balance": 8,
@@ -1849,8 +1849,8 @@
       "ts": 1771479527504
     },
     "0x856e07821991db242fd34fe8572f89d943efc61632de118485152abfa5b50a2a": {
-      "balance": 9,
-      "ts": 1771617397912
+      "balance": 13,
+      "ts": 1771674254092
     },
     "0xb797bb27bf2a6ac73a6478425dd9af1932a9eda39ec242112693927acfe54783": {
       "balance": 1,
@@ -1993,8 +1993,8 @@
       "ts": 1771601757763
     },
     "0x548b62599c60c7a6cdb015f16e7c3ac0c845f0d83e76af40851d18103df3fb34": {
-      "balance": 103,
-      "ts": 1771599282094
+      "balance": 114,
+      "ts": 1771680064254
     },
     "0x410bbff888e2d1c242434753a61457170c7af7bd6beb559ad8f217d30f76c4da": {
       "balance": 2,
@@ -2037,8 +2037,8 @@
       "ts": 1771601237204
     },
     "0xe613fd678309fbbd5165c6f82e8c27aa70c4060ce1ee07f3eb6b51a1b34c31e4": {
-      "balance": 100,
-      "ts": 1771527375971
+      "balance": 105,
+      "ts": 1771674600225
     },
     "0xc33a9c26a236c525d6a48059e71b806f1eb438fb0faa3378bce7a0e08acb9b36": {
       "balance": 1,
@@ -2145,12 +2145,12 @@
       "ts": 1771572629008
     },
     "0xc044cf8b4357febba5c72f7e1d4c0db9f0fe51a123bc27db7bd26266bf193361": {
-      "balance": 3,
-      "ts": 1771574660771
+      "balance": 8,
+      "ts": 1771673273302
     },
     "0x5438bd698b41f61767f51d5080629b0db3e592609b1d556134fe11ba6383e2ea": {
-      "balance": 1,
-      "ts": 1771578460338
+      "balance": 2,
+      "ts": 1771671513317
     },
     "0x655bfcacb015f2118ff9eb45c965254093d55936066bb0b722761d20982f9a80": {
       "balance": 100,
@@ -2173,8 +2173,8 @@
       "ts": 1771584659273
     },
     "0xd62c4bea83a8c87961ab5ba26515df1b0a3044449fb1f400cf49507cfad7901d": {
-      "balance": 2,
-      "ts": 1771590192808
+      "balance": 3,
+      "ts": 1771673242335
     },
     "0x1ead696292ce27028933426d1e3444554103425403217ca6867b80f51696cd46": {
       "balance": 9,
@@ -2451,17 +2451,77 @@
     "0x211f16ca4a7d617ece6717dc49522571bf41f5749fd61e5930e696ddb43ad04e": {
       "balance": 100,
       "ts": 1771670872756
+    },
+    "0x6074dcc83f6d3e563a484238858338b29ac59d9e69383774b56fc031d917129f": {
+      "balance": 100,
+      "ts": 1771672219577
+    },
+    "0x9bc7376a95bc0235bb7cce7759c637978ea43182ea73f6dfd00726192b738650": {
+      "balance": 5,
+      "ts": 1771672233523
+    },
+    "0xe8958014a23358a91ec7661db87a1170b05ee57f663bb4b5f644dccc5fdc5aab": {
+      "balance": 2,
+      "ts": 1771671488400
+    },
+    "0xd706c985609e1d1b715ecf55a28af8bee720c54ea01a019f49d91f124a76d875": {
+      "balance": 100,
+      "ts": 1771672840689
+    },
+    "0xa9641f1c1e3338a9558638934bbf47ef1a1c8f24215803848dc40407e5a2369b": {
+      "balance": 100,
+      "ts": 1771673138933
+    },
+    "0x03e81e804c4ce4b668c68fa402b1fb3efe8951fccc99bc0da29f3fce157b5c71": {
+      "balance": 3,
+      "ts": 1771675695514
+    },
+    "0xc1e703abc0d6a6e124e1f201d643e69cb533003b97384cef0740183107711fb1": {
+      "balance": 100,
+      "ts": 1771674861109
+    },
+    "0x89b8ddc4d181414d1afca55a7390cadda60b263b4d09f69d47d5bfc8d7e8c538": {
+      "balance": 6,
+      "ts": 1771675174354
+    },
+    "0x2e756ed4ac6437b90a23a8bf1a511c37164ef1e9ec2affdc94dc7f5318f68582": {
+      "balance": 100,
+      "ts": 1771675350514
+    },
+    "0x78902358ad49ea089cfc07da7044f004660b23db246ffed2b4fc712d8df77d95": {
+      "balance": 1,
+      "ts": 1771677149684
+    },
+    "0x6300f2334bf521ee0b6ef8893f691d2792aafa6e6169ea6bf1600e24cb36c739": {
+      "balance": 1,
+      "ts": 1771677984734
+    },
+    "0xb36ccb9297413a95e12f1d5c02416f6bd32c295169e9d0cb0481ca439173da20": {
+      "balance": 1,
+      "ts": 1771678450342
+    },
+    "0xec31b458263c28ed48e0f404e396ba13fea22189ea2dce92a4f265d70f6f34f5": {
+      "balance": 3,
+      "ts": 1771678681074
+    },
+    "0x8bfd543683835e985e35a5ddf555fbba7400554fbd49e13ca5aa2cdc4eb5712e": {
+      "balance": 1,
+      "ts": 1771678845629
     }
   },
   "cursors": {
     "points": {
-      "txDigest": "8zAMRJ8ocjw2BBjdpMG2MoX8vH4GS2RFtY16GUYXJxfL",
+      "txDigest": "h9gt96nRJscwB5ugCm2H2JtDwAvNqUsCzyuMptSk7vJ",
       "eventSeq": "3"
     },
     "tasks": {
-      "txDigest": "6gdi8AJikpSTVDr6zQ4SuTSQSmRzfc3X9bTNWPT35632",
+      "txDigest": "7mBa5ruZHBUHePn8J1o7Qc2TCAqXxzQdGXq6wjAz2jLq",
       "eventSeq": "0"
+    },
+    "checkins": {
+      "txDigest": "h9gt96nRJscwB5ugCm2H2JtDwAvNqUsCzyuMptSk7vJ",
+      "eventSeq": "2"
     }
   },
-  "lastUpdated": 1771671172944
+  "lastUpdated": 1771680153677
 }

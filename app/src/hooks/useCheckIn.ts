@@ -169,13 +169,22 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
               pollRef.current = null;
             }
 
+            const tzOffset = getTimezoneOffset();
+            const now = new Date();
+            const userMs = now.getTime() + tzOffset * 60_000;
+            const d = new Date(userMs);
+            d.setUTCHours(0, 0, 0, 0);
+            d.setUTCDate(d.getUTCDate() + 1);
+            const nextMidnight = d.getTime() - tzOffset * 60_000;
+            const hrsRemaining = Math.ceil((nextMidnight - Date.now()) / (1000 * 60 * 60));
+
             setState((prev) => ({
               ...prev,
               status: "success",
               canCheckin: false,
               lastCheckinAt: Date.now(),
-              nextAvailableAt: Date.now() + 24 * 60 * 60 * 1000,
-              hoursRemaining: 24,
+              nextAvailableAt: nextMidnight,
+              hoursRemaining: hrsRemaining,
               pointsEarned: expectedPts,
               error: null,
               balance: data.balance,
@@ -186,6 +195,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             if (onPointsUpdated) {
               onPointsUpdated(data.balance);
             }
+
+            import("sileo").then(({ sileo }) => {
+              sileo.success({
+                title: "Check-in Successful!",
+                description: `Earned ${expectedPts} point${expectedPts !== 1 ? "s" : ""}. Keep your streak going!`,
+              });
+            });
 
             window.dispatchEvent(new Event("pointsUpdated"));
 
@@ -201,10 +217,22 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
             pollRef.current = null;
           }
 
+          const tzOffsetFallback = getTimezoneOffset();
+          const nowFallback = new Date();
+          const userMsFallback = nowFallback.getTime() + tzOffsetFallback * 60_000;
+          const dFallback = new Date(userMsFallback);
+          dFallback.setUTCHours(0, 0, 0, 0);
+          dFallback.setUTCDate(dFallback.getUTCDate() + 1);
+          const nextMidnightFallback = dFallback.getTime() - tzOffsetFallback * 60_000;
+          const hrsRemainingFallback = Math.ceil((nextMidnightFallback - Date.now()) / (1000 * 60 * 60));
+
           setState((prev) => ({
             ...prev,
             status: "success",
             canCheckin: false,
+            lastCheckinAt: Date.now(),
+            nextAvailableAt: nextMidnightFallback,
+            hoursRemaining: hrsRemainingFallback,
             pointsEarned: expectedPts,
             error: null,
             balance: prev.balance + expectedPts,
@@ -215,6 +243,13 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
           if (onPointsUpdated) {
             onPointsUpdated(expectedPts);
           }
+
+          import("sileo").then(({ sileo }) => {
+            sileo.success({
+              title: "Check-in Successful!",
+              description: `Earned ${expectedPts} point${expectedPts !== 1 ? "s" : ""}. Keep your streak going!`,
+            });
+          });
 
           window.dispatchEvent(new Event("pointsUpdated"));
 
@@ -358,9 +393,9 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       // Only show toast checks that are not silent/background if we want, but user asked for "show the toast letting the user know"
       // The error state is also set, but a toast is more visible.
       if (err.name !== "AbortError") {
-         import("sileo").then(({ sileo }) => {
-            sileo.error({ title: "Check-in Failed", description: errorMsg });
-         });
+        import("sileo").then(({ sileo }) => {
+          sileo.error({ title: "Check-in Failed", description: errorMsg });
+        });
       }
 
       setState((prev) => ({

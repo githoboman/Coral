@@ -10,6 +10,7 @@ interface MobileDashboardSidebarProps {
     to: string;
     iconUrl: string;
     active: boolean;
+    showDot?: boolean;
   }>;
   onClose?: () => void;
 }
@@ -81,6 +82,9 @@ export function MobileDashboardSidebar({ navItems, onClose }: MobileDashboardSid
 
                 <div className="flex flex-1 items-center justify-between min-w-0">
                   <span className="text-[15px] font-[500] tracking-tight truncate pl-3">{item.name}</span>
+                  {item.showDot && (
+                    <div className="w-2 h-2 rounded-full bg-[#B7FC0D] shadow-[0_0_8px_rgba(183,252,13,0.8)] mr-1" />
+                  )}
                 </div>
               </Link>
             </div>

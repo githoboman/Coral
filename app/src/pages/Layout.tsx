@@ -46,6 +46,7 @@ interface NavItem {
   to: string;
   iconUrl: string;
   active: boolean;
+  showDot?: boolean;
 }
 
 const MobileSidebarDrawer = ({
@@ -769,6 +770,7 @@ export default function AppLayout() {
   const [tokens, setTokens] = useState<any[]>([]);
   const [nfts, setNfts] = useState<any[]>([]);
   const [activity, setActivity] = useState<any[]>([]);
+  const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
 
   // Send Form State
   const [sendRecipient, setSendRecipient] = useState("");
@@ -978,6 +980,31 @@ export default function AppLayout() {
     }
   };
 
+  // Fetch claimable points status
+  useEffect(() => {
+    if (!address) {
+      setHasUnclaimedPoints(false);
+      return;
+    }
+
+    const checkClaimable = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        const res = await fetch(`${baseUrl}/api/task-points/claimable?user_id=${address}`);
+        if (res.ok) {
+          const data = await res.json();
+          setHasUnclaimedPoints(data.total_activities > 0);
+        }
+      } catch (err) {
+        console.warn("[Layout] Failed to fetch claimable points:", err);
+      }
+    };
+
+    checkClaimable();
+    const interval = setInterval(checkClaimable, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [address]);
+
   // Satisfy lint for setNfts and setActivity
   useEffect(() => {
     if (address) {
@@ -1004,6 +1031,7 @@ export default function AppLayout() {
       to: "/activity",
       iconUrl: "/assets/icons/bell.svg",
       active: location.pathname === "/activity",
+      showDot: hasUnclaimedPoints,
     },
 
     {

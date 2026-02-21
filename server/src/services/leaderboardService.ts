@@ -2,8 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { getWalrusUserManager } from "./walrusUserManager";
-import { getTicketMinter } from "./ticketMinter";
+import { getUserManager } from "./userManager";
 
 const NETWORK = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
@@ -20,6 +19,7 @@ interface LeaderboardStore {
   cursors: {
     points: string | null;
     tasks: string | null;
+    checkins: string | null;
   };
   lastUpdated: number;
 }
@@ -43,7 +43,7 @@ class LeaderboardService {
     this.suiClient = new SuiClient({ url: getFullnodeUrl(NETWORK) });
     this.store = {
       users: {},
-      cursors: { points: null, tasks: null },
+      cursors: { points: null, tasks: null, checkins: null },
       lastUpdated: 0,
     };
     this.loadState();
@@ -85,7 +85,7 @@ class LeaderboardService {
 
   private async fetchNewEvents(
     eventType: string,
-    cursorKey: "points" | "tasks",
+    cursorKey: "points" | "tasks" | "checkins",
     balanceField: "new_balance",
     walletField: "wallet_address"
   ) {
@@ -177,20 +177,60 @@ class LeaderboardService {
         "wallet_address"
       );
 
+      const cCount = await this.fetchNewEvents(
+        `${PACKAGE_ID}::points::CheckInCompleted`,
+        "checkins",
+        "new_balance",
+        "wallet_address"
+      );
+
       this.store.lastUpdated = Date.now();
 
-      // Save only if we fetched something or it's been a while? 
       // Save always to update lastUpdated
       this.saveState();
 
-      if (pCount > 0 || tCount > 0) {
-        console.log(`[LEADERBOARD] Update complete. New events: Points=${pCount}, TaskPoints=${tCount}`);
+      if (pCount > 0 || tCount > 0 || cCount > 0) {
+        console.log(`[LEADERBOARD] Update complete. New events: Points=${pCount}, TaskPoints=${tCount}, CheckIns=${cCount}`);
       }
     } catch (err) {
       console.error("[LEADERBOARD] Update failed:", err);
     } finally {
       this.isUpdating = false;
     }
+  }
+
+  /** Force an immediate leaderboard update (e.g. after a check-in) */
+  public async forceUpdate(): Promise<void> {
+    this.isUpdating = false; // Reset guard
+    await this.updateLeaderboard();
+  }
+
+  /**
+   * Directly credit points to a user in the leaderboard store.
+   * This provides instant updates without waiting for on-chain event indexing.
+   * A delayed forceUpdate is scheduled to eventually sync with on-chain truth.
+   */
+  public creditPoints(walletAddress: string, pointsToAdd: number): void {
+    const existing = this.store.users[walletAddress];
+    if (existing) {
+      existing.balance += pointsToAdd;
+      existing.ts = Date.now();
+    } else {
+      this.store.users[walletAddress] = {
+        balance: pointsToAdd,
+        ts: Date.now(),
+      };
+    }
+    this.store.lastUpdated = Date.now();
+    this.saveState();
+    console.log(`[LEADERBOARD] Credited ${pointsToAdd} points to ${walletAddress.substring(0, 10)}... (new balance: ${this.store.users[walletAddress].balance})`);
+
+    // Schedule a delayed sync with on-chain events (10s to allow tx propagation)
+    setTimeout(() => {
+      this.forceUpdate().catch(err =>
+        console.warn("[LEADERBOARD] Delayed sync failed:", err)
+      );
+    }, 10_000);
   }
 
   public async getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
@@ -207,27 +247,17 @@ class LeaderboardService {
 
     // Enrich with usernames
     const enriched: LeaderboardEntry[] = [];
-    const userManager = getWalrusUserManager();
-    const minter = getTicketMinter();
-
-    const blobId = await minter.getCurrentBlobId().catch(() => null);
+    const userManager = getUserManager();
 
     for (let i = 0; i < sortedWallets.length; i++) {
       const [wallet, user] = sortedWallets[i];
       let username = undefined;
 
-      if (blobId) {
-        try {
-          // This is cached in memory by WalrusUserManager effectively if we use registry
-          // But getUserProfile does a fetch. 
-          // We should rely on UserRegistry if possible for speed.
-          // But WalrusUserManager doesn't expose registry directly easily.
-          // getUserProfile is fine for top 100, might be a bit slow on first cold load.
-          const profile = await userManager.getUserProfile(blobId, wallet);
-          username = profile?.username;
-        } catch (e) {
-          // ignore
-        }
+      try {
+        const profile = await userManager.getUserProfile(wallet);
+        username = profile?.username;
+      } catch (e) {
+        // ignore
       }
 
       enriched.push({
@@ -245,10 +275,37 @@ class LeaderboardService {
 
   public getUserBalance(walletAddress: string): number {
     const norm = this.normalizeAddr(walletAddress);
-    // Trigger update if very stale?
-    // For user balance, we might want to be fresher.
-    // But let's stick to the shared updated loop.
     return this.store.users[norm]?.balance || 0;
+  }
+
+  /**
+   * Get a specific user's rank across ALL users (not just top 100).
+   * Returns rank (1-indexed), points, and total participants.
+   */
+  public getUserRank(walletAddress: string): {
+    rank: number | null;
+    points: number;
+    total_participants: number;
+  } {
+    const norm = this.normalizeAddr(walletAddress);
+    const userState = this.store.users[norm];
+
+    const allSorted = Object.entries(this.store.users)
+      .filter(([, u]) => u.balance > 0)
+      .sort(([, a], [, b]) => b.balance - a.balance);
+
+    const total = allSorted.length;
+
+    if (!userState || userState.balance <= 0) {
+      return { rank: null, points: 0, total_participants: total };
+    }
+
+    const idx = allSorted.findIndex(([w]) => w === norm);
+    return {
+      rank: idx >= 0 ? idx + 1 : null,
+      points: userState.balance,
+      total_participants: total,
+    };
   }
 }
 

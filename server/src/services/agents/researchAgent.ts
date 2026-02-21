@@ -610,6 +610,7 @@ export const researchAgent = {
       });
 
       sse.chunk(finalState.finalReport);
+      sse.action({ type: "research_completed" });
       sse.done();
       return finalState.finalReport;
     } catch (error) {

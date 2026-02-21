@@ -189,7 +189,7 @@ const Account = () => {
   }, [profile?.preferences]);
 
   useEffect(() => {
-    dispatch(fetchLeaderboard(false));
+    dispatch(fetchLeaderboard({}));
   }, [dispatch]);
 
   const [timeRemaining, setTimeRemaining] = useState<string>("");

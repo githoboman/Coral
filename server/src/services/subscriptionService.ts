@@ -2,7 +2,7 @@
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { TicketMinter, getTicketMinter } from "./ticketMinter";
-import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
+import { UserManager, getUserManager } from "./userManager";
 import { redisClient } from "../middleware/rateLimiter";
 import { getSupabaseClient } from "../config/supabase";
 
@@ -25,7 +25,7 @@ export class SubscriptionService {
       process.env.SUI_SUBSCRIPTION_REGISTRY_ID || "";
   }
 
-  // In-memory fallback if Redis/Walrus fails
+  // In-memory fallback if Redis fails
   private memoryCache = new Map<string, { count: number, date: string }>();
 
   async startRevenueIndexer(intervalMs = 60000) {
@@ -70,13 +70,6 @@ export class SubscriptionService {
           const newEvents: any[] = [];
 
           for (const ev of response.data) {
-            // Stop if we reach events older than our last checkpoint
-            // FORCE FULL SCAN for now to ensure backfill
-            // if (Number(ev.timestampMs) <= lastTime) {
-            //   hasNext = false;
-            //   continue;
-            // }
-
             const data = ev.parsedJson as any;
 
             // Check if exists (deduplication)
@@ -86,8 +79,6 @@ export class SubscriptionService {
             // Determine amount based on event type
             let amount = defaultAmount;
             if (amount === 0) {
-              // PremiumSubscribed uses 'amount_paid'
-              // PointsClaimed uses 'points' (usually) or 'amount'
               amount = Number(data.amount || data.amount_paid || data.fee || data.points || 0);
             }
 
@@ -129,7 +120,6 @@ export class SubscriptionService {
       );
 
       // 4. Fetch Task Claim Events (PointsClaimed)
-      // Assuming PointsClaimed represents task completion revenue/activity
       await fetchAndInsert(
         `${this.packageId}::points::PointsClaimed`,
         'task_claim'
@@ -177,20 +167,20 @@ export class SubscriptionService {
           isActivePremium,
         };
       } else {
-        console.warn(`[SUBSCRIPTION] On-chain check failed, trying Walrus fallback...`);
-        const walrusData = await this.getWalrusSubscription(walletAddress);
+        console.warn(`[SUBSCRIPTION] On-chain check failed, trying Supabase fallback...`);
+        const supabaseData = await this.getSupabaseSubscription(walletAddress);
 
-        if (walrusData) {
+        if (supabaseData) {
           const isActivePremium = Boolean(
-            walrusData.tier === 1 &&
-            walrusData.expires_at &&
-            new Date(walrusData.expires_at).getTime() > now,
+            supabaseData.tier === 1 &&
+            supabaseData.expires_at &&
+            new Date(supabaseData.expires_at).getTime() > now,
           );
 
           result = {
             tier: isActivePremium ? 1 : 0,
-            expires_at: walrusData.expires_at
-              ? new Date(walrusData.expires_at).getTime()
+            expires_at: supabaseData.expires_at
+              ? new Date(supabaseData.expires_at).getTime()
               : 0,
             isActivePremium,
           };
@@ -268,23 +258,17 @@ export class SubscriptionService {
     return null;
   }
 
-  async getWalrusSubscription(walletAddress: string): Promise<{
+  async getSupabaseSubscription(walletAddress: string): Promise<{
     tier: number;
     expires_at?: string;
     daily_prompts_used: number;
     last_prompt_date?: string;
+    daily_research_prompts_used?: number;
+    last_research_prompt_date?: string;
   } | null> {
     try {
-      const ticketMinter = getTicketMinter();
-      const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) return null;
-
-      const userManager = getWalrusUserManager();
-      const profile = await userManager.getUserProfile(
-        userRegistryBlobId,
-        walletAddress,
-      );
+      const userManager = getUserManager();
+      const profile = await userManager.getUserProfile(walletAddress);
 
       if (!profile) return null;
 
@@ -293,14 +277,16 @@ export class SubscriptionService {
         expires_at: profile.subscription_expires_at,
         daily_prompts_used: profile.daily_prompts_used || 0,
         last_prompt_date: profile.last_prompt_date,
+        daily_research_prompts_used: profile.daily_research_prompts_used,
+        last_research_prompt_date: profile.last_research_prompt_date,
       };
     } catch (error) {
-      console.error("Error getting Walrus subscription:", error);
+      console.error("Error getting Supabase subscription:", error);
       return null;
     }
   }
 
-  async updateWalrusSubscription(
+  async updateSupabaseSubscription(
     walletAddress: string,
     updates: {
       tier?: number;
@@ -312,16 +298,8 @@ export class SubscriptionService {
     },
   ): Promise<boolean> {
     try {
-      const ticketMinter = getTicketMinter();
-      const userRegistryBlobId = await ticketMinter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) return false;
-
-      const userManager = getWalrusUserManager();
-      const profile = await userManager.getUserProfile(
-        userRegistryBlobId,
-        walletAddress,
-      );
+      const userManager = getUserManager();
+      const profile = await userManager.getUserProfile(walletAddress);
 
       if (!profile) return false;
 
@@ -336,7 +314,6 @@ export class SubscriptionService {
           last_name: profile.last_name,
           preferences: profile.preferences,
           waitlist_verified_at: profile.waitlist_verified_at,
-          chat_registry_blob_id: profile.chat_registry_blob_id,
           tasks_created_today: profile.tasks_created_today,
           tasks_claimed_today: profile.tasks_claimed_today,
           last_task_reset_date: profile.last_task_reset_date,
@@ -361,20 +338,10 @@ export class SubscriptionService {
         },
       );
 
-      const newBlobId = await userManager.addOrUpdateUser(
-        userRegistryBlobId,
-        updatedProfile,
-      );
-
-      if (!newBlobId) return false;
-
-      if (newBlobId !== userRegistryBlobId) {
-        await ticketMinter.updateBlobRegistry(newBlobId);
-      }
-
-      return true;
+      const result = await userManager.addOrUpdateUser(updatedProfile);
+      return !!result;
     } catch (error) {
-      console.error("Error updating Walrus subscription:", error);
+      console.error("Error updating Supabase subscription:", error);
       return false;
     }
   }
@@ -407,7 +374,7 @@ export class SubscriptionService {
             return true;
           }
         } catch (redisError) {
-          console.warn(`[SUBSCRIPTION] Redis check failed for ${type}, falling back to Walrus`, redisError);
+          console.warn(`[SUBSCRIPTION] Redis check failed for ${type}, falling back to Supabase`, redisError);
         }
       }
 
@@ -422,11 +389,11 @@ export class SubscriptionService {
         this.memoryCache.delete(memKey);
       }
 
-      const walrusData = await this.getWalrusSubscription(walletAddress);
-      if (!walrusData) return true;
+      const supabaseData = await this.getSupabaseSubscription(walletAddress);
+      if (!supabaseData) return true;
 
-      const lastDate = type === 'task' ? walrusData.last_prompt_date : walrusData.last_research_prompt_date;
-      const used = type === 'task' ? walrusData.daily_prompts_used : walrusData.daily_research_prompts_used;
+      const lastDate = type === 'task' ? supabaseData.last_prompt_date : supabaseData.last_research_prompt_date;
+      const used = type === 'task' ? supabaseData.daily_prompts_used : (supabaseData.daily_research_prompts_used || 0);
 
       if (this.needsDailyReset(lastDate)) {
         return true;
@@ -443,14 +410,14 @@ export class SubscriptionService {
     try {
       const today = this.getTodayDate();
       const tierStatus = await this.getCurrentTier(walletAddress);
-      const walrusData = await this.getWalrusSubscription(walletAddress);
+      const supabaseData = await this.getSupabaseSubscription(walletAddress);
 
-      const lastDate = type === 'task' ? walrusData?.last_prompt_date : walrusData?.last_research_prompt_date;
+      const lastDate = type === 'task' ? supabaseData?.last_prompt_date : supabaseData?.last_research_prompt_date;
       const needsReset = this.needsDailyReset(lastDate);
 
       let currentUsed = 0;
       if (!needsReset) {
-        currentUsed = type === 'task' ? walrusData?.daily_prompts_used || 0 : walrusData?.daily_research_prompts_used || 0;
+        currentUsed = type === 'task' ? supabaseData?.daily_prompts_used || 0 : supabaseData?.daily_research_prompts_used || 0;
       }
 
       const memKey = `${type}:${walletAddress}`;
@@ -465,23 +432,7 @@ export class SubscriptionService {
       this.memoryCache.set(memKey, { count: newUsed, date: today });
 
       try {
-        const updates: any = {
-          tier: tierStatus.tier,
-          expires_at:
-            tierStatus.expires_at > 0
-              ? new Date(tierStatus.expires_at).toISOString()
-              : undefined,
-        };
-
-        if (type === 'task') {
-          updates.daily_prompts_used = newUsed;
-          updates.last_prompt_date = today;
-        } else {
-          updates.daily_research_prompts_used = newUsed;
-          updates.last_research_prompt_date = today;
-        }
-
-        await this.updateWalrusSubscription(walletAddress, updates);
+        await getUserManager().incrementPromptUsage(walletAddress, type, today);
 
         if (redisClient && redisClient.isOpen) {
           const redisKey = `${type}:prompts:${walletAddress}:${today}`;
@@ -516,17 +467,17 @@ export class SubscriptionService {
         limit = tierStatus.isActivePremium ? 6 : 3;
       }
 
-      const walrusData = await this.getWalrusSubscription(walletAddress);
+      const supabaseData = await this.getSupabaseSubscription(walletAddress);
 
-      if (!walrusData) {
+      if (!supabaseData) {
         return { used: 0, limit, remaining: limit, tier: tierStatus.tier };
       }
 
-      const lastDate = type === 'task' ? walrusData.last_prompt_date : walrusData.last_research_prompt_date;
-      const walrusUsed = type === 'task' ? walrusData.daily_prompts_used : walrusData.daily_research_prompts_used;
+      const lastDate = type === 'task' ? supabaseData.last_prompt_date : supabaseData.last_research_prompt_date;
+      const supabaseUsed = type === 'task' ? supabaseData.daily_prompts_used : (supabaseData.daily_research_prompts_used || 0);
 
       const needsReset = this.needsDailyReset(lastDate);
-      let used = needsReset ? 0 : walrusUsed;
+      let used = needsReset ? 0 : supabaseUsed;
       const today = this.getTodayDate();
 
       if (redisClient && redisClient.isOpen) {

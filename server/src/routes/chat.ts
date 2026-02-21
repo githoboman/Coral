@@ -9,6 +9,7 @@ import { getSubscriptionService } from "../services/subscriptionService";
 import { getChatService } from "../services/chatService";
 import { getResearchAgent } from "../services/agents/researchAgent";
 import { getUserStateService } from "../services/userStateService";
+import { trackTaskCreation } from "../services/agents/taskManagerAgent";
 
 
 const router = Router();
@@ -157,6 +158,8 @@ router.post("/", async (req: Request, res: Response) => {
             { userId, agentId: "research", message: msgContent, conversationId: finalConversationId, clientTime },
             sse
           );
+          // Reward user for research agent usage
+          trackTaskCreation(userId, "research").catch(err => console.error("[CHAT] Failed to track research points:", err));
           break;
         }
 

@@ -41,7 +41,7 @@ router.get("/info", (_req: Request, res: Response) => {
     name: "Tovira Express Server",
     version: "3.0.0",
     description:
-      "Express TypeScript server for Tovira - Powered by Walrus + Sui",
+      "Express TypeScript server for Tovira - Powered by Supabase + Sui",
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: ["POST /api/auth/verify-and-register", "GET /api/auth/check-user"],
@@ -91,7 +91,7 @@ router.get("/info", (_req: Request, res: Response) => {
 
 
     },
-    storage: "Walrus (Encrypted)",
+    storage: "Supabase",
     blockchain: "Sui",
   });
 });
@@ -102,7 +102,7 @@ router.get("/status", (_req: Request, res: Response) => {
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     environment: process.env.NODE_ENV || "development",
-    storage: "Walrus Decentralized Network",
+    storage: "Supabase",
     blockchain: "Sui Testnet",
   });
 });

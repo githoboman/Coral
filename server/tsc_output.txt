@@ -1,0 +1,2 @@
+﻿src/services/test_fallback.ts(5,1): error TS2708: Cannot use namespace 'jest' as a value.
+src/services/test_fallback.ts(6,35): error TS2694: Namespace 'global.jest' has no exported member 'Mocked'.

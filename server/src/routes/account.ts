@@ -1,23 +1,17 @@
 import { Router, Request, Response, NextFunction } from "express";
 import {
-  WalrusUserManager,
-  getWalrusUserManager,
-} from "../services/walrusUserManager";
-import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+  UserManager,
+  getUserManager,
+} from "../services/userManager";
 import { getLeaderboardService } from "../services/leaderboardService";
 
 const router = Router();
 
-let userManager: WalrusUserManager | null = null;
-let ticketMinter: TicketMinter | null = null;
+let userManager: UserManager | null = null;
 
-function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = getWalrusUserManager();
+function getLocalUserManager(): UserManager {
+  if (!userManager) userManager = getUserManager();
   return userManager;
-}
-function getLocalTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = getTicketMinter();
-  return ticketMinter;
 }
 
 const leaderboardService = getLeaderboardService();
@@ -40,18 +34,8 @@ router.get(
         });
       }
 
-      const minter = getLocalTicketMinter();
-      const blobId = await minter.getCurrentBlobId();
-
-      if (!blobId) {
-        return res.status(404).json({
-          error: "Not Found",
-          detail: "User registry not initialized",
-        });
-      }
-
-      const um = getUserManager();
-      const userProfile = await um.getUserProfile(blobId, user_id);
+      const um = getLocalUserManager();
+      const userProfile = await um.getUserProfile(user_id);
 
       if (!userProfile) {
         return res
@@ -90,9 +74,16 @@ router.get(
   "/leaderboard",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Background update is handled by the service automatically
+      const { wallet_address } = req.query;
       const entries = await leaderboardService.getLeaderboard();
-      return res.json({ leaderboard: entries });
+
+      // If wallet_address provided, include user's rank (even if outside top 100)
+      let user_rank = null;
+      if (wallet_address && typeof wallet_address === "string") {
+        user_rank = leaderboardService.getUserRank(wallet_address);
+      }
+
+      return res.json({ leaderboard: entries, user_rank });
     } catch (error) {
       console.error("[LEADERBOARD] Error:", error);
       next(error);

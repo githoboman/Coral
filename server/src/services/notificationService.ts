@@ -1,16 +1,14 @@
 import { getTelegramService } from "./telegramService";
 import { getEmailService } from "./emailService";
 import { getSubscriptionService } from "./subscriptionService";
-import { getWalrusUserManager } from "./walrusUserManager";
-import { getTicketMinter } from "./ticketMinter";
+import { getUserManager } from "./userManager";
 
 export class NotificationService {
   private static instance: NotificationService;
   private telegramService = getTelegramService();
   private emailService = getEmailService();
   private subscriptionService = getSubscriptionService();
-  private walrusUserManager = getWalrusUserManager();
-  private ticketMinter = getTicketMinter();
+  private userManager = getUserManager();
 
   private constructor() { }
 
@@ -29,10 +27,7 @@ export class NotificationService {
         return null;
       }
 
-      const blobId = await this.ticketMinter.getCurrentBlobId();
-      if (!blobId) return null;
-
-      const profile = await this.walrusUserManager.getUserProfile(blobId, walletAddress);
+      const profile = await this.userManager.getUserProfile(walletAddress);
       if (profile && profile.email) {
         return profile.email;
       }
@@ -54,9 +49,9 @@ export class NotificationService {
   }
 
   // Helper to get username or default
-  private async getUsername(blobId: string, walletAddress: string): Promise<string> {
+  private async getUsername(walletAddress: string): Promise<string> {
     try {
-      const profile = await this.walrusUserManager.getUserProfile(blobId, walletAddress);
+      const profile = await this.userManager.getUserProfile(walletAddress);
       if (profile && profile.username) {
         return profile.username;
       }
@@ -87,8 +82,7 @@ export class NotificationService {
 
   public async sendTaskCreatedNotification(walletAddress: string, task: any) {
     // 1. Telegram (HTML Format)
-    const blobId = await this.ticketMinter.getCurrentBlobId();
-    const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
+    const username = await this.getUsername(walletAddress);
     const safeUsername = this.escapeHtml(username);
 
     const taskName = task.task_name || "New Task";
@@ -146,8 +140,7 @@ export class NotificationService {
     const dueDate = this.formatDate(task.due_date);
 
     // 1. Telegram (HTML Format)
-    const blobId = await this.ticketMinter.getCurrentBlobId();
-    const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
+    const username = await this.getUsername(walletAddress);
     const safeUsername = this.escapeHtml(username);
     const safeTaskName = this.escapeHtml(taskName);
     const safeDesc = this.escapeHtml(desc);
@@ -160,9 +153,6 @@ export class NotificationService {
     // 2. Email (Premium only)
     const email = await this.getPremiumEmail(walletAddress);
     if (email) {
-      const blobId = await this.ticketMinter.getCurrentBlobId();
-      const username = blobId ? await this.getUsername(blobId, walletAddress) : "User";
-
       const html = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
             <p>Hey <b>${username}</b>,</p>
@@ -184,7 +174,7 @@ export class NotificationService {
     }
   }
 
-  // ── Phase 2: Proactive Suggestion Delivery ────────────────────────
+  // -- Phase 2: Proactive Suggestion Delivery --
 
   /**
    * Sends a proactive suggestion via Telegram with Accept/Dismiss inline buttons.
@@ -233,7 +223,7 @@ export class NotificationService {
     );
   }
 
-  // ── Phase 4: Simulation Result Delivery ────────────────────────────
+  // -- Phase 4: Simulation Result Delivery --
 
   /**
    * Sends a simulation result via Telegram with Execute/Dismiss inline buttons.

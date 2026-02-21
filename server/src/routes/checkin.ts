@@ -1,7 +1,11 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import { getLeaderboardService } from "../services/leaderboardService";
+import { getUserManager } from "../services/userManager";
+import getSupabaseClient from "../config/supabase";
 
 const router = Router();
+const supabase = getSupabaseClient();
 
 let ticketMinter: TicketMinter | null = null;
 
@@ -9,38 +13,6 @@ function getLocalTicketMinter(): TicketMinter {
   if (!ticketMinter) ticketMinter = getTicketMinter();
   return ticketMinter;
 }
-
-interface StatusCache {
-  data: any;
-  timestamp: number;
-}
-
-const statusCache = new Map<string, StatusCache>();
-const CACHE_TTL = 3_000;
-
-function getCachedStatus(walletAddress: string): any | null {
-  const cached = statusCache.get(walletAddress);
-  if (!cached) return null;
-  if (Date.now() - cached.timestamp > CACHE_TTL) {
-    statusCache.delete(walletAddress);
-    return null;
-  }
-  return cached.data;
-}
-
-function setCachedStatus(walletAddress: string, data: any): void {
-  statusCache.set(walletAddress, { data, timestamp: Date.now() });
-}
-
-interface RecentCheckin {
-  date: string;
-  streak: number;
-  totalCheckins: number;
-  timestamp: number;
-}
-
-const recentCheckinCache = new Map<string, RecentCheckin>();
-const RECENT_CHECKIN_TTL = 5 * 60 * 1_000; // 5 minutes
 
 let cachedCheckinFee: { amount: number; timestamp: number } | null = null;
 const FEE_CACHE_TTL = 60 * 60 * 1_000;
@@ -112,7 +84,74 @@ function calculateCheckinPoints(currentStreak: number) {
   };
 }
 
-import { getLeaderboardService } from "../services/leaderboardService";
+// ─── Supabase helpers ────────────────────────────────────────────────
+
+/** Get the latest check-in for a user from Supabase */
+async function getLatestCheckin(userId: string): Promise<{
+  lastCheckinDate: string | null;
+  currentStreak: number;
+  totalCheckins: number;
+} | null> {
+  try {
+    const { data, error } = await supabase
+      .from('checkins')
+      .select('created_at, streak_day, points_earned')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    // Count total check-ins
+    const { count } = await supabase
+      .from('checkins')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    const lastDate = new Date(data.created_at);
+    const y = lastDate.getUTCFullYear();
+    const m = String(lastDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(lastDate.getUTCDate()).padStart(2, "0");
+
+    return {
+      lastCheckinDate: `${y}-${m}-${d}`,
+      currentStreak: data.streak_day || 0,
+      totalCheckins: count || 0,
+    };
+  } catch (err) {
+    console.warn("[CHECKIN] Supabase lookup failed:", err);
+    return null;
+  }
+}
+
+/** Record a check-in to Supabase */
+async function recordCheckin(
+  userId: string,
+  pointsEarned: number,
+  streakDay: number,
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('checkins')
+      .insert({
+        user_id: userId,
+        points_earned: pointsEarned,
+        streak_day: streakDay,
+      });
+
+    if (error) {
+      console.error("[CHECKIN] Failed to record check-in to Supabase:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[CHECKIN] Error recording check-in:", err);
+    return false;
+  }
+}
+
+// ─── Routes ──────────────────────────────────────────────────────────
 
 router.get(
   "/status",
@@ -127,12 +166,6 @@ router.get(
         return;
       }
 
-      const cached = getCachedStatus(wallet_address);
-      if (cached) {
-        res.json(cached);
-        return;
-      }
-
       const timezoneOffset = timezone_offset
         ? parseInt(timezone_offset as string)
         : 0;
@@ -142,30 +175,30 @@ router.get(
       const minter = getLocalTicketMinter();
       const leaderboard = getLeaderboardService();
 
-      const recent = recentCheckinCache.get(wallet_address);
-      const recentIsValid =
-        recent &&
-        Date.now() - recent.timestamp < RECENT_CHECKIN_TTL &&
-        recent.date === userDateToday;
+      // Try Supabase first (fast, persistent), fall back to chain (slow)
+      let lastCheckinDate: string | null = null;
+      let currentStreak = 0;
+      let totalCheckins = 0;
 
-      const [
-        checkinFee,
-        balance,
-        lastCheckinDate,
-        currentStreak,
-        totalCheckins,
-      ] = await Promise.all([
+      const supabaseData = await getLatestCheckin(wallet_address);
+
+      if (supabaseData) {
+        lastCheckinDate = supabaseData.lastCheckinDate;
+        currentStreak = supabaseData.currentStreak;
+        totalCheckins = supabaseData.totalCheckins;
+      } else {
+        // Fallback to on-chain reads
+        console.log(`[CHECKIN] No Supabase data for ${wallet_address.slice(0, 10)}..., falling back to chain`);
+        [lastCheckinDate, currentStreak, totalCheckins] = await Promise.all([
+          minter.getLastCheckinDate(wallet_address),
+          minter.getCurrentStreak(wallet_address),
+          minter.getTotalCheckins(wallet_address),
+        ]);
+      }
+
+      const [checkinFee, balance] = await Promise.all([
         getCachedCheckinFee(minter),
         Promise.resolve(leaderboard.getUserBalance(wallet_address)),
-        recentIsValid
-          ? Promise.resolve(recent!.date)
-          : minter.getLastCheckinDate(wallet_address),
-        recentIsValid
-          ? Promise.resolve(recent!.streak)
-          : minter.getCurrentStreak(wallet_address),
-        recentIsValid
-          ? Promise.resolve(recent!.totalCheckins)
-          : minter.getTotalCheckins(wallet_address),
       ]);
 
       const canCheckin = lastCheckinDate !== userDateToday;
@@ -199,7 +232,7 @@ router.get(
 
       const pointsInfo = calculateCheckinPoints(nextStreak);
 
-      const response = {
+      res.json({
         can_checkin: canCheckin,
         last_checkin_date: lastCheckinDate || null,
         last_checkin_at: lastCheckinDate
@@ -217,10 +250,7 @@ router.get(
         next_milestone: pointsInfo.nextMilestone,
         days_to_next_milestone: pointsInfo.nextMilestone - nextStreak,
         checkin_fee: checkinFee,
-      };
-
-      setCachedStatus(wallet_address, response);
-      res.json(response);
+      });
     } catch (error) {
       console.error("Error in checkin/status:", error);
       next(error);
@@ -241,19 +271,28 @@ router.post(
         return;
       }
 
-      // Clear caches so next /status call is fresh
-      statusCache.delete(wallet_address);
-      recentCheckinCache.delete(wallet_address);
-
       const timezoneOffset = timezone_offset || 0;
       const minter = getLocalTicketMinter();
 
-      // Read everything from chain — no Walrus
-      const [lastCheckinDate, currentStreak, checkinFee] = await Promise.all([
-        minter.getLastCheckinDate(wallet_address),
-        minter.getCurrentStreak(wallet_address),
-        minter.getCheckinFee(),
-      ]);
+      // Read from Supabase first, fall back to chain
+      let lastCheckinDate: string | null = null;
+      let currentStreak = 0;
+      let checkinFee = 2_000_000;
+
+      const supabaseData = await getLatestCheckin(wallet_address);
+
+      if (supabaseData) {
+        lastCheckinDate = supabaseData.lastCheckinDate;
+        currentStreak = supabaseData.currentStreak;
+        checkinFee = await getCachedCheckinFee(minter);
+      } else {
+        // Fallback to chain
+        [lastCheckinDate, currentStreak, checkinFee] = await Promise.all([
+          minter.getLastCheckinDate(wallet_address),
+          minter.getCurrentStreak(wallet_address),
+          minter.getCheckinFee(),
+        ]);
+      }
 
       const userDateToday = getUserDate(timezoneOffset);
       const yesterdayDate = getYesterdayDate(timezoneOffset);
@@ -280,10 +319,10 @@ router.post(
       const pointsInfo = calculateCheckinPoints(nextStreak);
 
       console.log(
-        `🎟️  Minting check-in ticket for ${wallet_address.substring(0, 10)}...`,
+        `Minting check-in ticket for ${wallet_address.substring(0, 10)}...`,
       );
       console.log(
-        `   Date: ${userDateToday}, Streak: ${currentStreak} → ${nextStreak}`,
+        `   Date: ${userDateToday}, Streak: ${currentStreak} -> ${nextStreak}`,
       );
       console.log(
         `   Points: ${pointsInfo.totalPoints}, Milestone: ${pointsInfo.isMilestone}`,
@@ -303,14 +342,21 @@ router.post(
         return;
       }
 
-      console.log(`✅ Check-in ticket minted: ${ticketObjectId}`);
+      console.log(`Check-in ticket minted: ${ticketObjectId}`);
 
-      recentCheckinCache.set(wallet_address, {
-        date: userDateToday,
-        streak: nextStreak,
-        totalCheckins: 0,
-        timestamp: Date.now(),
-      });
+      // Persist to Supabase and update leaderboard (non-blocking)
+      // Use creditPoints() for instant leaderboard update
+      getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
+
+      Promise.all([
+        recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak),
+        getUserManager().updateCheckinStats(
+          wallet_address,
+          pointsInfo.totalPoints,
+          nextStreak,
+          userDateToday
+        )
+      ]).catch(err => console.warn("[CHECKIN] Background updates failed:", err));
 
       res.json({
         success: true,
@@ -324,7 +370,7 @@ router.post(
         next_milestone: pointsInfo.nextMilestone,
         checkin_fee: checkinFee,
         message: pointsInfo.isMilestone
-          ? `🎉 Milestone! ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus), day ${nextStreak}!`
+          ? `Milestone! ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus), day ${nextStreak}!`
           : `Check in to claim ${pointsInfo.totalPoints} pt${pointsInfo.totalPoints !== 1 ? "s" : ""} and continue your ${nextStreak}-day streak!`,
       });
     } catch (error) {

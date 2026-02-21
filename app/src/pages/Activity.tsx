@@ -274,7 +274,21 @@ const Activity = () => {
         await dispatch(fetchTasks(userId));
         // Success! Remove optimistic task
         setOptimisticTasks(prev => prev.filter(t => t.id !== tempId));
-        setToast({ message: "Task created successfully!", type: "success" });
+        sileo.success({ title: "Task Created", description: "Your task was created successfully." });
+
+        // Check for claimable activity points and notify
+        try {
+          const claimRes = await fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`);
+          const claimData = await claimRes.json();
+          if (claimData.total_activities > 0) {
+            setTimeout(() => {
+              sileo.info({
+                title: "Activity Points Available",
+                description: `You have ${claimData.total_claimable_points} points from ${claimData.total_activities} activit${claimData.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
+              });
+            }, 1500);
+          }
+        } catch { /* ignore */ }
       } else {
         throw new Error(data.detail || "Failed to create task");
       }
@@ -288,7 +302,7 @@ const Activity = () => {
           ? { ...t, status: "failed", error: errorMsg }
           : t
       ));
-      setToast({ message: errorMsg, type: "error" });
+      sileo.error({ title: "Task Creation Failed", description: errorMsg });
     } finally {
       setIsPromptLoading(false);
     }
@@ -336,7 +350,7 @@ const Activity = () => {
       await dispatch(fetchTasks(userId));
     } catch (err) {
       console.error("Failed to toggle task:", err);
-      setToast({ message: "Failed to update task. Please try again.", type: "error" });
+      sileo.error({ title: "Update Failed", description: "Failed to update task. Please try again." });
     } finally {
       setTogglingItems((prev) => {
         const next = new Set(prev);
@@ -360,10 +374,10 @@ const Activity = () => {
       }
 
       closeModal();
-      setToast({ message: "Task deleted successfully", type: "success" });
+      sileo.success({ title: "Deleted", description: "Task deleted successfully." });
     } catch (err) {
       console.error("Failed to delete item:", err);
-      setToast({ message: "Failed to delete item.", type: "error" });
+      sileo.error({ title: "Delete Failed", description: "Failed to delete item." });
     } finally {
       setLoadingStates((prev) => ({ ...prev, deleting: false }));
     }
@@ -849,9 +863,9 @@ const TaskPointsClaimSection = () => {
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
   const [claimable, setClaimable] = useState<{
-    tasks_created_today: number;
-    tasks_claimed_today: number;
     claimable_tasks: number;
+    claimable_research: number;
+    total_activities: number;
     total_claimable_points: number;
   } | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -871,7 +885,7 @@ const TaskPointsClaimSection = () => {
     if (
       !currentAccount?.address ||
       !claimable ||
-      claimable.claimable_tasks === 0
+      claimable.total_activities === 0
     )
       return;
 
@@ -885,7 +899,7 @@ const TaskPointsClaimSection = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: currentAccount.address,
-            task_count: claimable.claimable_tasks,
+            task_count: claimable.total_activities,
           }),
         },
       );
@@ -933,7 +947,7 @@ const TaskPointsClaimSection = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: currentAccount.address,
-          task_count: claimable.claimable_tasks
+          task_count: claimable.total_activities
         })
       });
 
@@ -975,18 +989,35 @@ const TaskPointsClaimSection = () => {
     }
   };
 
-  if (!claimable || claimable.claimable_tasks === 0) return null;
+  if (!claimable || claimable.total_activities === 0) return null;
 
   return (
     <div className="bg-[#0A0A0A] border border-white/5 rounded-[30px] p-6 mb-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-white mb-1">
-            Task Points Available
+            Activity Points Available
           </h3>
           <p className="text-white/60 text-sm">
-            You have {claimable.claimable_tasks} unclaimed task
-            {claimable.claimable_tasks !== 1 ? "s" : ""}
+            You have{" "}
+            {claimable.claimable_tasks > 0 && claimable.claimable_research > 0 ? (
+              <>
+                {claimable.claimable_tasks} unclaimed task
+                {claimable.claimable_tasks !== 1 ? "s" : ""} and{" "}
+                {claimable.claimable_research} unclaimed research activit
+                {claimable.claimable_research !== 1 ? "ies" : "y"}
+              </>
+            ) : claimable.claimable_tasks > 0 ? (
+              <>
+                {claimable.claimable_tasks} unclaimed task
+                {claimable.claimable_tasks !== 1 ? "s" : ""}
+              </>
+            ) : (
+              <>
+                {claimable.claimable_research} unclaimed research activit
+                {claimable.claimable_research !== 1 ? "ies" : "y"}
+              </>
+            )}
           </p>
         </div>
         <button

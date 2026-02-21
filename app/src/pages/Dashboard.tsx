@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOutletContext, useParams, useNavigate } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit";
+import { sileo } from "sileo";
 
 import {
   ArrowUp,
@@ -129,7 +130,7 @@ const AGENT_THINKING_STEPS: Record<string, string[]> = {
 const CATEGORIES: Record<string, Category[]> = {
   research: [
     { label: "On-Chain Insights", value: "on-chain", icon: Activity, description: "Wallet holdings, portfolios, & NFT assets" },
-    { label: "Simulations", value: "simulate", icon: Shield, description: "Preview transfers, swaps, & staking risk" },
+    { label: "Risk Assessment", value: "risk", icon: Shield, description: "Security scans, rug detection, & sentiment" },
     { label: "Token Research", value: "token", icon: PieChart, description: "Real-time pricing, stats, & performance" },
     { label: "Ecosystem Search", value: "search", icon: Search, description: "Protocol deep dives & market news" },
   ],
@@ -157,9 +158,8 @@ const PROMPTS: Record<string, Prompt[]> = {
   research: [
     { label: "Wallet Portfolio", prompt: "Show me the portfolio and top holdings of wallet: 0x...", keywords: ["on-chain", "wallet", "portfolio"], icon: Wallet },
     { label: "NFT Holdings", prompt: "Analyze the NFT assets held by wallet: 0x...", keywords: ["on-chain", "nfts", "wallet"], icon: Image },
-    { label: "Transfer Simulation", prompt: "Simulate a transfer of 10 SUI to recipient: 0x...", keywords: ["simulate", "transfer", "send"], icon: Send },
-    { label: "Swap Simulation", prompt: "Simulate swapping 50 SUI for USDC and check for risks", keywords: ["simulate", "swap", "defi"], icon: Repeat },
-    { label: "Staking Simulation", prompt: "Simulate staking 100 SUI with validator: 0x...", keywords: ["simulate", "stake", "earn"], icon: Zap },
+    { label: "Security Scan", prompt: "Perform a risk and security audit for token: 0x...", keywords: ["risk", "security", "token"], icon: Shield },
+    { label: "Market Sentiment", prompt: "What is the current market sentiment for the SUI ecosystem?", keywords: ["search", "sentiment", "market"], icon: MessageCircle },
     { label: "Token Price", prompt: "Check the price and performance for token: 0x2::sui::SUI", keywords: ["token", "price", "stats"], icon: PieChart },
     { label: "Protocol Deep Dive", prompt: "Deep dive into the Aftermath Finance protocol on Sui", keywords: ["search", "protocol", "aftermath"], icon: Search },
     { label: "Latest Sui News", prompt: "Find the latest news about the Sui ecosystem expansion", keywords: ["search", "news", "sui"], icon: TrendingUp },
@@ -633,7 +633,15 @@ const Dashboard = () => {
             agentId,
             message,
             chatId: convId,
-            client_time: new Date().toISOString(), // Send local time
+            client_time: (() => {
+              const now = new Date();
+              const off = -now.getTimezoneOffset();
+              const sign = off >= 0 ? "+" : "-";
+              const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
+              const hh = pad(Math.floor(off / 60));
+              const mm = pad(off % 60);
+              return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${sign}${hh}:${mm}`;
+            })(), // Send local time with timezone offset
           }),
         });
 
@@ -762,8 +770,35 @@ const Dashboard = () => {
                   break;
 
                 case "action":
-                  // Side-effect actions (task_created, etc.)
+                  // Side-effect actions (task_created, research_completed, etc.)
+                  if (parsed?.type === "task_created" || parsed?.type === "research_completed") {
+                    const isTask = parsed.type === "task_created";
+                    sileo.success({
+                      title: isTask ? "Task Created" : "Research Complete",
+                      description: isTask ? "Your task was created successfully." : "Research report is ready."
+                    });
 
+                    // Check for claimable activity points
+                    if (userId) {
+                      fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                          if (data.total_activities > 0) {
+                            setTimeout(() => {
+                              sileo.info({
+                                title: "Activity Points Available",
+                                description: `You have ${data.total_claimable_points} points from ${data.total_activities} activit${data.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
+                              });
+                            }, 1500);
+                          }
+                        })
+                        .catch(() => { });
+                    }
+                  } else if (parsed?.type === "task_completed") {
+                    sileo.success({ title: "Task Completed", description: "Nice work!" });
+                  } else if (parsed?.type === "task_deleted") {
+                    sileo.success({ title: "Task Deleted", description: "Task has been removed." });
+                  }
                   break;
 
                 case "error":

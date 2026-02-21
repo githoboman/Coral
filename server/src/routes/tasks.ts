@@ -73,7 +73,7 @@ router.post(
       // Send Telegram notification
       const notificationService = getNotificationService();
       if (task) {
-        notificationService.sendTaskCreatedNotification(user_id, task).catch(err => 
+        notificationService.sendTaskCreatedNotification(user_id, task).catch(err =>
           console.error("Failed to send task creation notification:", err)
         );
       }
@@ -81,7 +81,7 @@ router.post(
       res.json({
         success: true,
         task,
-        message: "Task created successfully in Walrus storage",
+        message: "Task created successfully in storage",
       });
     } catch (error) {
       console.error("Error creating task:", error);
@@ -147,7 +147,7 @@ router.post(
         success: true,
         tasks: createdTasks,
         count: createdTasks.length,
-        message: `${createdTasks.length} tasks created successfully in Walrus storage`,
+        message: `${createdTasks.length} tasks created successfully in storage`,
       });
     } catch (error) {
       console.error("Error creating bulk tasks:", error);

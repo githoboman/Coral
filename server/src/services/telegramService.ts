@@ -3,7 +3,7 @@ import { getSupabaseClient } from '../config/supabase';
 import { getTaskStorageService } from './taskStorageService';
 import { getTicketMinter } from './ticketMinter';
 import { getSubscriptionService } from './subscriptionService';
-import { getWalrusUserManager } from './walrusUserManager';
+import { getUserManager } from './userManager';
 
 export interface TelegramAccount {
   wallet_address: string;
@@ -100,20 +100,17 @@ export class TelegramService {
 
         const addr = account.wallet_address;
 
-        // Fetch dashboard username from Walrus profile
+        // Fetch dashboard username from Supabase profile
         let displayName = 'Unknown';
         let streak = 0;
         try {
-          const blobId = await getTicketMinter().getCurrentBlobId();
-          if (blobId) {
-            const profile = await getWalrusUserManager().getUserProfile(blobId, addr);
-            if (profile) {
-              displayName = profile.username || profile.first_name || 'Unknown';
-              streak = profile.current_streak || 0;
-            }
+          const profile = await getUserManager().getUserProfile(addr);
+          if (profile) {
+            displayName = profile.username || profile.first_name || 'Unknown';
+            streak = profile.current_streak || 0;
           }
         } catch (e) {
-          console.error('Error fetching Walrus profile for /info:', e);
+          console.error('Error fetching profile for /info:', e);
         }
 
         // Fetch subscription tier

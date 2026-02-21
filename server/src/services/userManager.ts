@@ -16,15 +16,11 @@ export interface UserProfile {
   preferences?: EncryptedData | Record<string, any>;
   waitlist_verified_at?: string;
 
-  // Chat system
-  chat_registry_blob_id?: string;
-
-  // Task system
-  task_registry_blob_id?: string;
-
-  // Task points tracking
+  // Activity points tracking
   tasks_created_today?: number;
   tasks_claimed_today?: number;
+  research_created_today?: number;
+  research_claimed_today?: number;
   last_task_reset_date?: string;
 
   // Check-in streak tracking
@@ -51,15 +47,11 @@ export interface DecryptedUserProfile {
   preferences?: Record<string, any>;
   waitlist_verified_at?: string;
 
-  // Chat system
-  chat_registry_blob_id?: string;
-
-  // Task system
-  task_registry_blob_id?: string;
-
-  // Task points tracking
+  // Activity points tracking
   tasks_created_today?: number;
   tasks_claimed_today?: number;
+  research_created_today?: number;
+  research_claimed_today?: number;
   last_task_reset_date?: string;
 
   // Check-in streak tracking
@@ -76,65 +68,21 @@ export interface DecryptedUserProfile {
   // Research prompts
   daily_research_prompts_used?: number;
   last_research_prompt_date?: string;
-
-
 }
 
-export interface UsersRegistry {
-  version: number;
-  updated_at: string;
-  total_users: number;
-  users: Record<string, UserProfile>;
-  description: string;
-  previous_blob?: string;
-}
-
-export interface WalrusUploadResponse {
-  newlyCreated?: {
-    blobObject: {
-      id: string;
-      storedEpoch: number;
-      blobId: string;
-      size: number;
-      encodingType: string;
-      certifiedEpoch: number;
-      storage: {
-        id: string;
-        startEpoch: number;
-        endEpoch: number;
-        storageSize: number;
-      };
-    };
-    encodedSize: number;
-    cost: number;
-  };
-  alreadyCertified?: {
-    blobId: string;
-    event: {
-      txDigest: string;
-      eventSeq: string;
-    };
-    endEpoch: number;
-  };
-}
-
-export class WalrusUserManager {
-  private static instance: WalrusUserManager;
+export class UserManager {
+  private static instance: UserManager;
   private encryption = getEncryptionService();
 
   private constructor() {
-    // Dedicated to Supabase now
+    // Dedicated to Supabase
   }
 
-  public static getInstance(): WalrusUserManager {
-    if (!WalrusUserManager.instance) {
-      WalrusUserManager.instance = new WalrusUserManager();
+  public static getInstance(): UserManager {
+    if (!UserManager.instance) {
+      UserManager.instance = new UserManager();
     }
-    return WalrusUserManager.instance;
-  }
-
-  public getCachedBlobId(): string | null {
-    return "supabase_managed";
+    return UserManager.instance;
   }
 
   createUserProfile(
@@ -172,22 +120,18 @@ export class WalrusUserManager {
       profile.waitlist_verified_at = additionalData.waitlist_verified_at;
     }
 
-    // Chat system
-    if (additionalData?.chat_registry_blob_id) {
-      profile.chat_registry_blob_id = additionalData.chat_registry_blob_id;
-    }
-
-    // Task system
-    if (additionalData?.task_registry_blob_id) {
-      profile.task_registry_blob_id = additionalData.task_registry_blob_id;
-    }
-
-    // Task tracking
+    // Activity tracking
     if (additionalData?.tasks_created_today !== undefined) {
       profile.tasks_created_today = additionalData.tasks_created_today;
     }
     if (additionalData?.tasks_claimed_today !== undefined) {
       profile.tasks_claimed_today = additionalData.tasks_claimed_today;
+    }
+    if (additionalData?.research_created_today !== undefined) {
+      profile.research_created_today = additionalData.research_created_today;
+    }
+    if (additionalData?.research_claimed_today !== undefined) {
+      profile.research_claimed_today = additionalData.research_claimed_today;
     }
     if (additionalData?.last_task_reset_date) {
       profile.last_task_reset_date = additionalData.last_task_reset_date;
@@ -222,7 +166,6 @@ export class WalrusUserManager {
   }
 
   async addOrUpdateUser(
-    currentBlobId: string | null, // Kept for compatibility
     userProfile: UserProfile,
   ): Promise<string | null> {
     try {
@@ -233,10 +176,10 @@ export class WalrusUserManager {
         is_waitlisted: userProfile.is_waitlisted,
         points: userProfile.points_awarded,
         joined_at: userProfile.joined_at,
-        chat_registry_blob_id: userProfile.chat_registry_blob_id,
-        task_registry_blob_id: userProfile.task_registry_blob_id,
         tasks_created_today: userProfile.tasks_created_today,
         tasks_claimed_today: userProfile.tasks_claimed_today,
+        research_created_today: userProfile.research_created_today,
+        research_claimed_today: userProfile.research_claimed_today,
         last_task_reset_date: userProfile.last_task_reset_date,
         checkin_streak: userProfile.current_streak,
         last_checkin: userProfile.last_checkin_date,
@@ -250,8 +193,8 @@ export class WalrusUserManager {
       // Decrypt legacy fields if they are still encrypted in the incoming object
       const encryption = getEncryptionService();
       if (userProfile.email) {
-        upsertData.email = typeof userProfile.email === 'string' 
-          ? userProfile.email 
+        upsertData.email = typeof userProfile.email === 'string'
+          ? userProfile.email
           : encryption.decryptOptional(userProfile.email);
       }
       if (userProfile.username) {
@@ -267,17 +210,16 @@ export class WalrusUserManager {
 
       if (error) throw error;
 
-      console.log(`[WALRUS_MANAGER] ✅ Profile saved to Supabase: ${userProfile.wallet_address}`);
-      
+      console.log(`[USER_MANAGER] Profile saved to Supabase: ${userProfile.wallet_address}`);
+
       return "supabase_managed";
     } catch (error) {
-      console.error("❌ Error updating user in Supabase:", error);
+      console.error("[USER_MANAGER] Error updating user in Supabase:", error);
       return null;
     }
   }
 
   async getUserProfile(
-    registryBlobId: string, // Kept for interface compatibility but may be ignored
     walletAddress: string,
   ): Promise<DecryptedUserProfile | null> {
     try {
@@ -304,10 +246,10 @@ export class WalrusUserManager {
         last_name: profile.last_name,
         preferences: profile.preferences,
         waitlist_verified_at: profile.created_at,
-        chat_registry_blob_id: profile.chat_registry_blob_id,
-        task_registry_blob_id: profile.task_registry_blob_id,
         tasks_created_today: profile.tasks_created_today,
         tasks_claimed_today: profile.tasks_claimed_today,
+        research_created_today: profile.research_created_today,
+        research_claimed_today: profile.research_claimed_today,
         last_task_reset_date: profile.last_task_reset_date,
         current_streak: profile.checkin_streak,
         last_checkin_date: profile.last_checkin,
@@ -318,13 +260,12 @@ export class WalrusUserManager {
         last_prompt_date: profile.last_prompt_date,
       };
     } catch (error) {
-      console.error("[WALRUS_MANAGER] Error fetching profile from Supabase:", error);
+      console.error("[USER_MANAGER] Error fetching profile from Supabase:", error);
       throw error;
     }
   }
 
   async findWalletByEmail(
-    registryBlobId: string,
     email: string,
   ): Promise<string | null> {
     try {
@@ -337,13 +278,12 @@ export class WalrusUserManager {
       if (error) throw error;
       return data?.wallet_address || null;
     } catch (error) {
-      console.error("[WALRUS_MANAGER] Error in findWalletByEmail:", error);
+      console.error("[USER_MANAGER] Error in findWalletByEmail:", error);
       return null;
     }
   }
 
   async userExists(
-    registryBlobId: string,
     walletAddress: string,
   ): Promise<boolean> {
     try {
@@ -356,13 +296,12 @@ export class WalrusUserManager {
       if (error) throw error;
       return !!data;
     } catch (error) {
-      console.error("[WALRUS_MANAGER] Error checking user existence:", error);
+      console.error("[USER_MANAGER] Error checking user existence:", error);
       return false;
     }
   }
 
   async findWalletByUsername(
-    registryBlobId: string,
     username: string,
   ): Promise<string | null> {
     try {
@@ -375,10 +314,135 @@ export class WalrusUserManager {
       if (error) throw error;
       return data?.wallet_address || null;
     } catch (error) {
-      console.error("[WALRUS_MANAGER] Error in findWalletByUsername:", error);
+      console.error("[USER_MANAGER] Error in findWalletByUsername:", error);
       return null;
+    }
+  }
+
+  /**
+   * Surgical update for check-in statistics to avoid race conditions.
+   * Increments points and total_checkins, updates streak and last_checkin.
+   */
+  async updateCheckinStats(
+    walletAddress: string,
+    pointsToAdd: number,
+    streakDay: number,
+    lastCheckinDate: string
+  ): Promise<boolean> {
+    try {
+      const { data: profile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('points, total_checkins')
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          points: (profile.points || 0) + pointsToAdd,
+          checkin_streak: streakDay,
+          last_checkin: lastCheckinDate,
+          total_checkins: (profile.total_checkins || 0) + 1
+        })
+        .eq('wallet_address', walletAddress);
+
+      if (updateError) throw updateError;
+      return true;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error updating check-in stats surgical:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Surgical increment for daily prompt usage counters.
+   */
+  async incrementPromptUsage(
+    walletAddress: string,
+    type: 'task' | 'research',
+    today: string
+  ): Promise<boolean> {
+    try {
+      const field = type === 'task' ? 'daily_prompts_used' : 'daily_research_prompts_used';
+      const dateField = type === 'task' ? 'last_prompt_date' : 'last_research_prompt_date';
+
+      const { data: profile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select(`${field}, ${dateField}`)
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const needsReset = !profile[dateField] || profile[dateField] !== today;
+      const newValue = needsReset ? 1 : (profile[field] || 0) + 1;
+
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          [field]: newValue,
+          [dateField]: today
+        })
+        .eq('wallet_address', walletAddress);
+
+      if (updateError) throw updateError;
+      return true;
+    } catch (error) {
+      console.error(`[USER_MANAGER] Error incrementing ${type} prompt usage:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Surgical increment for daily activity counters (tasks/research created).
+   */
+  async incrementActivityCount(
+    walletAddress: string,
+    type: 'task' | 'research',
+    today: string
+  ): Promise<boolean> {
+    try {
+      const field = type === 'task' ? 'tasks_created_today' : 'research_created_today';
+      const claimedField = type === 'task' ? 'tasks_claimed_today' : 'research_claimed_today';
+      const resetDateField = 'last_task_reset_date';
+
+      const { data: profile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select(`${field}, ${claimedField}, ${resetDateField}`)
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const needsReset = !profile[resetDateField] || profile[resetDateField] !== today;
+
+      const updateData: any = {
+        [resetDateField]: today
+      };
+
+      if (needsReset) {
+        updateData.tasks_created_today = type === 'task' ? 1 : 0;
+        updateData.research_created_today = type === 'research' ? 1 : 0;
+        updateData.tasks_claimed_today = 0;
+        updateData.research_claimed_today = 0;
+      } else {
+        updateData[field] = (profile[field] || 0) + 1;
+      }
+
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update(updateData)
+        .eq('wallet_address', walletAddress);
+
+      if (updateError) throw updateError;
+      return true;
+    } catch (error) {
+      console.error(`[USER_MANAGER] Error incrementing ${type} activity count:`, error);
+      return false;
     }
   }
 }
 
-export const getWalrusUserManager = () => WalrusUserManager.getInstance();
+export const getUserManager = () => UserManager.getInstance();

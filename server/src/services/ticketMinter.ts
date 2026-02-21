@@ -37,7 +37,6 @@ export class TicketMinter {
   private packageId: string;
   private adminCapId: string;
   private pointsRegistryId: string;
-  private blobRegistryId: string;
   private feeConfigId: string;
 
   private static instance: TicketMinter;
@@ -57,19 +56,17 @@ export class TicketMinter {
     this.packageId = process.env.SUI_PACKAGE_ID || "";
     this.adminCapId = process.env.SUI_ADMIN_CAP_ID || "";
     this.pointsRegistryId = process.env.SUI_POINTS_REGISTRY_ID || "";
-    this.blobRegistryId = process.env.SUI_BLOB_REGISTRY_ID || "";
     this.feeConfigId = process.env.SUI_FEE_CONFIG_ID || "";
 
     if (
       !this.packageId ||
       !this.adminCapId ||
       !this.pointsRegistryId ||
-      !this.blobRegistryId ||
       !this.feeConfigId
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
+        "SUI_POINTS_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
   }
@@ -376,7 +373,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         return ticketId;
       }
@@ -433,7 +430,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         return ticketId;
       }
@@ -446,48 +443,7 @@ export class TicketMinter {
     }
   }
 
-  async updateBlobRegistry(newBlobId: string): Promise<string | null> {
-    try {
-      const tx = new Transaction();
-      const blobBytes = Array.from(new TextEncoder().encode(newBlobId));
 
-      tx.moveCall({
-        target: `${this.packageId}::points::update_blob_id`,
-        arguments: [
-          tx.object(this.adminCapId),
-          tx.object(this.blobRegistryId),
-          tx.pure.vector("u8", blobBytes),
-          tx.object("0x6"),
-        ],
-      });
-
-      const result = await this.client.signAndExecuteTransaction({
-        signer: this.keypair,
-        transaction: tx,
-        options: { showEffects: true },
-      });
-
-      if (result.effects?.status?.status === "success") {
-        console.log(`✅ BlobRegistry updated  tx=${result.digest}`);
-
-        this.blobRegistryCache = {
-          id: newBlobId,
-          timestamp: Date.now(),
-        };
-
-        return result.digest;
-      }
-
-      console.error(
-        "❌ BlobRegistry update failed:",
-        result.effects?.status?.error,
-      );
-      return null;
-    } catch (error) {
-      console.error("❌ updateBlobRegistry error:", error);
-      throw error;
-    }
-  }
 
   async hasClaimed(walletAddress: string): Promise<boolean> {
     try {
@@ -899,91 +855,7 @@ export class TicketMinter {
     }
   }
 
-  private blobRegistryCache: { id: string; timestamp: number } | null = null;
-  private readonly CACHE_TTL = 1000 * 60 * 60;
 
-  async getCurrentBlobId(): Promise<string | null> {
-    if (
-      this.blobRegistryCache &&
-      Date.now() - this.blobRegistryCache.timestamp < this.CACHE_TTL
-    ) {
-      return this.blobRegistryCache.id;
-    }
-
-    let lastError: any;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const object = await this.client.getObject({
-          id: this.blobRegistryId,
-          options: { showContent: true },
-        });
-
-        if (object.data?.content?.dataType === "moveObject") {
-          const fields = (object.data.content as any).fields;
-          let currentBlobId = fields?.current_blob_id;
-
-          if (!currentBlobId) {
-            console.log("⚠️  BlobRegistry is empty");
-            return null;
-          }
-
-          if (typeof currentBlobId === "string") {
-            currentBlobId = currentBlobId.trim();
-          } else if (
-            typeof currentBlobId === "object" &&
-            currentBlobId !== null
-          ) {
-            const value =
-              (currentBlobId as any).value || (currentBlobId as any).bytes;
-            if (typeof value === "string") {
-              currentBlobId = value.trim();
-            } else if (Array.isArray(value)) {
-              currentBlobId = new TextDecoder()
-                .decode(new Uint8Array(value))
-                .trim();
-            }
-          }
-
-          currentBlobId = (currentBlobId as string)
-            .replace(/[^\x20-\x7E]/g, "")
-            .trim();
-
-          if (!currentBlobId) {
-            console.log("⚠️  BlobRegistry contains empty string");
-            return null;
-          }
-
-          console.log(`📖 Read blob ID from BlobRegistry: "${currentBlobId}"`);
-
-          this.blobRegistryCache = {
-            id: currentBlobId,
-            timestamp: Date.now(),
-          };
-
-          return currentBlobId;
-        }
-
-        console.log("⚠️  BlobRegistry not found or invalid format");
-        return null;
-      } catch (error) {
-        lastError = error;
-        console.warn(
-          `⚠️  Error reading BlobRegistry (attempt ${attempt}/3):`,
-          error,
-        );
-        if (attempt < 3) {
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-        }
-      }
-    }
-
-    console.error(
-      "❌ Failed to read BlobRegistry after 3 attempts:",
-      lastError,
-    );
-
-    throw lastError;
-  }
 
   async mintTaskClaimTicket(
     walletAddress: string,
@@ -1026,7 +898,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-              (ticketRef as any).objectId;
+            (ticketRef as any).objectId;
 
         return ticketId;
       }

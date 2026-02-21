@@ -1,16 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { WaitlistManager } from "../services/waitlistManager";
+import getSupabaseClient from "../config/supabase";
 
 const router = Router();
-
-const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
-
-let waitlistManager: WaitlistManager | null = null;
-
-function getWaitlistManager(): WaitlistManager {
-  if (!waitlistManager) waitlistManager = new WaitlistManager();
-  return waitlistManager;
-}
+const supabase = getSupabaseClient();
 
 router.post(
   "/verify",
@@ -26,25 +18,28 @@ router.post(
         return;
       }
 
-      if (!WHITELIST_BLOB_ID) {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const { data, error } = await supabase
+        .from('waitlist_emails')
+        .select('id')
+        .ilike('email', normalizedEmail)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking waitlist:", error);
         res.status(500).json({
-          error: "Configuration Error",
-          detail: "Waitlist not configured",
+          error: "Internal Server Error",
+          detail: "Could not check waitlist",
         });
         return;
       }
 
-      const manager = getWaitlistManager();
-      const isWhitelisted = await manager.isEmailWhitelisted(
-        email,
-        WHITELIST_BLOB_ID,
-      );
-
-      if (isWhitelisted) {
+      if (data) {
         res.json({
           whitelisted: true,
           message: "Email is on the waitlist",
-          email: email.toLowerCase().trim(),
+          email: normalizedEmail,
         });
       } else {
         res.status(403).json({
@@ -63,31 +58,22 @@ router.get(
   "/info",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!WHITELIST_BLOB_ID) {
-        res.status(500).json({
-          error: "Configuration Error",
-          detail: "Waitlist not configured",
-        });
-        return;
-      }
+      const { count, error } = await supabase
+        .from('waitlist_emails')
+        .select('*', { count: 'exact', head: true });
 
-      const manager = getWaitlistManager();
-      const whitelist = await manager.fetchWhitelist(WHITELIST_BLOB_ID);
-
-      if (!whitelist) {
+      if (error) {
         res.status(500).json({
           error: "Error",
-          detail: "Could not fetch whitelist",
+          detail: "Could not fetch waitlist info",
         });
         return;
       }
 
       res.json({
-        version: whitelist.version,
-        total_count: whitelist.total_count,
-        created_at: whitelist.created_at,
-        description: whitelist.description,
-        blob_id: WHITELIST_BLOB_ID,
+        total_count: count || 0,
+        storage: "Supabase",
+        description: "Waitlist emails stored in Supabase",
       });
     } catch (error) {
       console.error("Error fetching waitlist info:", error);

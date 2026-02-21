@@ -216,8 +216,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const errorData = await response.json();
         throw new Error(
           errorData.detail ||
-            errorData.message ||
-            "Failed to complete onboarding",
+          errorData.message ||
+          "Failed to complete onboarding",
         );
       }
 
@@ -307,7 +307,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             );
           }
           dispatch(invalidateCache());
-          dispatch(fetchLeaderboard(false));
+          dispatch(fetchLeaderboard({}));
           setIsOnboarded(true);
           setIsOnboardingOpen(false);
         }}

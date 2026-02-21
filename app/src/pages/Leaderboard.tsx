@@ -8,19 +8,20 @@ import { getLevelData, calculateLevel } from "@/utils/levelUtils";
 const Leaderboard = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const { entries: leaderboard, loading } = useAppSelector(
+  const { entries: leaderboard, userRank, loading } = useAppSelector(
     (state) => state.leaderboard,
   );
 
   useEffect(() => {
-    dispatch(fetchLeaderboard(false));
+    const addr = currentAccount?.address;
+    dispatch(fetchLeaderboard({ walletAddress: addr }));
 
     const pollInterval = setInterval(() => {
-      dispatch(fetchLeaderboard(false));
+      dispatch(fetchLeaderboard({ walletAddress: addr }));
     }, 30000);
 
     return () => clearInterval(pollInterval);
-  }, [dispatch]);
+  }, [dispatch, currentAccount?.address]);
 
   const truncateAddress = (address: string) => {
     if (!address) return "N/A";
@@ -35,10 +36,11 @@ const Leaderboard = () => {
     return <LeaderboardSkeleton />;
   }
 
-  // Find current user's rank and data
-  const userEntry = leaderboard.find(e => e.user_id === currentAccount?.address);
-  const userRank = userEntry ? formatRank(userEntry.rank) : "#---";
-  const userLevelData = getLevelData(userEntry?.points || 0);
+  // Use server-computed rank (works even outside top 100)
+  const userRankDisplay = userRank?.rank ? formatRank(userRank.rank) : "#---";
+  const userPoints = userRank?.points || 0;
+  const userLevelData = getLevelData(userPoints);
+  const totalParticipants = userRank?.total_participants || leaderboard.length;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 pt-24 pb-6 md:px-6 md:py-8">
@@ -47,7 +49,10 @@ const Leaderboard = () => {
         <div className="flex items-center gap-6">
           <h1 className="text-xl md:text-[28px] font-medium text-white">
             Position on Leaderboard
-            <span className="ml-3 md:ml-4 text-[#3B82F6]">{userRank}</span>
+            <span className="ml-3 md:ml-4 text-[#3B82F6]">{userRankDisplay}</span>
+            {totalParticipants > 0 && (
+              <span className="ml-2 text-sm text-white/30 font-normal">/ {totalParticipants}</span>
+            )}
           </h1>
         </div>
       </div>

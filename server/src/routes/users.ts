@@ -1,15 +1,15 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
-import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import { UserManager, getUserManager } from "../services/userManager";
 
 const router = Router();
 
-let userManager: WalrusUserManager | null = null;
+let userManager: UserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
 
-function getUserManager(): WalrusUserManager {
+function getLocalUserManager(): UserManager {
   if (!userManager) {
-    userManager = getWalrusUserManager();
+    userManager = getUserManager();
   }
   return userManager;
 }
@@ -34,9 +34,8 @@ router.get(
         });
       }
 
-      const manager = getUserManager();
-      // getUserProfile now queries Supabase directly, ignoring the first argument (blobId)
-      const userProfile = await manager.getUserProfile("", user_id);
+      const manager = getLocalUserManager();
+      const userProfile = await manager.getUserProfile(user_id);
 
       if (userProfile) {
         const isOnboarded = !!userProfile.email;
@@ -80,10 +79,10 @@ router.post(
         });
       }
 
-      const manager = getUserManager();
-      
+      const manager = getLocalUserManager();
+
       // Fetch existing from Supabase
-      const existingProfile = await manager.getUserProfile("", user_id);
+      const existingProfile = await manager.getUserProfile(user_id);
 
       const updatedProfile = manager.createUserProfile(
         email || existingProfile?.email || "",
@@ -99,8 +98,7 @@ router.post(
         },
       );
 
-      // addOrUpdateUser now upserts into Supabase
-      const result = await manager.addOrUpdateUser(null, updatedProfile);
+      const result = await manager.addOrUpdateUser(updatedProfile);
 
       if (!result) {
         return res.status(500).json({

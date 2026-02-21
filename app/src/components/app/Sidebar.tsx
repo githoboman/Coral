@@ -14,6 +14,7 @@ interface SidebarProps {
     to: string;
     iconUrl: string;
     active: boolean;
+    showDot?: boolean;
   }>;
   onSignOut?: () => void;
   isCollapsed?: boolean;
@@ -129,11 +130,17 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
                     alt={item.name}
                     className={`w-5 h-5 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
                   />
+                  {isCollapsed && item.showDot && (
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#B7FC0D] shadow-[0_0_8px_rgba(183,252,13,0.8)]" />
+                  )}
                 </div>
 
                 {!isCollapsed && (
                   <div className="sidebar-label flex flex-1 items-center justify-between min-w-0">
                     <span className="text-[15px] font-[500] tracking-tight truncate pl-3">{item.name}</span>
+                    {item.showDot && (
+                      <div className="w-2 h-2 rounded-full bg-[#B7FC0D] shadow-[0_0_8px_rgba(183,252,13,0.8)] mr-1" />
+                    )}
                   </div>
                 )}
               </Link>
