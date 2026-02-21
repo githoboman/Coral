@@ -1,26 +1,13 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { getSupabaseClient } from "../config/supabase";
 import { getUserManager } from "./userManager";
 
 const NETWORK = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
-const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../data");
-const STORE_FILE = path.join(DATA_DIR, "leaderboard_store.json");
-
-interface UserState {
-  balance: number;
-  ts: number;
-}
+const supabase = getSupabaseClient();
 
 interface LeaderboardStore {
-  users: Record<string, UserState>;
-  cursors: {
-    points: string | null;
-    tasks: string | null;
-    checkins: string | null;
-  };
+  cursors: Record<string, string | null>;
   lastUpdated: number;
 }
 
@@ -42,11 +29,10 @@ class LeaderboardService {
   private constructor() {
     this.suiClient = new SuiClient({ url: getFullnodeUrl(NETWORK) });
     this.store = {
-      users: {},
       cursors: { points: null, tasks: null, checkins: null },
       lastUpdated: 0,
     };
-    this.loadState();
+    // Cursors will be loaded on-demand in fetchNewEvents to ensure they are fresh
   }
 
   public static getInstance(): LeaderboardService {
@@ -56,44 +42,54 @@ class LeaderboardService {
     return LeaderboardService.instance;
   }
 
-  private loadState() {
+  private async getCursor(key: string): Promise<string | null> {
+    if (this.store.cursors[key]) return this.store.cursors[key];
+    
     try {
-      if (fs.existsSync(STORE_FILE)) {
-        const data = fs.readFileSync(STORE_FILE, "utf-8");
-        this.store = JSON.parse(data);
-        console.log(`[LEADERBOARD] Loaded state: ${Object.keys(this.store.users).length} users`);
-      }
+      const { data, error } = await supabase
+        .from('indexer_state')
+        .select('last_cursor')
+        .eq('id', key)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data?.last_cursor || null;
     } catch (err) {
-      console.error("[LEADERBOARD] Failed to load state:", err);
+      console.error(`[LEADERBOARD] Failed to get cursor for ${key}:`, err);
+      return null;
     }
   }
 
-  private saveState() {
+  private async saveCursor(key: string, cursor: string) {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
-      fs.writeFileSync(STORE_FILE, JSON.stringify(this.store, null, 2));
+      const { error } = await supabase
+        .from('indexer_state')
+        .upsert({ id: key, last_cursor: cursor });
+      
+      if (error) throw error;
+      this.store.cursors[key] = cursor;
     } catch (err) {
-      console.error("[LEADERBOARD] Failed to save state:", err);
+      console.error(`[LEADERBOARD] Failed to save cursor for ${key}:`, err);
     }
   }
 
   private normalizeAddr(addr: string): string {
-    return "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0");
+    return (
+      "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0")
+    ).toLowerCase();
   }
 
   private async fetchNewEvents(
     eventType: string,
-    cursorKey: "points" | "tasks" | "checkins",
-    balanceField: "new_balance",
-    walletField: "wallet_address"
+    cursorKey: string,
+    balanceField: string,
+    walletField: string
   ) {
     let hasNext = true;
-    let cursor = this.store.cursors[cursorKey];
+    let cursor = await this.getCursor(cursorKey);
     let fetchedCount = 0;
 
-    // Safety limit to prevent infinite loops if something weird happens
+    // Safety limit to prevent infinite loops
     const MAX_PAGES = 100;
     let pages = 0;
 
@@ -125,29 +121,41 @@ class LeaderboardService {
 
         const wallet = this.normalizeAddr(data[walletField] || "");
         const balance = parseInt(data[balanceField] || "0", 10);
-        const ts = parseInt(data.timestamp || "0", 10);
+        // Note: timestamp in Sui events is usually ms or s. Leaderboard uses it for ordering.
 
-        const currentUser = this.store.users[wallet];
+        // SAFETY CHECK: Only update if the new (on-chain) balance is HIGHER than what we currently have.
+        // This prevents clones/manual boosts from being clobbered by older on-chain indexing.
+        const { data: currentProfile } = await supabase
+          .from('user_profiles')
+          .select('points')
+          .eq('wallet_address', wallet)
+          .maybeSingle();
+        
+        const currentPoints = currentProfile?.points || 0;
 
-        // Update if we have a newer (or same-time higher) balance 
-        // Same-time higher is a heuristic if multiple events happen in same ms
-        if (
-          !currentUser ||
-          ts > currentUser.ts ||
-          (ts === currentUser.ts && balance > currentUser.balance)
-        ) {
-          this.store.users[wallet] = { balance, ts };
+        if (balance > currentPoints) {
+           await supabase
+            .from('user_profiles')
+            .upsert({ 
+              wallet_address: wallet, 
+              user_id: wallet, 
+              points: balance,
+              xp: balance 
+            }, { onConflict: 'wallet_address' });
+            // console.log(`[LEADERBOARD] Synced on-chain balance for ${wallet}: ${balance} (was ${currentPoints})`);
         }
       }
 
       fetchedCount += page.data.length;
       hasNext = page.hasNextPage;
       cursor = page.nextCursor as any;
+      
+      if (cursor) {
+        await this.saveCursor(cursorKey, (cursor as any).eventSeq); // Store just the important part or serialized
+        // Actually, Sui cursor is an object. Let's store it as JSON string or the whole thing if text.
+        await this.saveCursor(cursorKey, JSON.stringify(cursor));
+      }
       pages++;
-    }
-
-    if (cursor) {
-      this.store.cursors[cursorKey] = cursor as any;
     }
 
     return fetchedCount;
@@ -155,14 +163,12 @@ class LeaderboardService {
 
   public async updateLeaderboard() {
     if (this.isUpdating) {
-      // console.log("[LEADERBOARD] Update already in progress");
       return;
     }
     if (!PACKAGE_ID) return;
 
     this.isUpdating = true;
     try {
-
       const pCount = await this.fetchNewEvents(
         `${PACKAGE_ID}::points::PointsClaimed`,
         "points",
@@ -186,11 +192,8 @@ class LeaderboardService {
 
       this.store.lastUpdated = Date.now();
 
-      // Save always to update lastUpdated
-      this.saveState();
-
       if (pCount > 0 || tCount > 0 || cCount > 0) {
-        console.log(`[LEADERBOARD] Update complete. New events: Points=${pCount}, TaskPoints=${tCount}, CheckIns=${cCount}`);
+        console.log(`[LEADERBOARD] Update complete. New events indexed: Points=${pCount}, TaskPoints=${tCount}, CheckIns=${cCount}`);
       }
     } catch (err) {
       console.error("[LEADERBOARD] Update failed:", err);
@@ -206,24 +209,37 @@ class LeaderboardService {
   }
 
   /**
-   * Directly credit points to a user in the leaderboard store.
+   * Directly credit points to a user in Supabase.
    * This provides instant updates without waiting for on-chain event indexing.
-   * A delayed forceUpdate is scheduled to eventually sync with on-chain truth.
    */
-  public creditPoints(walletAddress: string, pointsToAdd: number): void {
-    const existing = this.store.users[walletAddress];
-    if (existing) {
-      existing.balance += pointsToAdd;
-      existing.ts = Date.now();
-    } else {
-      this.store.users[walletAddress] = {
-        balance: pointsToAdd,
-        ts: Date.now(),
-      };
+  public async creditPoints(walletAddress: string, pointsToAdd: number): Promise<void> {
+    const norm = this.normalizeAddr(walletAddress);
+
+    // Persist to Supabase immediately for live updates
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('points')
+        .eq('wallet_address', norm)
+        .single();
+      
+      const currentPoints = profile?.points || 0;
+      const finalPoints = currentPoints + pointsToAdd;
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({ 
+          wallet_address: norm, 
+          user_id: norm, 
+          points: finalPoints,
+          xp: finalPoints // Sync xp with points
+        }, { onConflict: 'wallet_address' });
+
+      if (error) throw error;
+      console.log(`[LEADERBOARD] Credited ${pointsToAdd} points to ${norm.substring(0, 10)}... (DB balance: ${finalPoints})`);
+    } catch (err) {
+      console.error("[LEADERBOARD] Failed to sync credit to Supabase:", err);
     }
-    this.store.lastUpdated = Date.now();
-    this.saveState();
-    console.log(`[LEADERBOARD] Credited ${pointsToAdd} points to ${walletAddress.substring(0, 10)}... (new balance: ${this.store.users[walletAddress].balance})`);
 
     // Schedule a delayed sync with on-chain events (10s to allow tx propagation)
     setTimeout(() => {
@@ -234,78 +250,95 @@ class LeaderboardService {
   }
 
   public async getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
-    // Trigger background update if stale (> 30s)
-    const now = Date.now();
-    if (now - this.store.lastUpdated > 30 * 1000) {
-      this.updateLeaderboard();
-    }
+    try {
+      // Fetch top users directly from Supabase for live data
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address, username, points')
+        .gt('points', 0)
+        .order('points', { ascending: false })
+        .limit(limit);
 
-    const sortedWallets = Object.entries(this.store.users)
-      .filter(([, user]) => user.balance > 0)
-      .sort(([, a], [, b]) => b.balance - a.balance)
-      .slice(0, limit);
+      if (error) throw error;
 
-    // Enrich with usernames
-    const enriched: LeaderboardEntry[] = [];
-    const userManager = getUserManager();
-
-    for (let i = 0; i < sortedWallets.length; i++) {
-      const [wallet, user] = sortedWallets[i];
-      let username = undefined;
-
-      try {
-        const profile = await userManager.getUserProfile(wallet);
-        username = profile?.username;
-      } catch (e) {
-        // ignore
-      }
-
-      enriched.push({
-        rank: i + 1,
-        user_id: wallet,
-        wallet_address: wallet,
-        username,
-        points: user.balance,
+      return (profiles || []).map((p, idx) => ({
+        rank: idx + 1,
+        user_id: p.wallet_address,
+        wallet_address: p.wallet_address,
+        username: p.username,
+        points: p.points || 0,
         referral_points: 0
-      });
+      }));
+    } catch (err) {
+      console.error("[LEADERBOARD] getLeaderboard failed:", err);
+      return [];
     }
-
-    return enriched;
   }
 
-  public getUserBalance(walletAddress: string): number {
+  public async getUserBalance(walletAddress: string): Promise<number> {
     const norm = this.normalizeAddr(walletAddress);
-    return this.store.users[norm]?.balance || 0;
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('points')
+        .eq('wallet_address', norm)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data?.points || 0;
+    } catch (err) {
+      console.error(`[LEADERBOARD] Failed to get balance for ${norm}:`, err);
+      return 0;
+    }
   }
 
   /**
    * Get a specific user's rank across ALL users (not just top 100).
    * Returns rank (1-indexed), points, and total participants.
    */
-  public getUserRank(walletAddress: string): {
+  public async getUserRank(walletAddress: string): Promise<{
     rank: number | null;
     points: number;
     total_participants: number;
-  } {
+  }> {
     const norm = this.normalizeAddr(walletAddress);
-    const userState = this.store.users[norm];
 
-    const allSorted = Object.entries(this.store.users)
-      .filter(([, u]) => u.balance > 0)
-      .sort(([, a], [, b]) => b.balance - a.balance);
+    try {
+      // 1. Get user's points
+      const { data: user, error: userError } = await supabase
+        .from('user_profiles')
+        .select('points')
+        .eq('wallet_address', norm)
+        .single();
+      
+      if (userError && userError.code !== 'PGRST116') throw userError;
+      const points = user?.points || 0;
 
-    const total = allSorted.length;
+      // 2. Count users with more points for rank
+      const { count: rankCount, error: rankError } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true })
+        .gt('points', points);
+      
+      if (rankError) throw rankError;
 
-    if (!userState || userState.balance <= 0) {
-      return { rank: null, points: 0, total_participants: total };
+      // 3. Get total participants (users with points > 0)
+      const { count: total, error: totalError } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true })
+        .gt('points', 0);
+
+      if (totalError) throw totalError;
+
+      return {
+        rank: points > 0 ? (rankCount || 0) + 1 : null,
+        points: points,
+        total_participants: total || 0,
+      };
+    } catch (err) {
+      console.error("[LEADERBOARD] getUserRank failed:", err);
+      return { rank: null, points: 0, total_participants: 0 };
     }
-
-    const idx = allSorted.findIndex(([w]) => w === norm);
-    return {
-      rank: idx >= 0 ? idx + 1 : null,
-      points: userState.balance,
-      total_participants: total,
-    };
   }
 }
 

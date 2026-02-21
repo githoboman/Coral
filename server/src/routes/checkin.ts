@@ -346,7 +346,7 @@ router.post(
 
       // Persist to Supabase and update leaderboard (non-blocking)
       // Use creditPoints() for instant leaderboard update
-      getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
+      await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
 
       Promise.all([
         recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak),

@@ -80,7 +80,7 @@ router.get(
       // If wallet_address provided, include user's rank (even if outside top 100)
       let user_rank = null;
       if (wallet_address && typeof wallet_address === "string") {
-        user_rank = leaderboardService.getUserRank(wallet_address);
+        user_rank = await leaderboardService.getUserRank(wallet_address);
       }
 
       return res.json({ leaderboard: entries, user_rank });
