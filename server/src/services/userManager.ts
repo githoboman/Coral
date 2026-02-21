@@ -368,7 +368,7 @@ export class UserManager {
       const field = type === 'task' ? 'daily_prompts_used' : 'daily_research_prompts_used';
       const dateField = type === 'task' ? 'last_prompt_date' : 'last_research_prompt_date';
 
-      const { data: profile, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('user_profiles')
         .select(`${field}, ${dateField}`)
         .eq('wallet_address', walletAddress)
@@ -376,6 +376,7 @@ export class UserManager {
 
       if (fetchError) throw fetchError;
 
+      const profile = data as any;
       const needsReset = !profile[dateField] || profile[dateField] !== today;
       const newValue = needsReset ? 1 : (profile[field] || 0) + 1;
 
@@ -408,7 +409,7 @@ export class UserManager {
       const claimedField = type === 'task' ? 'tasks_claimed_today' : 'research_claimed_today';
       const resetDateField = 'last_task_reset_date';
 
-      const { data: profile, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('user_profiles')
         .select(`${field}, ${claimedField}, ${resetDateField}`)
         .eq('wallet_address', walletAddress)
@@ -416,6 +417,7 @@ export class UserManager {
 
       if (fetchError) throw fetchError;
 
+      const profile = data as any;
       const needsReset = !profile[resetDateField] || profile[resetDateField] !== today;
 
       const updateData: any = {
