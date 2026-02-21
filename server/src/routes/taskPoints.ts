@@ -337,7 +337,7 @@ router.post(
 
       // Instantly credit points to leaderboard (forceUpdate relies on on-chain
       // event indexing which has propagation delay)
-      getLeaderboardService().creditPoints(user_id, task_count * 2);
+      await getLeaderboardService().creditPoints(user_id, task_count * 2);
 
       res.json({
         success: true,
