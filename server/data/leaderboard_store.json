@@ -1,12 +1,12 @@
 {
   "users": {
     "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf": {
-      "balance": 153,
-      "ts": 1771679591803
+      "balance": 157,
+      "ts": 1771688295519
     },
     "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925": {
-      "balance": 109,
-      "ts": 1771402286251
+      "balance": 123,
+      "ts": 1771694074361
     },
     "0xef5bbf465660b77bee00f8fd8ff5edd20df2c4bab5fe3d24e61c0863fb01f04d": {
       "balance": 120,
@@ -29,8 +29,8 @@
       "ts": 1770832787984
     },
     "0xa132286a435434a64ded09578498439a0596b97710b76c44e98bcd02b4eb391a": {
-      "balance": 114,
-      "ts": 1771583139483
+      "balance": 126,
+      "ts": 1771688857755
     },
     "0xa3c0c6c978d8c61566347f304dba92cea6c2da279005d623522cc50a36a621e4": {
       "balance": 16,
@@ -125,8 +125,8 @@
       "ts": 1770920659990
     },
     "0x67708de75f9a30a903f6afafec5237ea3ad7f653508b4eb1f45cb2b16328f18e": {
-      "balance": 2,
-      "ts": 1771404855387
+      "balance": 5,
+      "ts": 1771695968054
     },
     "0x93ff3c1f568f1bf38e703aa3cda328091f73cefe04cf7ca4f3eb87e262317911": {
       "balance": 100,
@@ -313,8 +313,8 @@
       "ts": 1771060278935
     },
     "0x68c3ebcdcddaeccef6cf47ee720081ccbc7358b4c4fa60fbe7443a293f5a4fc3": {
-      "balance": 109,
-      "ts": 1771487399200
+      "balance": 110,
+      "ts": 1771694163496
     },
     "0x0ecab387397e49dfd983a7ad7b65e7b3d24358e8ac64675b755a89912a65ebc4": {
       "balance": 100,
@@ -337,8 +337,8 @@
       "ts": 1771063929284
     },
     "0x792857e4b8ab8d820699cad8edde2c0870e192fa95bdc14959ea8713274a5649": {
-      "balance": 114,
-      "ts": 1771681751079
+      "balance": 126,
+      "ts": 1771691097865
     },
     "0x06c4d995ffc4d8927d5b98cfbb1f763b5c6a0305f93eac62a331fa983058d63c": {
       "balance": 100,
@@ -497,8 +497,8 @@
       "ts": 1771085020205
     },
     "0xba98c2bce11994e728bb0e24f9a01328481c33e6247fc96ff3df8dcdf650b8d6": {
-      "balance": 110,
-      "ts": 1771682976004
+      "balance": 112,
+      "ts": 1771688425830
     },
     "0xbc33d3167c1a510912fac371a9a3ee72ce68bfa99985f2fc26e44cfbd7a13428": {
       "balance": 4,
@@ -609,12 +609,12 @@
       "ts": 1771099698308
     },
     "0x4a24b32561c4b425fada039a3b36be9877ebfc7dd64b5460017abc252f31c46d": {
-      "balance": 2,
-      "ts": 1771187078248
+      "balance": 3,
+      "ts": 1771688625777
     },
     "0xead1fb6781a05152ef3d6381af9300ce1d3c50c9d657c7d6e324ac7708ca19ef": {
-      "balance": 11,
-      "ts": 1771663753901
+      "balance": 12,
+      "ts": 1771700696676
     },
     "0x0067380394154d74422a307f6507a2859adced7aab7d01906acf7e0673e44cf4": {
       "balance": 100,
@@ -737,8 +737,8 @@
       "ts": 1771673487711
     },
     "0x9c818530631603d239fb0ef3c9bb4b447d86709f66c4fb404c80d9faafb03742": {
-      "balance": 4,
-      "ts": 1771606154345
+      "balance": 10,
+      "ts": 1771692534271
     },
     "0xb6899b529ab992aac98c62d5ca0be16cbf5df63c4cd75f6922cc2e3b9d01447c": {
       "balance": 103,
@@ -1421,8 +1421,8 @@
       "ts": 1771658722093
     },
     "0x0ac858dd314150d7012d2c6072183df7479c17208042ed1edc1f738f927a8bc1": {
-      "balance": 109,
-      "ts": 1771620934099
+      "balance": 110,
+      "ts": 1771697664710
     },
     "0x85edacc351c0eb2f79070f8899a974f56c7622993cac70b729b749635612f425": {
       "balance": 100,
@@ -1645,8 +1645,8 @@
       "ts": 1771294607536
     },
     "0x33801243a25b08039bbaebb14b1336828a65f93e865866225053fd9f9c47a04a": {
-      "balance": 100,
-      "ts": 1771295806479
+      "balance": 101,
+      "ts": 1771698474754
     },
     "0x7a623d7be4d123d5b32767ffa2baae1e86e730c9cb54eb8c113e8bcaab7a3169": {
       "balance": 100,
@@ -1669,8 +1669,8 @@
       "ts": 1771641881564
     },
     "0xe73decf95c669c6e6b859d6b0bcbf46f399c835ada59fb886d7508e88cc14e32": {
-      "balance": 124,
-      "ts": 1771591121916
+      "balance": 126,
+      "ts": 1771691140458
     },
     "0xb332d0190d2860b5098b3e8642bd4f21f6eed20e35d775e5083b8110f98491a9": {
       "balance": 100,
@@ -1745,8 +1745,8 @@
       "ts": 1771558733379
     },
     "0xe87f63052dfb5d20eb9bd015b6f932d8bc27649ba27b37db4a94697e4129c9e3": {
-      "balance": 10,
-      "ts": 1771584236859
+      "balance": 17,
+      "ts": 1771694072944
     },
     "0x03f79da0a53d5eda9e629d8093cf0b95327425d69c402847a0a0fba36ec5ccde": {
       "balance": 1,
@@ -1765,8 +1765,8 @@
       "ts": 1771599751968
     },
     "0xbd3a7e5477698422379a09a4d03a6b34edd4064209a0fa2efc5588b6acf3b8e9": {
-      "balance": 1,
-      "ts": 1771461546921
+      "balance": 10,
+      "ts": 1771695950204
     },
     "0x672ee83dde132c4678d69edd4db50007e01fa54a9a415e6e97894f8dd83dfa3d": {
       "balance": 3,
@@ -1909,8 +1909,8 @@
       "ts": 1771667600589
     },
     "0x03512a0e1e89c45134667ceedb42fec29d529a79e3a92f0e536678386c495d00": {
-      "balance": 9,
-      "ts": 1771662937438
+      "balance": 10,
+      "ts": 1771693915530
     },
     "0xbda0e9046b79e7f647bd7fd0ce7549b0042ec59c9000659ba4e79998f5019fcb": {
       "balance": 100,
@@ -1969,8 +1969,8 @@
       "ts": 1771508543160
     },
     "0x986d32c76f7410050f11325ef835055af8edbc5c63565a028a0e89dc7c0e4bb8": {
-      "balance": 6,
-      "ts": 1771612008859
+      "balance": 9,
+      "ts": 1771697084860
     },
     "0x7200fa3292693868bad89d4bf921890c863965a569e62ba6108533a21035c286": {
       "balance": 2,
@@ -1993,8 +1993,8 @@
       "ts": 1771685959232
     },
     "0x548b62599c60c7a6cdb015f16e7c3ac0c845f0d83e76af40851d18103df3fb34": {
-      "balance": 114,
-      "ts": 1771680064254
+      "balance": 115,
+      "ts": 1771700368179
     },
     "0x410bbff888e2d1c242434753a61457170c7af7bd6beb559ad8f217d30f76c4da": {
       "balance": 2,
@@ -2029,8 +2029,8 @@
       "ts": 1771524800146
     },
     "0x77d7bdead161425244c7ee574f3ec75f33361cf3174717fd146805b7a007321d": {
-      "balance": 1,
-      "ts": 1771525006499
+      "balance": 2,
+      "ts": 1771697888625
     },
     "0xb5fed89f7ede14eda4e6b7bdfa7ea186e85fcf7f58b09689b15afc863c734960": {
       "balance": 4,
@@ -2049,8 +2049,8 @@
       "ts": 1771528828542
     },
     "0x752ff4acdf76894dc8419e393d1697a7bff5af6a282a8e8cc445efae0a0c771d": {
-      "balance": 10,
-      "ts": 1771617971429
+      "balance": 14,
+      "ts": 1771696713765
     },
     "0x58d8f1f20d5812ee585465d992468617e0870efc8f6a4c8dbbab7597db533327": {
       "balance": 100,
@@ -2205,8 +2205,8 @@
       "ts": 1771596982883
     },
     "0x8270c72a4b29d35844a5bbc9befb6bac3fc732de56f8141398226c35eacf3af0": {
-      "balance": 7,
-      "ts": 1771598105771
+      "balance": 8,
+      "ts": 1771699387980
     },
     "0x21b1081880d243271f97aae95390f8516db29d8910163f938394d89e5e74c486": {
       "balance": 1,
@@ -2225,12 +2225,12 @@
       "ts": 1771606385327
     },
     "0x301514d59db3805222c940cef3d4e0371a041f09ef28aae8181ecc5a863e8095": {
-      "balance": 5,
-      "ts": 1771605282893
+      "balance": 9,
+      "ts": 1771688852304
     },
     "0x9a2306747ba72cfef7e62fc8baabceca4fa0e679a7f352d7a2e789097361c066": {
-      "balance": 1,
-      "ts": 1771602632215
+      "balance": 4,
+      "ts": 1771688691145
     },
     "0xd8c7b30f0297f8122aeb5d999b035413174df6df2c7f7a5f5ffc3d039896e342": {
       "balance": 2,
@@ -2561,8 +2561,8 @@
       "ts": 1771685513903
     },
     "0x76cb96a559032166fff2cb07a5f13f04d8099da6fa46ea2d153d6f64117ed06b": {
-      "balance": 15,
-      "ts": 1771687512742
+      "balance": 16,
+      "ts": 1771693781849
     },
     "0x5728bdbd0dcd553d7e627b16602bf0320fdc535a0a9d2607e325d35a2a8a26cb": {
       "balance": 100,
@@ -2575,21 +2575,97 @@
     "0x10458569028b50734b60370b6708f737a65dd2cf58593c9addca8743b8c22c0e": {
       "balance": 8,
       "ts": 1771686807940
+    },
+    "0xda06319f8c73300744a1e9aff6f79f44d6dd844b028e484490b5d1641c0a2ac9": {
+      "balance": 3,
+      "ts": 1771688071357
+    },
+    "0x246d6262480456f222e90a58cc3f785f8d52d8a4b88f2a0fb1ca78488f78f82e": {
+      "balance": 3,
+      "ts": 1771689777370
+    },
+    "0x6924bb6ebd83d70e76a6675971457adf032158cdf891faf41b1ccd38412e917a": {
+      "balance": 4,
+      "ts": 1771694040699
+    },
+    "0x9b7d6ff747a20387f51d88c30533bd956b3b57cbc7162ba4fa8efe22db4d6f90": {
+      "balance": 2,
+      "ts": 1771693896868
+    },
+    "0xb02c7bbb24916b7ab1138b9ba94ebbfa8adbafd1d71dc6e7d9c25bb045775591": {
+      "balance": 6,
+      "ts": 1771694042253
+    },
+    "0x43e68fb82750a5aad43e34e76d1f1f7289f3c51aafdc43efb749ee98d9a3c543": {
+      "balance": 2,
+      "ts": 1771693861162
+    },
+    "0x9e4aac08737d4dfb20d2ec19de8597258244b5f5bbe6b66f33950a1ae9a1268d": {
+      "balance": 5,
+      "ts": 1771694769880
+    },
+    "0x1860e4dc7661ac6e5bef2f2121efd8d1df2420cc3dda4a8640a902d43fa82588": {
+      "balance": 100,
+      "ts": 1771693771007
+    },
+    "0x93cc2e11c4e52a59840c130c03106e6dc61a32ab8475c615664cecf8b79c05c4": {
+      "balance": 9,
+      "ts": 1771694789006
+    },
+    "0xb49dfbaa992ed40db58ae878b9b8c55b0bce39230aa6bd624a502d8b5ba6a2ca": {
+      "balance": 1,
+      "ts": 1771694466944
+    },
+    "0xd7bb5e0105a605e5db14e4d3fae92610168554338ffc601b58209ce322ae949a": {
+      "balance": 1,
+      "ts": 1771694493695
+    },
+    "0xdabdcc565d20ee7705b3c4568771634971b8dab2ace833c17b4bad181930f3be": {
+      "balance": 100,
+      "ts": 1771695047451
+    },
+    "0x161a77d0186df7052f5664da61acbe6e5e3fda55680425f363cfa8de0130f901": {
+      "balance": 5,
+      "ts": 1771696680613
+    },
+    "0x84074f0909f82b32ec99af473acad1c7abe740f7c36137a124958735ecc5eac9": {
+      "balance": 5,
+      "ts": 1771696718071
+    },
+    "0x9dea6ac684b268a24bdec4c0a97ef6e1c7c6b82b15e22c126ced3ca61a7fe2fc": {
+      "balance": 13,
+      "ts": 1771696990466
+    },
+    "0x425e482be607ff03667a0b66db50f318b581d015189b517f8f3df27f23ef048b": {
+      "balance": 1,
+      "ts": 1771697366064
+    },
+    "0x9b5b7cf96f4918024ff8db5cba39ee0a9cc2464f3c6fee5304cd42a8189451a0": {
+      "balance": 107,
+      "ts": 1771698909410
+    },
+    "0xd6f8a31ba8cc5adc9a776e878fee52ee47c9f834694d22229c70aba350e49c34": {
+      "balance": 104,
+      "ts": 1771699067022
+    },
+    "0x7679fa7d4d7139cab5e8ff36025560113fa2c04550ca8feec586cf0755edb392": {
+      "balance": 102,
+      "ts": 1771699229423
     }
   },
   "cursors": {
     "points": {
-      "txDigest": "5j23p6LBdaHd5xJYZSU4LH7cL3aiRt2kHY4k9FRP7EJf",
-      "eventSeq": "0"
+      "txDigest": "4iH5zUTitarXrFGPSAovqARUW47qRgACJg9jKNSPejPj",
+      "eventSeq": "3"
     },
     "tasks": {
-      "txDigest": "7st6YsSXsfvy4PrQXE8wALrQs2zR21QwGhP4utqcUeVH",
+      "txDigest": "HTrMZyXLvPtPpARCX4K7U8DsTfgBkBoE8or3YXV72AsM",
       "eventSeq": "0"
     },
     "checkins": {
-      "txDigest": "EAcL4NMrypvYE7pbrCZoXPqpBQ1jWvNCPURcu6VHs223",
+      "txDigest": "4iH5zUTitarXrFGPSAovqARUW47qRgACJg9jKNSPejPj",
       "eventSeq": "2"
     }
   },
-  "lastUpdated": 1771687635870
+  "lastUpdated": 1771707338188
 }
