@@ -1,15 +1,14 @@
 import cron from "node-cron";
 import { getTaskStorageService } from "./taskStorageService";
 import { getNotificationService } from "./notificationService";
-import { WalrusUserManager, getWalrusUserManager } from "./walrusUserManager";
-import { TicketMinter, getTicketMinter } from "./ticketMinter";
+import getSupabaseClient from "../config/supabase";
+
+const supabase = getSupabaseClient();
 
 export class TaskScheduler {
   private static instance: TaskScheduler;
   private taskStorage = getTaskStorageService();
   private notificationService = getNotificationService();
-  private userManager = getWalrusUserManager();
-  private ticketMinter = getTicketMinter();
   private isRunning = false;
 
   private constructor() { }
@@ -24,7 +23,6 @@ export class TaskScheduler {
   public start() {
     if (this.isRunning) return;
 
-
     this.isRunning = true;
 
     // Run every minute
@@ -35,21 +33,20 @@ export class TaskScheduler {
 
   private async checkDueTasks() {
     try {
-      // In a real production app with thousands of users, iterating all users 
-      // is not efficient. A dedicated index or separate DB table for due tasks is better.
-      // For this implementation given the structure (Wallet/Walrus), we'll do a best-effort approach
-      // by iterating known users from the registry.
+      // Fetch all users from Supabase to check their tasks
+      // In a large app, we'd query tasks table directly for due tasks, 
+      // but for now we follow the existing pattern of processing per user.
+      const { data: users, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address');
 
-      const blobId = await this.ticketMinter.getCurrentBlobId();
-      if (!blobId) return;
+      if (error) throw error;
+      if (!users || users.length === 0) return;
 
-      const registry = await this.userManager.fetchUsersRegistry(blobId);
-      if (!registry || !registry.users) return;
-
-      const userIds = Object.keys(registry.users);
-
-      for (const userId of userIds) {
-        await this.processUserTasks(userId);
+      for (const user of users) {
+        if (user.wallet_address) {
+          await this.processUserTasks(user.wallet_address);
+        }
       }
 
     } catch (error) {

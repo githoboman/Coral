@@ -31,6 +31,8 @@ export interface CheckInStatus {
   next_available?: string;
   current_streak: number;
   total_points: number;
+  checkin_points: number;
+  total_checkins: number;
 }
 
 function getStreakRewardPoints(streakDay: number): number {
@@ -63,11 +65,11 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
       return data;
     }, 3, 1000, 'CheckIn.getStatus');
 
-    // Get user's total points
+    // Get user's total points and check-in stats
     const user = await withRetry(async () => {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('points, checkin_streak')
+        .select('points, checkin_streak, checkin_points, total_checkins')
         .eq('wallet_address', userId)
         .single();
 
@@ -78,12 +80,16 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
     const lastCheckin = checkins?.[0];
     const totalPoints = user?.points || 0;
     const currentStreak = user?.checkin_streak || 0;
+    const checkinPoints = user?.checkin_points || 0;
+    const totalCheckinsCount = user?.total_checkins || 0;
 
     if (!lastCheckin) {
       return {
         has_checked_in: false,
         current_streak: currentStreak,
-        total_points: totalPoints
+        total_points: totalPoints,
+        checkin_points: checkinPoints,
+        total_checkins: totalCheckinsCount
       };
     }
 
@@ -98,7 +104,9 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
         last_checkin: lastCheckinTime.toISOString(),
         next_available: nextAvailable.toISOString(),
         current_streak: currentStreak,
-        total_points: totalPoints
+        total_points: totalPoints,
+        checkin_points: checkinPoints,
+        total_checkins: totalCheckinsCount
       };
     }
 
@@ -106,14 +114,18 @@ export async function getCheckInStatus(userId: string): Promise<CheckInStatus> {
       has_checked_in: false,
       last_checkin: lastCheckinTime.toISOString(),
       current_streak: currentStreak,
-      total_points: totalPoints
+      total_points: totalPoints,
+      checkin_points: checkinPoints,
+      total_checkins: totalCheckinsCount
     };
   } catch (error) {
     console.error('[CHECKIN] Error getting check-in status:', error);
     return {
       has_checked_in: false,
       current_streak: 0,
-      total_points: 0
+      total_points: 0,
+      checkin_points: 0,
+      total_checkins: 0
     };
   }
 }
@@ -167,19 +179,39 @@ export async function processCheckIn(userId: string): Promise<CheckInResult> {
       if (checkinError) throw checkinError;
     }, 3, 1000, 'CheckIn.recordCheckIn');
 
-    // Update user's points and streak
+    // Update user's points, streak and checkin_points
     await withRetry(async () => {
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({
           points: newTotalPoints,
           checkin_streak: newStreak,
+          checkin_points: status.checkin_points + pointsEarned,
+          total_checkins: status.total_checkins + 1,
           last_checkin: new Date().toISOString()
         })
         .eq('wallet_address', userId);
 
       if (updateError) throw updateError;
     }, 3, 1000, 'CheckIn.updateUser');
+
+    // NEW: Log to points_history
+    try {
+      await withRetry(async () => {
+        const { error: historyError } = await supabase
+          .from('points_history')
+          .insert({
+            user_id: userId,
+            amount: pointsEarned,
+            source: 'points', // source for check-ins is usually 'points' or 'checkin_points'
+            reason: `Daily check-in (Day ${newStreak} streak)`,
+            details: { streak_day: newStreak, points_before: status.total_points, points_after: newTotalPoints }
+          });
+        if (historyError) throw historyError;
+      }, 3, 1000, 'CheckIn.logHistory');
+    } catch (e) {
+      console.warn('[CHECKIN] Failed to log points_history, but check-in was recorded:', e);
+    }
 
     // Generate success message
     const milestones = [5, 10, 15, 20, 25, 30];

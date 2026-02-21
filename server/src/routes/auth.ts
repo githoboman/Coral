@@ -6,7 +6,9 @@ import {
   getWalrusUserManager,
 } from "../services/walrusUserManager";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import getSupabaseClient from "../config/supabase";
 
+const supabase = getSupabaseClient();
 const router = Router();
 
 const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
@@ -150,21 +152,14 @@ router.post(
       const minter = getLocalTicketMinter();
       const um = getUserManager();
 
-      const blobRegistry = await minter.getCurrentBlobId();
-
-      if (blobRegistry) {
-        const existingWallet = await um.findWalletByEmail(
-          blobRegistry,
-          normalizedEmail,
-        );
-        if (existingWallet && existingWallet !== wallet_address) {
-          res.status(409).json({
-            error: "Conflict",
-            detail:
-              "This email address is already registered to another wallet.",
-          });
-          return;
-        }
+      // Conflict check using Supabase (formerly um.findWalletByEmail used blobs)
+      const existingWallet = await um.findWalletByEmail("", normalizedEmail);
+      if (existingWallet && existingWallet !== wallet_address) {
+        res.status(409).json({
+          error: "Conflict",
+          detail: "This email address is already registered to another wallet.",
+        });
+        return;
       }
 
       const profile = um.createUserProfile(
@@ -180,18 +175,14 @@ router.post(
         },
       );
 
-      const newBlobId = await um.addOrUpdateUser(blobRegistry || null, profile);
+      const newBlobId = await um.addOrUpdateUser(null, profile);
 
       if (!newBlobId) {
         res.status(500).json({
           error: "Internal Server Error",
-          detail: "Failed to save user profile to Walrus",
+          detail: "Failed to save user profile to database.",
         });
         return;
-      }
-
-      if (newBlobId !== blobRegistry) {
-        await minter.updateBlobRegistry(newBlobId);
       }
 
       res.json({
@@ -277,35 +268,43 @@ router.post(
       (async () => {
         try {
           const um = getUserManager();
-          const blobRegistry = await minter.getCurrentBlobId();
-          if (blobRegistry) {
-            const existing = await um.getUserProfile(
-              blobRegistry,
-              wallet_address,
+          const existing = await um.getUserProfile("", wallet_address);
+          
+          if (existing) {
+            const updated = um.createUserProfile(
+              existing.email,
+              existing.wallet_address,
+              true,
+              existing.points_awarded + 100, // Explicitly add the 100 points
+              {
+                username: existing.username,
+                first_name: existing.first_name,
+                last_name: existing.last_name,
+                preferences: existing.preferences,
+                waitlist_verified_at: new Date().toISOString(),
+              },
             );
-            if (existing) {
-              const updated = um.createUserProfile(
-                existing.email,
-                existing.wallet_address,
-                true,
-                existing.points_awarded,
-                {
-                  username: existing.username,
-                  first_name: existing.first_name,
-                  last_name: existing.last_name,
-                  preferences: existing.preferences,
-                  waitlist_verified_at: new Date().toISOString(),
-                },
-              );
-              const newBlobId = await um.addOrUpdateUser(blobRegistry, updated);
-              if (newBlobId && newBlobId !== blobRegistry) {
-                await minter.updateBlobRegistry(newBlobId);
-              }
+            await um.addOrUpdateUser(null, updated);
+
+            // Log to points_history
+            try {
+              const { data, error } = await supabase
+                .from('points_history')
+                .insert({
+                  user_id: wallet_address,
+                  amount: 100,
+                  source: 'waitlist_points',
+                  reason: 'Waitlist eligibility reward',
+                  details: { email: normalizedEmail }
+                });
+              if (error) throw error;
+            } catch (histErr) {
+              console.warn("[CLAIM] Failed to log points_history:", histErr);
             }
           }
         } catch (err) {
           console.warn(
-            "[CLAIM] Walrus profile update failed (non-fatal):",
+            "[CLAIM] Supabase profile update failed (non-fatal):",
             err,
           );
         }
@@ -347,18 +346,12 @@ router.get(
       let walrusFailed = false;
 
       try {
-        const minter = getLocalTicketMinter();
         const um = getUserManager();
-        const blobId =
-          um.getCachedBlobId() ?? (await minter.getCurrentBlobId());
-
-        if (blobId) {
-          profile = await um.getUserProfile(blobId, wallet_address);
-        }
-      } catch (walrusErr) {
+        profile = await um.getUserProfile("", wallet_address);
+      } catch (dbErr) {
         console.warn(
-          "[CHECK-USER] Walrus lookup failed — will try on-chain fallback:",
-          walrusErr,
+          "[CHECK-USER] Database lookup failed:",
+          dbErr,
         );
         walrusFailed = true;
       }
@@ -366,14 +359,14 @@ router.get(
       if (profile) {
         const isOnboarded = !!profile.email;
         console.log(
-          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Walrus registry → onboarded ✓`,
+          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Supabase → onboarded ✓`,
         );
         res.json({ exists: true, is_onboarded: isOnboarded, user: profile });
         return;
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Walrus, checking on-chain (legacy fallback)`,
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Supabase, checking on-chain (legacy fallback)`,
       );
 
       try {
