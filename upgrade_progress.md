@@ -1,4 +1,4 @@
-# Tovira Upgrade Progress Tracker
+# Tovira Upgrade Progress Tracker.
 ## From Reactive Tool to Proactive Web3 Companion
 
 > **Last Updated**: 2026-02-20
