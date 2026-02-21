@@ -34,23 +34,9 @@ router.get(
         });
       }
 
-      const minter = getLocalTicketMinter();
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) {
-        return res.json({
-          exists: false,
-          user: null,
-          is_onboarded: false,
-        });
-      }
-
       const manager = getUserManager();
-      // getUserProfile returns DecryptedUserProfile | null
-      const userProfile = await manager.getUserProfile(
-        userRegistryBlobId,
-        user_id,
-      );
+      // getUserProfile now queries Supabase directly, ignoring the first argument (blobId)
+      const userProfile = await manager.getUserProfile("", user_id);
 
       if (userProfile) {
         const isOnboarded = !!userProfile.email;
@@ -95,15 +81,9 @@ router.post(
       }
 
       const manager = getUserManager();
-      const minter = getLocalTicketMinter();
-
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      // If no registry exists yet on-chain, we'll start a new one (passed as null to addOrUpdateUser)
-
-      const existingProfile = userRegistryBlobId ? await manager.getUserProfile(
-        userRegistryBlobId,
-        user_id,
-      ) : null;
+      
+      // Fetch existing from Supabase
+      const existingProfile = await manager.getUserProfile("", user_id);
 
       const updatedProfile = manager.createUserProfile(
         email || existingProfile?.email || "",
@@ -119,76 +99,26 @@ router.post(
         },
       );
 
-      const newBlobId = await manager.addOrUpdateUser(
-        userRegistryBlobId || null,
-        updatedProfile,
-      );
+      // addOrUpdateUser now upserts into Supabase
+      const result = await manager.addOrUpdateUser(null, updatedProfile);
 
-      if (!newBlobId) {
+      if (!result) {
         return res.status(500).json({
           error: "Internal Server Error",
-          detail: "Failed to update user profile",
+          detail: "Failed to update user profile in database",
         });
-      }
-
-      if (newBlobId !== userRegistryBlobId) {
-        await minter.updateBlobRegistry(newBlobId);
       }
 
       return res.json({
         message: "User profile updated successfully",
         user_id,
         requires_onboarding: !(email || existingProfile?.email),
-        registry_blob_id: newBlobId,
       });
     } catch (error) {
       console.error("Error in update-user:", error);
       next(error);
     }
   },
-);
-
-router.get(
-  "/stats",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const minter = getLocalTicketMinter();
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) {
-        return res.json({
-          totalUsers: 0,
-        });
-      }
-
-      const manager = getUserManager();
-      const registry = await manager.fetchUsersRegistry(userRegistryBlobId);
-
-      let activeSubscribers = 0;
-      let freeUsers = 0;
-
-      if (registry && registry.users) {
-        Object.values(registry.users).forEach((u) => {
-          if (u.subscription_tier === 1) {
-            activeSubscribers++;
-          } else {
-            freeUsers++;
-          }
-        });
-      }
-
-      return res.json({
-        totalUsers: registry?.total_users || 0,
-        activeSubscribers,
-        freeUsers,
-        blobId: userRegistryBlobId
-      });
-
-    } catch (error) {
-      console.error("Error in /stats:", error);
-      next(error);
-    }
-  }
 );
 
 export default router;

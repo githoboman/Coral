@@ -1,9 +1,8 @@
-import axios from "axios";
 import "dotenv/config";
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
 import { getEncryptionService, type EncryptedData } from "./encryptionService";
+import getSupabaseClient from "../config/supabase";
+
+const supabase = getSupabaseClient();
 
 export interface UserProfile {
   email: EncryptedData | string;
@@ -38,12 +37,6 @@ export interface UserProfile {
   subscription_expires_at?: string;
   daily_prompts_used?: number;
   last_prompt_date?: string;
-
-  // Research prompts
-  daily_research_prompts_used?: number;
-  last_research_prompt_date?: string;
-
-
 }
 
 export interface DecryptedUserProfile {
@@ -127,27 +120,10 @@ export interface WalrusUploadResponse {
 
 export class WalrusUserManager {
   private static instance: WalrusUserManager;
-  private publisherUrl: string;
-  private aggregatorUrl: string;
-  private epochs: number;
-  private registryCache: { blobId: string; registry: UsersRegistry } | null =
-    null;
-  public getCachedBlobId(): string | null {
-    return this.registryCache?.blobId ?? null;
-  }
-
   private encryption = getEncryptionService();
 
   private constructor() {
-    this.publisherUrl =
-      process.env.WALRUS_PUBLISHER_URL ||
-      "https://publisher.walrus-testnet.walrus.space";
-    this.aggregatorUrl =
-      process.env.WALRUS_AGGREGATOR_URL ||
-      "https://aggregator.walrus-testnet.walrus.space";
-    this.epochs = parseInt(process.env.WALRUS_EPOCHS || "50", 10);
-
-    this.loadCache();
+    // Dedicated to Supabase now
   }
 
   public static getInstance(): WalrusUserManager {
@@ -157,48 +133,9 @@ export class WalrusUserManager {
     return WalrusUserManager.instance;
   }
 
-  // --- Persistent Caching Implementation ---
-  private getCacheFilePath(): string {
-    // Determine path essentially relative to this file or project root
-    // Assuming server/src/services, we want server/data
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    return path.join(__dirname, "../../data/user_registry_cache.json");
+  public getCachedBlobId(): string | null {
+    return "supabase_managed";
   }
-
-  private loadCache() {
-    try {
-      const cachePath = this.getCacheFilePath();
-      if (fs.existsSync(cachePath)) {
-        const raw = fs.readFileSync(cachePath, "utf-8");
-        const data = JSON.parse(raw);
-        // Basic validation
-        if (data && data.blobId && data.registry) {
-          this.registryCache = data;
-          console.log(`[WALRUS_USER_MANAGER] Loaded registry cache for blob: ${data.blobId}`);
-        }
-      }
-    } catch (error) {
-      console.warn("[WALRUS_USER_MANAGER] Failed to load cache:", error);
-    }
-  }
-
-  private saveCache() {
-    try {
-      if (!this.registryCache) return;
-      const cachePath = this.getCacheFilePath();
-      const dataDir = path.dirname(cachePath);
-
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
-
-      fs.writeFileSync(cachePath, JSON.stringify(this.registryCache, null, 2), "utf-8");
-      console.log(`[WALRUS_USER_MANAGER] Saved registry cache for blob: ${this.registryCache.blobId}`);
-    } catch (error) {
-      console.error("[WALRUS_USER_MANAGER] Failed to save cache:", error);
-    }
-  }
-  // -----------------------------------------
 
   createUserProfile(
     email: string,
@@ -281,274 +218,109 @@ export class WalrusUserManager {
       profile.last_prompt_date = additionalData.last_prompt_date;
     }
 
-    // Research prompts
-    if (additionalData?.daily_research_prompts_used !== undefined) {
-      profile.daily_research_prompts_used = additionalData.daily_research_prompts_used;
-    }
-    if (additionalData?.last_research_prompt_date) {
-      profile.last_research_prompt_date = additionalData.last_research_prompt_date;
-    }
-
-
-
     return profile;
   }
 
-  private decryptProfile(profile: UserProfile): DecryptedUserProfile {
-    return {
-      email: this.encryption.decryptOptional(profile.email) || "",
-      wallet_address: profile.wallet_address,
-      is_waitlisted: profile.is_waitlisted,
-      points_awarded: profile.points_awarded,
-      joined_at: profile.joined_at,
-      username: this.encryption.decryptOptional(profile.username),
-      first_name: this.encryption.decryptOptional(profile.first_name),
-      last_name: this.encryption.decryptOptional(profile.last_name),
-      preferences: this.encryption.decryptPreferences(profile.preferences),
-      waitlist_verified_at: profile.waitlist_verified_at,
-
-      // Chat system
-      chat_registry_blob_id: profile.chat_registry_blob_id,
-
-      // Task system
-      task_registry_blob_id: profile.task_registry_blob_id,
-
-      // Task tracking
-      tasks_created_today: profile.tasks_created_today || 0,
-      tasks_claimed_today: profile.tasks_claimed_today || 0,
-      last_task_reset_date: profile.last_task_reset_date,
-
-      // Check-in streak tracking
-      current_streak: profile.current_streak || 0,
-      last_checkin_date: profile.last_checkin_date,
-      total_checkins: profile.total_checkins || 0,
-
-      // Subscription
-      subscription_tier: profile.subscription_tier || 0,
-      subscription_expires_at: profile.subscription_expires_at,
-      daily_prompts_used: profile.daily_prompts_used || 0,
-      last_prompt_date: profile.last_prompt_date,
-
-      // Research prompts
-      daily_research_prompts_used: profile.daily_research_prompts_used || 0,
-      last_research_prompt_date: profile.last_research_prompt_date,
-    };
-  }
-
-  private fetchPromises: Map<string, Promise<UsersRegistry | null>> = new Map();
-
-  async fetchUsersRegistry(
-    blobId: string,
-    maxRetries: number = 3,
-  ): Promise<UsersRegistry | null> {
-    if (this.registryCache && this.registryCache.blobId === blobId) {
-      // console.log(`[WALRUS] Memory Cache Hit: ${blobId}`);
-      return this.registryCache.registry;
-    }
-
-    // Check if a fetch is already in progress for this blobId
-    if (this.fetchPromises.has(blobId)) {
-      console.log(`[WALRUS] 🔄 Request Coalesced: Waiting for existing fetch of ${blobId}`);
-      return this.fetchPromises.get(blobId)!;
-    }
-
-    const fetchPromise = (async () => {
-      let lastError: Error | null = null;
-
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          console.log(`[WALRUS] 🌍 Fetching Registry (Attempt ${attempt}/${maxRetries})...`);
-
-          const response = await axios.get(
-            `${this.aggregatorUrl}/v1/blobs/${blobId}`,
-            {
-              timeout: 30000,
-              headers: {
-                Accept: "application/json",
-              },
-            },
-          );
-
-          const registry = response.data as UsersRegistry;
-
-          this.registryCache = { blobId, registry };
-          this.saveCache();
-          console.log(`[WALRUS] ✅ Fetch Success & Cached: ${blobId} (${registry.total_users} users)`);
-          return registry;
-        } catch (error: any) {
-          lastError = error as Error;
-          console.warn(`[WALRUS] ⚠️  Attempt ${attempt} failed:`, lastError.message);
-
-          if (error.response?.status === 404) {
-            console.error("[WALRUS] ❌ Registry blob not found (404)");
-            return null;
-          }
-
-          if (attempt < maxRetries) {
-            const waitTime = 1500 * attempt;
-            await new Promise((r) => setTimeout(r, waitTime));
-          }
-        }
-      }
-
-      console.error("[WALRUS] ❌ Failed to fetch users registry after all retries");
-      throw lastError || new Error("Failed to fetch users registry");
-    })();
-
-    this.fetchPromises.set(blobId, fetchPromise);
-
-    try {
-      return await fetchPromise;
-    } finally {
-      this.fetchPromises.delete(blobId);
-    }
-  }
-
-  async uploadUsersRegistry(
-    registry: UsersRegistry,
-    maxRetries: number = 3,
-  ): Promise<string | null> {
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-
-
-        const registryJson = JSON.stringify(registry, null, 2);
-        const registryBytes = new TextEncoder().encode(registryJson);
-
-        const response = await axios.put(
-          `${this.publisherUrl}/v1/blobs`,
-          registryJson,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            params: {
-              epochs: this.epochs,
-            },
-            timeout: 30000,
-          },
-        );
-
-        const result = response.data as WalrusUploadResponse;
-
-        const blobId =
-          result.newlyCreated?.blobObject?.blobId ||
-          result.alreadyCertified?.blobId;
-
-        if (!blobId) {
-          throw new Error("No blob ID returned from Walrus");
-        }
-
-
-
-        if (result.newlyCreated) {
-
-        }
-
-        return blobId;
-      } catch (error: any) {
-        lastError = error as Error;
-        console.warn(
-          `⚠️  Attempt ${attempt} failed:`,
-          error instanceof Error ? error.message : error,
-        );
-
-        if (attempt < maxRetries) {
-          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-
-          await new Promise((resolve) => setTimeout(resolve, waitTime));
-        }
-      }
-    }
-
-    console.error("❌ All upload attempts failed");
-    throw lastError || new Error("Upload failed");
-  }
-
   async addOrUpdateUser(
-    currentBlobId: string | null,
+    currentBlobId: string | null, // Kept for compatibility
     userProfile: UserProfile,
   ): Promise<string | null> {
     try {
+      // Construct Supabase-ready object from UserProfile
+      const upsertData: any = {
+        wallet_address: userProfile.wallet_address,
+        user_id: userProfile.wallet_address,
+        is_waitlisted: userProfile.is_waitlisted,
+        points: userProfile.points_awarded,
+        joined_at: userProfile.joined_at,
+        chat_registry_blob_id: userProfile.chat_registry_blob_id,
+        task_registry_blob_id: userProfile.task_registry_blob_id,
+        tasks_created_today: userProfile.tasks_created_today,
+        tasks_claimed_today: userProfile.tasks_claimed_today,
+        last_task_reset_date: userProfile.last_task_reset_date,
+        checkin_streak: userProfile.current_streak,
+        last_checkin: userProfile.last_checkin_date,
+        total_checkins: userProfile.total_checkins,
+        subscription_tier: userProfile.subscription_tier,
+        subscription_expires_at: userProfile.subscription_expires_at,
+        daily_prompts_used: userProfile.daily_prompts_used,
+        last_prompt_date: userProfile.last_prompt_date,
+      };
 
-
-      let registry: UsersRegistry;
-
-      if (currentBlobId) {
-        const existing = await this.fetchUsersRegistry(currentBlobId);
-        if (!existing) {
-          throw new Error("Could not fetch existing registry");
-        }
-
-        registry = {
-          version: existing.version + 1,
-          updated_at: new Date().toISOString(),
-          total_users: existing.total_users,
-          users: { ...existing.users },
-          description: `Updated user: ${userProfile.wallet_address}`,
-          previous_blob: currentBlobId,
-        };
-
-        const userExists = !!registry.users[userProfile.wallet_address];
-        if (!userExists) {
-          registry.total_users += 1;
-        }
-
-        registry.users[userProfile.wallet_address] = userProfile;
-      } else {
-        registry = {
-          version: 1,
-          updated_at: new Date().toISOString(),
-          total_users: 1,
-          users: {
-            [userProfile.wallet_address]: userProfile,
-          },
-          description: "Initial users registry",
-        };
+      // Decrypt legacy fields if they are still encrypted in the incoming object
+      const encryption = getEncryptionService();
+      if (userProfile.email) {
+        upsertData.email = typeof userProfile.email === 'string' 
+          ? userProfile.email 
+          : encryption.decryptOptional(userProfile.email);
+      }
+      if (userProfile.username) {
+        upsertData.username = typeof userProfile.username === 'string'
+          ? userProfile.username
+          : encryption.decryptOptional(userProfile.username);
       }
 
-      const newBlobId = await this.uploadUsersRegistry(registry);
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .upsert(upsertData, { onConflict: 'wallet_address' })
+        .select();
 
-      if (newBlobId) {
-        this.registryCache = { blobId: newBlobId, registry };
-        this.saveCache();
-      }
+      if (error) throw error;
 
-      if (newBlobId) {
-
-        if (currentBlobId) {
-
-        }
-
-      }
-
-      return newBlobId;
+      console.log(`[WALRUS_MANAGER] ✅ Profile saved to Supabase: ${userProfile.wallet_address}`);
+      
+      return "supabase_managed";
     } catch (error) {
-      console.error("❌ Error updating user registry:", error);
+      console.error("❌ Error updating user in Supabase:", error);
       return null;
     }
   }
 
   async getUserProfile(
-    registryBlobId: string,
+    registryBlobId: string, // Kept for interface compatibility but may be ignored
     walletAddress: string,
   ): Promise<DecryptedUserProfile | null> {
-    // Propagate errors so caller knows if fetch failed vs user not found
-    const registry = await this.fetchUsersRegistry(registryBlobId);
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
 
-    // If registry is null (shouldn't happen with throw change, but for type safety)
-    if (!registry) {
-      throw new Error("Failed to retrieve user registry");
+      if (error) {
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
+
+      // Map Supabase fields back to DecryptedUserProfile structure
+      return {
+        email: profile.email || "",
+        wallet_address: profile.wallet_address,
+        is_waitlisted: profile.is_waitlisted || false,
+        points_awarded: profile.points || 0,
+        joined_at: profile.joined_at,
+        username: profile.username,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        preferences: profile.preferences,
+        waitlist_verified_at: profile.created_at,
+        chat_registry_blob_id: profile.chat_registry_blob_id,
+        task_registry_blob_id: profile.task_registry_blob_id,
+        tasks_created_today: profile.tasks_created_today,
+        tasks_claimed_today: profile.tasks_claimed_today,
+        last_task_reset_date: profile.last_task_reset_date,
+        current_streak: profile.checkin_streak,
+        last_checkin_date: profile.last_checkin,
+        total_checkins: profile.total_checkins,
+        subscription_tier: profile.subscription_tier,
+        subscription_expires_at: profile.subscription_expires_at,
+        daily_prompts_used: profile.daily_prompts_used,
+        last_prompt_date: profile.last_prompt_date,
+      };
+    } catch (error) {
+      console.error("[WALRUS_MANAGER] Error fetching profile from Supabase:", error);
+      throw error;
     }
-
-    const encryptedProfile = registry.users[walletAddress];
-    if (!encryptedProfile) {
-      return null; // User genuinely doesn't exist in this registry
-    }
-
-    return this.decryptProfile(encryptedProfile);
   }
 
   async findWalletByEmail(
@@ -556,55 +328,35 @@ export class WalrusUserManager {
     email: string,
   ): Promise<string | null> {
     try {
-      const registry = await this.fetchUsersRegistry(registryBlobId);
-      if (!registry) return null;
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address')
+        .ilike('email', email.trim())
+        .maybeSingle();
 
-      const normalised = email.toLowerCase().trim();
-
-      for (const [walletAddress, encryptedProfile] of Object.entries(
-        registry.users,
-      )) {
-        const decryptedEmail = this.encryption.decryptOptional(
-          encryptedProfile.email,
-        );
-        if (decryptedEmail?.toLowerCase().trim() === normalised) {
-          return walletAddress;
-        }
-      }
-
-      return null;
+      if (error) throw error;
+      return data?.wallet_address || null;
     } catch (error) {
-      console.error("Error in findWalletByEmail:", error);
+      console.error("[WALRUS_MANAGER] Error in findWalletByEmail:", error);
       return null;
     }
   }
-
-
 
   async userExists(
     registryBlobId: string,
     walletAddress: string,
   ): Promise<boolean> {
     try {
-      const registry = await this.fetchUsersRegistry(registryBlobId);
-      if (!registry) {
-        return false;
-      }
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address')
+        .eq('wallet_address', walletAddress)
+        .maybeSingle();
 
-      return !!registry.users[walletAddress];
+      if (error) throw error;
+      return !!data;
     } catch (error) {
-      console.error("Error checking user existence:", error);
-      return false;
-    }
-  }
-
-  async verifyBlob(blobId: string): Promise<boolean> {
-    try {
-      await axios.head(`${this.aggregatorUrl}/v1/blobs/${blobId}`, {
-        timeout: 10000,
-      });
-      return true;
-    } catch (error) {
+      console.error("[WALRUS_MANAGER] Error checking user existence:", error);
       return false;
     }
   }
@@ -614,31 +366,18 @@ export class WalrusUserManager {
     username: string,
   ): Promise<string | null> {
     try {
-      const registry = await this.fetchUsersRegistry(registryBlobId);
-      if (!registry) return null;
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address')
+        .ilike('username', username.trim())
+        .maybeSingle();
 
-      const targetUsername = username.toLowerCase().trim();
-
-      for (const [walletAddress, encryptedProfile] of Object.entries(
-        registry.users,
-      )) {
-        const decryptedUsername = this.encryption.decryptOptional(
-          encryptedProfile.username,
-        );
-        if (decryptedUsername?.toLowerCase().trim() === targetUsername) {
-          return walletAddress;
-        }
-      }
-
-      return null;
+      if (error) throw error;
+      return data?.wallet_address || null;
     } catch (error) {
-      console.error("Error in findWalletByUsername:", error);
+      console.error("[WALRUS_MANAGER] Error in findWalletByUsername:", error);
       return null;
     }
-  }
-
-  getBlobUrl(blobId: string): string {
-    return `${this.aggregatorUrl}/v1/blobs/${blobId}`;
   }
 }
 

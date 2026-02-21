@@ -35,7 +35,7 @@ export async function awardTaskCompletionPoints(
     const user = await withRetry(async () => {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('points')
+        .select('points, task_points')
         .eq('wallet_address', userId)
         .single();
 
@@ -50,11 +50,32 @@ export async function awardTaskCompletionPoints(
     await withRetry(async () => {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ points: newTotal })
+        .update({ 
+          points: newTotal,
+          task_points: (user?.task_points || 0) + pointsToAward 
+        })
         .eq('wallet_address', userId);
 
       if (error) throw error;
     }, 3, 1000, 'Points.updatePoints');
+
+    // NEW: Log to history
+    try {
+      await withRetry(async () => {
+        const { error } = await supabase
+          .from('points_history')
+          .insert({
+            user_id: userId,
+            amount: pointsToAward,
+            source: 'task_points',
+            reason: `Completed ${priority} priority task`,
+            details: { priority, points_before: currentPoints, points_after: newTotal }
+          });
+        if (error) throw error;
+      }, 3, 1000, 'Points.logTaskHistory');
+    } catch (e) {
+      console.warn('[POINTS] Failed to log history, but points were awarded:', e);
+    }
 
     return {
       success: true,
@@ -76,20 +97,20 @@ export async function awardChatPoints(userId: string): Promise<PointsResult> {
     // Check daily chat points usage
     const today = new Date().toISOString().split('T')[0];
 
-    // Get today's chat point count
-    const todayCheckins = await withRetry(async () => {
+    // Get today's chat point count from points_history
+    const todayHistory = await withRetry(async () => {
       const { data, error } = await supabase
-        .from('chat_points')
-        .select('points_earned')
+        .from('points_history')
+        .select('amount')
         .eq('user_id', userId)
-        .gte('created_at', `${today}T00:00:00Z`)
-        .lte('created_at', `${today}T23:59:59Z`);
+        .eq('source', 'chat_points')
+        .gte('created_at', `${today}T00:00:00Z`);
 
-      if (error && error.code !== 'PGRST116' && !error.message.includes('does not exist')) throw error;
+      if (error) throw error;
       return data;
     }, 3, 1000, 'Points.checkDailyLimit');
 
-    const dailyEarned = todayCheckins?.reduce((sum, r) => sum + (r.points_earned || 0), 0) || 0;
+    const dailyEarned = todayHistory?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
 
     if (dailyEarned >= POINTS_CONFIG.CHAT_DAILY_LIMIT) {
       return {
@@ -127,18 +148,22 @@ export async function awardChatPoints(userId: string): Promise<PointsResult> {
       if (error) throw error;
     }, 3, 1000, 'Points.updateUserPoints');
 
-    // Log chat points for daily tracking (table may not exist, that's ok)
+    // NEW: Log to points_history
     try {
       await withRetry(async () => {
-        await supabase
-          .from('chat_points')
+        const { error } = await supabase
+          .from('points_history')
           .insert({
             user_id: userId,
-            points_earned: pointsToAward
+            amount: pointsToAward,
+            source: 'chat_points',
+            reason: 'AI chat message',
+            details: { points_before: currentPoints, points_after: newTotal }
           });
-      }, 3, 1000, 'Points.logChatPoints');
+        if (error) throw error;
+      }, 3, 1000, 'Points.logChatHistory');
     } catch (e) {
-      // Table doesn't exist or other error, we'll just skip tracking
+      console.warn('[POINTS] Failed to log history, but points were awarded:', e);
     }
 
     return {

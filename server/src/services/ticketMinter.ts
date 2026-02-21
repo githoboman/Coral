@@ -1,5 +1,3 @@
-// UPDATED VERSION with sponsored waitlist claims
-
 import { EventId, SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from "@mysten/sui/transactions";
@@ -71,11 +69,9 @@ export class TicketMinter {
     ) {
       throw new Error(
         "Missing env vars. Set: SUI_PACKAGE_ID, SUI_ADMIN_CAP_ID, " +
-        "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
+          "SUI_POINTS_REGISTRY_ID, SUI_BLOB_REGISTRY_ID, SUI_FEE_CONFIG_ID",
       );
     }
-
-
   }
 
   public static getInstance(): TicketMinter {
@@ -88,7 +84,7 @@ export class TicketMinter {
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
     retries = 10,
-    delay = 1000
+    delay = 1000,
   ): Promise<T> {
     try {
       return await operation();
@@ -97,7 +93,8 @@ export class TicketMinter {
       const isRateLimit =
         msg.includes("429") ||
         error?.status === 429 ||
-        (error?.body && JSON.stringify(error.body).includes("Too Many Requests"));
+        (error?.body &&
+          JSON.stringify(error.body).includes("Too Many Requests"));
 
       const isNetworkError =
         msg.includes("ECONNRESET") ||
@@ -110,15 +107,16 @@ export class TicketMinter {
 
       if (retries > 0 && (isRateLimit || isNetworkError)) {
         console.warn(
-          `⚠️  RPC Error (${isRateLimit ? "429 Rate Limit" : "Network"}). Waiting ${delay}ms before retry... (${retries} attempts left)`
+          `⚠️  RPC Error (${isRateLimit ? "429 Rate Limit" : "Network"}). Waiting ${delay}ms before retry... (${retries} attempts left)`,
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
-        // Exponential backoff with jitter
         const nextDelay = Math.min(delay * 2, 30000) + Math.random() * 500;
         return this.executeWithRetry(operation, retries - 1, nextDelay);
       }
 
-      console.error(`❌ Operation failed after retries (Status: ${error?.status || 'unknown'}).`);
+      console.error(
+        `❌ Operation failed after retries (Status: ${error?.status || "unknown"}).`,
+      );
       throw error;
     }
   }
@@ -144,10 +142,12 @@ export class TicketMinter {
         arguments: [tx.object(this.feeConfigId)],
       });
 
-      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-        sender: this.keypair.toSuiAddress(),
-        transactionBlock: tx,
-      }));
+      const result = await this.executeWithRetry(() =>
+        this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }),
+      );
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -167,8 +167,6 @@ export class TicketMinter {
 
   async updateCheckinFee(newFee: number): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
 
       tx.moveCall({
@@ -188,7 +186,6 @@ export class TicketMinter {
       });
 
       if (result.effects?.status?.status === "success") {
-
         return result.digest;
       }
 
@@ -202,8 +199,6 @@ export class TicketMinter {
 
   async setFeeTreasury(treasuryAddress: string): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
 
       tx.moveCall({
@@ -223,7 +218,6 @@ export class TicketMinter {
       });
 
       if (result.effects?.status?.status === "success") {
-
         return result.digest;
       }
 
@@ -244,10 +238,12 @@ export class TicketMinter {
         arguments: [tx.object(this.feeConfigId)],
       });
 
-      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-        sender: this.keypair.toSuiAddress(),
-        transactionBlock: tx,
-      }));
+      const result = await this.executeWithRetry(() =>
+        this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }),
+      );
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -269,8 +265,6 @@ export class TicketMinter {
     timestamp: string;
   } | null> {
     try {
-
-
       const tx = await this.client.getTransactionBlock({
         digest,
         options: {
@@ -347,8 +341,6 @@ export class TicketMinter {
     reason: string = "Waitlist Bonus",
   ): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
       const reasonBytes = Array.from(new TextEncoder().encode(reason));
 
@@ -384,8 +376,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
-
+              (ticketRef as any).objectId;
 
         return ticketId;
       }
@@ -404,8 +395,6 @@ export class TicketMinter {
     checkinDate: string,
   ): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
       const dateBytes = Array.from(new TextEncoder().encode(checkinDate));
 
@@ -444,8 +433,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
-
+              (ticketRef as any).objectId;
 
         return ticketId;
       }
@@ -460,8 +448,6 @@ export class TicketMinter {
 
   async updateBlobRegistry(newBlobId: string): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
       const blobBytes = Array.from(new TextEncoder().encode(newBlobId));
 
@@ -484,10 +470,9 @@ export class TicketMinter {
       if (result.effects?.status?.status === "success") {
         console.log(`✅ BlobRegistry updated  tx=${result.digest}`);
 
-        // Update cache immediately so we don't serve stale data
         this.blobRegistryCache = {
           id: newBlobId,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
 
         return result.digest;
@@ -519,11 +504,9 @@ export class TicketMinter {
       for (const ev of allEvents.data) {
         const data = ev.parsedJson as unknown as PointsClaimedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-
           return true;
         }
       }
-
 
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
@@ -533,10 +516,12 @@ export class TicketMinter {
         arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
-      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-        sender: this.keypair.toSuiAddress(),
-        transactionBlock: tx,
-      }));
+      const result = await this.executeWithRetry(() =>
+        this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }),
+      );
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -557,10 +542,12 @@ export class TicketMinter {
       const [claimEvents, taskClaimEvents] = await Promise.all([
         this.executeWithRetry(() =>
           this.client.queryEvents({
-            query: { MoveEventType: `${this.packageId}::points::PointsClaimed` },
+            query: {
+              MoveEventType: `${this.packageId}::points::PointsClaimed`,
+            },
             limit: 50,
             order: "descending",
-          })
+          }),
         ),
         this.executeWithRetry(() =>
           this.client.queryEvents({
@@ -569,7 +556,7 @@ export class TicketMinter {
             },
             limit: 50,
             order: "descending",
-          })
+          }),
         ),
       ]);
 
@@ -600,12 +587,13 @@ export class TicketMinter {
       }
 
       if (snapshots.length > 0) {
-        snapshots.sort((a: BalanceSnapshot, b: BalanceSnapshot) => b.timestamp - a.timestamp);
+        snapshots.sort(
+          (a: BalanceSnapshot, b: BalanceSnapshot) => b.timestamp - a.timestamp,
+        );
         const latestBalance = snapshots[0].balance;
 
         return latestBalance;
       }
-
 
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
@@ -615,10 +603,12 @@ export class TicketMinter {
         arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
       });
 
-      const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-        sender: this.keypair.toSuiAddress(),
-        transactionBlock: tx,
-      }));
+      const result = await this.executeWithRetry(() =>
+        this.client.devInspectTransactionBlock({
+          sender: this.keypair.toSuiAddress(),
+          transactionBlock: tx,
+        }),
+      );
 
       if (result.results?.[0]?.returnValues?.[0]) {
         const [bytes] = result.results[0].returnValues[0];
@@ -637,20 +627,24 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // 1. Try direct contract call (Fastest)
       try {
         const tx = new Transaction();
         const moveAddr = this.toMoveAddressFormat(walletAddress);
 
         tx.moveCall({
           target: `${this.packageId}::points::get_last_checkin`,
-          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+          arguments: [
+            tx.object(this.pointsRegistryId),
+            tx.pure.string(moveAddr),
+          ],
         });
 
-        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-          sender: this.keypair.toSuiAddress(),
-          transactionBlock: tx,
-        }));
+        const result = await this.executeWithRetry(() =>
+          this.client.devInspectTransactionBlock({
+            sender: this.keypair.toSuiAddress(),
+            transactionBlock: tx,
+          }),
+        );
 
         if (result.results?.[0]?.returnValues?.[0]) {
           const [bytes] = result.results[0].returnValues[0];
@@ -658,10 +652,12 @@ export class TicketMinter {
           return Number(view.getBigUint64(0, true));
         }
       } catch (err) {
-        console.warn("⚠️  get_last_checkin devInspect failed, falling back to events:", err);
+        console.warn(
+          "⚠️  get_last_checkin devInspect failed, falling back to events:",
+          err,
+        );
       }
 
-      // 2. Fallback to indexing
       const allEvents = await this.client.queryEvents({
         query: {
           MoveEventType: `${this.packageId}::points::CheckInCompleted`,
@@ -672,6 +668,7 @@ export class TicketMinter {
 
       for (const ev of allEvents.data) {
         const data = ev.parsedJson as unknown as CheckInCompletedEvent;
+
         if (this.normalizeAddress(data.wallet_address) === normalized) {
           const timestamp = Number(data.timestamp);
           return timestamp;
@@ -689,35 +686,43 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // 1. Try direct contract call (Fastest & Most Reliable)
       try {
         const tx = new Transaction();
         const moveAddr = this.toMoveAddressFormat(walletAddress);
 
         tx.moveCall({
           target: `${this.packageId}::points::get_last_checkin_date`,
-          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+          arguments: [
+            tx.object(this.pointsRegistryId),
+            tx.pure.string(moveAddr),
+          ],
         });
 
-        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-          sender: this.keypair.toSuiAddress(),
-          transactionBlock: tx,
-        }));
+        const result = await this.executeWithRetry(() =>
+          this.client.devInspectTransactionBlock({
+            sender: this.keypair.toSuiAddress(),
+            transactionBlock: tx,
+          }),
+        );
 
         if (result.results?.[0]?.returnValues?.[0]) {
           const [bytes] = result.results[0].returnValues[0];
           const dateStr = new TextDecoder().decode(new Uint8Array(bytes));
+
           const trimmed = dateStr.trim();
           if (trimmed && trimmed.length > 0) return trimmed;
         } else {
-          console.warn("⚠️ devInspect returned no values:", JSON.stringify(result.effects?.status || result));
+          console.warn(
+            "⚠️ devInspect returned no values:",
+            JSON.stringify(result.effects?.status || result),
+          );
         }
       } catch (err) {
-        console.warn("⚠️  get_last_checkin_date devInspect failed, falling back to events:", err);
+        console.warn(
+          "⚠️  get_last_checkin_date devInspect failed, falling back to events:",
+          err,
+        );
       }
-
-      // 2. Fallback to indexing (Slow & potentially incomplete history)
-      console.log(`[TICKET_MINTER] Falling back to queryEvents for ${walletAddress.substring(0, 8)}`);
 
       const allEvents = await this.client.queryEvents({
         query: {
@@ -745,20 +750,24 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
-      // 1. Try direct contract call (Fastest)
       try {
         const tx = new Transaction();
         const moveAddr = this.toMoveAddressFormat(walletAddress);
 
         tx.moveCall({
           target: `${this.packageId}::points::get_current_streak`,
-          arguments: [tx.object(this.pointsRegistryId), tx.pure.string(moveAddr)],
+          arguments: [
+            tx.object(this.pointsRegistryId),
+            tx.pure.string(moveAddr),
+          ],
         });
 
-        const result = await this.executeWithRetry(() => this.client.devInspectTransactionBlock({
-          sender: this.keypair.toSuiAddress(),
-          transactionBlock: tx,
-        }));
+        const result = await this.executeWithRetry(() =>
+          this.client.devInspectTransactionBlock({
+            sender: this.keypair.toSuiAddress(),
+            transactionBlock: tx,
+          }),
+        );
 
         if (result.results?.[0]?.returnValues?.[0]) {
           const [bytes] = result.results[0].returnValues[0];
@@ -766,11 +775,11 @@ export class TicketMinter {
           return Number(view.getBigUint64(0, true));
         }
       } catch (err) {
-        console.warn("⚠️  get_current_streak devInspect failed, falling back to events:", err);
+        console.warn(
+          "⚠️  get_current_streak devInspect failed, falling back to events:",
+          err,
+        );
       }
-
-      // 2. Fallback to indexing
-      console.log(`[TICKET_MINTER] Falling back to queryEvents (streak) for ${walletAddress.substring(0, 8)}`);
 
       const allEvents = await this.client.queryEvents({
         query: {
@@ -821,11 +830,8 @@ export class TicketMinter {
           const total = Number(view.getBigUint64(0, true));
 
           if (total > 0) {
-
             return total;
           }
-
-
         }
       } catch (contractError) {
         console.warn(
@@ -835,9 +841,6 @@ export class TicketMinter {
       }
 
       try {
-
-
-
         let count = 0;
         let cursor: EventId | null = null;
         let hasMore = true;
@@ -871,11 +874,8 @@ export class TicketMinter {
         }
 
         if (count > 0) {
-
           return count;
         }
-
-
       } catch (eventError) {
         console.warn(
           `⚠️  Event counting failed for getTotalCheckins:`,
@@ -886,13 +886,11 @@ export class TicketMinter {
       try {
         const streak = await this.getCurrentStreak(walletAddress);
         if (streak > 0) {
-
           return streak;
         }
       } catch (streakError) {
         console.warn(`⚠️  Streak fallback failed:`, streakError);
       }
-
 
       return 0;
     } catch (error) {
@@ -902,19 +900,16 @@ export class TicketMinter {
   }
 
   private blobRegistryCache: { id: string; timestamp: number } | null = null;
-  private readonly CACHE_TTL = 1000 * 60 * 60; // 1 hour
+  private readonly CACHE_TTL = 1000 * 60 * 60;
 
   async getCurrentBlobId(): Promise<string | null> {
-    // 1. Check Cache
     if (
       this.blobRegistryCache &&
       Date.now() - this.blobRegistryCache.timestamp < this.CACHE_TTL
     ) {
-      // console.log(`📋 Returning cached BlobRegistry ID: ${this.blobRegistryCache.id}`);
       return this.blobRegistryCache.id;
     }
 
-    // 2. Retry Logic
     let lastError: any;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -960,7 +955,6 @@ export class TicketMinter {
 
           console.log(`📖 Read blob ID from BlobRegistry: "${currentBlobId}"`);
 
-          // 3. Update Cache
           this.blobRegistryCache = {
             id: currentBlobId,
             timestamp: Date.now(),
@@ -983,9 +977,11 @@ export class TicketMinter {
       }
     }
 
-    console.error("❌ Failed to read BlobRegistry after 3 attempts:", lastError);
-    // If we have a stale cache, maybe return it as a fallback? 
-    // For now, adhere to original behavior but logging the failure clearly.
+    console.error(
+      "❌ Failed to read BlobRegistry after 3 attempts:",
+      lastError,
+    );
+
     throw lastError;
   }
 
@@ -994,8 +990,6 @@ export class TicketMinter {
     taskCount: number,
   ): Promise<string | null> {
     try {
-
-
       const tx = new Transaction();
 
       tx.moveCall({
@@ -1032,8 +1026,7 @@ export class TicketMinter {
           typeof ticketRef === "string"
             ? ticketRef
             : (ticketRef as any).reference?.objectId ||
-            (ticketRef as any).objectId;
-
+              (ticketRef as any).objectId;
 
         return ticketId;
       }
@@ -1046,7 +1039,6 @@ export class TicketMinter {
     }
   }
 
-  // NEW: Sponsored claim - mint ticket and claim in single transaction
   async sponsoredClaimWaitlistPoints(walletAddress: string): Promise<{
     success: boolean;
     digest?: string;
@@ -1054,8 +1046,6 @@ export class TicketMinter {
     error?: string;
   }> {
     try {
-
-
       const tx = new Transaction();
       tx.setGasBudget(10_000_000);
 
@@ -1089,8 +1079,6 @@ export class TicketMinter {
         };
       }
 
-
-
       const events = result.events || [];
       const claimEvent = events.find(
         (e) => e.type === `${this.packageId}::points::PointsClaimed`,
@@ -1100,7 +1088,6 @@ export class TicketMinter {
       if (claimEvent) {
         const data = claimEvent.parsedJson as unknown as PointsClaimedEvent;
         balance = Number(data.new_balance);
-
       }
 
       return {
@@ -1119,4 +1106,3 @@ export class TicketMinter {
 }
 
 export const getTicketMinter = () => TicketMinter.getInstance();
-

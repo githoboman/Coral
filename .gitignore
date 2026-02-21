@@ -59,3 +59,6 @@ Thumbs.db
 
 # --- Rough work ---
 file-structure.txt
+
+# --- Server cache data ---
+server/data/
