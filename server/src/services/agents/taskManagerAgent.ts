@@ -388,19 +388,11 @@ async function executeTask(
       // Fire-and-forget points tracking
       trackTaskCreation(state.userId).catch(() => { });
 
-      // Format response immediately
+      // Format response immediately using user's timezone
       let response = `✅ Task created: ** ${ext.task_name} ** `;
 
       if (finalDueDate) {
-        const d = new Date(finalDueDate);
-        response += `\n📅 Due: ${d.toLocaleString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit"
-        })
-          }`;
+        response += `\n📅 Due: ${formatDateForUser(finalDueDate, state.clientTime)}`;
       }
 
       if (ext.priority && ext.priority !== "medium") {
@@ -446,11 +438,7 @@ async function executeTask(
       for (const t of pending.slice(0, 10)) {
         const priority = t.priority === "high" ? " 🔴" : t.priority === "low" ? " 🟢" : "";
         const due = t.due_date
-          ? ` — ${new Date(t.due_date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric"
-          })
-          }`
+          ? ` — ${formatDateForUser(t.due_date, state.clientTime, true)}`
           : "";
         response += `\n• ${t.task_name}${priority}${due}`;
       }
@@ -699,12 +687,8 @@ async function executeTask(
             // Fire-and-forget points tracking
             trackTaskCreation(state.userId).catch(() => { });
 
-            const dateStr = new Date(finalDueDate).toLocaleString("en-US", {
-              weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-            });
-
             return {
-              responseText: `✅ Task created: **${args.task_name}**\n📅 Due: ${dateStr}`,
+              responseText: `✅ Task created: **${args.task_name}**\n📅 Due: ${formatDateForUser(finalDueDate, state.clientTime)}`,
               actionEvent: { type: "task_created", taskId: "temp_tool_created" },
             };
           }
@@ -806,11 +790,11 @@ function findTaskByName(
 
 /**
  * Parse relative time expressions from user message and return an ISO date string.
- * Handles: "in X minutes/hours/days", "tomorrow", "tonight", "next week", etc.
  */
 function parseRelativeTime(message: string, clientTime?: string): string | null {
   const msg = message.toLowerCase();
   const now = clientTime ? new Date(clientTime) : new Date();
+  const userOffset = getUserOffset(clientTime || "");
 
   // Match "in X minute(s)/min(s)"
   const minuteMatch = msg.match(/in\s+(\d+)\s*(?:minute|minutes|min|mins)/);
@@ -840,27 +824,30 @@ function parseRelativeTime(message: string, clientTime?: string): string | null 
     return new Date(now.getTime() + secs * 1000).toISOString();
   }
 
-  // "tomorrow" -> tomorrow at 9:00 AM
+  // "tomorrow" -> tomorrow at 9:00 AM user time
   if (msg.includes("tomorrow")) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    return tomorrow.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCDate(targetLocal.getUTCDate() + 1);
+    targetLocal.setUTCHours(9, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
-  // "tonight" -> today at 8:00 PM
+  // "tonight" -> today at 8:00 PM user time
   if (msg.includes("tonight")) {
-    const tonight = new Date(now);
-    tonight.setHours(20, 0, 0, 0);
-    return tonight.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCHours(20, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
-  // "next week" -> 7 days from now at 9:00 AM
+  // "next week" -> 7 days from now at 9:00 AM user time
   if (msg.includes("next week")) {
-    const nextWeek = new Date(now);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    nextWeek.setHours(9, 0, 0, 0);
-    return nextWeek.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCDate(targetLocal.getUTCDate() + 7);
+    targetLocal.setUTCHours(9, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
   // Match "at X:XX am/pm" or "at X am/pm" or "at XX:XX"
@@ -873,18 +860,59 @@ function parseRelativeTime(message: string, clientTime?: string): string | null 
     if (ampm === "pm" && hours < 12) hours += 12;
     if (ampm === "am" && hours === 12) hours = 0;
 
-    const target = new Date(now);
-    target.setHours(hours, minutes, 0, 0);
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCHours(hours, minutes, 0, 0);
 
     // If target time has already passed today, assume tomorrow
-    if (target.getTime() <= now.getTime()) {
-      target.setDate(target.getDate() + 1);
+    if (targetLocal.getTime() <= userNow.getTime()) {
+      targetLocal.setUTCDate(targetLocal.getUTCDate() + 1);
     }
 
-    return target.toISOString();
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
   return null;
+}
+
+/**
+ * Extract timezone offset in minutes from ISO string like "2024-01-01T10:00:00+01:00"
+ */
+function getUserOffset(clientTime: string): number {
+  if (!clientTime) return 0;
+  const match = clientTime.match(/([+-])(\d{2}):(\d{2})$/);
+  if (!match) return 0;
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const mins = parseInt(match[3], 10);
+  return sign * (hours * 60 + mins);
+}
+
+/**
+ * Format a UTC date for display in the user's local timezone.
+ */
+function formatDateForUser(date: Date | string, clientTime: string, dateOnly = false): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const offset = getUserOffset(clientTime);
+  const userMs = d.getTime() + offset * 60_000;
+  const userDate = new Date(userMs);
+
+  if (dateOnly) {
+    return userDate.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC" // We already applied the offset manually
+    });
+  }
+
+  return userDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC" // We already applied the offset manually
+  });
 }
 
 export async function trackTaskCreation(userId: string, type: "task" | "research" = "task"): Promise<void> {
