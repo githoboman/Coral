@@ -8,7 +8,7 @@ import { getLevelData, calculateLevel } from "@/utils/levelUtils";
 const Leaderboard = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const { entries: leaderboard, userRank, loading } = useAppSelector(
+  const { entries: leaderboard, userRank, loading, totalParticipants } = useAppSelector(
     (state) => state.leaderboard,
   );
 
@@ -44,7 +44,6 @@ const Leaderboard = () => {
   const isRankLoading = !!currentAccount?.address && loading && !userInTop100 && !userRank;
   
   // Total logic: the true total is in the Redux state `totalParticipants`.
-  const { totalParticipants } = useAppSelector((state) => state.leaderboard);
   const isTotalLoading = loading && !totalParticipants;
   
   const userRankDisplay = isRankLoading 
