@@ -56,7 +56,7 @@ router.post("/", async (req: Request, res: Response) => {
           error: "Task Agent Limit Reached",
           message: remaining.tier === 0
             ? "You need to upgrade to premium to continue chatting. Free tier only gets 2 prompts per day."
-            : "You've reached your daily limit of 5 task agent prompts. Try again tomorrow.",
+            : "You've reached your daily limit of 4 task agent prompts. Try again tomorrow.",
           limit: remaining.limit,
           used: remaining.used,
           requiresUpgrade: remaining.tier === 0,
@@ -78,8 +78,8 @@ router.post("/", async (req: Request, res: Response) => {
         return res.status(429).json({
           error: "Research Agent Limit Reached",
           message: remaining.tier === 0
-            ? "You need to upgrade to premium to continue. Free tier only gets 3 research prompts per day."
-            : "You've reached your daily limit of 6 research prompts. Try again tomorrow.",
+            ? "You need to upgrade to premium to continue. Free tier only gets 2 research prompts per day."
+            : "You've reached your daily limit of 5 research prompts. Try again tomorrow.",
           limit: remaining.limit,
           used: remaining.used,
           requiresUpgrade: remaining.tier === 0,

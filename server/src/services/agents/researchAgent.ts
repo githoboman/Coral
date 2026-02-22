@@ -67,9 +67,12 @@ const BlockVisionTool = {
       return {
         name: info.name,
         symbol: info.symbol,
-        price: `$${info.price.toFixed(6)}`,
+        price: `$${info.price.toFixed(10)}`,
         change24h: `${info.change24h.toFixed(2)}%`,
-        decimals: info.decimals
+        decimals: info.decimals,
+        holders: info.holders,
+        marketCap: info.marketCap ? `$${info.marketCap.toLocaleString()}` : undefined,
+        verified: info.verified ? "Yes" : "No",
       };
     }
     if (type === "nfts") {
@@ -374,7 +377,7 @@ async function researchNode(state: typeof ResearchState.State) {
     "4. Use 'simulate_action' if the user wants to preview a transaction (transfer, swap, or stake). ALWAYS use the provided 'walletAddress' from the user context as the sender.\n" +
     "5. IMPORTANT: You MUST use the available tools to gather data. Do NOT write code or respond from internal memory only.\n" +
     "6. TONE: Professional, helpful, and concise. Avoid technical jargon.\n" +
-    "7. FORMATTING: Always structure findings as a clean Research Report with clear headings. NEVER cite sources, URLs, or mention tool names like Tavily or BlockVision.";
+    "7. FORMATTING: Always structure findings as a clean Research Report with clear markdown headings (##). Use bolding (**) for emphasis. NEVER cite sources, URLs, or mention tool names like Tavily or BlockVision.";
 
   if (walletContext) {
     systemContent += `\n\nUSER CONTEXT:\n${walletContext}\n\nReference these holdings to personalize your report. If you see risks to their portfolio, highlight them gently but clearly.`;

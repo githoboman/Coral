@@ -219,12 +219,52 @@ function renderMarkdown(text: string, cursor?: React.ReactNode) {
       continue;
     }
 
-    // Heading
-    if (line.startsWith("## ")) {
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      elements.push(<hr key={i} className="border-white/10 my-2" />);
+      i++;
+      continue;
+    }
+
+    // H1 heading
+    if (line.startsWith("# ") && !line.startsWith("## ")) {
+      elements.push(
+        <h2 key={i} className="text-lg font-bold text-white mt-3 mb-1">
+          {renderInline(line.slice(2))}{suffix}
+        </h2>
+      );
+      i++;
+      continue;
+    }
+
+    // H2 heading
+    if (line.startsWith("## ") && !line.startsWith("### ")) {
       elements.push(
         <h3 key={i} className="text-base font-bold text-white mt-2 mb-1">
           {renderInline(line.slice(3))}{suffix}
         </h3>
+      );
+      i++;
+      continue;
+    }
+
+    // H3 heading
+    if (line.startsWith("### ")) {
+      elements.push(
+        <h4 key={i} className="text-sm font-semibold text-white/90 mt-2 mb-0.5">
+          {renderInline(line.slice(4))}{suffix}
+        </h4>
+      );
+      i++;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith("> ")) {
+      elements.push(
+        <div key={i} className="border-l-2 border-[#B7FC0D]/50 pl-3 my-1 text-white/60 text-sm italic">
+          {renderInline(line.slice(2))}{suffix}
+        </div>
       );
       i++;
       continue;
@@ -244,13 +284,30 @@ function renderMarkdown(text: string, cursor?: React.ReactNode) {
       continue;
     }
 
-    // Bullet list item
-    if (line.startsWith("- ")) {
+    // Bullet list item (- or *)
+    if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
         <div key={i} className="flex gap-2 pl-1 mb-1">
           <span className="text-[#B7FC0D] flex-shrink-0 mt-1.5 w-1 h-1 rounded-full bg-[#B7FC0D] inline-block" />
           <span>{renderInline(line.slice(2))}{suffix}</span>
         </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Code block (triple backticks)
+    if (line.startsWith("```")) {
+      let codeContent = "";
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeContent += lines[i] + "\n";
+        i++;
+      }
+      elements.push(
+        <pre key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 my-2 font-mono text-xs text-white/90 overflow-x-auto whitespace-pre-wrap">
+          {codeContent.trim()}{suffix}
+        </pre>
       );
       i++;
       continue;
@@ -269,14 +326,21 @@ function renderMarkdown(text: string, cursor?: React.ReactNode) {
 }
 
 function renderInline(text: string): React.ReactNode {
-  // Bold + remaining
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  // Split on bold (**text**) and italic (*text*) patterns
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
         <strong key={i} className="text-white font-semibold">
           {part.slice(2, -2)}
         </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return (
+        <em key={i} className="text-white/70 italic">
+          {part.slice(1, -1)}
+        </em>
       );
     }
     return <span key={i}>{part}</span>;
@@ -1127,7 +1191,7 @@ const Dashboard = () => {
 
               <h2 className="text-lg font-bold text-white mb-2 text-center md:text-left">Upgrade to Premium</h2>
               <p className="text-white/60 mb-4 text-sm leading-relaxed text-center md:text-left">
-                You need to upgrade to premium to continue. {selectedAgentId === "task" ? "Task Manager" : "Research Agent"} free tier only gets {selectedAgentId === "task" ? "2" : "3"} prompts per day.
+                You need to upgrade to premium to continue. The free tier only allows 2 prompts per day for this agent.
               </p>
 
               {/* Usage Warning Card */}
@@ -1163,7 +1227,7 @@ const Dashboard = () => {
                     <div className="w-4 h-4 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center flex-shrink-0">
                       <Check size={8} className="text-[#B7FC0D]" strokeWidth={3} />
                     </div>
-                    <span>{selectedAgentId === "task" ? "5 daily task prompts" : "6 daily research prompts"}</span>
+                    <span>{selectedAgentId === "task" ? "4 daily task prompts" : "5 daily research prompts"}</span>
                   </li>
                   <li className="flex items-center gap-2.5 text-xs text-white/80">
                     <div className="w-4 h-4 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center flex-shrink-0">

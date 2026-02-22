@@ -905,9 +905,15 @@ export class TicketMinter {
 
       console.warn("⚠️  Tx succeeded but no created object found");
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ mintTaskClaimTicket error:", error);
-      throw error;
+
+      const msg = error?.message || "";
+      if (msg.includes("Balance") && msg.includes("lower than the needed amount")) {
+        console.error("🚨 SERVER WALLET OUT OF GAS: Please fund the admin wallet.");
+      }
+
+      return null;
     }
   }
 

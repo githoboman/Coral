@@ -353,10 +353,10 @@ export class SubscriptionService {
 
       let limit = 0;
       if (type === 'task') {
-        limit = tierStatus.isActivePremium ? 5 : 2;
+        limit = tierStatus.isActivePremium ? 4 : 2;
       } else {
-        // Research Agent: 6 for premium, 3 for free
-        limit = tierStatus.isActivePremium ? 6 : 3;
+        // Research Agent: 5 for premium, 2 for free
+        limit = tierStatus.isActivePremium ? 5 : 2;
       }
 
       if (redisClient && redisClient.isOpen) {
@@ -462,9 +462,9 @@ export class SubscriptionService {
 
       let limit = 0;
       if (type === 'task') {
-        limit = tierStatus.isActivePremium ? 5 : 2;
+        limit = tierStatus.isActivePremium ? 4 : 2;
       } else {
-        limit = tierStatus.isActivePremium ? 6 : 3;
+        limit = tierStatus.isActivePremium ? 5 : 2;
       }
 
       const supabaseData = await this.getSupabaseSubscription(walletAddress);
@@ -509,7 +509,7 @@ export class SubscriptionService {
       };
     } catch (error) {
       console.error(`Error getting ${type} prompts remaining:`, error);
-      const defaultLimit = type === 'task' ? 2 : 3;
+      const defaultLimit = type === 'task' ? 2 : 2;
       return { used: 0, limit: defaultLimit, remaining: defaultLimit, tier: 0 };
     }
   }

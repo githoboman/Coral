@@ -35,6 +35,10 @@ export interface BlockVisionTokenInfo {
   symbol: string;
   name: string;
   decimals: number;
+  holders?: number;
+  marketCap?: number;
+  verified?: boolean;
+  logoUrl?: string;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -54,10 +58,12 @@ export class BlockVisionService {
   constructor() {
     this.apiKey = process.env.BLOCKVISION_API_KEY || "";
     this.baseUrl =
-      process.env.BLOCKVISION_BASE_URL || "https://api.blockvision.org/v1/sui";
+      process.env.BLOCKVISION_BASE_URL || "https://api.blockvision.org/v2/sui";
 
     if (!this.apiKey) {
       console.warn("[BlockVision] API Key is missing! Will fall back to RPC indexer.");
+    } else {
+      console.info(`[BlockVision] Initialized with API Key: ${this.apiKey.slice(0, 4)}...${this.apiKey.slice(-4)}`);
     }
 
     if (process.env.BLOCKVISION_DISABLED === "true") {
@@ -122,20 +128,20 @@ export class BlockVisionService {
 
     try {
       const response = await axios.get(`${this.baseUrl}/account/coins`, {
-        params: { address },
+        params: { account: address },
         headers: this.headers,
-        timeout: 5000,
+        timeout: 10000,
       });
 
-      const data = response.data.result || [];
-      const coins: BlockVisionCoin[] = data.map((c: any) => ({
+      const data = response.data.result?.data || response.data.result || [];
+      const coins: BlockVisionCoin[] = (Array.isArray(data) ? data : []).map((c: any) => ({
         coinType: c.coinType,
-        name: c.name,
-        symbol: c.symbol,
-        decimals: c.decimals,
-        balance: c.balance,
-        price: c.price || 0,
-        valueUsd: c.value || 0,
+        name: c.name || c.symbol || "Unknown",
+        symbol: c.symbol || "Unknown",
+        decimals: c.decimals || 0,
+        balance: typeof c.balance === 'string' ? parseFloat(c.balance) : (c.balance || 0),
+        price: typeof c.price === 'string' ? parseFloat(c.price) : (c.price || 0),
+        valueUsd: typeof c.value === 'string' ? parseFloat(c.value) : (typeof c.usdValue === 'string' ? parseFloat(c.usdValue) : (c.value || c.usdValue || 0)),
       }));
 
       const totalValue = coins.reduce(
@@ -183,13 +189,14 @@ export class BlockVisionService {
       const response = await axios.get(`${this.baseUrl}/coin/holders`, {
         params: { coinType, limit },
         headers: this.headers,
-        timeout: 5000,
+        timeout: 10000,
       });
 
-      return (response.data.result || []).map((h: any) => ({
+      const data = response.data.result?.data || response.data.result || [];
+      return (Array.isArray(data) ? data : []).map((h: any) => ({
         address: h.address,
-        balance: h.balance,
-        percentage: h.percentage,
+        balance: typeof h.balance === 'string' ? parseFloat(h.balance) : (h.balance || 0),
+        percentage: typeof h.percentage === 'string' ? parseFloat(h.percentage) : (h.percentage || 0),
       }));
     } catch (bvError: any) {
       const status = bvError?.response?.status;
@@ -230,17 +237,18 @@ export class BlockVisionService {
 
     try {
       const response = await axios.get(`${this.baseUrl}/account/nfts`, {
-        params: { address, limit },
+        params: { account: address, limit },
         headers: this.headers,
-        timeout: 5000,
+        timeout: 10000,
       });
 
-      return (response.data.result || []).map((n: any) => ({
+      const data = response.data.result?.data || response.data.result || [];
+      return (Array.isArray(data) ? data : []).map((n: any) => ({
         objectId: n.objectId,
-        name: n.name,
-        description: n.description,
-        image: n.image_url || n.url,
-        collectionName: n.collection,
+        name: n.name || "Unnamed NFT",
+        description: n.description || "",
+        image: n.image_url || n.url || n.image || (n.metadata as any)?.image_url,
+        collectionName: n.collection || n.collection_name || "Unknown Collection",
       }));
     } catch (bvError: any) {
       const status = bvError?.response?.status;
@@ -270,34 +278,64 @@ export class BlockVisionService {
    * Centralized here to respect use the circuit breaker.
    */
   async getTokenInfo(coinType: string): Promise<BlockVisionTokenInfo | null> {
-    if (this.shouldBypass()) return null;
+    if (this.shouldBypass()) {
+      return this.fallbackTokenInfo(coinType);
+    }
 
     try {
-      const response = await axios.get(`${this.baseUrl}/coin/info`, {
+      const url = `${this.baseUrl}/coin/detail`;
+      const response = await axios.get(url, {
         params: { coinType },
         headers: this.headers,
-        timeout: 5000,
+        timeout: 10000,
       });
 
-      const data = response.data.result || response.data;
-      if (data && typeof data.price === 'number') {
+      const result = response.data.result;
+      if (result) {
+        // Handle price strings or objects
+        const parseNum = (val: any) => {
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') return parseFloat(val) || 0;
+          if (val && typeof val.value !== 'undefined') return parseNum(val.value);
+          return 0;
+        };
+
         return {
-          price: data.price,
-          change24h: data.priceChangePercentage24h || 0,
-          symbol: data.symbol || "",
-          name: data.name || "",
-          decimals: data.decimals || 0,
+          price: parseNum(result.price),
+          change24h: parseNum(result.priceChangePercentage24H || result.priceChangePercentage24h || result.priceChange24h),
+          symbol: result.symbol || "",
+          name: result.name || "",
+          decimals: result.decimals || 0,
+          holders: parseNum(result.holders),
+          marketCap: parseNum(result.marketCap),
+          verified: !!result.verified,
+          logoUrl: result.logo || result.iconUrl,
         };
       }
       return null;
-    } catch (bvError: any) {
-      const status = bvError?.response?.status;
+    } catch (error: any) {
+      const status = error?.response?.status;
       this.markExhausted(status);
-      console.warn(
-        `[BlockVision] Token info fetch failed (${status ?? bvError?.message}) for ${coinType}`
-      );
+      console.error(`[BlockVision] Token info fetch failed (${error.response?.status || error.message}) for ${coinType}`);
+      return this.fallbackTokenInfo(coinType);
+    }
+  }
+
+  private async fallbackTokenInfo(coinType: string): Promise<BlockVisionTokenInfo | null> {
+    console.log(`[BlockVision] Attempting RPC fallback for ${coinType.slice(-10)}`);
+    const meta = await getSuiIndexerService().getTokenMetadata(coinType);
+    if (!meta) {
+      console.warn(`[BlockVision] RPC fallback FAILED - no metadata found for ${coinType.slice(-10)}`);
       return null;
     }
+
+    return {
+      name: meta.name,
+      symbol: meta.symbol,
+      price: 0,
+      change24h: 0,
+      decimals: meta.decimals,
+    };
   }
 }
 

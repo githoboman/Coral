@@ -34,9 +34,8 @@ async function getCachedCheckinFee(minter: TicketMinter): Promise<number> {
   }
 }
 
-function getUserDate(timezoneOffset: number): string {
-  const now = new Date();
-  const userMs = now.getTime() + timezoneOffset * 60_000;
+function formatDateWithOffset(date: Date, timezoneOffset: number): string {
+  const userMs = date.getTime() + timezoneOffset * 60_000;
   const d = new Date(userMs);
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -44,15 +43,14 @@ function getUserDate(timezoneOffset: number): string {
   return `${y}-${m}-${day}`;
 }
 
+function getUserDate(timezoneOffset: number): string {
+  return formatDateWithOffset(new Date(), timezoneOffset);
+}
+
 function getYesterdayDate(timezoneOffset: number): string {
   const now = new Date();
-  const userMs = now.getTime() + timezoneOffset * 60_000;
-  const d = new Date(userMs);
-  d.setUTCDate(d.getUTCDate() - 1);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  now.setUTCDate(now.getUTCDate() - 1);
+  return formatDateWithOffset(now, timezoneOffset);
 }
 
 function getMidnightTimestamp(timezoneOffset: number): number {
@@ -87,7 +85,7 @@ function calculateCheckinPoints(currentStreak: number) {
 // ─── Supabase helpers ────────────────────────────────────────────────
 
 /** Get the latest check-in for a user from Supabase */
-async function getLatestCheckin(userId: string): Promise<{
+async function getLatestCheckin(userId: string, timezoneOffset: number): Promise<{
   lastCheckinDate: string | null;
   currentStreak: number;
   totalCheckins: number;
@@ -110,12 +108,10 @@ async function getLatestCheckin(userId: string): Promise<{
       .eq('user_id', userId);
 
     const lastDate = new Date(data.created_at);
-    const y = lastDate.getUTCFullYear();
-    const m = String(lastDate.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(lastDate.getUTCDate()).padStart(2, "0");
+    const lastCheckinDate = formatDateWithOffset(lastDate, timezoneOffset);
 
     return {
-      lastCheckinDate: `${y}-${m}-${d}`,
+      lastCheckinDate,
       currentStreak: data.streak_day || 0,
       totalCheckins: count || 0,
     };
@@ -180,7 +176,7 @@ router.get(
       let currentStreak = 0;
       let totalCheckins = 0;
 
-      const supabaseData = await getLatestCheckin(wallet_address);
+      const supabaseData = await getLatestCheckin(wallet_address, timezoneOffset);
 
       if (supabaseData) {
         lastCheckinDate = supabaseData.lastCheckinDate;
@@ -279,7 +275,7 @@ router.post(
       let currentStreak = 0;
       let checkinFee = 2_000_000;
 
-      const supabaseData = await getLatestCheckin(wallet_address);
+      const supabaseData = await getLatestCheckin(wallet_address, timezoneOffset);
 
       if (supabaseData) {
         lastCheckinDate = supabaseData.lastCheckinDate;
@@ -344,19 +340,23 @@ router.post(
 
       console.log(`Check-in ticket minted: ${ticketObjectId}`);
 
-      // Persist to Supabase and update leaderboard (non-blocking)
-      // Use creditPoints() for instant leaderboard update
+      // Persist to Supabase and update leaderboard (await to prevent race conditions)
       await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
 
-      Promise.all([
-        recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak),
-        getUserManager().updateCheckinStats(
-          wallet_address,
-          pointsInfo.totalPoints,
-          nextStreak,
-          userDateToday
-        )
-      ]).catch(err => console.warn("[CHECKIN] Background updates failed:", err));
+      try {
+        await Promise.all([
+          recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak),
+          getUserManager().updateCheckinStats(
+            wallet_address,
+            pointsInfo.totalPoints,
+            nextStreak,
+            userDateToday
+          )
+        ]);
+      } catch (err) {
+        console.warn("[CHECKIN] Database updates failed:", err);
+        // We still continue because the ticket was minted and points were credited in leaderboard service
+      }
 
       res.json({
         success: true,

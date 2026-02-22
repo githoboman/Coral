@@ -974,6 +974,8 @@ const TaskPointsClaimSection = () => {
           "There was an issue minting your claim ticket. Please try again.";
       } else if (error.message?.includes("environment")) {
         errorMessage += "Configuration error. Please contact support.";
+      } else if (error.message?.includes("Balance") && error.message?.includes("lower than")) {
+        errorMessage = "Insufficient SUI for gas fees. Please get some from the faucet and try again.";
       } else if (error.message?.includes("User rejected")) {
         errorMessage += "Transaction was cancelled.";
       } else {

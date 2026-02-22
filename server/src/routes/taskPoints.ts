@@ -168,9 +168,9 @@ router.post(
       );
 
       if (!ticketObjectId) {
-        res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to mint task claim ticket. Please try again.",
+        res.status(503).json({
+          error: "Service Unavailable",
+          detail: "Failed to mint task claim ticket. The blockchain service might be busy or requiring maintenance. Please try again in a few minutes.",
         });
         return;
       }
