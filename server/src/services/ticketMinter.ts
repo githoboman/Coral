@@ -495,13 +495,14 @@ export class TicketMinter {
     try {
       const normalized = this.normalizeAddress(walletAddress);
 
+      // Fetch latest events from both modules in parallel
       const [claimEvents, taskClaimEvents] = await Promise.all([
         this.executeWithRetry(() =>
           this.client.queryEvents({
             query: {
               MoveEventType: `${this.packageId}::points::PointsClaimed`,
             },
-            limit: 50,
+            limit: 20,
             order: "descending",
           }),
         ),
@@ -510,47 +511,41 @@ export class TicketMinter {
             query: {
               MoveEventType: `${this.packageId}::task_points::TaskPointsClaimed`,
             },
-            limit: 50,
+            limit: 20,
             order: "descending",
           }),
         ),
       ]);
 
-      interface BalanceSnapshot {
-        balance: number;
-        timestamp: number;
-      }
-      const snapshots: BalanceSnapshot[] = [];
+      let pointsBalance = 0;
+      let taskBalance = 0;
 
+      // Get latest balance from points module
       for (const ev of claimEvents.data) {
         const data = ev.parsedJson as unknown as PointsClaimedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-          snapshots.push({
-            balance: Number(data.new_balance),
-            timestamp: Number(data.timestamp),
-          });
+          pointsBalance = Number(data.new_balance);
+          break;
         }
       }
 
+      // Get latest balance from task_points module
       for (const ev of taskClaimEvents.data) {
         const data = ev.parsedJson as unknown as TaskPointsClaimedEvent;
         if (this.normalizeAddress(data.wallet_address) === normalized) {
-          snapshots.push({
-            balance: Number(data.new_balance),
-            timestamp: Number(data.timestamp),
-          });
+          taskBalance = Number(data.new_balance);
+          break;
         }
       }
 
-      if (snapshots.length > 0) {
-        snapshots.sort(
-          (a: BalanceSnapshot, b: BalanceSnapshot) => b.timestamp - a.timestamp,
-        );
-        const latestBalance = snapshots[0].balance;
-
-        return latestBalance;
+      // If we found any balance, return the sum. 
+      // This is the core fix: unified balance = SUM of module portions.
+      if (pointsBalance > 0 || taskBalance > 0) {
+        return pointsBalance + taskBalance;
       }
 
+      // Fallback: On-chain view call (Note: This usually only returns one module's balance
+      // so it's a weak fallback, but better than 0 if events indexing is lagging)
       const tx = new Transaction();
       const moveAddr = this.toMoveAddressFormat(walletAddress);
 

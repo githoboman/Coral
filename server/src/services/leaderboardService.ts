@@ -44,14 +44,14 @@ class LeaderboardService {
 
   private async getCursor(key: string): Promise<string | null> {
     if (this.store.cursors[key]) return this.store.cursors[key];
-    
+
     try {
       const { data, error } = await supabase
         .from('indexer_state')
         .select('last_cursor')
         .eq('id', key)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data?.last_cursor || null;
     } catch (err) {
@@ -65,7 +65,7 @@ class LeaderboardService {
       const { error } = await supabase
         .from('indexer_state')
         .upsert({ id: key, last_cursor: cursor });
-      
+
       if (error) throw error;
       this.store.cursors[key] = cursor;
     } catch (err) {
@@ -120,36 +120,35 @@ class LeaderboardService {
         if (!data) continue;
 
         const wallet = this.normalizeAddr(data[walletField] || "");
-        const balance = parseInt(data[balanceField] || "0", 10);
-        // Note: timestamp in Sui events is usually ms or s. Leaderboard uses it for ordering.
 
-        // SAFETY CHECK: Only update if the new (on-chain) balance is HIGHER than what we currently have.
-        // This prevents clones/manual boosts from being clobbered by older on-chain indexing.
+        // FETCH UNIFIED ON-CHAIN BALANCE
+        // This ensures the leaderboard shows the SUM of all modules, not just the current module's balance.
+        const balance = await getTicketMinter().getBalance(wallet);
+
         const { data: currentProfile } = await supabase
           .from('user_profiles')
           .select('points')
           .eq('wallet_address', wallet)
           .maybeSingle();
-        
+
         const currentPoints = currentProfile?.points || 0;
 
         if (balance > currentPoints) {
-           await supabase
+          await supabase
             .from('user_profiles')
-            .upsert({ 
-              wallet_address: wallet, 
-              user_id: wallet, 
+            .upsert({
+              wallet_address: wallet,
+              user_id: wallet,
               points: balance,
-              xp: balance 
+              xp: balance
             }, { onConflict: 'wallet_address' });
-            // console.log(`[LEADERBOARD] Synced on-chain balance for ${wallet}: ${balance} (was ${currentPoints})`);
         }
       }
 
       fetchedCount += page.data.length;
       hasNext = page.hasNextPage;
       cursor = page.nextCursor as any;
-      
+
       if (cursor) {
         await this.saveCursor(cursorKey, (cursor as any).eventSeq); // Store just the important part or serialized
         // Actually, Sui cursor is an object. Let's store it as JSON string or the whole thing if text.
@@ -222,15 +221,15 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .single();
-      
+
       const currentPoints = profile?.points || 0;
       const finalPoints = currentPoints + pointsToAdd;
 
       const { error } = await supabase
         .from('user_profiles')
-        .upsert({ 
-          wallet_address: norm, 
-          user_id: norm, 
+        .upsert({
+          wallet_address: norm,
+          user_id: norm,
           points: finalPoints,
           xp: finalPoints // Sync xp with points
         }, { onConflict: 'wallet_address' });
@@ -283,7 +282,7 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data?.points || 0;
     } catch (err) {
@@ -310,7 +309,7 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .single();
-      
+
       if (userError && userError.code !== 'PGRST116') throw userError;
       const points = user?.points || 0;
 
@@ -319,7 +318,7 @@ class LeaderboardService {
         .from('user_profiles')
         .select('*', { count: 'exact', head: true })
         .gt('points', points);
-      
+
       if (rankError) throw rankError;
 
       // 3. Get total participants (users with points > 0)

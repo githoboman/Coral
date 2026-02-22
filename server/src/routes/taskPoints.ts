@@ -2,8 +2,10 @@ import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import { UserManager, getUserManager as getUserManagerService } from "../services/userManager";
 import { getLeaderboardService } from "../services/leaderboardService";
+import getSupabaseClient from "../config/supabase";
 
 const router = Router();
+const supabase = getSupabaseClient();
 
 let ticketMinter: TicketMinter | null = null;
 let userManager: UserManager | null = null;
@@ -296,54 +298,37 @@ router.post(
 
       const onChainBalance = await minter.getBalance(user_id);
 
-      console.log(`[TASK POINTS] On-chain balance: ${onChainBalance}`);
+      console.log(`[TASK POINTS] Unified on-chain balance for ${user_id}: ${onChainBalance}`);
 
-      const updatedProfile = manager.createUserProfile(
-        profile.email,
-        profile.wallet_address,
-        profile.is_waitlisted,
-        onChainBalance,
-        {
-          username: profile.username,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          preferences: profile.preferences,
-          waitlist_verified_at: profile.waitlist_verified_at,
-          tasks_created_today: tasksCreated,
+      // SURGICAL UPDATE: instead of createUserProfile + addOrUpdateUser (which overwrites EVERYTHING),
+      // we use a surgical approach to update only the points and claim counts.
+      // This is safer and prevents clobbering other concurrent updates like check-ins or prompt limits.
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          points: onChainBalance,
+          xp: onChainBalance,
           tasks_claimed_today: newTasksClaimed,
-          research_created_today: researchCreated,
           research_claimed_today: newResClaimed,
-          last_task_reset_date: today,
-          subscription_tier: profile.subscription_tier,
-          subscription_expires_at: profile.subscription_expires_at,
-          daily_prompts_used: profile.daily_prompts_used,
-          last_prompt_date: profile.last_prompt_date,
-        },
-      );
+          last_task_reset_date: today
+        })
+        .eq('wallet_address', user_id);
 
-      const result = await manager.addOrUpdateUser(updatedProfile);
-
-      if (!result) {
-        res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to confirm claim",
-        });
-        return;
-      }
+      if (updateError) throw updateError;
 
       console.log(
-        `[TASK POINTS] Confirmed claim for ${user_id}: ${newTasksClaimed} tasks and ${newResClaimed} research claimed, ${onChainBalance} points total`,
+        `[TASK POINTS] Confirmed claim for ${user_id}: ${tasksToClaim} tasks and ${resToClaim} research claimed, ${onChainBalance} points total`,
       );
 
-      // Instantly credit points to leaderboard (forceUpdate relies on on-chain
-      // event indexing which has propagation delay)
-      await getLeaderboardService().creditPoints(user_id, task_count * 2);
+      // Note: We REMOVED the call to creditPoints here because onChainBalance 
+      // already includes the points from the transaction just executed.
+      // Calling creditPoints would result in double-counting.
 
       res.json({
         success: true,
         tasks_claimed_today: newTasksClaimed,
         research_claimed_today: newResClaimed,
-        total_activities_claimed: newTasksClaimed + newResClaimed,
+        total_activities_claimed: tasksToClaim + resToClaim,
         total_points: onChainBalance,
         message: "Claim confirmed successfully",
       });

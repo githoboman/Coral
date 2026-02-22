@@ -23,6 +23,7 @@ interface LeaderboardState {
   loading: boolean;
   error: string | null;
   lastFetch: number | null;
+  lastWalletAddress: string | null;
 }
 
 const initialState: LeaderboardState = {
@@ -31,6 +32,7 @@ const initialState: LeaderboardState = {
   loading: false,
   error: null,
   lastFetch: null,
+  lastWalletAddress: null,
 };
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -42,13 +44,25 @@ export const fetchLeaderboard = createAsyncThunk(
     try {
       const state = getState() as { leaderboard: LeaderboardState };
 
-      // Check cache validity (5 minute TTL) - but skip if forceRefresh is true
+      // WALLET-AWARE CACHE VALIDATION:
+      // Skip cache if:
+      // 1. forceRefresh is true
+      // 2. Cache expired
+      // 3. Wallet address changed (e.g. guest -> connected, or user changed accounts)
+      const walletChanged = walletAddress !== state.leaderboard.lastWalletAddress;
+
       if (
         !forceRefresh &&
+        !walletChanged &&
         isCacheValid(state.leaderboard.lastFetch, CACHE_TTL) &&
         state.leaderboard.entries.length > 0
       ) {
-        return { entries: state.leaderboard.entries, userRank: state.leaderboard.userRank, fromCache: true };
+        return {
+          entries: state.leaderboard.entries,
+          userRank: state.leaderboard.userRank,
+          walletAddress: state.leaderboard.lastWalletAddress,
+          fromCache: true
+        };
       }
 
       const apiBaseUrl =
@@ -64,7 +78,12 @@ export const fetchLeaderboard = createAsyncThunk(
       }
 
       const data = await response.json();
-      return { entries: data.leaderboard || [], userRank: data.user_rank || null, fromCache: false };
+      return {
+        entries: data.leaderboard || [],
+        userRank: data.user_rank || null,
+        walletAddress: walletAddress || null,
+        fromCache: false
+      };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch leaderboard");
     }
@@ -77,10 +96,12 @@ const leaderboardSlice = createSlice({
   reducers: {
     invalidateCache: (state) => {
       state.lastFetch = null;
+      state.lastWalletAddress = null;
     },
     clearLeaderboard: (state) => {
       state.entries = [];
       state.lastFetch = null;
+      state.lastWalletAddress = null;
     },
   },
   extraReducers: (builder) => {
@@ -94,6 +115,7 @@ const leaderboardSlice = createSlice({
         if (!action.payload.fromCache) {
           state.entries = action.payload.entries;
           state.userRank = action.payload.userRank;
+          state.lastWalletAddress = action.payload.walletAddress;
           state.lastFetch = getCacheTimestamp();
         }
       })
