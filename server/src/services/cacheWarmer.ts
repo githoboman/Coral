@@ -17,10 +17,10 @@ export class CacheWarmer {
     const start = Date.now();
 
     try {
-      // Warm up Leaderboard (fetches new events from Sui)
-      console.log("[CACHE WARMER] Updating Leaderboard...");
-      await getLeaderboardService().updateLeaderboard();
-      console.log("[CACHE WARMER] Leaderboard updated!");
+      // Warm up Leaderboard (fetches live top users from Supabase to warm DB connection)
+      console.log("[CACHE WARMER] Warming DB connection for Leaderboard...");
+      await getLeaderboardService().getLeaderboard(10);
+      console.log("[CACHE WARMER] Leaderboard ready!");
 
       const duration = Date.now() - start;
       console.log(`[CACHE WARMER] Warmup complete in ${duration}ms!`);

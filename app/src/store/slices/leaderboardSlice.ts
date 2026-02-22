@@ -20,6 +20,7 @@ export interface UserRank {
 interface LeaderboardState {
   entries: LeaderboardEntry[];
   userRank: UserRank | null;
+  totalParticipants: number | null;
   loading: boolean;
   error: string | null;
   lastFetch: number | null;
@@ -28,6 +29,7 @@ interface LeaderboardState {
 const initialState: LeaderboardState = {
   entries: [],
   userRank: null,
+  totalParticipants: null,
   loading: false,
   error: null,
   lastFetch: null,
@@ -48,7 +50,12 @@ export const fetchLeaderboard = createAsyncThunk(
         isCacheValid(state.leaderboard.lastFetch, CACHE_TTL) &&
         state.leaderboard.entries.length > 0
       ) {
-        return { entries: state.leaderboard.entries, userRank: state.leaderboard.userRank, fromCache: true };
+        return { 
+          entries: state.leaderboard.entries, 
+          userRank: state.leaderboard.userRank, 
+          totalParticipants: state.leaderboard.totalParticipants,
+          fromCache: true 
+        };
       }
 
       const apiBaseUrl =
@@ -64,7 +71,12 @@ export const fetchLeaderboard = createAsyncThunk(
       }
 
       const data = await response.json();
-      return { entries: data.leaderboard || [], userRank: data.user_rank || null, fromCache: false };
+      return { 
+        entries: data.leaderboard || [], 
+        userRank: data.user_rank || null, 
+        totalParticipants: data.total_participants || null,
+        fromCache: false 
+      };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch leaderboard");
     }
@@ -80,6 +92,8 @@ const leaderboardSlice = createSlice({
     },
     clearLeaderboard: (state) => {
       state.entries = [];
+      state.userRank = null;
+      state.totalParticipants = null;
       state.lastFetch = null;
     },
   },
@@ -94,6 +108,7 @@ const leaderboardSlice = createSlice({
         if (!action.payload.fromCache) {
           state.entries = action.payload.entries;
           state.userRank = action.payload.userRank;
+          state.totalParticipants = action.payload.totalParticipants;
           state.lastFetch = getCacheTimestamp();
         }
       })

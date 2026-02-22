@@ -79,11 +79,16 @@ router.get(
 
       // If wallet_address provided, include user's rank (even if outside top 100)
       let user_rank = null;
+      let total_participants = 0;
+      
       if (wallet_address && typeof wallet_address === "string") {
         user_rank = await leaderboardService.getUserRank(wallet_address);
+        total_participants = user_rank.total_participants;
+      } else {
+        total_participants = await leaderboardService.getTotalParticipants();
       }
 
-      return res.json({ leaderboard: entries, user_rank });
+      return res.json({ leaderboard: entries, user_rank, total_participants });
     } catch (error) {
       console.error("[LEADERBOARD] Error:", error);
       next(error);

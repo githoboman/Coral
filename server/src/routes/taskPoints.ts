@@ -294,15 +294,13 @@ router.post(
       const newTasksClaimed = tasksClaimed + tasksToClaim;
       const newResClaimed = researchClaimed + resToClaim;
 
-      const onChainBalance = await minter.getBalance(user_id);
-
-      console.log(`[TASK POINTS] On-chain balance: ${onChainBalance}`);
+      console.log(`[TASK POINTS] Credit claim: ${task_count * 2} points`);
 
       const updatedProfile = manager.createUserProfile(
         profile.email,
         profile.wallet_address,
         profile.is_waitlisted,
-        onChainBalance,
+        profile.points_awarded || 0,
         {
           username: profile.username,
           first_name: profile.first_name,
@@ -332,11 +330,10 @@ router.post(
       }
 
       console.log(
-        `[TASK POINTS] Confirmed claim for ${user_id}: ${newTasksClaimed} tasks and ${newResClaimed} research claimed, ${onChainBalance} points total`,
+        `[TASK POINTS] Confirmed claim for ${user_id}: ${newTasksClaimed} tasks and ${newResClaimed} research claimed`,
       );
 
-      // Instantly credit points to leaderboard (forceUpdate relies on on-chain
-      // event indexing which has propagation delay)
+      // Instantly credit points to leaderboard (handles both points and xp columns)
       await getLeaderboardService().creditPoints(user_id, task_count * 2);
 
       res.json({
@@ -344,7 +341,7 @@ router.post(
         tasks_claimed_today: newTasksClaimed,
         research_claimed_today: newResClaimed,
         total_activities_claimed: newTasksClaimed + newResClaimed,
-        total_points: onChainBalance,
+        total_points: (profile.points_awarded || 0) + (task_count * 2),
         message: "Claim confirmed successfully",
       });
     } catch (error) {
@@ -383,8 +380,6 @@ router.get(
         return;
       }
 
-      const balance = await minter.getBalance(user_id);
-
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -392,7 +387,7 @@ router.get(
       res.json({
         tasks_created_today: needsReset ? 0 : profile.tasks_created_today || 0,
         tasks_claimed_today: needsReset ? 0 : profile.tasks_claimed_today || 0,
-        total_points_earned: balance,
+        total_points_earned: profile.points_awarded || 0,
         last_task_reset_date: profile.last_task_reset_date,
       });
     } catch (error) {
