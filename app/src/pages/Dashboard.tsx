@@ -58,6 +58,7 @@ interface Conversation {
   agentId: string;
   messages: Message[];
   tempId?: string;
+  createdAt?: string;
 }
 
 interface Prompt {
@@ -580,6 +581,7 @@ const Dashboard = () => {
             id: c.chat_id,
             title: c.name,
             agentId: c.agent_id,
+            createdAt: c.created_at,
             messages: [], // messages loaded on demand
           }));
           setConversations(mapped);
@@ -816,7 +818,12 @@ const Dashboard = () => {
 
                     setConversations((prev) =>
                       prev.map((c) =>
-                        c.id === convId ? { ...c, id: parsed.id, tempId: convId } : c
+                        c.id === convId ? {
+                          ...c,
+                          id: parsed.id,
+                          tempId: convId,
+                          createdAt: parsed.created_at || c.createdAt || new Date().toISOString()
+                        } : c
                       )
                     );
                   }
@@ -952,6 +959,7 @@ const Dashboard = () => {
         title: text.length > 40 ? text.slice(0, 40) + "..." : text,
         agentId: selectedAgentId,
         messages: [userMsg],
+        createdAt: new Date().toISOString(),
       };
 
       setConversations((prev) => [newConv, ...prev]);

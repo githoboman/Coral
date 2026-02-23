@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Search, Filter, X } from "lucide-react";
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { Transaction } from "@mysten/sui/transactions";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTasks, removeTask, invalidateCache } from "@/store/slices/tasksSlice";
 import { fetchEvents } from "@/store/slices/eventsSlice";
@@ -860,8 +859,6 @@ const Activity = () => {
 
 const TaskPointsClaimSection = () => {
   const currentAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecuteTransaction } =
-    useSignAndExecuteTransaction();
   const [claimable, setClaimable] = useState<{
     claimable_tasks: number;
     claimable_research: number;
@@ -892,64 +889,20 @@ const TaskPointsClaimSection = () => {
     setIsClaiming(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/task-points/request-claim`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: currentAccount.address,
-            task_count: claimable.total_activities,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to request claim ticket");
-      }
-
-      const data = await response.json();
-      const { ticket_object_id } = data;
-
-      if (!ticket_object_id || typeof ticket_object_id !== "string") {
-        console.error("[CLAIM] Invalid ticket object ID received:", data);
-        throw new Error("Failed to mint claim ticket. Please try again.");
-      }
-
-      const tx = new Transaction();
-
-      const packageId = import.meta.env.VITE_SUI_PACKAGE_ID;
-      const taskPointsRegistryId = import.meta.env
-        .VITE_SUI_TASK_POINTS_REGISTRY_ID;
-      const pointsRegistryId = import.meta.env.VITE_POINTS_REGISTRY_ID;
-
-      if (!packageId || !taskPointsRegistryId || !pointsRegistryId) {
-        throw new Error(
-          "Missing required environment variables for claiming. Please check your .env file.",
-        );
-      }
-
-      tx.moveCall({
-        target: `${packageId}::task_points::claim_task_points`,
-        arguments: [
-          tx.object(taskPointsRegistryId),
-          tx.object(pointsRegistryId),
-          tx.object(ticket_object_id),
-          tx.object("0x6"),
-        ],
-      });
-
-      await signAndExecuteTransaction({ transaction: tx });
-
-      await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
+      const resp = await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: currentAccount.address,
-          task_count: claimable.total_activities
+          user_id: currentAccount.address
         })
       });
+
+      if (!resp.ok) {
+        const errorData = await resp.json();
+        throw new Error(errorData.detail || "Failed to claim points");
+      }
+
+      const data = await resp.json();
 
       window.dispatchEvent(new Event("pointsUpdated"));
 
@@ -961,30 +914,15 @@ const TaskPointsClaimSection = () => {
 
       sileo.success({
         title: "Points Claimed!",
-        description: `🎉 Successfully claimed ${claimable.total_claimable_points} points!`,
+        description: `🎉 Successfully claimed ${data.points_awarded} points!`,
       });
 
     } catch (error: any) {
       console.error("[CLAIM] Claim failed:", error);
 
-      let errorMessage = "Failed to claim points. ";
-
-      if (error.message?.includes("ticket")) {
-        errorMessage +=
-          "There was an issue minting your claim ticket. Please try again.";
-      } else if (error.message?.includes("environment")) {
-        errorMessage += "Configuration error. Please contact support.";
-      } else if (error.message?.includes("Balance") && error.message?.includes("lower than")) {
-        errorMessage = "Insufficient SUI for gas fees. Please get some from the faucet and try again.";
-      } else if (error.message?.includes("User rejected")) {
-        errorMessage += "Transaction was cancelled.";
-      } else {
-        errorMessage += error.message || "Please try again.";
-      }
-
       sileo.error({
         title: "Claim Failed",
-        description: errorMessage,
+        description: error.message || "Failed to claim points. Please try again.",
       });
     } finally {
       setIsClaiming(false);

@@ -15,6 +15,7 @@ export interface Conversation {
   title: string;
   agentId: string;
   messages: Message[];
+  createdAt?: string;
 }
 
 interface RecentChatsModalProps {
@@ -42,12 +43,30 @@ export const RecentChatsModal: React.FC<RecentChatsModalProps> = ({
     );
   }, [conversations, searchQuery]);
 
-  // Helper to extract date from ID (assuming format "conv-{timestamp}")
-  const getDateLabel = (id: string) => {
+  // Helper to format date with fallbacks
+  const getDateLabel = (conv: Conversation) => {
+    const dateStr = conv.createdAt || (conv as any).created_at;
+
+    let date: Date | null = null;
+
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        date = d;
+      }
+    }
+
+    // Fallback: extract from ID if it follows conv-timestamp format
+    if (!date && conv.id.startsWith("conv-")) {
+      const timestamp = parseInt(conv.id.split("-")[1]);
+      if (!isNaN(timestamp)) {
+        date = new Date(timestamp);
+      }
+    }
+
+    if (!date) return "";
+
     try {
-      const timestamp = parseInt(id.split("-")[1]);
-      if (isNaN(timestamp)) return "";
-      const date = new Date(timestamp);
       return new Intl.DateTimeFormat("en-US", {
         month: "numeric",
         day: "numeric",
@@ -146,7 +165,7 @@ export const RecentChatsModal: React.FC<RecentChatsModalProps> = ({
                             {conv.title}
                           </h3>
                           <p className="text-xs text-white/30 truncate">
-                            {getDateLabel(conv.id)}
+                            {getDateLabel(conv)}
                           </p>
                         </div>
                         <button
