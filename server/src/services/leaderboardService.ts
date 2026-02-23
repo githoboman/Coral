@@ -51,15 +51,15 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .single();
-      
+
       const currentPoints = profile?.points || 0;
       const finalPoints = currentPoints + pointsToAdd;
 
       const { error } = await supabase
         .from('user_profiles')
-        .upsert({ 
-          wallet_address: norm, 
-          user_id: norm, 
+        .upsert({
+          wallet_address: norm,
+          user_id: norm,
           points: finalPoints,
           xp: finalPoints // Sync xp with points
         }, { onConflict: 'wallet_address' });
@@ -105,7 +105,7 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data?.points || 0;
     } catch (err) {
@@ -132,7 +132,7 @@ class LeaderboardService {
         .select('points')
         .eq('wallet_address', norm)
         .single();
-      
+
       if (userError && userError.code !== 'PGRST116') throw userError;
       const points = user?.points || 0;
 
@@ -141,7 +141,7 @@ class LeaderboardService {
         .from('user_profiles')
         .select('*', { count: 'exact', head: true })
         .gt('points', points);
-      
+
       if (rankError) throw rankError;
 
       // 3. Get total participants (users with points > 0)

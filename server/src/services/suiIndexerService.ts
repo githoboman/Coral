@@ -223,6 +223,17 @@ export class SuiIndexerService {
       );
     }
   }
+
+  // ── Metadata ─────────────────────────────────────────────────────────
+
+  async getTokenMetadata(coinType: string): Promise<any> {
+    console.log(`[SuiIndexer] Fetching metadata for ${coinType}`);
+    try {
+      return await this.rpc.call('suix_getCoinMetadata', [coinType]);
+    } catch {
+      return null;
+    }
+  }
 }
 
 // ── Singleton ──────────────────────────────────────────────────────────

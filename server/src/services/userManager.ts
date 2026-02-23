@@ -33,6 +33,10 @@ export interface UserProfile {
   subscription_expires_at?: string;
   daily_prompts_used?: number;
   last_prompt_date?: string;
+
+  // Research prompts
+  daily_research_prompts_used?: number;
+  last_research_prompt_date?: string;
 }
 
 export interface DecryptedUserProfile {
@@ -162,6 +166,14 @@ export class UserManager {
       profile.last_prompt_date = additionalData.last_prompt_date;
     }
 
+    // Research prompts
+    if (additionalData?.daily_research_prompts_used !== undefined) {
+      profile.daily_research_prompts_used = additionalData.daily_research_prompts_used;
+    }
+    if (additionalData?.last_research_prompt_date) {
+      profile.last_research_prompt_date = additionalData.last_research_prompt_date;
+    }
+
     return profile;
   }
 
@@ -188,6 +200,8 @@ export class UserManager {
         subscription_expires_at: userProfile.subscription_expires_at,
         daily_prompts_used: userProfile.daily_prompts_used,
         last_prompt_date: userProfile.last_prompt_date,
+        daily_research_prompts_used: userProfile.daily_research_prompts_used,
+        last_research_prompt_date: userProfile.last_research_prompt_date,
       };
 
       // Decrypt legacy fields if they are still encrypted in the incoming object
@@ -258,6 +272,8 @@ export class UserManager {
         subscription_expires_at: profile.subscription_expires_at,
         daily_prompts_used: profile.daily_prompts_used,
         last_prompt_date: profile.last_prompt_date,
+        daily_research_prompts_used: profile.daily_research_prompts_used,
+        last_research_prompt_date: profile.last_research_prompt_date,
       };
     } catch (error) {
       console.error("[USER_MANAGER] Error fetching profile from Supabase:", error);

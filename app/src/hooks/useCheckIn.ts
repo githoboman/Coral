@@ -1,15 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
-  useCurrentAccount,
-  useSignAndExecuteTransaction,
-} from "@mysten/dapp-kit";
-import { Transaction } from "@mysten/sui/transactions";
-
-const PACKAGE_ID = import.meta.env.VITE_SUI_PACKAGE_ID || "";
-const POINTS_REGISTRY = import.meta.env.VITE_POINTS_REGISTRY_ID || "";
-const FEE_CONFIG = import.meta.env.VITE_FEE_CONFIG_ID || "";
-const SUBSCRIPTION_REGISTRY =
-  import.meta.env.VITE_SUI_SUBSCRIPTION_REGISTRY_ID || "";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -17,8 +7,6 @@ export type CheckinStatus =
   | "idle"
   | "checking"
   | "requesting"
-  | "signing"
-  | "confirming"
   | "success"
   | "error"
   | "cooldown";
@@ -46,7 +34,6 @@ export interface CheckinState {
 
 export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const currentAccount = useCurrentAccount();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [state, setState] = useState<CheckinState>({
     status: "checking",
@@ -72,8 +59,26 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  /**
+   * Returns the user's timezone offset in minutes (positive = east of UTC).
+   * e.g. UTC+1 → 60, UTC-5 → -300
+   */
   const getTimezoneOffset = useCallback(() => {
     return new Date().getTimezoneOffset() * -1;
+  }, []);
+
+  /**
+   * Returns Unix ms of the next local midnight for the user.
+   * Mirrors the backend `nextLocalMidnightMs` function exactly so the
+   * cooldown timer shown in the UI matches when the server will allow
+   * the next check-in.
+   */
+  const getNextLocalMidnightMs = useCallback((tzOffsetMinutes: number): number => {
+    const localMs = Date.now() + tzOffsetMinutes * 60_000;
+    const d = new Date(localMs);
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() + 1); // roll to tomorrow 00:00 local
+    return d.getTime() - tzOffsetMinutes * 60_000; // convert back to UTC ms
   }, []);
 
   const fetchStatus = useCallback(async () => {
@@ -88,7 +93,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     }
 
     abortControllerRef.current = new AbortController();
-
     setState((prev) => ({ ...prev, status: "checking" }));
 
     try {
@@ -125,9 +129,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         error: null,
       }));
     } catch (err: any) {
-      if (err.name === "AbortError") {
-        return;
-      }
+      if (err.name === "AbortError") return;
 
       setState((prev) => ({
         ...prev,
@@ -146,134 +148,6 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       }
     };
   }, [fetchStatus]);
-
-  const pollForConfirmation = useCallback(
-    async (wallet: string, expectedPts: number, txDigest: string) => {
-      const maxAttempts = 10;
-      let attempt = 0;
-
-      const doPoll = async () => {
-        attempt++;
-        try {
-          const digestParam =
-            attempt === 1 ? `&tx_digest=${encodeURIComponent(txDigest)}` : "";
-
-          const res = await fetch(
-            `${API_BASE}/api/auth/check-claim-status?wallet_address=${encodeURIComponent(wallet)}${digestParam}`,
-          );
-          const data = await res.json();
-
-          if (data.balance > 0) {
-            if (pollRef.current) {
-              clearInterval(pollRef.current);
-              pollRef.current = null;
-            }
-
-            const tzOffset = getTimezoneOffset();
-            const now = new Date();
-            const userMs = now.getTime() + tzOffset * 60_000;
-            const d = new Date(userMs);
-            d.setUTCHours(0, 0, 0, 0);
-            d.setUTCDate(d.getUTCDate() + 1);
-            const nextMidnight = d.getTime() - tzOffset * 60_000;
-            const hrsRemaining = Math.ceil((nextMidnight - Date.now()) / (1000 * 60 * 60));
-
-            setState((prev) => ({
-              ...prev,
-              status: "success",
-              canCheckin: false,
-              lastCheckinAt: Date.now(),
-              nextAvailableAt: nextMidnight,
-              hoursRemaining: hrsRemaining,
-              pointsEarned: expectedPts,
-              error: null,
-              balance: data.balance,
-              currentStreak: prev.nextStreak,
-              totalCheckins: prev.totalCheckins + 1,
-            }));
-
-            if (onPointsUpdated) {
-              onPointsUpdated(data.balance);
-            }
-
-            import("sileo").then(({ sileo }) => {
-              sileo.success({
-                title: "Check-in Successful!",
-                description: `Earned ${expectedPts} point${expectedPts !== 1 ? "s" : ""}. Keep your streak going!`,
-              });
-            });
-
-            window.dispatchEvent(new Event("pointsUpdated"));
-
-            setTimeout(fetchStatus, 2000);
-
-            return true;
-          }
-        } catch (_) { }
-
-        if (attempt >= maxAttempts) {
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-
-          const tzOffsetFallback = getTimezoneOffset();
-          const nowFallback = new Date();
-          const userMsFallback = nowFallback.getTime() + tzOffsetFallback * 60_000;
-          const dFallback = new Date(userMsFallback);
-          dFallback.setUTCHours(0, 0, 0, 0);
-          dFallback.setUTCDate(dFallback.getUTCDate() + 1);
-          const nextMidnightFallback = dFallback.getTime() - tzOffsetFallback * 60_000;
-          const hrsRemainingFallback = Math.ceil((nextMidnightFallback - Date.now()) / (1000 * 60 * 60));
-
-          setState((prev) => ({
-            ...prev,
-            status: "success",
-            canCheckin: false,
-            lastCheckinAt: Date.now(),
-            nextAvailableAt: nextMidnightFallback,
-            hoursRemaining: hrsRemainingFallback,
-            pointsEarned: expectedPts,
-            error: null,
-            balance: prev.balance + expectedPts,
-            currentStreak: prev.nextStreak,
-            totalCheckins: prev.totalCheckins + 1,
-          }));
-
-          if (onPointsUpdated) {
-            onPointsUpdated(expectedPts);
-          }
-
-          import("sileo").then(({ sileo }) => {
-            sileo.success({
-              title: "Check-in Successful!",
-              description: `Earned ${expectedPts} point${expectedPts !== 1 ? "s" : ""}. Keep your streak going!`,
-            });
-          });
-
-          window.dispatchEvent(new Event("pointsUpdated"));
-
-          setTimeout(fetchStatus, 2000);
-
-          return true;
-        }
-
-        return false;
-      };
-
-      const done = await doPoll();
-      if (done) return;
-
-      pollRef.current = setInterval(async () => {
-        const done = await doPoll();
-        if (done && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-        }
-      }, 1500);
-    },
-    [fetchStatus, onPointsUpdated],
-  );
 
   const checkin = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -294,15 +168,11 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       return;
     }
 
-    setState((prev) => ({
-      ...prev,
-      status: "requesting",
-      error: null,
-    }));
+    setState((prev) => ({ ...prev, status: "requesting", error: null }));
 
     try {
       const timezoneOffset = getTimezoneOffset();
-      const ticketRes = await fetch(`${API_BASE}/api/checkin/request-ticket`, {
+      const res = await fetch(`${API_BASE}/api/checkin/perform`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -311,99 +181,73 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         }),
       });
 
-      const ticketData = await ticketRes.json();
+      const data = await res.json();
 
-      if (!ticketRes.ok || !ticketData.success) {
+      if (!res.ok || !data.success) {
         setState((prev) => ({
           ...prev,
-          status: ticketData.can_checkin === false ? "cooldown" : "error",
-          error: ticketData.message || "Failed to get check-in ticket",
-          hoursRemaining: ticketData.hours_remaining || null,
+          status: data.can_checkin === false ? "cooldown" : "error",
+          error: data.message || "Failed to perform check-in",
+          hoursRemaining: data.hours_remaining || null,
         }));
         return;
       }
 
-      const ticketId = ticketData.ticket_object_id as string;
-      const ptsAmount = ticketData.points_amount as number;
-      const isMilestone = ticketData.is_milestone as boolean;
-
-      const checkinFee = ticketData.checkin_fee as number;
+      const ptsEarned = data.points_earned as number;
+      const tzOffset = getTimezoneOffset();
+      const nextAvailableAt = getNextLocalMidnightMs(tzOffset);
+      const hoursRemaining = Math.ceil(
+        (nextAvailableAt - Date.now()) / (1000 * 60 * 60),
+      );
 
       setState((prev) => ({
         ...prev,
-        status: "signing",
+        status: "success",
+        canCheckin: false,
+        lastCheckinAt: Date.now(),
+        nextAvailableAt,
+        hoursRemaining,
+        pointsEarned: ptsEarned,
+        error: null,
+        balance: data.balance,
+        currentStreak: data.new_streak,
+        totalCheckins: prev.totalCheckins + 1,
       }));
 
-      const tx = new Transaction();
-      tx.setGasBudget(10_000_000);
+      if (onPointsUpdated) {
+        onPointsUpdated(data.balance);
+      }
 
-      const [feeCoin] = tx.splitCoins(tx.gas, [checkinFee]);
-
-      tx.moveCall({
-        target: `${PACKAGE_ID}::points::checkin`,
-        arguments: [
-          tx.object(POINTS_REGISTRY),
-          tx.object(SUBSCRIPTION_REGISTRY),
-          tx.object(ticketId),
-          tx.object(FEE_CONFIG),
-          feeCoin,
-          tx.object("0x6"),
-        ],
+      import("sileo").then(({ sileo }) => {
+        sileo.success({
+          title: "Check-in Successful!",
+          description: `Earned ${ptsEarned} point${ptsEarned !== 1 ? "s" : ""}. Keep your streak going!`,
+        });
       });
 
-      const result = await signAndExecute(
-        { transaction: tx },
-        {
-          onSuccess: () => { },
-          onError: () => { },
-        },
-      );
+      window.dispatchEvent(new Event("pointsUpdated"));
+      setTimeout(fetchStatus, 2000);
 
-      setState((prev) => ({ ...prev, status: "confirming" }));
-
-      await pollForConfirmation(
-        currentAccount.address,
-        ptsAmount,
-        result.digest,
-      );
-
-      if (isMilestone) {
-      }
     } catch (err: any) {
       let errorMsg = "Check-in failed. Please try again.";
+
       if (err?.message) {
-        if (err.message.includes("User rejected")) {
-          errorMsg = "Transaction was cancelled.";
-        } else if (err.message.includes("EAlreadyCheckedInToday")) {
-          errorMsg =
-            "You've already checked in today. Next check-in available at midnight.";
-        } else if (
-          err.message.includes("Insufficient") ||
-          err.message.includes("InsufficientCoinBalance")
-        ) {
-          errorMsg = `Insufficient SUI balance. You need at least ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI for the check-in fee plus gas.`;
-        } else if (err.message.includes("EInsufficientPayment")) {
-          errorMsg = `Check-in fee payment failed. Required: ${(state.checkinFee / 1_000_000_000).toFixed(3)} SUI`;
+        if (err.message.includes("AlreadyCheckedInToday")) {
+          errorMsg = "You've already checked in today. Next check-in available at midnight.";
         } else {
           errorMsg = err.message;
         }
       }
 
-      console.error(errorMsg);
-      // Only show toast checks that are not silent/background if we want, but user asked for "show the toast letting the user know"
-      // The error state is also set, but a toast is more visible.
+      console.error("[CHECKIN]", errorMsg);
+
       if (err.name !== "AbortError") {
         import("sileo").then(({ sileo }) => {
           sileo.error({ title: "Check-in Failed", description: errorMsg });
         });
       }
 
-      setState((prev) => ({
-        ...prev,
-        status: "error",
-        error: errorMsg,
-      }));
-
+      setState((prev) => ({ ...prev, status: "error", error: errorMsg }));
       setTimeout(fetchStatus, 1000);
     }
   }, [
@@ -411,11 +255,10 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     state.canCheckin,
     state.status,
     state.hoursRemaining,
-    state.checkinFee,
-    signAndExecute,
-    pollForConfirmation,
     fetchStatus,
+    getNextLocalMidnightMs,
     getTimezoneOffset,
+    onPointsUpdated,
   ]);
 
   const reset = useCallback(() => {

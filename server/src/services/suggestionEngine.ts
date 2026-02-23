@@ -3,6 +3,7 @@ import { getUserStateService, type UserState } from "./userStateService";
 import { getSuggestionThrottler, type SuggestionRecord } from "./suggestionThrottler";
 import { getNotificationService } from "./notificationService";
 import { getTaskStorageService } from "./taskStorageService";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -191,6 +192,15 @@ export class SuggestionEngine {
   private eventMonitor = getEventMonitorService();
   private notifications = getNotificationService();
   private taskStorage = getTaskStorageService();
+  private model: ChatGoogleGenerativeAI;
+
+  constructor() {
+    this.model = new ChatGoogleGenerativeAI({
+      model: "gemini-2.0-flash",
+      apiKey: process.env.GEMINI_API_KEY,
+      temperature: 0.7,
+    });
+  }
 
   // ── Event-Triggered Suggestions ───────────────────────────────────
 
@@ -244,6 +254,51 @@ export class SuggestionEngine {
     response: string
   ): Promise<void> {
     try {
+      // 1. Try LLM for intelligent suggestion
+      const prompt = `
+        You are a Web3 Personal Assistant. The user just performed this research:
+        Query: "${query}"
+        Report Summary: "${response.substring(0, 1000)}..."
+
+        Based on this, suggest ONE highly relevant, actionable follow-up task.
+        Keep the suggestion text extremely brief and concise (maximum 2 sentences), as it will be sent as a mobile notification.
+        Examples: 
+        - If they researched a risky token, suggest "Set a price alert for exit" or "Review security warnings".
+        - If they researched a solid token, suggest "Add to watchlist" or "Check staking APR".
+        - If they asked about a wallet, suggest "Monitor large outflows".
+
+        Return ONLY a JSON object with this structure:
+        {
+          "text": "The suggestion text to show the user",
+          "taskTemplate": {
+            "task_name": "Short task title",
+            "description": "Task description",
+            "priority": "low" | "medium" | "high",
+            "tags": ["research", "follow-up"]
+          }
+        }
+      `;
+
+      try {
+        const res = await this.model.invoke(prompt);
+        const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+
+        if (jsonMatch) {
+          const intelligentSuggestion = JSON.parse(jsonMatch[0]) as Suggestion;
+          if (intelligentSuggestion.text && intelligentSuggestion.taskTemplate) {
+            await this.deliverSuggestion(walletAddress, {
+              ...intelligentSuggestion,
+              type: "intelligent_followup"
+            });
+            return;
+          }
+        }
+      } catch (llmErr) {
+        console.warn(`[SuggestionEngine] LLM suggestion failed, falling back: ${llmErr instanceof Error ? llmErr.message : String(llmErr)}`);
+      }
+
+      // 2. Fallback to regex
       const suggestion = researchToSuggestion(query, response);
       if (!suggestion) return;
 
