@@ -52,12 +52,24 @@ const BlockVisionTool = {
   func: async ({ type, target }: { type: string; target: string }) => {
     if (type === "portfolio") {
       const data = await blockVision.getAccountPortfolio(target);
+
+      const parseBalance = (b: any) => {
+        if (typeof b === 'number') return b;
+        if (typeof b === 'string') return parseFloat(b.replace(/,/g, '')) || 0;
+        return 0;
+      };
+
+      // Sort coins by value descending, then filter for non-zero balances
+      const sortedCoins = [...data.coins]
+        .filter(c => parseBalance(c.balance) > 0)
+        .sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0));
+
       return {
         totalValue: `$${data.totalValue.toFixed(2)}`,
-        topCoins: data.coins
-          .slice(0, 5)
+        topCoins: sortedCoins
+          .slice(0, 8) // Show top 8 instead of 5 for better depth
           .map(
-            (c: any) => `${c.symbol}: ${c.balance} ($${c.valueUsd?.toFixed(2)})`
+            (c: any) => `${c.symbol}: ${c.balance} ($${(c.valueUsd || 0).toFixed(2)})`
           ),
       };
     }

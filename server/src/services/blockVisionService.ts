@@ -134,15 +134,30 @@ export class BlockVisionService {
       });
 
       const data = response.data.result?.data || response.data.result || [];
-      const coins: BlockVisionCoin[] = (Array.isArray(data) ? data : []).map((c: any) => ({
-        coinType: c.coinType,
-        name: c.name || c.symbol || "Unknown",
-        symbol: c.symbol || "Unknown",
-        decimals: c.decimals || 0,
-        balance: typeof c.balance === 'string' ? parseFloat(c.balance) : (c.balance || 0),
-        price: typeof c.price === 'string' ? parseFloat(c.price) : (c.price || 0),
-        valueUsd: typeof c.value === 'string' ? parseFloat(c.value) : (typeof c.usdValue === 'string' ? parseFloat(c.usdValue) : (c.value || c.usdValue || 0)),
-      }));
+      const coins: BlockVisionCoin[] = (Array.isArray(data) ? data : []).map((c: any) => {
+        const balance = typeof c.balance === 'string' ? parseFloat(c.balance) : (c.balance || 0);
+        const price = typeof c.price === 'string' ? parseFloat(c.price) : (typeof c.usdPrice === 'string' ? parseFloat(c.usdPrice) : (c.price || c.usdPrice || 0));
+
+        // Try all common value field names, fallback to manual calculation if price is known
+        let valueUsd = typeof c.value === 'string' ? parseFloat(c.value) :
+          (typeof c.usdValue === 'string' ? parseFloat(c.usdValue) :
+            (typeof c.usd_value === 'string' ? parseFloat(c.usd_value) :
+              (c.value || c.usdValue || c.usd_value || 0)));
+
+        if (valueUsd === 0 && price > 0 && balance > 0) {
+          valueUsd = balance * price;
+        }
+
+        return {
+          coinType: c.coinType,
+          name: c.name || c.symbol || "Unknown",
+          symbol: c.symbol || "Unknown",
+          decimals: c.decimals || 0,
+          balance: balance.toString(), // Keep as string for consistent typing in some contexts
+          price: price,
+          valueUsd: valueUsd,
+        };
+      });
 
       const totalValue = coins.reduce(
         (sum: number, c: BlockVisionCoin) => sum + (c.valueUsd || 0),

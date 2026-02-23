@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 
 export interface AnalyticsData {
   totalUsers: number;
-  totalTasks: number;
+  totalInteractions: number;
   totalCheckins: number; // Placeholder
   dau: number;
 }
@@ -11,103 +11,119 @@ export interface AnalyticsData {
 export interface ChartData {
   name: string;
   users: number;
-  tasks: number;
+  interactions: number;
 }
 
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
-  let totalUsers = 0;
-  try {
-    // Fetch total users from Walrus via our server endpoint
-    // Assuming the server is running on localhost:3000
-    const res = await fetch("http://localhost:3000/api/stats");
-    if (res.ok) {
-      const data = await res.json();
-      totalUsers = data.totalUsers || 0;
-    }
-  } catch (e) {
-    console.error("Failed to fetch Walrus stats:", e);
-  }
+  // Fetch total users directly from Supabase
+  const { count: totalUsers } = await supabase
+    .from("user_profiles")
+    .select("*", { count: "exact", head: true });
 
-  const { count: totalTasks } = await supabase.from("tasks").select("*", { count: "exact", head: true });
+  const { count: totalInteractions } = await supabase
+    .from("chat_messages")
+    .select("*", { count: "exact", head: true });
 
-  // Estimate DAU based on tasks created/updated in last 24h as a proxy if we don't have a dedicated 'active' session table
+  // Estimate DAU based on interactions (chats + messages + profile updates) in last 24h
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
 
-  /* 
-   * FIX: Previously we counted *rows*, which meant if one user updated 10 tasks, 
-   * they counted as 10 DAU. Now we fetch user_ids and count unique users.
-   */
-  const { data: activeTasks } = await supabase
-    .from("tasks")
-    .select("user_id")
-    .gte("updated_at", yesterday.toISOString());
+  const [activeChats, activeMessages, activeProfiles] = await Promise.all([
+    supabase.from("chats").select("user_id").gte("last_updated", yesterday.toISOString()),
+    supabase.from("chat_messages").select("user_id").gte("timestamp", yesterday.toISOString()),
+    supabase.from("user_profiles").select("wallet_address").gte("updated_at", yesterday.toISOString())
+  ]);
 
-  const dau = new Set(activeTasks?.map(t => t.user_id)).size;
+  const activeUserIds = new Set([
+    ...(activeChats.data?.map(c => c.user_id) || []),
+    ...(activeMessages.data?.map(m => m.user_id) || []),
+    ...(activeProfiles.data?.map(p => p.wallet_address) || [])
+  ]);
+
+  const dau = activeUserIds.size;
 
   return {
-    totalUsers: totalUsers,
-    totalTasks: totalTasks || 0,
+    totalUsers: totalUsers || 0,
+    totalInteractions: totalInteractions || 0,
     totalCheckins: 0,
     dau: dau || 0
   };
 }
 
-export async function fetchGrowthData(): Promise<ChartData[]> {
-  // This is a simplified example. In a real app with massive data, we'd use a robust aggregation query or edge function.
-  // For small-medium apps, fetching specific fields and aggregating in JS is acceptable for an internal dashboard.
+export async function fetchGrowthData(days: number = 7): Promise<ChartData[]> {
+  const isAllTime = days === 0;
+  const now = new Date();
 
-  // Get profiles created in the last 7 days for the chart
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  // Testnet started on Feb 11, 2026
+  const TESTNET_START = new Date("2026-02-11T00:00:00Z");
+  const startDate = isAllTime ? TESTNET_START : new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('created_at')
-    .gte('created_at', sevenDaysAgo.toISOString())
-    .order('created_at', { ascending: true });
+  const [profilesRes, messagesRes, eventsRes] = await Promise.all([
+    supabase.from('user_profiles').select('created_at').gte('created_at', startDate.toISOString()),
+    supabase.from('chat_messages').select('timestamp').gte('timestamp', startDate.toISOString()),
+    supabase.from('revenue_events').select('timestamp').gte('timestamp', startDate.toISOString())
+  ]);
 
-  const { data: tasks } = await supabase
-    .from('tasks')
-    .select('created_at')
-    .gte('created_at', sevenDaysAgo.toISOString())
-    .order('created_at', { ascending: true });
+  const profiles = profilesRes.data || [];
+  const messages = messagesRes.data || [];
+  const events = eventsRes.data || [];
 
-  // Aggregate by day
-  const dayMap = new Map<string, { users: number; tasks: number }>();
+  // Group by stable YYYY-MM-DD key first
+  const dataByDay = new Map<string, { users: number; interactions: number }>();
 
-  // Initialize last 7 days
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    dayMap.set(dateStr, { users: 0, tasks: 0 });
+  if (isAllTime) {
+    // Initialize every day from Testnet Start to Today for a clean timeline
+    let current = new Date(TESTNET_START);
+    while (current <= now) {
+      const key = current.toISOString().split('T')[0];
+      dataByDay.set(key, { users: 0, interactions: 0 });
+      current.setDate(current.getDate() + 1);
+    }
+  } else {
+    // Initialize specific number of days
+    for (let i = 0; i < days; i++) {
+      const d = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+      const key = d.toISOString().split('T')[0];
+      dataByDay.set(key, { users: 0, interactions: 0 });
+    }
   }
 
-  profiles?.forEach((p: { created_at: string }) => {
-    const d = new Date(p.created_at);
-    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (dayMap.has(dateStr)) {
-      const entry = dayMap.get(dateStr)!;
-      entry.users++;
-    }
+  const startKey = TESTNET_START.toISOString().split('T')[0];
+
+  profiles.forEach(p => {
+    const key = new Date(p.created_at).toISOString().split('T')[0];
+    if (isAllTime && key < startKey) return; // Strictly ignore pre-testnet data
+    if (dataByDay.has(key)) dataByDay.get(key)!.users++;
+    else if (isAllTime) dataByDay.set(key, { users: 1, interactions: 0 });
   });
 
-  tasks?.forEach((t: { created_at: string }) => {
-    const d = new Date(t.created_at);
-    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (dayMap.has(dateStr)) {
-      const entry = dayMap.get(dateStr)!;
-      entry.tasks++;
-    }
+  messages.forEach(m => {
+    const key = new Date(m.timestamp).toISOString().split('T')[0];
+    if (isAllTime && key < startKey) return;
+    if (dataByDay.has(key)) dataByDay.get(key)!.interactions++;
+    else if (isAllTime) dataByDay.set(key, { users: 0, interactions: 1 });
   });
 
-  // Convert map to array and reverse to show chronological order
-  const result = Array.from(dayMap.entries()).map(([name, data]) => ({
-    name,
-    users: data.users,
-    tasks: data.tasks
-  })).reverse();
+  events.forEach(e => {
+    const key = new Date(e.timestamp).toISOString().split('T')[0];
+    if (isAllTime && key < startKey) return;
+    if (dataByDay.has(key)) dataByDay.get(key)!.interactions++;
+    else if (isAllTime) dataByDay.set(key, { users: 0, interactions: 1 });
+  });
+
+  // Convert to chart format
+  const result = Array.from(dataByDay.entries())
+    .map(([key, data]) => {
+      const d = new Date(key);
+      const name = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return {
+        key, // keep stable key for sorting
+        name,
+        users: data.users,
+        interactions: data.interactions
+      };
+    })
+    .sort((a, b) => a.key.localeCompare(b.key));
 
   return result;
 }
@@ -117,7 +133,7 @@ export async function fetchUserGrowth(days: number = 30): Promise<ChartData[]> {
   startDate.setDate(startDate.getDate() - days);
 
   const { data: profiles } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .select('created_at')
     .gte('created_at', startDate.toISOString())
     .order('created_at', { ascending: true });
@@ -143,7 +159,7 @@ export async function fetchUserGrowth(days: number = 30): Promise<ChartData[]> {
   return Array.from(dayMap.entries()).map(([name, users]) => ({
     name,
     users,
-    tasks: 0 // Placeholder or separate query if needed
+    interactions: 0 // Placeholder or separate query if needed
   })).reverse();
 }
 
@@ -156,7 +172,7 @@ export async function fetchEngagementData(): Promise<EngagementMetrics> {
   // Use 'profiles' table if it has streak info, or fallback/mock if not available in Supabase yet
   // Assuming 'profiles' has 'current_streak' column based on Walrus integration
   const { data: profiles } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .select('current_streak');
 
   const distribution = [
@@ -274,14 +290,14 @@ export interface EconomyMetrics {
 export async function fetchEconomyMetrics(): Promise<EconomyMetrics> {
   // Fetch from user_profiles
   const { data: profiles } = await supabase
-    .from('profiles')
-    .select('points_awarded, subscription_tier');
+    .from('user_profiles')
+    .select('points, subscription_tier');
 
   let totalPoints = 0;
   let premiumUsers = 0;
 
   profiles?.forEach((p: any) => {
-    totalPoints += (p.points_awarded || 0);
+    totalPoints += (p.points || 0);
     if (p.subscription_tier === 1) premiumUsers++;
   });
 
@@ -339,47 +355,43 @@ export interface RevenueMetrics {
 }
 
 export async function fetchRevenueMetrics(): Promise<RevenueMetrics> {
-  // 0. Fetch SUI Price from Server
+  // 0. Fetch SUI Price directly from Supabase 'prices' table
   let suiPrice = 1.5; // Default fallback
   try {
-    console.log("[Analytics] Fetching SUI price from http://localhost:3000/api/price/sui...");
-    const res = await fetch("http://localhost:3000/api/price/sui");
-    console.log(`[Analytics] Price API status: ${res.status}`);
-    if (res.ok) {
-      const data = await res.json();
-      console.log("[Analytics] Price API data:", data);
-      if (data.price) {
-        suiPrice = data.price;
-        console.log(`[Analytics] Using fetched price: $${suiPrice}`);
-      }
-    } else {
-      console.error("[Analytics] Price API returned non-OK status");
+    const { data: priceData, error: priceError } = await supabase
+      .from('prices')
+      .select('price')
+      .eq('coin_type', '0x2::sui::SUI')
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (priceData && priceData.price) {
+      suiPrice = priceData.price;
+      console.log(`[Analytics] Using Supabase fetched price: $${suiPrice}`);
     }
   } catch (err) {
-    console.error("[Analytics] Failed to fetch SUI price, using fallback:", err);
+    console.error("[Analytics] Failed to fetch SUI price from Supabase, using fallback:", err);
   }
 
-  // 1. Fetch User Counts from Server (Walrus Source of Truth)
+  // 1. Fetch User Counts directly from Supabase
   let premium = 0;
   let free = 0;
 
   try {
-    // Assuming server is on port 3000. In prod, use env var.
-    const res = await fetch("http://localhost:3000/api/stats");
-    if (res.ok) {
-      const stats = await res.json();
-      premium = stats.activeSubscribers || 0;
-      free = stats.freeUsers || 0;
-    }
+    const { count: premiumCount } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('subscription_tier', 1);
+
+    const { count: allUsersCount } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true });
+
+    premium = premiumCount || 0;
+    free = (allUsersCount || 0) - premium;
   } catch (e) {
-    console.error("Failed to fetch user stats for revenue metrics:", e);
-    // Fallback to Supabase if API fails? 
-    // For now, let's stick to 0 or maybe try Supabase as backup if needed, but 0 is safer than wrong data.
-    const { data: profiles } = await supabase.from('profiles').select('subscription_tier');
-    profiles?.forEach((p: any) => {
-      if (p.subscription_tier === 1) premium++;
-      else free++;
-    });
+    console.error("Failed to fetch user stats via Supabase:", e);
   }
 
   // 2. Fetch Actual Usage/Revenue from Events
