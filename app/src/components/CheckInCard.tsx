@@ -60,10 +60,7 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
       };
     }
 
-    if (
-      checkinState.status === "requesting" ||
-      checkinState.status === "signing"
-    ) {
+    if (checkinState.status === "requesting") {
       return {
         disabled: true,
         text: "Preparing...",
@@ -71,13 +68,6 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
       };
     }
 
-    if (checkinState.status === "confirming") {
-      return {
-        disabled: true,
-        text: "Confirming...",
-        icon: <LoadingSpinner size="sm" />,
-      };
-    }
 
     if (checkinState.status === "success") {
       return {
@@ -152,11 +142,10 @@ export const CheckInCard = ({ onPointsUpdated }: CheckInCardProps) => {
       <button
         onClick={handleCheckin}
         disabled={buttonState.disabled}
-        className={`w-full py-2.5 px-4 rounded-lg font-bold text-sm text-white transition-all duration-200 flex items-center justify-center gap-2 ${
-          buttonState.disabled
+        className={`w-full py-2.5 px-4 rounded-lg font-bold text-sm text-white transition-all duration-200 flex items-center justify-center gap-2 ${buttonState.disabled
             ? "bg-white/5 cursor-not-allowed opacity-60"
             : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-green-500/20"
-        }`}
+          }`}
       >
         {buttonState.icon}
         <span>{buttonState.text}</span>
