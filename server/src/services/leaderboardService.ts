@@ -7,8 +7,6 @@ const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
 const supabase = getSupabaseClient();
 
 interface LeaderboardStore {
-  cursors: Record<string, string | null>;
-  lastUpdated: number;
 }
 
 export interface LeaderboardEntry {
@@ -22,18 +20,8 @@ export interface LeaderboardEntry {
 
 class LeaderboardService {
   private static instance: LeaderboardService;
-  private suiClient: SuiClient;
-  private store: LeaderboardStore;
-  private isUpdating = false;
 
-  private constructor() {
-    this.suiClient = new SuiClient({ url: getFullnodeUrl(NETWORK) });
-    this.store = {
-      cursors: { points: null, tasks: null, checkins: null },
-      lastUpdated: 0,
-    };
-    // Cursors will be loaded on-demand in fetchNewEvents to ensure they are fresh
-  }
+  private constructor() {}
 
   public static getInstance(): LeaderboardService {
     if (!LeaderboardService.instance) {
@@ -42,170 +30,12 @@ class LeaderboardService {
     return LeaderboardService.instance;
   }
 
-  private async getCursor(key: string): Promise<string | null> {
-    if (this.store.cursors[key]) return this.store.cursors[key];
-
-    try {
-      const { data, error } = await supabase
-        .from('indexer_state')
-        .select('last_cursor')
-        .eq('id', key)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data?.last_cursor || null;
-    } catch (err) {
-      console.error(`[LEADERBOARD] Failed to get cursor for ${key}:`, err);
-      return null;
-    }
-  }
-
-  private async saveCursor(key: string, cursor: string) {
-    try {
-      const { error } = await supabase
-        .from('indexer_state')
-        .upsert({ id: key, last_cursor: cursor });
-
-      if (error) throw error;
-      this.store.cursors[key] = cursor;
-    } catch (err) {
-      console.error(`[LEADERBOARD] Failed to save cursor for ${key}:`, err);
-    }
-  }
-
   private normalizeAddr(addr: string): string {
     return (
       "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0")
     ).toLowerCase();
   }
 
-  private async fetchNewEvents(
-    eventType: string,
-    cursorKey: string,
-    balanceField: string,
-    walletField: string
-  ) {
-    let hasNext = true;
-    let cursor = await this.getCursor(cursorKey);
-    let fetchedCount = 0;
-
-    // Safety limit to prevent infinite loops
-    const MAX_PAGES = 100;
-    let pages = 0;
-
-    while (hasNext && pages < MAX_PAGES) {
-      let page = null;
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          page = await this.suiClient.queryEvents({
-            query: { MoveEventType: eventType },
-            cursor: cursor ? (cursor as any) : undefined,
-            limit: 50,
-            order: "ascending",
-          });
-          break; // Success
-        } catch (err) {
-          console.warn(`[LEADERBOARD] Query failed (retries left: ${retries - 1}):`, err);
-          retries--;
-          if (retries === 0) throw err;
-          await new Promise((res) => setTimeout(res, 1000 * (4 - retries))); // Backoff
-        }
-      }
-
-      if (!page) break;
-
-      for (const ev of page.data) {
-        const data = ev.parsedJson as any;
-        if (!data) continue;
-
-        const wallet = this.normalizeAddr(data[walletField] || "");
-
-        // FETCH UNIFIED ON-CHAIN BALANCE
-        // This ensures the leaderboard shows the SUM of all modules, not just the current module's balance.
-        const balance = await getTicketMinter().getBalance(wallet);
-
-        const { data: currentProfile } = await supabase
-          .from('user_profiles')
-          .select('points')
-          .eq('wallet_address', wallet)
-          .maybeSingle();
-
-        const currentPoints = currentProfile?.points || 0;
-
-        if (balance > currentPoints) {
-          await supabase
-            .from('user_profiles')
-            .upsert({
-              wallet_address: wallet,
-              user_id: wallet,
-              points: balance,
-              xp: balance
-            }, { onConflict: 'wallet_address' });
-        }
-      }
-
-      fetchedCount += page.data.length;
-      hasNext = page.hasNextPage;
-      cursor = page.nextCursor as any;
-
-      if (cursor) {
-        await this.saveCursor(cursorKey, (cursor as any).eventSeq); // Store just the important part or serialized
-        // Actually, Sui cursor is an object. Let's store it as JSON string or the whole thing if text.
-        await this.saveCursor(cursorKey, JSON.stringify(cursor));
-      }
-      pages++;
-    }
-
-    return fetchedCount;
-  }
-
-  public async updateLeaderboard() {
-    if (this.isUpdating) {
-      return;
-    }
-    if (!PACKAGE_ID) return;
-
-    this.isUpdating = true;
-    try {
-      const pCount = await this.fetchNewEvents(
-        `${PACKAGE_ID}::points::PointsClaimed`,
-        "points",
-        "new_balance",
-        "wallet_address"
-      );
-
-      const tCount = await this.fetchNewEvents(
-        `${PACKAGE_ID}::task_points::TaskPointsClaimed`,
-        "tasks",
-        "new_balance",
-        "wallet_address"
-      );
-
-      const cCount = await this.fetchNewEvents(
-        `${PACKAGE_ID}::points::CheckInCompleted`,
-        "checkins",
-        "new_balance",
-        "wallet_address"
-      );
-
-      this.store.lastUpdated = Date.now();
-
-      if (pCount > 0 || tCount > 0 || cCount > 0) {
-        console.log(`[LEADERBOARD] Update complete. New events indexed: Points=${pCount}, TaskPoints=${tCount}, CheckIns=${cCount}`);
-      }
-    } catch (err) {
-      console.error("[LEADERBOARD] Update failed:", err);
-    } finally {
-      this.isUpdating = false;
-    }
-  }
-
-  /** Force an immediate leaderboard update (e.g. after a check-in) */
-  public async forceUpdate(): Promise<void> {
-    this.isUpdating = false; // Reset guard
-    await this.updateLeaderboard();
-  }
 
   /**
    * Directly credit points to a user in Supabase.
@@ -239,13 +69,6 @@ class LeaderboardService {
     } catch (err) {
       console.error("[LEADERBOARD] Failed to sync credit to Supabase:", err);
     }
-
-    // Schedule a delayed sync with on-chain events (10s to allow tx propagation)
-    setTimeout(() => {
-      this.forceUpdate().catch(err =>
-        console.warn("[LEADERBOARD] Delayed sync failed:", err)
-      );
-    }, 10_000);
   }
 
   public async getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
@@ -322,21 +145,31 @@ class LeaderboardService {
       if (rankError) throw rankError;
 
       // 3. Get total participants (users with points > 0)
+      const total = await this.getTotalParticipants();
+
+      return {
+        rank: points > 0 ? (rankCount || 0) + 1 : null,
+        points: points,
+        total_participants: total,
+      };
+    } catch (err) {
+      console.error("[LEADERBOARD] getUserRank failed:", err);
+      return { rank: null, points: 0, total_participants: 0 };
+    }
+  }
+
+  public async getTotalParticipants(): Promise<number> {
+    try {
       const { count: total, error: totalError } = await supabase
         .from('user_profiles')
         .select('*', { count: 'exact', head: true })
         .gt('points', 0);
 
       if (totalError) throw totalError;
-
-      return {
-        rank: points > 0 ? (rankCount || 0) + 1 : null,
-        points: points,
-        total_participants: total || 0,
-      };
+      return total || 0;
     } catch (err) {
-      console.error("[LEADERBOARD] getUserRank failed:", err);
-      return { rank: null, points: 0, total_participants: 0 };
+      console.error("[LEADERBOARD] Failed to get total participants:", err);
+      return 0;
     }
   }
 }

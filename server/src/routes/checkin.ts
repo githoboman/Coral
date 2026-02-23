@@ -340,7 +340,7 @@ router.post(
 
       console.log(`Check-in ticket minted: ${ticketObjectId}`);
 
-      // Persist to Supabase and update leaderboard (await to prevent race conditions)
+      // Persist to Supabase and update leaderboard instantly
       await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
 
       try {

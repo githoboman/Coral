@@ -2,13 +2,13 @@ import { useEffect } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
-import { LeaderboardSkeleton } from "@/components/ui/SkeletonLoader";
+import { LeaderboardSkeleton, SkeletonBox } from "@/components/ui/SkeletonLoader";
 import { getLevelData, calculateLevel } from "@/utils/levelUtils";
 
 const Leaderboard = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const { entries: leaderboard, userRank, loading } = useAppSelector(
+  const { entries: leaderboard, userRank, loading, totalParticipants } = useAppSelector(
     (state) => state.leaderboard,
   );
 
@@ -36,27 +36,39 @@ const Leaderboard = () => {
     return <LeaderboardSkeleton />;
   }
 
-  // Use server-computed rank (works even outside top 100)
-  const userRankDisplay = userRank?.rank ? formatRank(userRank.rank) : "#---";
-  const userPoints = userRank?.points || 0;
+  // The user might be in the Top 100, which gives us immediate rank+points.
+  const userInTop100 = leaderboard.find((entry) => entry.wallet_address === currentAccount?.address);
+  
+  // Rank is loading if we don't have the explicit userRank AND they aren't in the top 100.
+  // (Assuming we even have a connected wallet. If no wallet, we don't show a loading rank.)
+  const isRankLoading = !!currentAccount?.address && loading && !userInTop100 && !userRank;
+  
+  // Total logic: the true total is in the Redux state `totalParticipants`.
+  const isTotalLoading = loading && !totalParticipants;
+  
+  const userRankDisplay = isRankLoading 
+    ? <SkeletonBox className="h-6 w-16 ml-3 md:ml-4 inline-block align-middle rounded-md" />
+    : <span className="ml-3 md:ml-4 text-[#3B82F6]">{userRank?.rank ? formatRank(userRank.rank) : (userInTop100 ? formatRank(userInTop100.rank) : "#---")}</span>;
+
+  const userPoints = userInTop100 ? userInTop100.points : (userRank?.points || 0);
   const userLevelData = getLevelData(userPoints);
-  const totalParticipants = userRank?.total_participants || leaderboard.length;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 pt-24 pb-6 md:px-6 md:py-8">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-6">
-          <h1 className="text-xl md:text-[28px] font-medium text-white">
+          <h1 className="text-xl md:text-[28px] font-medium text-white flex items-center">
             Position on Leaderboard
-            <span className="ml-3 md:ml-4 text-[#3B82F6]">{userRankDisplay}</span>
-            {totalParticipants > 0 && (
+            {userRankDisplay}
+            {isTotalLoading ? (
+               <SkeletonBox className="h-4 w-12 ml-2 inline-block align-middle rounded-sm opacity-50" />
+            ) : totalParticipants && totalParticipants > 0 ? (
               <span className="ml-2 text-sm text-white/30 font-normal">/ {totalParticipants}</span>
-            )}
+            ) : null}
           </h1>
         </div>
       </div>
-
       {/* Progress Section */}
       {/* Progress Section */}
       <div className="flex flex-col gap-2 mb-10 w-full mt-6">

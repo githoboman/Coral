@@ -296,18 +296,20 @@ router.post(
       const newTasksClaimed = tasksClaimed + tasksToClaim;
       const newResClaimed = researchClaimed + resToClaim;
 
-      const onChainBalance = await minter.getBalance(user_id);
+      console.log(`[TASK POINTS] Credit claim: ${task_count * 2} points`);
 
-      console.log(`[TASK POINTS] Unified on-chain balance for ${user_id}: ${onChainBalance}`);
-
-      // SURGICAL UPDATE: instead of createUserProfile + addOrUpdateUser (which overwrites EVERYTHING),
-      // we use a surgical approach to update only the points and claim counts.
-      // This is safer and prevents clobbering other concurrent updates like check-ins or prompt limits.
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({
-          points: onChainBalance,
-          xp: onChainBalance,
+      const updatedProfile = manager.createUserProfile(
+        profile.email,
+        profile.wallet_address,
+        profile.is_waitlisted,
+        profile.points_awarded || 0,
+        {
+          username: profile.username,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          preferences: profile.preferences,
+          waitlist_verified_at: profile.waitlist_verified_at,
+          tasks_created_today: tasksCreated,
           tasks_claimed_today: newTasksClaimed,
           research_claimed_today: newResClaimed,
           last_task_reset_date: today
@@ -317,19 +319,18 @@ router.post(
       if (updateError) throw updateError;
 
       console.log(
-        `[TASK POINTS] Confirmed claim for ${user_id}: ${tasksToClaim} tasks and ${resToClaim} research claimed, ${onChainBalance} points total`,
+        `[TASK POINTS] Confirmed claim for ${user_id}: ${newTasksClaimed} tasks and ${newResClaimed} research claimed`,
       );
 
-      // Note: We REMOVED the call to creditPoints here because onChainBalance 
-      // already includes the points from the transaction just executed.
-      // Calling creditPoints would result in double-counting.
+      // Instantly credit points to leaderboard (handles both points and xp columns)
+      await getLeaderboardService().creditPoints(user_id, task_count * 2);
 
       res.json({
         success: true,
         tasks_claimed_today: newTasksClaimed,
         research_claimed_today: newResClaimed,
-        total_activities_claimed: tasksToClaim + resToClaim,
-        total_points: onChainBalance,
+        total_activities_claimed: newTasksClaimed + newResClaimed,
+        total_points: (profile.points_awarded || 0) + (task_count * 2),
         message: "Claim confirmed successfully",
       });
     } catch (error) {
@@ -368,8 +369,6 @@ router.get(
         return;
       }
 
-      const balance = await minter.getBalance(user_id);
-
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -377,7 +376,7 @@ router.get(
       res.json({
         tasks_created_today: needsReset ? 0 : profile.tasks_created_today || 0,
         tasks_claimed_today: needsReset ? 0 : profile.tasks_claimed_today || 0,
-        total_points_earned: balance,
+        total_points_earned: profile.points_awarded || 0,
         last_task_reset_date: profile.last_task_reset_date,
       });
     } catch (error) {
