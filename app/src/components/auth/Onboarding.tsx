@@ -116,7 +116,7 @@ export function OnboardingModal({
           setStep(4);
         }
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const Switch = ({
@@ -354,16 +354,10 @@ export function OnboardingModal({
                   )}
 
                   {/* Status text */}
-                  {(claimState.status === "verifying" ||
-                    claimState.status === "signing" ||
-                    claimState.status === "confirming") && (
+                  {claimState.status === "verifying" && (
                     <p className="text-white/50 text-xs text-center mb-3 animate-pulse">
                       {claimState.status === "verifying" &&
                         "Verifying eligibility…"}
-                      {claimState.status === "signing" &&
-                        "Check your wallet for the approval prompt…"}
-                      {claimState.status === "confirming" &&
-                        "Confirming on chain…"}
                     </p>
                   )}
 
@@ -376,15 +370,10 @@ export function OnboardingModal({
                     }
                     className="w-full py-4 bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] text-white rounded-full font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {claimState.status === "verifying" ||
-                    claimState.status === "signing" ||
-                    claimState.status === "confirming" ? (
+                    {claimState.status === "verifying" ? (
                       <>
                         <LoadingSpinner size="sm" />
                         {claimState.status === "verifying" && "Verifying…"}
-                        {claimState.status === "signing" &&
-                          "Awaiting signature…"}
-                        {claimState.status === "confirming" && "Confirming…"}
                       </>
                     ) : (
                       "Claim 100 Points"
