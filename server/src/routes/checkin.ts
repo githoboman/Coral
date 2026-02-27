@@ -210,6 +210,26 @@ async function recordCheckin(
   }
 }
 
+/**
+ * Checks if a check-in already exists for the specific calendar date.
+ * This is the ultimate source of truth to prevent the "timezone hop" exploit.
+ */
+async function hasCheckinForDate(userId: string, dateStr: string): Promise<boolean> {
+  try {
+    const { count, error } = await supabase
+      .from("checkins")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("checkin_date", dateStr);
+
+    if (error) throw error;
+    return (count || 0) > 0;
+  } catch (err) {
+    console.warn(`[CHECKIN] Failed to check for existing date ${dateStr}:`, err);
+    return false;
+  }
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 router.get(
@@ -251,16 +271,21 @@ router.get(
         totalCheckins = total;
       }
 
-      const [checkinFee, balance] = await Promise.all([
+      const [checkinFee, balance, alreadyCheckedInToday] = await Promise.all([
         getCachedCheckinFee(minter),
         Promise.resolve(leaderboard.getUserBalance(wallet_address)),
+        hasCheckinForDate(wallet_address, todayDate),
       ]);
 
-      // Can check in if they haven't already checked in today (in their timezone)
-      const canCheckin = lastCheckinDate !== todayDate;
+      // Can check in if:
+      // 1. They haven't checked in for this local date yet.
+      // 2. This local date is NOT in the past relative to their last check-in (prevents time travel).
+      const isPastDate = lastCheckinDate ? (todayDate < lastCheckinDate) : false;
+      const canCheckin = !alreadyCheckedInToday && !isPastDate;
+
       const nextAvailableMs = canCheckin ? null : nextLocalMidnightMs(tzOffset);
       const hoursRemaining = (!canCheckin && nextAvailableMs)
-        ? Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000))
+        ? Math.max(0, Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000)))
         : null;
 
       const { nextStreak, streakWillReset } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
@@ -272,6 +297,8 @@ router.get(
         last_checkin_at: lastCheckinAt,
         next_available_at: nextAvailableMs,
         hours_remaining: hoursRemaining,
+        is_past_date: isPastDate,
+        already_checked_in: alreadyCheckedInToday,
         balance,
         current_streak: currentStreak,
         total_checkins: totalCheckins,
@@ -290,94 +317,121 @@ router.get(
   },
 );
 
-router.post(
-  "/perform",
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { wallet_address, timezone_offset } = req.body;
+/**
+ * POST /request-ticket (and legacy /perform)
+ * Handles both gasless (instant credit) and ticket-based (minting Sui object) check-ins.
+ * PC clients (next-app) expect a ticket_object_id to sign on-chain.
+ * Mobile/legacy clients (app) expect instant success.
+ */
+const handleCheckin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { wallet_address, timezone_offset } = req.body;
 
-      if (!wallet_address || typeof wallet_address !== "string") {
-        res.status(400).json({ error: "Bad Request", detail: "wallet_address is required" });
-        return;
-      }
-
-      const tzOffset = sanitizeOffset(timezone_offset);
-      const todayDate = localDateString(new Date(), tzOffset);
-      const minter = getLocalTicketMinter();
-
-      let lastCheckinDate: string | null = null;
-      let currentStreak = 0;
-      let checkinFee = 2_000_000;
-
-      const dbData = await getLatestCheckin(wallet_address);
-      if (dbData) {
-        ({ lastCheckinDate, currentStreak } = dbData);
-        checkinFee = await getCachedCheckinFee(minter);
-      } else {
-        const [dateStr, streak, fee] = await Promise.all([
-          minter.getLastCheckinDate(wallet_address),
-          minter.getCurrentStreak(wallet_address),
-          minter.getCheckinFee(),
-        ]);
-        lastCheckinDate = dateStr;
-        currentStreak = streak;
-        checkinFee = fee;
-      }
-
-      // Guard: already checked in today?
-      if (lastCheckinDate === todayDate) {
-        const nextAvailableMs = nextLocalMidnightMs(tzOffset);
-        const hoursRemaining = Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000));
-        res.json({
-          success: false,
-          can_checkin: false,
-          hours_remaining: hoursRemaining,
-          message: `Already checked in today. Next check-in available at midnight (in ${hoursRemaining}h).`,
-        });
-        return;
-      }
-
-      const { nextStreak } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
-      const pointsInfo = calculateCheckinPoints(nextStreak);
-
-      console.log(`[CHECKIN] Gasless check-in for ${wallet_address.slice(0, 10)}...`);
-      console.log(`[CHECKIN] Date: ${todayDate} | Streak: ${currentStreak} → ${nextStreak} | Points: ${pointsInfo.totalPoints}`);
-
-      // Credit points in leaderboard and update local stats in DB instantly
-      // We skip on-chain ticket minting to make it gasless for the user and server
-      await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
-
-      try {
-        await Promise.all([
-          recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate, tzOffset),
-          getUserManager().updateCheckinStats(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate),
-        ]);
-      } catch (err) {
-        console.warn("[CHECKIN] Database updates failed:", err);
-        throw new Error("Failed to update check-in status in database");
-      }
-
-      const newBalance = await getLeaderboardService().getUserBalance(wallet_address);
-
-      res.json({
-        success: true,
-        checkin_date: todayDate,
-        points_earned: pointsInfo.totalPoints,
-        base_points: pointsInfo.basePoints,
-        milestone_bonus: pointsInfo.milestoneBonus,
-        is_milestone: pointsInfo.isMilestone,
-        new_streak: nextStreak,
-        next_milestone: pointsInfo.nextMilestone,
-        balance: newBalance,
-        message: pointsInfo.isMilestone
-          ? `Milestone! ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus) — day ${nextStreak}!`
-          : `Earned ${pointsInfo.totalPoints} pt${pointsInfo.totalPoints !== 1 ? "s" : ""} — ${nextStreak}-day streak!`,
-      });
-    } catch (error) {
-      console.error("Error in checkin/perform:", error);
-      next(error);
+    if (!wallet_address || typeof wallet_address !== "string") {
+      res.status(400).json({ error: "Bad Request", detail: "wallet_address is required" });
+      return;
     }
-  },
-);
+
+    const tzOffset = sanitizeOffset(timezone_offset);
+    const todayDate = localDateString(new Date(), tzOffset);
+    const minter = getLocalTicketMinter();
+
+    let lastCheckinDate: string | null = null;
+    let lastCheckinAt: number | null = null;
+    let currentStreak = 0;
+
+    const dbData = await getLatestCheckin(wallet_address);
+    if (dbData) {
+      ({ lastCheckinDate, lastCheckinAt, currentStreak } = dbData);
+    } else {
+      const [dateStr, streak] = await Promise.all([
+        minter.getLastCheckinDate(wallet_address),
+        minter.getCurrentStreak(wallet_address),
+      ]);
+      lastCheckinDate = dateStr;
+      currentStreak = streak;
+    }
+
+    // Exploit Guard 1: Already checked in for this local calendar date?
+    const alreadyCheckedIn = await hasCheckinForDate(wallet_address, todayDate);
+    if (alreadyCheckedIn || lastCheckinDate === todayDate) {
+      const nextAvailableMs = nextLocalMidnightMs(tzOffset);
+      const hoursRemaining = Math.max(0, Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000)));
+      res.json({
+        success: false,
+        can_checkin: false,
+        hours_remaining: hoursRemaining,
+        message: `Already checked in for ${todayDate}. Next check-in available at midnight (in ${hoursRemaining}h).`,
+      });
+      return;
+    }
+
+    // Exploit Guard 2: Time travel? (Today's date is before the last check-in date)
+    if (lastCheckinDate && todayDate < lastCheckinDate) {
+      res.json({
+        success: false,
+        can_checkin: false,
+        message: `Invalid check-in date (${todayDate}). You have already checked in for a future date (${lastCheckinDate}).`,
+      });
+      return;
+    }
+
+    const { nextStreak } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
+    const pointsInfo = calculateCheckinPoints(nextStreak);
+
+    console.log(`[CHECKIN] Processing check-in for ${wallet_address.slice(0, 10)}...`);
+    console.log(`[CHECKIN] Date: ${todayDate} | Streak: ${currentStreak} → ${nextStreak} | Points: ${pointsInfo.totalPoints}`);
+
+    // If the client expects a ticket (like next-app), we mint one.
+    // If they don't explicitly require it, we handle it gaslessly as a fallback.
+    // However, to keep it robust, we'll ALWAYS credit points to be safe, 
+    // and ONLY mint a ticket if possible.
+    
+    let ticketId: string | null = null;
+    try {
+      ticketId = await minter.mintCheckinTicket(wallet_address, pointsInfo.totalPoints, todayDate);
+    } catch (mintErr) {
+      console.warn("[CHECKIN] Ticket minting failed, falling back to gasless-only credit:", mintErr);
+    }
+
+    // Credit points in leaderboard instantly
+    await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
+
+    try {
+      await Promise.all([
+        recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate, tzOffset),
+        getUserManager().updateCheckinStats(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate),
+      ]);
+    } catch (err) {
+      console.warn("[CHECKIN] Database updates failed:", err);
+      // We don't throw here because points were already credited and potentially a ticket minted.
+    }
+
+    const newBalance = await getLeaderboardService().getUserBalance(wallet_address);
+
+    res.json({
+      success: true,
+      checkin_date: todayDate,
+      points_earned: pointsInfo.totalPoints,
+      base_points: pointsInfo.basePoints,
+      milestone_bonus: pointsInfo.milestoneBonus,
+      is_milestone: pointsInfo.isMilestone,
+      new_streak: nextStreak,
+      next_milestone: pointsInfo.nextMilestone,
+      balance: newBalance,
+      ticket_object_id: ticketId, // PC clients need this
+      points_amount: pointsInfo.totalPoints,
+      message: pointsInfo.isMilestone
+        ? `Milestone! ${pointsInfo.totalPoints} points (${pointsInfo.basePoints} + ${pointsInfo.milestoneBonus} bonus) — day ${nextStreak}!`
+        : `Earned ${pointsInfo.totalPoints} pt${pointsInfo.totalPoints !== 1 ? "s" : ""} — ${nextStreak}-day streak!`,
+    });
+  } catch (error) {
+    console.error("Error in checkin process:", error);
+    next(error);
+  }
+};
+
+router.post("/request-ticket", handleCheckin);
+router.post("/perform", handleCheckin); 
 
 export default router;
