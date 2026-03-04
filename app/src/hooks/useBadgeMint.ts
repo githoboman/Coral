@@ -8,10 +8,14 @@ import { Transaction } from "@mysten/sui/transactions";
 
 const PACKAGE_ID = import.meta.env.VITE_SUI_BADGE_PACKAGE_ID || "";
 const BADGE_REGISTRY_ID = import.meta.env.VITE_BADGE_REGISTRY_ID || "";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+export const POINTS_REQUIRED = 200;
 
 export type MintStatus =
   | "idle"
   | "checking"
+  | "insufficient_points"
   | "already_minted"
   | "signing"
   | "confirming"
@@ -25,6 +29,17 @@ export interface BadgeMintState {
   serial: number | null;
   error: string | null;
   totalMinted: number;
+  userPoints: number;
+  pointsLoading: boolean;
+  hasEnoughPoints: boolean;
+}
+
+async function fetchUserPoints(address: string): Promise<number> {
+  const url = `${API_BASE}/api/leaderboard?wallet_address=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Points fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data.user_rank?.points ?? 0;
 }
 
 export function useBadgeMint() {
@@ -40,7 +55,27 @@ export function useBadgeMint() {
     serial: null,
     error: null,
     totalMinted: 0,
+    userPoints: 0,
+    pointsLoading: false,
+    hasEnoughPoints: false,
   });
+
+  const checkPoints = useCallback(async () => {
+    if (!currentAccount?.address) return;
+    setState((prev) => ({ ...prev, pointsLoading: true }));
+    try {
+      const points = await fetchUserPoints(currentAccount.address);
+      setState((prev) => ({
+        ...prev,
+        userPoints: points,
+        hasEnoughPoints: points >= POINTS_REQUIRED,
+        pointsLoading: false,
+      }));
+    } catch (err) {
+      console.error("[useBadgeMint] Failed to fetch points:", err);
+      setState((prev) => ({ ...prev, pointsLoading: false }));
+    }
+  }, [currentAccount?.address]);
 
   const checkMintStatus = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -55,7 +90,6 @@ export function useBadgeMint() {
         id: BADGE_REGISTRY_ID,
         options: { showContent: true },
       });
-
       const content = registryObj.data?.content as any;
       const totalMinted = Number(content?.fields?.total_minted ?? 0);
 
@@ -83,14 +117,15 @@ export function useBadgeMint() {
         error: null,
       }));
     } catch (err: any) {
-      console.error("Failed to check mint status:", err);
+      console.error("[useBadgeMint] Failed to check mint status:", err);
       setState((prev) => ({ ...prev, status: "idle", error: null }));
     }
   }, [currentAccount?.address, suiClient]);
 
   useEffect(() => {
     checkMintStatus();
-  }, [checkMintStatus]);
+    checkPoints();
+  }, [checkMintStatus, checkPoints]);
 
   const mint = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -98,6 +133,30 @@ export function useBadgeMint() {
         ...prev,
         status: "error",
         error: "Connect your wallet first.",
+      }));
+      return;
+    }
+
+    setState((prev) => ({ ...prev, pointsLoading: true }));
+    let latestPoints = 0;
+    try {
+      latestPoints = await fetchUserPoints(currentAccount.address);
+    } catch {
+      latestPoints = state.userPoints;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      pointsLoading: false,
+      userPoints: latestPoints,
+      hasEnoughPoints: latestPoints >= POINTS_REQUIRED,
+    }));
+
+    if (latestPoints < POINTS_REQUIRED) {
+      setState((prev) => ({
+        ...prev,
+        status: "insufficient_points",
+        error: null,
       }));
       return;
     }
@@ -196,8 +255,7 @@ export function useBadgeMint() {
         error: null,
       }));
     } catch (err: any) {
-      console.error("Mint error:", err);
-
+      console.error("[useBadgeMint] Mint error:", err);
       let errorMsg = "Mint failed. Please try again.";
       const msg = (err?.message || "").toLowerCase();
 
@@ -216,11 +274,8 @@ export function useBadgeMint() {
     signAndExecuteTransaction,
     suiClient,
     state.totalMinted,
+    state.userPoints,
   ]);
 
-  return {
-    mintState: state,
-    mint,
-    checkMintStatus,
-  };
+  return { mintState: state, mint, checkMintStatus, checkPoints };
 }

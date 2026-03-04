@@ -47,6 +47,7 @@ interface NavItem {
   iconUrl: string;
   active: boolean;
   showDot?: boolean;
+  filterWhite?: boolean;
 }
 
 const MobileSidebarDrawer = ({
@@ -1063,8 +1064,9 @@ export default function AppLayout() {
     {
       name: "Badge",
       to: "/badge",
-      iconUrl: "/assets/icons/shield.svg",
+      iconUrl: "/assets/icons/badge.png",
       active: location.pathname === "/badge",
+      filterWhite: true,
     },
   ];
 
