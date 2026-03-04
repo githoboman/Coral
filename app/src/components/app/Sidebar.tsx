@@ -14,6 +14,7 @@ interface SidebarProps {
     to: string;
     iconUrl: string;
     active: boolean;
+    showDot?: boolean;
   }>;
   onSignOut?: () => void;
   isCollapsed?: boolean;
@@ -58,24 +59,33 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
   }, [navItems, isCollapsed, location.pathname]);
 
   useGSAP(() => {
+    if (!containerRef.current) return;
+    const q = gsap.utils.selector(containerRef.current);
+
     const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.35 } });
 
     tl.to(containerRef.current, {
       width: isCollapsed ? 64 : 240,
     }, 0);
 
-    tl.to(".sidebar-label", {
-      opacity: isCollapsed ? 0 : 1,
-      x: isCollapsed ? -20 : 0,
-      pointerEvents: isCollapsed ? 'none' : 'auto',
-      duration: 0.25,
-    }, 0);
+    const labels = q(".sidebar-label");
+    if (labels.length > 0) {
+      tl.to(labels, {
+        opacity: isCollapsed ? 0 : 1,
+        x: isCollapsed ? -20 : 0,
+        pointerEvents: isCollapsed ? 'none' : 'auto',
+        duration: 0.25,
+      }, 0);
+    }
 
-    tl.to(".sidebar-header-toggle", {
-      opacity: isCollapsed ? 0 : 1,
-      pointerEvents: isCollapsed ? 'none' : 'auto',
-      duration: 0.2
-    }, 0);
+    const toggle = q(".sidebar-header-toggle");
+    if (toggle.length > 0) {
+      tl.to(toggle, {
+        opacity: isCollapsed ? 0 : 1,
+        pointerEvents: isCollapsed ? 'none' : 'auto',
+        duration: 0.2
+      }, 0);
+    }
   }, [isCollapsed]);
 
   /* Recents GSAP animation removed */
@@ -129,11 +139,17 @@ export function Sidebar({ navItems, isCollapsed: controlledCollapsed, onToggle }
                     alt={item.name}
                     className={`w-5 h-5 object-contain transition-opacity duration-200 ${item.active ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
                   />
+                  {isCollapsed && item.showDot && (
+                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#B7FC0D] shadow-[0_0_8px_rgba(183,252,13,0.8)]" />
+                  )}
                 </div>
 
                 {!isCollapsed && (
                   <div className="sidebar-label flex flex-1 items-center justify-between min-w-0">
                     <span className="text-[15px] font-[500] tracking-tight truncate pl-3">{item.name}</span>
+                    {item.showDot && (
+                      <div className="w-2 h-2 rounded-full bg-[#B7FC0D] shadow-[0_0_8px_rgba(183,252,13,0.8)] mr-1" />
+                    )}
                   </div>
                 )}
               </Link>

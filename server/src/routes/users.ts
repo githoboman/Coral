@@ -1,15 +1,15 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
-import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import { UserManager, getUserManager } from "../services/userManager";
 
 const router = Router();
 
-let userManager: WalrusUserManager | null = null;
+let userManager: UserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
 
-function getUserManager(): WalrusUserManager {
+function getLocalUserManager(): UserManager {
   if (!userManager) {
-    userManager = getWalrusUserManager();
+    userManager = getUserManager();
   }
   return userManager;
 }
@@ -34,23 +34,8 @@ router.get(
         });
       }
 
-      const minter = getLocalTicketMinter();
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-
-      if (!userRegistryBlobId) {
-        return res.json({
-          exists: false,
-          user: null,
-          is_onboarded: false,
-        });
-      }
-
-      const manager = getUserManager();
-      // getUserProfile returns DecryptedUserProfile | null
-      const userProfile = await manager.getUserProfile(
-        userRegistryBlobId,
-        user_id,
-      );
+      const manager = getLocalUserManager();
+      const userProfile = await manager.getUserProfile(user_id);
 
       if (userProfile) {
         const isOnboarded = !!userProfile.email;
@@ -94,16 +79,10 @@ router.post(
         });
       }
 
-      const manager = getUserManager();
-      const minter = getLocalTicketMinter();
-      
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      // If no registry exists yet on-chain, we'll start a new one (passed as null to addOrUpdateUser)
-      
-      const existingProfile = userRegistryBlobId ? await manager.getUserProfile(
-        userRegistryBlobId,
-        user_id,
-      ) : null;
+      const manager = getLocalUserManager();
+
+      // Fetch existing from Supabase
+      const existingProfile = await manager.getUserProfile(user_id);
 
       const updatedProfile = manager.createUserProfile(
         email || existingProfile?.email || "",
@@ -119,27 +98,19 @@ router.post(
         },
       );
 
-      const newBlobId = await manager.addOrUpdateUser(
-        userRegistryBlobId || null,
-        updatedProfile,
-      );
+      const result = await manager.addOrUpdateUser(updatedProfile);
 
-      if (!newBlobId) {
+      if (!result) {
         return res.status(500).json({
           error: "Internal Server Error",
-          detail: "Failed to update user profile",
+          detail: "Failed to update user profile in database",
         });
-      }
-
-      if (newBlobId !== userRegistryBlobId) {
-        await minter.updateBlobRegistry(newBlobId);
       }
 
       return res.json({
         message: "User profile updated successfully",
         user_id,
         requires_onboarding: !(email || existingProfile?.email),
-        registry_blob_id: newBlobId,
       });
     } catch (error) {
       console.error("Error in update-user:", error);

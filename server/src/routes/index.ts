@@ -14,6 +14,8 @@ import subscriptionRoutes from "./subscription";
 
 import chatsRouter from "./chats";
 import telegramRouter from "./telegram";
+import priceRouter from "./price";
+import proactiveRouter from "./proactive";
 
 const router = Router();
 
@@ -31,13 +33,15 @@ router.use("/subscription", subscriptionRoutes);
 router.use("/chat", chatRouter);
 router.use("/chats", chatsRouter);
 router.use("/telegram", telegramRouter);
+router.use("/price", priceRouter);
+router.use("/proactive", proactiveRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
     name: "Tovira Express Server",
     version: "3.0.0",
     description:
-      "Express TypeScript server for Tovira - Powered by Walrus + Sui",
+      "Express TypeScript server for Tovira - Powered by Supabase + Sui",
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: ["POST /api/auth/verify-and-register", "GET /api/auth/check-user"],
@@ -70,9 +74,24 @@ router.get("/info", (_req: Request, res: Response) => {
       account: ["GET /api/account/:user_id", "GET /api/leaderboard"],
 
       checkin: ["GET /api/checkin/status", "POST /api/checkin/request-ticket"],
+      proactive: [
+        "POST /api/proactive/track",
+        "DELETE /api/proactive/track/:itemId",
+        "GET /api/proactive/tracked",
+        "GET /api/proactive/events",
+        "GET /api/proactive/preferences",
+        "PUT /api/proactive/preferences",
+        "GET /api/proactive/status",
+        "GET /api/proactive/suggestions",
+        "POST /api/proactive/suggestions/:id/respond",
+        "POST /api/proactive/simulate",
+        "GET /api/proactive/simulations",
+        "POST /api/proactive/simulations/:id/execute",
+      ],
+
 
     },
-    storage: "Walrus (Encrypted)",
+    storage: "Supabase",
     blockchain: "Sui",
   });
 });
@@ -83,7 +102,7 @@ router.get("/status", (_req: Request, res: Response) => {
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     environment: process.env.NODE_ENV || "development",
-    storage: "Walrus Decentralized Network",
+    storage: "Supabase",
     blockchain: "Sui Testnet",
   });
 });

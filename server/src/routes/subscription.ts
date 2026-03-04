@@ -66,7 +66,7 @@ router.get(
       // Better approach: Use getOnChainSubscription directly here for full stats, 
       // BUT manually update the service's cache.
       const fullSub = await subscriptionService.getOnChainSubscription(wallet_address);
-      const walrusSub = await subscriptionService.getWalrusSubscription(wallet_address);
+      const walrusSub = await subscriptionService.getSupabaseSubscription(wallet_address);
 
       // Manually inject into cache so Chat Agent sees it
       if (fullSub) {

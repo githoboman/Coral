@@ -7,6 +7,9 @@ import { createSSEWriter, type ChatRequest } from "../services/agents/agentTypes
 import { getTaskManagerAgent } from "../services/agents/taskManagerAgent";
 import { getSubscriptionService } from "../services/subscriptionService";
 import { getChatService } from "../services/chatService";
+import { getResearchAgent } from "../services/agents/researchAgent";
+import { getUserStateService } from "../services/userStateService";
+import { trackTaskCreation } from "../services/agents/taskManagerAgent";
 
 
 const router = Router();
@@ -41,43 +44,50 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "user_id and message are required" });
     }
 
-    // ✅ TASK AGENT: Check daily limit only (general 6h limiter skipped in rateLimiter.ts)
+    // ✅ TASK AGENT: Check daily limit
     if (agentId === "task" || agentId === "task_agent") {
       const subscriptionService = getSubscriptionService();
-      // Use the robust in-memory+redis check
-      const canUse = await subscriptionService.canUsePrompt(userId);
+      const canUse = await subscriptionService.canUsePrompt(userId, 'task');
 
       if (!canUse) {
-        const remaining = await subscriptionService.getPromptsRemaining(userId);
-        console.log(
-          `[TASK AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used (tier ${remaining.tier})`,
-        );
+        const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
+        console.log(`[TASK AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`);
         return res.status(429).json({
           error: "Task Agent Limit Reached",
-          message:
-            remaining.tier === 0
-              ? "You need to upgrade to premium to continue chatting. Free tier only gets 2 prompts per day."
-              : "You've reached your daily limit of 5 task agent prompts. Try again tomorrow.",
+          message: remaining.tier === 0
+            ? "You need to upgrade to premium to continue chatting. Free tier only gets 2 prompts per day."
+            : "You've reached your daily limit of 4 task agent prompts. Try again tomorrow.",
           limit: remaining.limit,
           used: remaining.used,
-          remaining: 0,
-          tier: remaining.tier,
           requiresUpgrade: remaining.tier === 0,
         });
       }
 
-      // ✅ SPEED FIX: Track usage fire-and-forget so stream starts immediately
-      // Walrus write happens in background — AI response is not delayed
-      (async () => {
-        try {
-          await subscriptionService.trackPromptUsage(userId);
-          console.log(
-            `[TASK AGENT] Prompt tracked for ${userId.substring(0, 10)}...`,
-          );
-        } catch (err) {
-          console.warn("[TASK AGENT] Failed to track prompt usage:", err);
-        }
-      })();
+      // Track usage
+      subscriptionService.trackPromptUsage(userId, 'task').catch(() => { });
+    }
+
+    // ✅ RESEARCH AGENT: Check daily limit (3 free / 6 premium)
+    if (agentId === "research") {
+      const subscriptionService = getSubscriptionService();
+      const canUse = await subscriptionService.canUsePrompt(userId, 'research');
+
+      if (!canUse) {
+        const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
+        console.log(`[RESEARCH AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`);
+        return res.status(429).json({
+          error: "Research Agent Limit Reached",
+          message: remaining.tier === 0
+            ? "You need to upgrade to premium to continue. Free tier only gets 2 research prompts per day."
+            : "You've reached your daily limit of 5 research prompts. Try again tomorrow.",
+          limit: remaining.limit,
+          used: remaining.used,
+          requiresUpgrade: remaining.tier === 0,
+        });
+      }
+
+      // Track usage
+      subscriptionService.trackPromptUsage(userId, 'research').catch(() => { });
     }
 
     // ✅ SSE headers set immediately
@@ -142,7 +152,17 @@ router.post("/", async (req: Request, res: Response) => {
           break;
         }
 
-        case "research":
+        case "research": {
+          const agent = getResearchAgent();
+          fullResponse = await agent.handle(
+            { userId, agentId: "research", message: msgContent, conversationId: finalConversationId, clientTime },
+            sse
+          );
+          // Reward user for research agent usage
+          trackTaskCreation(userId, "research").catch(err => console.error("[CHAT] Failed to track research points:", err));
+          break;
+        }
+
         case "tovira":
         case "alert": {
           sse.status("Processing");
@@ -164,6 +184,33 @@ router.post("/", async (req: Request, res: Response) => {
           .catch((err) => console.error("[CHAT] Failed to save AI message:", err));
       }
 
+      // Phase 1: Track interaction pattern (fire-and-forget)
+      (async () => {
+        try {
+          const userStateService = getUserStateService();
+          const interactionType = normalizedAgentId === "research" ? "research" : "task";
+          // Extract token mention from message for research tracking
+          const tokenMatch = msgContent.match(/\b(SUI|USDC|USDT|BTC|ETH)\b/i);
+          await userStateService.recordInteraction(userId, interactionType, {
+            token: tokenMatch ? tokenMatch[1].toUpperCase() : undefined,
+          });
+        } catch (err) {
+          // Non-critical, never block the response
+        }
+      })();
+
+      // Phase 2: Post-research suggestion trigger (fire-and-forget)
+      if (normalizedAgentId === "research" && fullResponse) {
+        (async () => {
+          try {
+            const { getSuggestionEngine } = await import("../services/suggestionEngine");
+            await getSuggestionEngine().onResearchComplete(userId, msgContent, fullResponse);
+          } catch (err) {
+            // Non-critical
+          }
+        })();
+      }
+
       console.log(`[CHAT] Agent completed in ${Date.now() - agentStart}ms`);
 
     } catch (error) {
@@ -183,38 +230,45 @@ router.post("/", async (req: Request, res: Response) => {
 
 // ✅ Legacy endpoints requested by user
 
-// Task agent daily prompt status (subscription-aware: 2 free / 5 premium)
+// Task agent daily prompt status
 router.get("/task-prompts/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const subscriptionService = getSubscriptionService();
+    const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
 
-    console.log(
-      `\n[TASK PROMPTS] Getting status for ${userId.substring(0, 10)}...`,
-    );
-
-    // Reuse the getPromptsRemaining logic which now has in-memory fallback!
-    const remaining = await subscriptionService.getPromptsRemaining(userId);
-
-    // Calculate time until next reset (Midnight UTC)
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setUTCHours(24, 0, 0, 0);
     const resetInSeconds = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
 
-    const result = {
-      used: remaining.used,
-      limit: remaining.limit,
-      remaining: remaining.remaining,
-      tier: remaining.tier,
+    res.json({
+      ...remaining,
       resetInSeconds,
-    };
-
-    console.log(`[TASK PROMPTS] Returning: ${JSON.stringify(result)}`);
-    res.json(result);
+    });
   } catch (error) {
-    console.error("Error checking task prompt status:", error);
     res.json({ used: 0, limit: 2, remaining: 2, tier: 0 });
+  }
+});
+
+// Research agent daily prompt status
+router.get("/research-prompts/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const subscriptionService = getSubscriptionService();
+    const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
+
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCHours(24, 0, 0, 0);
+    const resetInSeconds = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+
+    res.json({
+      ...remaining,
+      resetInSeconds,
+    });
+  } catch (error) {
+    res.json({ used: 0, limit: 3, remaining: 3, tier: 0 });
   }
 });
 

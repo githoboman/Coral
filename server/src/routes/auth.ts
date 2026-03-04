@@ -1,30 +1,24 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { WaitlistManager } from "../services/waitlistManager";
 import {
-  WalrusUserManager,
-  getWalrusUserManager,
-} from "../services/walrusUserManager";
+  UserManager,
+  getUserManager as getUserManagerService,
+} from "../services/userManager";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
+import getSupabaseClient from "../config/supabase";
 
+const supabase = getSupabaseClient();
 const router = Router();
-
-const WHITELIST_BLOB_ID = process.env.WHITELIST_BLOB_ID || "";
 
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
 
-let waitlistManager: WaitlistManager | null = null;
-let userManager: WalrusUserManager | null = null;
+let userManager: UserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
 
-function getWaitlistManager(): WaitlistManager {
-  if (!waitlistManager) waitlistManager = new WaitlistManager();
-  return waitlistManager;
-}
-function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = getWalrusUserManager();
+function getLocalUserManager(): UserManager {
+  if (!userManager) userManager = getUserManagerService();
   return userManager;
 }
 function getLocalTicketMinter(): TicketMinter {
@@ -120,6 +114,27 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
   }
 }
 
+/** Check if email is on the waitlist in Supabase */
+async function isEmailOnWaitlist(email: string): Promise<boolean> {
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('waitlist_emails')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[WAITLIST] Supabase lookup error:", error);
+      return false;
+    }
+    return !!data;
+  } catch (err) {
+    console.error("[WAITLIST] Error checking waitlist:", err);
+    return false;
+  }
+}
+
 router.post(
   "/register",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -147,24 +162,16 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
-      const minter = getLocalTicketMinter();
-      const um = getUserManager();
+      const um = getLocalUserManager();
 
-      const blobRegistry = await minter.getCurrentBlobId();
-
-      if (blobRegistry) {
-        const existingWallet = await um.findWalletByEmail(
-          blobRegistry,
-          normalizedEmail,
-        );
-        if (existingWallet && existingWallet !== wallet_address) {
-          res.status(409).json({
-            error: "Conflict",
-            detail:
-              "This email address is already registered to another wallet.",
-          });
-          return;
-        }
+      // Conflict check using Supabase
+      const existingWallet = await um.findWalletByEmail(normalizedEmail);
+      if (existingWallet && existingWallet !== wallet_address) {
+        res.status(409).json({
+          error: "Conflict",
+          detail: "This email address is already registered to another wallet.",
+        });
+        return;
       }
 
       const profile = um.createUserProfile(
@@ -180,18 +187,14 @@ router.post(
         },
       );
 
-      const newBlobId = await um.addOrUpdateUser(blobRegistry || null, profile);
+      const result = await um.addOrUpdateUser(profile);
 
-      if (!newBlobId) {
+      if (!result) {
         res.status(500).json({
           error: "Internal Server Error",
-          detail: "Failed to save user profile to Walrus",
+          detail: "Failed to save user profile to database.",
         });
         return;
-      }
-
-      if (newBlobId !== blobRegistry) {
-        await minter.updateBlobRegistry(newBlobId);
       }
 
       res.json({
@@ -228,13 +231,6 @@ router.post(
           .json({ error: "Bad Request", detail: "Wallet address is required" });
         return;
       }
-      if (!WHITELIST_BLOB_ID) {
-        res.status(500).json({
-          error: "Configuration Error",
-          detail: "Waitlist not configured",
-        });
-        return;
-      }
 
       const normalizedEmail = email.toLowerCase().trim();
       const minter = getLocalTicketMinter();
@@ -249,10 +245,7 @@ router.post(
         return;
       }
 
-      const isWhitelisted = await getWaitlistManager().isEmailWhitelisted(
-        normalizedEmail,
-        WHITELIST_BLOB_ID,
-      );
+      const isWhitelisted = await isEmailOnWaitlist(normalizedEmail);
       if (!isWhitelisted) {
         res.status(403).json({
           success: false,
@@ -276,36 +269,44 @@ router.post(
 
       (async () => {
         try {
-          const um = getUserManager();
-          const blobRegistry = await minter.getCurrentBlobId();
-          if (blobRegistry) {
-            const existing = await um.getUserProfile(
-              blobRegistry,
-              wallet_address,
+          const um = getLocalUserManager();
+          const existing = await um.getUserProfile(wallet_address);
+
+          if (existing) {
+            const updated = um.createUserProfile(
+              existing.email,
+              existing.wallet_address,
+              true,
+              existing.points_awarded + 100,
+              {
+                username: existing.username,
+                first_name: existing.first_name,
+                last_name: existing.last_name,
+                preferences: existing.preferences,
+                waitlist_verified_at: new Date().toISOString(),
+              },
             );
-            if (existing) {
-              const updated = um.createUserProfile(
-                existing.email,
-                existing.wallet_address,
-                true,
-                existing.points_awarded,
-                {
-                  username: existing.username,
-                  first_name: existing.first_name,
-                  last_name: existing.last_name,
-                  preferences: existing.preferences,
-                  waitlist_verified_at: new Date().toISOString(),
-                },
-              );
-              const newBlobId = await um.addOrUpdateUser(blobRegistry, updated);
-              if (newBlobId && newBlobId !== blobRegistry) {
-                await minter.updateBlobRegistry(newBlobId);
-              }
+            await um.addOrUpdateUser(updated);
+
+            // Log to points_history
+            try {
+              const { data, error } = await supabase
+                .from('points_history')
+                .insert({
+                  user_id: wallet_address,
+                  amount: 100,
+                  source: 'waitlist_points',
+                  reason: 'Waitlist eligibility reward',
+                  details: { email: normalizedEmail }
+                });
+              if (error) throw error;
+            } catch (histErr) {
+              console.warn("[CLAIM] Failed to log points_history:", histErr);
             }
           }
         } catch (err) {
           console.warn(
-            "[CLAIM] Walrus profile update failed (non-fatal):",
+            "[CLAIM] Supabase profile update failed (non-fatal):",
             err,
           );
         }
@@ -317,7 +318,7 @@ router.post(
         transaction_digest: claimResult.digest,
         points_awarded: 100,
         new_balance: claimResult.balance || 100,
-        message: "🎉 Waitlist points awarded!",
+        message: "Waitlist points awarded!",
       });
     } catch (error) {
       console.error("Error in claim-waitlist-points:", error);
@@ -340,47 +341,39 @@ router.get(
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... checking Walrus registry`,
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... checking Supabase`,
       );
 
       let profile = null;
-      let walrusFailed = false;
 
       try {
-        const minter = getLocalTicketMinter();
-        const um = getUserManager();
-        const blobId =
-          um.getCachedBlobId() ?? (await minter.getCurrentBlobId());
-
-        if (blobId) {
-          profile = await um.getUserProfile(blobId, wallet_address);
-        }
-      } catch (walrusErr) {
+        const um = getLocalUserManager();
+        profile = await um.getUserProfile(wallet_address);
+      } catch (dbErr) {
         console.warn(
-          "[CHECK-USER] Walrus lookup failed — will try on-chain fallback:",
-          walrusErr,
+          "[CHECK-USER] Database lookup failed:",
+          dbErr,
         );
-        walrusFailed = true;
       }
 
       if (profile) {
         const isOnboarded = !!profile.email;
         console.log(
-          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Walrus registry → onboarded ✓`,
+          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Supabase`,
         );
         res.json({ exists: true, is_onboarded: isOnboarded, user: profile });
         return;
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Walrus, checking on-chain (legacy fallback)`,
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Supabase, checking on-chain (legacy fallback)`,
       );
 
       try {
         const onChain = await hasClaimedOnChain(wallet_address);
         if (onChain) {
           console.log(
-            `[CHECK-USER] ${wallet_address.slice(0, 10)}... found on-chain → legacy user, onboarded ✓`,
+            `[CHECK-USER] ${wallet_address.slice(0, 10)}... found on-chain (legacy user)`,
           );
 
           res.json({
@@ -396,7 +389,7 @@ router.get(
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not found anywhere → new user`,
+        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not found anywhere`,
       );
       res.json({ exists: false, is_onboarded: false, user: null });
     } catch (error) {
@@ -418,15 +411,8 @@ router.get(
           .json({ error: "Bad Request", detail: "Email is required" });
         return;
       }
-      if (!WHITELIST_BLOB_ID) {
-        res.json({ on_waitlist: false });
-        return;
-      }
 
-      const isWaitlisted = await getWaitlistManager().isEmailWhitelisted(
-        email.toLowerCase().trim(),
-        WHITELIST_BLOB_ID,
-      );
+      const isWaitlisted = await isEmailOnWaitlist(email);
       res.json({ on_waitlist: isWaitlisted });
     } catch (error) {
       console.error("Error in check-waitlist:", error);

@@ -189,7 +189,7 @@ const Account = () => {
   }, [profile?.preferences]);
 
   useEffect(() => {
-    dispatch(fetchLeaderboard(false));
+    dispatch(fetchLeaderboard({}));
   }, [dispatch]);
 
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -363,8 +363,6 @@ const Account = () => {
                 {(() => {
                   if (checkinState.status === "checking") return <Loader2 className="w-4 h-4 animate-spin" />;
 
-                  if (checkinState.status === "signing") return "Signing...";
-                  if (checkinState.status === "confirming") return "Confirming...";
                   if (checkinState.status === "requesting") return "Requesting...";
                   if (checkinState.status === "error") return "Retry";
 

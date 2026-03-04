@@ -1,13 +1,15 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import dotenv from "dotenv";
 import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 
-dotenv.config();
-
 const app = express();
+
+console.log(`[INIT] LangChain Tracing: ${process.env.LANGCHAIN_TRACING_V2 === 'true' ? 'ENABLED' : 'DISABLED'}`);
 
 app.use(helmet());
 

@@ -1,19 +1,15 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
-import { WalrusUserManager, getWalrusUserManager } from "../services/walrusUserManager";
+import { UserManager, getUserManager as getUserManagerService } from "../services/userManager";
+import { getLeaderboardService } from "../services/leaderboardService";
+import getSupabaseClient from "../config/supabase";
 
 const router = Router();
+const supabase = getSupabaseClient();
 
-let ticketMinter: TicketMinter | null = null;
-let userManager: WalrusUserManager | null = null;
+let userManager: UserManager | null = null;
 
-function getLocalTicketMinter(): TicketMinter {
-  if (!ticketMinter) ticketMinter = getTicketMinter();
-  return ticketMinter;
-}
-
-function getUserManager(): WalrusUserManager {
-  if (!userManager) userManager = getWalrusUserManager();
+function getLocalUserManager(): UserManager {
+  if (!userManager) userManager = getUserManagerService();
   return userManager;
 }
 
@@ -43,22 +39,8 @@ router.get(
         return;
       }
 
-      const minter = getLocalTicketMinter();
-      const manager = getUserManager();
-
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      if (!userRegistryBlobId) {
-        res.json({
-          tasks_created_today: 0,
-          tasks_claimed_today: 0,
-          claimable_tasks: 0,
-          points_per_task: 2,
-          total_claimable_points: 0,
-        });
-        return;
-      }
-
-      const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
+      const manager = getLocalUserManager();
+      const profile = await manager.getUserProfile(user_id);
 
       if (!profile) {
         res.json({
@@ -77,19 +59,29 @@ router.get(
 
       const tasksCreated = needsReset ? 0 : profile.tasks_created_today || 0;
       const tasksClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
-      const claimable = Math.max(0, tasksCreated - tasksClaimed);
+      const researchCreated = needsReset ? 0 : profile.research_created_today || 0;
+      const researchClaimed = needsReset ? 0 : profile.research_claimed_today || 0;
+
+      const claimableTasks = Math.max(0, tasksCreated - tasksClaimed);
+      const claimableResearch = Math.max(0, researchCreated - researchClaimed);
+      const totalClaimable = claimableTasks + claimableResearch;
 
       console.log(`[TASK POINTS] User ${user_id.substring(0, 10)}...`);
       console.log(
-        `  Created: ${tasksCreated}, Claimed: ${tasksClaimed}, Claimable: ${claimable}`,
+        `  Tasks: ${tasksCreated}/${tasksClaimed} (${claimableTasks}), Research: ${researchCreated}/${researchClaimed} (${claimableResearch})`,
       );
 
       res.json({
         tasks_created_today: tasksCreated,
         tasks_claimed_today: tasksClaimed,
-        claimable_tasks: claimable,
+        research_created_today: researchCreated,
+        research_claimed_today: researchClaimed,
+        claimable_tasks: claimableTasks,
+        claimable_research: claimableResearch,
+        total_activities: totalClaimable,
         points_per_task: 2,
-        total_claimable_points: claimable * 2,
+        points_per_research: 3,
+        total_claimable_points: (claimableTasks * 2) + (claimableResearch * 3),
         last_reset_date: profile.last_task_reset_date || today,
       });
     } catch (error) {
@@ -99,111 +91,13 @@ router.get(
   },
 );
 
-router.post(
-  "/request-claim",
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { user_id, task_count } = req.body;
-
-      if (!user_id || typeof user_id !== "string") {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "user_id is required",
-        });
-        return;
-      }
-
-      if (!user_id.startsWith("0x") || user_id.length !== 66) {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Invalid wallet address format",
-        });
-        return;
-      }
-
-      if (!task_count || task_count <= 0) {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Invalid task_count",
-        });
-        return;
-      }
-
-      const minter = getLocalTicketMinter();
-      const manager = getUserManager();
-
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      if (!userRegistryBlobId) {
-        res.status(404).json({
-          error: "Not Found",
-          detail: "User registry not found",
-        });
-        return;
-      }
-
-      const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
-      if (!profile) {
-        res.status(404).json({
-          error: "Not Found",
-          detail: "User profile not found",
-        });
-        return;
-      }
-
-      const today = getTodayDate();
-      const needsReset =
-        !profile.last_task_reset_date || profile.last_task_reset_date !== today;
-
-      const tasksCreated = needsReset ? 0 : profile.tasks_created_today || 0;
-      const tasksClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
-      const claimable = Math.max(0, tasksCreated - tasksClaimed);
-
-      if (task_count > claimable) {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: `Cannot claim ${task_count} tasks. Only ${claimable} tasks are claimable.`,
-        });
-        return;
-      }
-
-      console.log(
-        `🎟️  Minting task claim ticket for ${user_id}: ${task_count} tasks`,
-      );
-
-      const ticketObjectId = await minter.mintTaskClaimTicket(
-        user_id,
-        task_count,
-      );
-
-      if (!ticketObjectId) {
-        res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to mint task claim ticket. Please try again.",
-        });
-        return;
-      }
-
-      console.log(`✅ Task claim ticket minted: ${ticketObjectId}`);
-
-      res.json({
-        success: true,
-        ticket_object_id: ticketObjectId,
-        task_count,
-        points_amount: task_count * 2,
-        message: `Claim ${task_count * 2} points for ${task_count} task${task_count > 1 ? "s" : ""}!`,
-      });
-    } catch (error) {
-      console.error("Error requesting task claim:", error);
-      next(error);
-    }
-  },
-);
 
 router.post(
   "/track-creation",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { user_id } = req.body;
+      const { user_id, type } = req.body;
+      const activityType = (type === "research" || type === "activity") ? "research" : "task";
 
       if (!user_id || typeof user_id !== "string") {
         res.status(400).json({
@@ -221,83 +115,23 @@ router.post(
         return;
       }
 
-      const minter = getLocalTicketMinter();
-      const manager = getUserManager();
-
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      if (!userRegistryBlobId) {
-        res.status(404).json({
-          error: "Not Found",
-          detail: "User registry not found",
-        });
-        return;
-      }
-
-      const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
-      if (!profile) {
-        res.status(404).json({
-          error: "Not Found",
-          detail: "User profile not found",
-        });
-        return;
-      }
+      const manager = getLocalUserManager();
 
       const today = getTodayDate();
-      const needsReset =
-        !profile.last_task_reset_date || profile.last_task_reset_date !== today;
+      const success = await manager.incrementActivityCount(user_id, activityType, today);
 
-      const currentCreated = needsReset ? 0 : profile.tasks_created_today || 0;
-      const currentClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
-      const newCreated = currentCreated + 1;
-
-      const updatedProfile = manager.createUserProfile(
-        profile.email,
-        profile.wallet_address,
-        profile.is_waitlisted,
-        profile.points_awarded,
-        {
-          username: profile.username,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          preferences: profile.preferences,
-          waitlist_verified_at: profile.waitlist_verified_at,
-          chat_registry_blob_id: profile.chat_registry_blob_id,
-          tasks_created_today: newCreated,
-          tasks_claimed_today: currentClaimed,
-          last_task_reset_date: today,
-          subscription_tier: profile.subscription_tier,
-          subscription_expires_at: profile.subscription_expires_at,
-          daily_prompts_used: profile.daily_prompts_used,
-          last_prompt_date: profile.last_prompt_date,
-
-        },
-      );
-
-      const newBlobId = await manager.addOrUpdateUser(
-        userRegistryBlobId,
-        updatedProfile,
-      );
-
-      if (!newBlobId) {
+      if (!success) {
         res.status(500).json({
           error: "Internal Server Error",
-          detail: "Failed to update task count",
+          detail: "Failed to track activity creation",
         });
         return;
       }
-
-      if (newBlobId !== userRegistryBlobId) {
-        await minter.updateBlobRegistry(newBlobId);
-      }
-
-      console.log(
-        `[TASK POINTS] Tracked creation for ${user_id}: ${newCreated} tasks`,
-      );
 
       res.json({
         success: true,
-        tasks_created_today: newCreated,
-        message: "Task creation tracked successfully",
+        type: activityType,
+        message: `${activityType} tracked successfully`,
       });
     } catch (error) {
       console.error("Error tracking task creation:", error);
@@ -310,7 +144,7 @@ router.post(
   "/confirm-claim",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { user_id, task_count } = req.body;
+      const { user_id } = req.body;
 
       if (!user_id || typeof user_id !== "string") {
         res.status(400).json({
@@ -320,27 +154,9 @@ router.post(
         return;
       }
 
-      if (!task_count || task_count <= 0) {
-        res.status(400).json({
-          error: "Bad Request",
-          detail: "Invalid task_count",
-        });
-        return;
-      }
+      const manager = getLocalUserManager();
+      const profile = await manager.getUserProfile(user_id);
 
-      const minter = getLocalTicketMinter();
-      const manager = getUserManager();
-
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      if (!userRegistryBlobId) {
-        res.status(404).json({
-          error: "Not Found",
-          detail: "User registry not found",
-        });
-        return;
-      }
-
-      const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
       if (!profile) {
         res.status(404).json({
           error: "Not Found",
@@ -353,66 +169,51 @@ router.post(
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
 
-      const currentClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
-      const newClaimed = currentClaimed + task_count;
+      const tasksCreated = needsReset ? 0 : profile.tasks_created_today || 0;
+      const tasksClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
+      const researchCreated = needsReset ? 0 : profile.research_created_today || 0;
+      const researchClaimed = needsReset ? 0 : profile.research_claimed_today || 0;
 
-      const onChainBalance = await minter.getBalance(user_id);
+      const claimableTasks = Math.max(0, tasksCreated - tasksClaimed);
+      const claimableResearch = Math.max(0, researchCreated - researchClaimed);
+      const totalClaimable = claimableTasks + claimableResearch;
 
-      console.log(`[TASK POINTS] On-chain balance: ${onChainBalance}`);
-      console.log(
-        `[TASK POINTS] Walrus cached balance: ${profile.points_awarded}`,
-      );
-
-      const updatedProfile = manager.createUserProfile(
-        profile.email,
-        profile.wallet_address,
-        profile.is_waitlisted,
-        onChainBalance,
-        {
-          username: profile.username,
-          first_name: profile.first_name,
-          last_name: profile.last_name,
-          preferences: profile.preferences,
-          waitlist_verified_at: profile.waitlist_verified_at,
-          chat_registry_blob_id: profile.chat_registry_blob_id,
-          task_registry_blob_id: profile.task_registry_blob_id,
-          tasks_created_today: profile.tasks_created_today || 0,
-          tasks_claimed_today: newClaimed,
-          last_task_reset_date: today,
-          subscription_tier: profile.subscription_tier,
-          subscription_expires_at: profile.subscription_expires_at,
-          daily_prompts_used: profile.daily_prompts_used,
-          last_prompt_date: profile.last_prompt_date,
-
-        },
-      );
-
-      const newBlobId = await manager.addOrUpdateUser(
-        userRegistryBlobId,
-        updatedProfile,
-      );
-
-      if (!newBlobId) {
-        res.status(500).json({
-          error: "Internal Server Error",
-          detail: "Failed to confirm claim",
+      if (totalClaimable <= 0) {
+        res.status(400).json({
+          error: "Bad Request",
+          detail: "No activities available to claim",
         });
         return;
       }
 
-      if (newBlobId !== userRegistryBlobId) {
-        await minter.updateBlobRegistry(newBlobId);
-      }
+      const pointsToCredit = (claimableTasks * 2) + (claimableResearch * 3);
 
-      console.log(
-        `[TASK POINTS] Confirmed claim for ${user_id}: ${newClaimed} tasks claimed, ${onChainBalance} points total`,
-      );
+      const newTasksClaimed = tasksClaimed + claimableTasks;
+      const newResClaimed = researchClaimed + claimableResearch;
+
+      console.log(`[TASK POINTS] Gasless claim for ${user_id}: ${pointsToCredit} points`);
+
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          tasks_claimed_today: newTasksClaimed,
+          research_claimed_today: newResClaimed,
+          last_task_reset_date: today
+        })
+        .eq('wallet_address', user_id);
+
+      if (updateError) throw updateError;
+
+      // Instantly credit points to leaderboard
+      await getLeaderboardService().creditPoints(user_id, pointsToCredit);
 
       res.json({
         success: true,
-        tasks_claimed_today: newClaimed,
-        total_points: onChainBalance,
-        message: "Claim confirmed successfully",
+        tasks_claimed_today: newTasksClaimed,
+        research_claimed_today: newResClaimed,
+        total_activities_claimed: totalClaimable,
+        points_awarded: pointsToCredit,
+        message: `Successfully claimed ${pointsToCredit} points!`,
       });
     } catch (error) {
       console.error("Error confirming claim:", error);
@@ -435,22 +236,9 @@ router.get(
         return;
       }
 
-      const minter = getLocalTicketMinter();
-      const manager = getUserManager();
+      const manager = getLocalUserManager();
 
-      const userRegistryBlobId = await minter.getCurrentBlobId();
-      if (!userRegistryBlobId) {
-        res.json({
-          tasks_created_today: 0,
-          tasks_claimed_today: 0,
-          total_tasks_created: 0,
-          total_points_earned: 0,
-          last_claim_date: null,
-        });
-        return;
-      }
-
-      const profile = await manager.getUserProfile(userRegistryBlobId, user_id);
+      const profile = await manager.getUserProfile(user_id);
       if (!profile) {
         res.json({
           tasks_created_today: 0,
@@ -462,8 +250,6 @@ router.get(
         return;
       }
 
-      const balance = await minter.getBalance(user_id);
-
       const today = getTodayDate();
       const needsReset =
         !profile.last_task_reset_date || profile.last_task_reset_date !== today;
@@ -471,7 +257,7 @@ router.get(
       res.json({
         tasks_created_today: needsReset ? 0 : profile.tasks_created_today || 0,
         tasks_claimed_today: needsReset ? 0 : profile.tasks_claimed_today || 0,
-        total_points_earned: balance,
+        total_points_earned: profile.points_awarded || 0,
         last_task_reset_date: profile.last_task_reset_date,
       });
     } catch (error) {

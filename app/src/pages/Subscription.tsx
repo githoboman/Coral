@@ -16,7 +16,7 @@ const Subscription = () => {
   }, [subscriptionState.status]);
 
   const features = [
-    { icon: Zap, text: "5 daily prompts", highlight: "vs 2 free" },
+    { icon: Zap, text: "Enhanced daily prompts", highlight: "4 Task / 5 Research" },
     {
       icon: Crown,
       text: "Priority agent access",
@@ -131,7 +131,7 @@ const Subscription = () => {
             </div>
 
             <p className="text-white/60 text-sm mb-6 max-w-xs">
-              Full access to advanced AI capabilities, priority processing, and 2,5x more daily prompts.
+              Full access to advanced AI capabilities, priority processing, and increased daily prompt quotas.
             </p>
 
             <div className="space-y-3">

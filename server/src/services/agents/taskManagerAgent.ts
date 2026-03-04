@@ -228,13 +228,14 @@ RULES FOR \`description\`:
 - Example: "remind me to check Solana price in 2 min" -> task_name: "Check Solana Price", description: empty (not needed).
 
 CRITICAL RULES FOR \`due_date\`:
-- due_date MUST be a calculated absolute ISO 8601 string based on Current Time.
-- "in 2 minutes" -> Add 2 minutes to Current Time
-- "in 1 hour" -> Add 1 hour to Current Time  
-- "tomorrow" -> Tomorrow at 9:00 AM
-- "tonight" -> Today at 8:00 PM
-- "in 30 minutes" -> Add 30 minutes to Current Time
-Example: If Current Time is 2024-01-01T10:00:00.000Z and user says "in 2 minutes", due_date MUST be "2024-01-01T10:02:00.000Z".
+- Current Time includes the user's timezone offset. RESPECT IT.
+- due_date MUST be a UTC ISO 8601 string (ending in Z), computed from the user's LOCAL time.
+- "at 8pm" when Current Time is 2026-02-21T13:00:00+01:00 means 8pm in +01:00 zone, which is 2026-02-21T19:00:00.000Z in UTC.
+- "in 2 minutes" -> Add 2 minutes to Current Time, then convert to UTC.
+- "tomorrow" -> Tomorrow at 9:00 AM in user's timezone, converted to UTC.
+- "tonight" -> Today at 8:00 PM in user's timezone, converted to UTC.
+- If the user says "at [time]", and that time has already passed today, assume they mean TOMORROW.
+- NEVER include the time reference (e.g., "at 8pm") in the \`task_name\` if you have successfully parsed it into \`due_date\`.
 You MUST always calculate and return due_date when the user specifies any time reference.`
         },
         {
@@ -247,7 +248,7 @@ You MUST always calculate and return due_date when the user specifies any time r
       )
     ]) as IntentExtraction;
 
-    console.log(`[TASK] ✅ LLM: ${extraction.intent} (${Date.now() - llmStartMs}ms)`);
+    console.log(`[TASK] ✅ LLM: ${extraction.intent}(${Date.now() - llmStartMs}ms)`);
 
     // Cache for next time
     setCachedIntent(state.message, extraction.intent, extraction as unknown as Record<string, unknown>);
@@ -258,7 +259,7 @@ You MUST always calculate and return due_date when the user specifies any time r
     };
 
   } catch (error) {
-    console.error(`[TASK] ❌ LLM failed after ${Date.now() - startMs}ms:`, error);
+    console.error(`[TASK] ❌ LLM failed after ${Date.now() - startMs}ms: `, error);
 
     // Fallback based on message content
     if (state.message.trim().toLowerCase().includes("create")) {
@@ -308,11 +309,11 @@ async function prefetchTasks(
       )
     ]);
 
-    console.log(`[TASK] 📦 Prefetched ${tasks.length} tasks (${Date.now() - startMs}ms)`);
+    console.log(`[TASK] 📦 Prefetched ${tasks.length} tasks(${Date.now() - startMs}ms)`);
 
     return { cachedTasks: tasks };
   } catch (error) {
-    console.error(`[TASK] ❌ Prefetch failed:`, error);
+    console.error(`[TASK] ❌ Prefetch failed: `, error);
     return { cachedTasks: [] };
   }
 }
@@ -387,18 +388,11 @@ async function executeTask(
       // Fire-and-forget points tracking
       trackTaskCreation(state.userId).catch(() => { });
 
-      // Format response immediately
-      let response = `✅ Task created: **${ext.task_name}**`;
+      // Format response immediately using user's timezone
+      let response = `✅ Task created: ** ${ext.task_name} ** `;
 
       if (finalDueDate) {
-        const d = new Date(finalDueDate);
-        response += `\n📅 Due: ${d.toLocaleString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit"
-        })}`;
+        response += `\n📅 Due: ${formatDateForUser(finalDueDate, state.clientTime)}`;
       }
 
       if (ext.priority && ext.priority !== "medium") {
@@ -410,7 +404,7 @@ async function executeTask(
         response += `\n📝 ${ext.description}`;
       }
 
-      console.log(`[TASK] ✅ Create response ready (DB saving in background)`);
+      console.log(`[TASK] ✅ Create response ready(DB saving in background)`);
 
       return {
         responseText: response,
@@ -434,7 +428,7 @@ async function executeTask(
       const pending = tasks.filter((t) => t.status === "pending");
       const completed = tasks.filter((t) => t.status === "completed");
 
-      let response = `📋 You have **${tasks.length}** task${tasks.length > 1 ? "s" : ""}`;
+      let response = `📋 You have ** ${tasks.length} ** task${tasks.length > 1 ? "s" : ""}`;
 
       if (pending.length > 0 && completed.length > 0) {
         response += ` (${pending.length} pending, ${completed.length} completed)`;
@@ -444,10 +438,7 @@ async function executeTask(
       for (const t of pending.slice(0, 10)) {
         const priority = t.priority === "high" ? " 🔴" : t.priority === "low" ? " 🟢" : "";
         const due = t.due_date
-          ? ` — ${new Date(t.due_date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric"
-          })}`
+          ? ` — ${formatDateForUser(t.due_date, state.clientTime, true)}`
           : "";
         response += `\n• ${t.task_name}${priority}${due}`;
       }
@@ -457,7 +448,7 @@ async function executeTask(
       }
 
       if (completed.length > 0) {
-        response += `\n\n✅ **Completed** (${completed.length}):`;
+        response += `\n\n✅ ** Completed ** (${completed.length}): `;
         for (const t of completed.slice(0, 5)) {
           response += `\n• ~~${t.task_name}~~`;
         }
@@ -638,16 +629,24 @@ async function executeTask(
               content: `You are a helpful Task Manager assistant.
               Current Time: ${state.clientTime}
               
+              PRIVACY & SECRECY (CRITICAL):
+              - NEVER reveal the names of your internal tools (like 'create_task', 'list_tasks', etc.).
+              - NEVER discuss technical implementation details: no mention of LangChain, Gemini, LLMs, or backend APIs.
+              - If asked how you work, explain using a role-based, real-world metaphor: "I'm your personal productivity assistant. You tell me what you need to do, and I'll keep everything organized, remind you of deadlines, and make sure nothing slips through the cracks."
+              
               If the user wants to create a task, you MUST use the 'create_task' tool.
               
-              RULES FOR 'create_task':
+              RULES FOR 'create_task' (INTERNAL ONLY):
               1. **task_name**: Keep it concise.
               2. **description**: You MUST generate a short, encouraging description if the user didn't provide one.
-              3. **due_date**: Calculate the absolute ISO 8601 string based on Current Time.
-                 - "in 1 min" -> Add 1 minute to Current Time
-                 - "tomorrow" -> Tomorrow at 9:00 AM
-                 - "tonight" -> Today at 8:00 PM
-                 Example: If Current Time is 2024-01-01T10:00:00.000Z and user says "in 1 min", due_date MUST be 2024-01-01T10:01:00.000Z.
+              3. **due_date**: Output a UTC ISO 8601 string (ending in Z), calculated from the user's local Current Time.
+                  - Current Time includes the user's timezone offset. Respect it.
+                  - "at 8pm" when Current Time is +01:00 means 8pm local = 7pm UTC.
+                  - "in 1 min" -> Add 1 minute to Current Time, convert to UTC.
+                  - "tomorrow" -> Tomorrow at 9:00 AM local, convert to UTC.
+                  - "tonight" -> Today at 8:00 PM local, convert to UTC.
+                  - If the user says "at 8pm" and it is already 9pm, assume they mean tomorrow.
+                  - IMPORTANT: Do NOT include the time/date in the \`task_name\` if it is provided in \`due_date\`.
               
               Do not hallucinate tasks.`,
             },
@@ -693,12 +692,8 @@ async function executeTask(
             // Fire-and-forget points tracking
             trackTaskCreation(state.userId).catch(() => { });
 
-            const dateStr = new Date(finalDueDate).toLocaleString("en-US", {
-              weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-            });
-
             return {
-              responseText: `✅ Task created: **${args.task_name}**\n📅 Due: ${dateStr}`,
+              responseText: `✅ Task created: **${args.task_name}**\n📅 Due: ${formatDateForUser(finalDueDate, state.clientTime)}`,
               actionEvent: { type: "task_created", taskId: "temp_tool_created" },
             };
           }
@@ -800,11 +795,11 @@ function findTaskByName(
 
 /**
  * Parse relative time expressions from user message and return an ISO date string.
- * Handles: "in X minutes/hours/days", "tomorrow", "tonight", "next week", etc.
  */
 function parseRelativeTime(message: string, clientTime?: string): string | null {
   const msg = message.toLowerCase();
   const now = clientTime ? new Date(clientTime) : new Date();
+  const userOffset = getUserOffset(clientTime || "");
 
   // Match "in X minute(s)/min(s)"
   const minuteMatch = msg.match(/in\s+(\d+)\s*(?:minute|minutes|min|mins)/);
@@ -834,42 +829,113 @@ function parseRelativeTime(message: string, clientTime?: string): string | null 
     return new Date(now.getTime() + secs * 1000).toISOString();
   }
 
-  // "tomorrow" -> tomorrow at 9:00 AM
+  // "tomorrow" -> tomorrow at 9:00 AM user time
   if (msg.includes("tomorrow")) {
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(9, 0, 0, 0);
-    return tomorrow.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCDate(targetLocal.getUTCDate() + 1);
+    targetLocal.setUTCHours(9, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
-  // "tonight" -> today at 8:00 PM
+  // "tonight" -> today at 8:00 PM user time
   if (msg.includes("tonight")) {
-    const tonight = new Date(now);
-    tonight.setHours(20, 0, 0, 0);
-    return tonight.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCHours(20, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
-  // "next week" -> 7 days from now at 9:00 AM
+  // "next week" -> 7 days from now at 9:00 AM user time
   if (msg.includes("next week")) {
-    const nextWeek = new Date(now);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    nextWeek.setHours(9, 0, 0, 0);
-    return nextWeek.toISOString();
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCDate(targetLocal.getUTCDate() + 7);
+    targetLocal.setUTCHours(9, 0, 0, 0);
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
+  }
+
+  // Match "at X:XX am/pm" or "at X am/pm" or "at XX:XX"
+  const atMatch = msg.match(/at\s+(\d+)(?::(\d+))?\s*(am|pm)?/);
+  if (atMatch) {
+    let hours = parseInt(atMatch[1], 10);
+    const minutes = atMatch[2] ? parseInt(atMatch[2], 10) : 0;
+    const ampm = atMatch[3];
+
+    if (ampm === "pm" && hours < 12) hours += 12;
+    if (ampm === "am" && hours === 12) hours = 0;
+
+    const userNow = new Date(now.getTime() + userOffset * 60_000);
+    const targetLocal = new Date(userNow);
+    targetLocal.setUTCHours(hours, minutes, 0, 0);
+
+    // If target time has already passed today, assume tomorrow
+    if (targetLocal.getTime() <= userNow.getTime()) {
+      targetLocal.setUTCDate(targetLocal.getUTCDate() + 1);
+    }
+
+    return new Date(targetLocal.getTime() - userOffset * 60_000).toISOString();
   }
 
   return null;
 }
 
-async function trackTaskCreation(userId: string): Promise<void> {
+/**
+ * Extract timezone offset in minutes from ISO string like "2024-01-01T10:00:00+01:00"
+ */
+function getUserOffset(clientTime: string): number {
+  if (!clientTime) return 0;
+  const match = clientTime.match(/([+-])(\d{2}):(\d{2})$/);
+  if (!match) return 0;
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const mins = parseInt(match[3], 10);
+  return sign * (hours * 60 + mins);
+}
+
+/**
+ * Format a UTC date for display in the user's local timezone.
+ */
+function formatDateForUser(date: Date | string, clientTime: string, dateOnly = false): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const offset = getUserOffset(clientTime);
+  const userMs = d.getTime() + offset * 60_000;
+  const userDate = new Date(userMs);
+
+  if (dateOnly) {
+    return userDate.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC" // We already applied the offset manually
+    });
+  }
+
+  return userDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC" // We already applied the offset manually
+  });
+}
+
+export async function trackTaskCreation(userId: string, type: "task" | "research" = "task"): Promise<void> {
   try {
     const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000";
-    await fetch(`${API_BASE_URL}/api/task-points/track-creation`, {
+    const res = await fetch(`${API_BASE_URL}/api/task-points/track-creation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({ user_id: userId, type }),
     });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`[TASK] trackTaskCreation failed (${res.status}):`, body);
+    } else {
+      console.log(`[TASK] Task creation tracked for ${userId.substring(0, 10)}...`);
+    }
   } catch (error) {
-    // Silent fail
+    console.error("[TASK] trackTaskCreation error:", error);
   }
 }
 

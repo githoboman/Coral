@@ -11,18 +11,30 @@ export interface LeaderboardEntry {
   referral_points: number;
 }
 
+export interface UserRank {
+  rank: number | null;
+  points: number;
+  total_participants: number;
+}
+
 interface LeaderboardState {
   entries: LeaderboardEntry[];
+  userRank: UserRank | null;
+  totalParticipants: number | null;
   loading: boolean;
   error: string | null;
   lastFetch: number | null;
+  lastWalletAddress: string | null;
 }
 
 const initialState: LeaderboardState = {
   entries: [],
+  userRank: null,
+  totalParticipants: null,
   loading: false,
   error: null,
   lastFetch: null,
+  lastWalletAddress: null,
 };
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -30,29 +42,50 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // Async thunk to fetch leaderboard with optional force refresh
 export const fetchLeaderboard = createAsyncThunk(
   "leaderboard/fetchLeaderboard",
-  async (forceRefresh: boolean = false, { getState, rejectWithValue }) => {
+  async ({ forceRefresh = false, walletAddress }: { forceRefresh?: boolean; walletAddress?: string } = {}, { getState, rejectWithValue }) => {
     try {
       const state = getState() as { leaderboard: LeaderboardState };
 
-      // Check cache validity (5 minute TTL) - but skip if forceRefresh is true
+      // WALLET-AWARE CACHE VALIDATION:
+      // Skip cache if:
+      // 1. forceRefresh is true
+      // 2. Cache expired
+      // 3. Wallet address changed (e.g. guest -> connected, or user changed accounts)
+      const walletChanged = walletAddress !== state.leaderboard.lastWalletAddress;
+
       if (
         !forceRefresh &&
+        !walletChanged &&
         isCacheValid(state.leaderboard.lastFetch, CACHE_TTL) &&
         state.leaderboard.entries.length > 0
       ) {
-        return { entries: state.leaderboard.entries, fromCache: true };
+        return { 
+          entries: state.leaderboard.entries, 
+          userRank: state.leaderboard.userRank, 
+          totalParticipants: state.leaderboard.totalParticipants,
+          fromCache: true 
+        };
       }
 
       const apiBaseUrl =
         import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-      const response = await fetch(`${apiBaseUrl}/api/leaderboard`);
+      const url = new URL(`${apiBaseUrl}/api/leaderboard`);
+      if (walletAddress) {
+        url.searchParams.set('wallet_address', walletAddress);
+      }
+      const response = await fetch(url.toString());
 
       if (!response.ok) {
         throw new Error("Failed to fetch leaderboard");
       }
 
       const data = await response.json();
-      return { entries: data.leaderboard || [], fromCache: false };
+      return { 
+        entries: data.leaderboard || [], 
+        userRank: data.user_rank || null, 
+        totalParticipants: data.total_participants || null,
+        fromCache: false 
+      };
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to fetch leaderboard");
     }
@@ -65,10 +98,14 @@ const leaderboardSlice = createSlice({
   reducers: {
     invalidateCache: (state) => {
       state.lastFetch = null;
+      state.lastWalletAddress = null;
     },
     clearLeaderboard: (state) => {
       state.entries = [];
+      state.userRank = null;
+      state.totalParticipants = null;
       state.lastFetch = null;
+      state.lastWalletAddress = null;
     },
   },
   extraReducers: (builder) => {
@@ -81,6 +118,8 @@ const leaderboardSlice = createSlice({
         state.loading = false;
         if (!action.payload.fromCache) {
           state.entries = action.payload.entries;
+          state.userRank = action.payload.userRank;
+          state.totalParticipants = action.payload.totalParticipants;
           state.lastFetch = getCacheTimestamp();
         }
       })
