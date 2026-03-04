@@ -213,7 +213,9 @@ const WalletManager = ({
         <div className="flex justify-between items-center w-full mb-8">
           <div className="flex items-center gap-2 bg-[#B7FC0D]/10 px-3 py-1.5 rounded-full border border-[#B7FC0D]/20">
             <div className="w-2 h-2 rounded-full bg-[#B7FC0D] animate-pulse" />
-            <span className="font-bold text-[#B7FC0D] text-xs uppercase tracking-wide">Testnet</span>
+            <span className="font-bold text-[#B7FC0D] text-xs uppercase tracking-wide">
+              Testnet
+            </span>
           </div>
           <button onClick={toggleWallet} className="btn btn-icon btn-ghost">
             <X size={16} className="text-white/60" />
@@ -460,9 +462,7 @@ const WalletModalOverlay = (props: any) => {
     lastTxDigest,
   } = props;
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [shouldRender, setShouldRender] = useState(
-    !!activeWalletModal,
-  );
+  const [shouldRender, setShouldRender] = useState(!!activeWalletModal);
 
   useGSAP(() => {
     if (activeWalletModal) {
@@ -515,7 +515,9 @@ const WalletModalOverlay = (props: any) => {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Transaction Sent!</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Transaction Sent!
+                  </h3>
                   <a
                     href={`https://suiscan.xyz/testnet/tx/${lastTxDigest}`}
                     target="_blank"
@@ -558,7 +560,8 @@ const WalletModalOverlay = (props: any) => {
                       You are sending
                     </span>
                     <span className="text-[11px] text-white/40">
-                      Balance: {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
+                      Balance:{" "}
+                      {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
                     </span>
                   </div>
                   <div className="flex justify-between items-end">
@@ -573,7 +576,8 @@ const WalletModalOverlay = (props: any) => {
                       <span className="text-sm text-white/20 font-medium">
                         ≈ $
                         {(
-                          Number(sendAmount || 0) * (selectedSendToken?.price || 0)
+                          Number(sendAmount || 0) *
+                          (selectedSendToken?.price || 0)
                         ).toFixed(2)}
                       </span>
                     </div>
@@ -678,7 +682,10 @@ const WalletModalOverlay = (props: any) => {
               </div>
               <button
                 onClick={() =>
-                  sileo.success({ title: "Coming Soon", description: "Share functionality is coming soon!" })
+                  sileo.success({
+                    title: "Coming Soon",
+                    description: "Share functionality is coming soon!",
+                  })
                 }
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
               >
@@ -703,7 +710,8 @@ export default function AppLayout() {
   // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
 
-  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(true);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] =
+    useState(true);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [activeWalletModal, setActiveWalletModal] = useState<
     "deposit" | "send" | null
@@ -731,6 +739,7 @@ export default function AppLayout() {
     "/account",
     "/subscription",
     "/onchain",
+    "/badge",
   ].some((path) => location.pathname.startsWith(path));
 
   // Close sidebar on route change
@@ -755,9 +764,17 @@ export default function AppLayout() {
         }),
       });
       setIsAutonomyEnabled(newValue);
-      sileo.success({ title: "Autonomy Updated", description: newValue ? "Agent Autonomy Enabled" : "Agent Autonomy Disabled" });
+      sileo.success({
+        title: "Autonomy Updated",
+        description: newValue
+          ? "Agent Autonomy Enabled"
+          : "Agent Autonomy Disabled",
+      });
     } catch (e) {
-      sileo.error({ title: "Update Failed", description: "Failed to update autonomy settings" });
+      sileo.error({
+        title: "Update Failed",
+        description: "Failed to update autonomy settings",
+      });
     } finally {
       setIsUpdatingAutonomy(false);
     }
@@ -855,13 +872,13 @@ export default function AppLayout() {
           icon: "/assets/images/sui-icon.png",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-        {
-          symbol: "USDC",
-          decimals: 6,
-          price: 1.0,
-          change24h: 0,
-          icon: "/assets/images/usdc-icon.png",
-        },
+          {
+            symbol: "USDC",
+            decimals: 6,
+            price: 1.0,
+            change24h: 0,
+            icon: "/assets/images/usdc-icon.png",
+          },
       };
 
       // Always show SUI and USDC
@@ -873,14 +890,14 @@ export default function AppLayout() {
           type: "0x2::sui::SUI",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-        {
-          ...KNOWN_TOKENS[
-          "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
-          ],
-          balance: 0,
-          value: 0,
-          type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
-        },
+          {
+            ...KNOWN_TOKENS[
+              "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
+            ],
+            balance: 0,
+            value: 0,
+            type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
+          },
       };
 
       for (const coin of coins) {
@@ -910,13 +927,7 @@ export default function AppLayout() {
     } catch (err) {
       console.error(err);
     }
-  }, [
-    address,
-    lastFetched,
-    suiClient,
-    fetchSuiPriceUSD,
-    selectedSendToken,
-  ]);
+  }, [address, lastFetched, suiClient, fetchSuiPriceUSD, selectedSendToken]);
 
   const debouncedFetchBalance = useMemo(
     () => debounce(fetchBalance, 500),
@@ -963,17 +974,16 @@ export default function AppLayout() {
             console.error("Transaction failed:", err);
             sileo.error({
               title: "Transaction Failed",
-              description: err.message || "Unknown error occurred"
+              description: err.message || "Unknown error occurred",
             });
-          }
-        }
+          },
+        },
       );
-
     } catch (e: any) {
       console.error("Send error:", e);
       sileo.error({
         title: "Error",
-        description: e.message || "Failed to send transaction"
+        description: e.message || "Failed to send transaction",
       });
     } finally {
       setIsSending(false);
@@ -989,8 +999,11 @@ export default function AppLayout() {
 
     const checkClaimable = async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        const res = await fetch(`${baseUrl}/api/task-points/claimable?user_id=${address}`);
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        const res = await fetch(
+          `${baseUrl}/api/task-points/claimable?user_id=${address}`,
+        );
         if (res.ok) {
           const data = await res.json();
           setHasUnclaimedPoints(data.total_activities > 0);
@@ -1018,7 +1031,8 @@ export default function AppLayout() {
       name: "Chats",
       to: "/chat",
       iconUrl: "/assets/icons/edit.svg",
-      active: location.pathname === "/chat" || location.pathname.startsWith("/chat/"),
+      active:
+        location.pathname === "/chat" || location.pathname.startsWith("/chat/"),
     },
     {
       name: "Analysis",
@@ -1046,6 +1060,12 @@ export default function AppLayout() {
       iconUrl: "/assets/icons/trophy.svg",
       active: location.pathname === "/leaderboard",
     },
+    {
+      name: "Badge",
+      to: "/badge",
+      iconUrl: "/assets/icons/shield.svg",
+      active: location.pathname === "/badge",
+    },
   ];
 
   return (
@@ -1058,15 +1078,19 @@ export default function AppLayout() {
           <Sidebar
             navItems={navItems}
             isCollapsed={isDesktopSidebarCollapsed}
-            onToggle={() => setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
+            onToggle={() =>
+              setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)
+            }
           />
         </div>
 
         {/* Main Content with dynamic margin */}
         <div
-          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${!isDashboard ? "pb-20" : ""
-            } md:pb-0 ${isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
-            }`}
+          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${
+            !isDashboard ? "pb-20" : ""
+          } md:pb-0 ${
+            isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
+          }`}
         >
           <MobileTopBar
             balance={walletBalanceUSD}
@@ -1089,7 +1113,6 @@ export default function AppLayout() {
               } satisfies LayoutContextType
             }
           />
-
         </div>
 
         <MobileSidebarDrawer

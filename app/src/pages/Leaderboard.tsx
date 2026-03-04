@@ -2,15 +2,21 @@ import { useEffect } from "react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
-import { LeaderboardSkeleton, SkeletonBox } from "@/components/ui/SkeletonLoader";
+import {
+  LeaderboardSkeleton,
+  SkeletonBox,
+} from "@/components/ui/SkeletonLoader";
 import { getLevelData, calculateLevel } from "@/utils/levelUtils";
 
 const Leaderboard = () => {
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const { entries: leaderboard, userRank, loading, totalParticipants } = useAppSelector(
-    (state) => state.leaderboard,
-  );
+  const {
+    entries: leaderboard,
+    userRank,
+    loading,
+    totalParticipants,
+  } = useAppSelector((state) => state.leaderboard);
 
   useEffect(() => {
     const addr = currentAccount?.address;
@@ -37,20 +43,31 @@ const Leaderboard = () => {
   }
 
   // The user might be in the Top 100, which gives us immediate rank+points.
-  const userInTop100 = leaderboard.find((entry) => entry.wallet_address === currentAccount?.address);
-  
+  const userInTop100 = leaderboard.find(
+    (entry) => entry.wallet_address === currentAccount?.address,
+  );
+
   // Rank is loading if we don't have the explicit userRank AND they aren't in the top 100.
   // (Assuming we even have a connected wallet. If no wallet, we don't show a loading rank.)
-  const isRankLoading = !!currentAccount?.address && loading && !userInTop100 && !userRank;
-  
+  const isRankLoading =
+    !!currentAccount?.address && loading && !userInTop100 && !userRank;
+
   // Total logic: the true total is in the Redux state `totalParticipants`.
   const isTotalLoading = loading && !totalParticipants;
-  
-  const userRankDisplay = isRankLoading 
-    ? <SkeletonBox className="h-6 w-16 ml-3 md:ml-4 inline-block align-middle rounded-md" />
-    : <span className="ml-3 md:ml-4 text-[#3B82F6]">{userRank?.rank ? formatRank(userRank.rank) : (userInTop100 ? formatRank(userInTop100.rank) : "#---")}</span>;
 
-  const userPoints = userInTop100 ? userInTop100.points : (userRank?.points || 0);
+  const userRankDisplay = isRankLoading ? (
+    <SkeletonBox className="h-6 w-16 ml-3 md:ml-4 inline-block align-middle rounded-md" />
+  ) : (
+    <span className="ml-3 md:ml-4 text-[#3B82F6]">
+      {userRank?.rank
+        ? formatRank(userRank.rank)
+        : userInTop100
+          ? formatRank(userInTop100.rank)
+          : "#---"}
+    </span>
+  );
+
+  const userPoints = userInTop100 ? userInTop100.points : userRank?.points || 0;
   const userLevelData = getLevelData(userPoints);
 
   return (
@@ -62,9 +79,11 @@ const Leaderboard = () => {
             Position on Leaderboard
             {userRankDisplay}
             {isTotalLoading ? (
-               <SkeletonBox className="h-4 w-12 ml-2 inline-block align-middle rounded-sm opacity-50" />
+              <SkeletonBox className="h-4 w-12 ml-2 inline-block align-middle rounded-sm opacity-50" />
             ) : totalParticipants && totalParticipants > 0 ? (
-              <span className="ml-2 text-sm text-white/30 font-normal">/ {totalParticipants}</span>
+              <span className="ml-2 text-sm text-white/30 font-normal">
+                / {totalParticipants}
+              </span>
             ) : null}
           </h1>
         </div>
@@ -77,7 +96,8 @@ const Leaderboard = () => {
             Level {userLevelData.level}
           </span>
           <span className="text-white/60 font-medium text-xs md:text-sm">
-            {userLevelData.currentXpInLevel} / {userLevelData.xpNeededForNextLevel} XP
+            {userLevelData.currentXpInLevel} /{" "}
+            {userLevelData.xpNeededForNextLevel} XP
           </span>
         </div>
 
@@ -108,15 +128,15 @@ const Leaderboard = () => {
                 <th className="bg-transparent border-b border-white/5 px-2 py-3 md:px-8 md:py-6 text-center text-[10px] md:text-xs font-bold text-white/40 uppercase tracking-wider md:tracking-[0.2em] last:border-r-0">
                   XP
                 </th>
-
               </tr>
             </thead>
             <tbody className="text-white/90">
               {leaderboard.map((entry, idx) => (
                 <tr
                   key={entry.user_id}
-                  className={`border-b border-white/5 last:border-0 transition-colors ${idx % 2 === 0 ? "bg-[#1A1A1A]" : "bg-[#0D0D0D]"
-                    } ${entry.user_id === currentAccount?.address ? "relative z-10 scale-[1.01] shadow-xl" : ""}`}
+                  className={`border-b border-white/5 last:border-0 transition-colors ${
+                    idx % 2 === 0 ? "bg-[#1A1A1A]" : "bg-[#0D0D0D]"
+                  } ${entry.user_id === currentAccount?.address ? "relative z-10 scale-[1.01] shadow-xl" : ""}`}
                 >
                   <td className="px-2 py-3 md:px-8 md:py-5 text-center font-mono text-xs md:text-sm">
                     {formatRank(entry.rank)}
@@ -132,7 +152,6 @@ const Leaderboard = () => {
                   <td className="px-2 py-3 md:px-8 md:py-5 text-center font-mono text-xs md:text-base">
                     {entry.points}
                   </td>
-
                 </tr>
               ))}
             </tbody>
