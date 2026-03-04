@@ -48,12 +48,14 @@ class LeaderboardService {
     try {
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('points')
+        .select('points, xp, tasks_created_today, tasks_claimed_today, research_created_today, research_claimed_today, daily_prompts_used, daily_research_prompts_used')
         .eq('wallet_address', norm)
-        .single();
+        .maybeSingle();
 
       const currentPoints = profile?.points || 0;
+      const currentXP = profile?.xp || 0;
       const finalPoints = currentPoints + pointsToAdd;
+      const finalXP = currentXP + pointsToAdd;
 
       const { error } = await supabase
         .from('user_profiles')
@@ -61,7 +63,14 @@ class LeaderboardService {
           wallet_address: norm,
           user_id: norm,
           points: finalPoints,
-          xp: finalPoints // Sync xp with points
+          xp: finalXP,
+          // Provide defaults for NOT NULL columns to prevent constraint violations
+          tasks_created_today: profile?.tasks_created_today || 0,
+          tasks_claimed_today: profile?.tasks_claimed_today || 0,
+          research_created_today: profile?.research_created_today || 0,
+          research_claimed_today: profile?.research_claimed_today || 0,
+          daily_prompts_used: profile?.daily_prompts_used || 0,
+          daily_research_prompts_used: profile?.daily_research_prompts_used || 0
         }, { onConflict: 'wallet_address' });
 
       if (error) throw error;

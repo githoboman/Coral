@@ -1,0 +1,56 @@
+SUPABASE MIGRATION SCRIPTS
+==========================
+
+These scripts handle a full Supabase project migration (export → schema seed → import).
+
+FILES
+-----
+  export_supabase.ts  — Exports ALL tables from the old project to JSON files
+  seed_schema.ts      — Creates matching tables in the new project (reads schema from old project)
+  import_supabase.ts  — Imports the JSON files into the new project
+
+OUTPUT
+------
+  All exported JSON files land in: server/supabase_export/
+  One file per table, e.g. user_profiles.json, checkins.json, etc.
+
+
+STEP-BY-STEP USAGE
+-------------------
+
+1. SET CREDENTIALS in server/.env:
+   ----------------------------------
+   SUPABASE_URL=https://<old-ref>.supabase.co
+   SUPABASE_KEY=<old-anon-or-service-key>
+
+   NEW_SUPABASE_URL=https://<new-ref>.supabase.co
+   NEW_SUPABASE_SERVICE_KEY=<new-service-role-key>
+
+   SUPABASE_PAT=<your-personal-access-token>
+   (Generate at: https://supabase.com/dashboard/account/tokens)
+
+2. EXPORT from old project:
+   --------------------------
+   npx tsx scripts/migration/export_supabase.ts
+
+3. CREATE SCHEMA in new project:
+   --------------------------------
+   npx tsx scripts/migration/seed_schema.ts
+
+4. IMPORT data into new project:
+   --------------------------------
+   npx tsx scripts/migration/import_supabase.ts
+
+5. UPDATE .env to point to the new project:
+   -------------------------------------------
+   Replace SUPABASE_URL and SUPABASE_KEY with the new project's values.
+   Update VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in app/.env too.
+
+
+NOTES
+-----
+- The export script auto-discovers ALL tables by reading the PostgREST OpenAPI spec.
+- The import script auto-discovers ALL exported JSON files — no manual table lists.
+- The seed script uses the Supabase Management API to create tables (requires PAT).
+- Run in order: export → seed → import. Never run import before seed.
+- It is safe to re-run seed_schema.ts (uses CREATE TABLE IF NOT EXISTS).

@@ -6,7 +6,8 @@ const chatService = getChatService();
 
 // GET /api/chats - List user's chats
 router.get("/", async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
+  let userId = req.query.userId as string;
+  if (userId) userId = userId.toLowerCase();
 
   if (!userId) {
     res.status(400).json({ error: "userId is required" });

@@ -34,7 +34,9 @@ router.post("/", async (req: Request, res: Response) => {
     } = req.body;
 
     // Handle both camelCase and snake_case inputs for robustness
-    const userId = user_id || req.body.userId;
+    let userId = user_id || req.body.userId;
+    if (userId) userId = userId.toLowerCase();
+    
     const msgContent = message || req.body.message;
     const agentId = agent_id || req.body.agentId;
     const chatId = chat_id || req.body.chatId; // Optional
@@ -233,7 +235,7 @@ router.post("/", async (req: Request, res: Response) => {
 // Task agent daily prompt status
 router.get("/task-prompts/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId.toLowerCase();
     const subscriptionService = getSubscriptionService();
     const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
 
@@ -254,7 +256,7 @@ router.get("/task-prompts/:userId", async (req, res) => {
 // Research agent daily prompt status
 router.get("/research-prompts/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId.toLowerCase();
     const subscriptionService = getSubscriptionService();
     const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
 
