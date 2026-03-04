@@ -346,10 +346,10 @@ export class SubscriptionService {
     }
   }
 
-  async canUsePrompt(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<boolean> {
+  async canUsePrompt(walletAddress: string, type: 'task' | 'research' = 'task', forceRefresh = false): Promise<boolean> {
     try {
       const today = this.getTodayDate();
-      const tierStatus = await this.getCurrentTier(walletAddress);
+      const tierStatus = await this.getCurrentTier(walletAddress, forceRefresh);
 
       let limit = 0;
       if (type === 'task') {
@@ -359,7 +359,7 @@ export class SubscriptionService {
         limit = tierStatus.isActivePremium ? 5 : 2;
       }
 
-      if (redisClient && redisClient.isOpen) {
+      if (!forceRefresh && redisClient && redisClient.isOpen) {
         const redisKey = `${type}:prompts:${walletAddress}:${today}`;
         try {
           const count = await redisClient.get(redisKey);
@@ -380,12 +380,16 @@ export class SubscriptionService {
 
       // Memory cache logic updated for types
       const memKey = `${type}:${walletAddress}`;
-      const mem = this.memoryCache.get(memKey);
-      if (mem && mem.date === today) {
-        if (mem.count >= limit) {
-          return false;
+      if (!forceRefresh) {
+        const mem = this.memoryCache.get(memKey);
+        if (mem && mem.date === today) {
+          if (mem.count >= limit) {
+            return false;
+          }
+        } else if (mem && mem.date !== today) {
+          this.memoryCache.delete(memKey);
         }
-      } else if (mem && mem.date !== today) {
+      } else {
         this.memoryCache.delete(memKey);
       }
 
@@ -451,14 +455,20 @@ export class SubscriptionService {
     }
   }
 
-  async getPromptsRemaining(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<{
+  async getPromptsRemaining(walletAddress: string, type: 'task' | 'research' = 'task', forceRefresh = false): Promise<{
     used: number;
     limit: number;
     remaining: number;
     tier: number;
   }> {
     try {
-      const tierStatus = await this.getCurrentTier(walletAddress);
+      const tierStatus = await this.getCurrentTier(walletAddress, forceRefresh);
+
+      if (forceRefresh) {
+        // Clear local caches for this user
+        this.memoryCache.delete(`${type}:${walletAddress}`);
+        this.tierCache.delete(walletAddress);
+      }
 
       let limit = 0;
       if (type === 'task') {
@@ -480,7 +490,7 @@ export class SubscriptionService {
       let used = needsReset ? 0 : supabaseUsed;
       const today = this.getTodayDate();
 
-      if (redisClient && redisClient.isOpen) {
+      if (!forceRefresh && redisClient && redisClient.isOpen) {
         const redisKey = `${type}:prompts:${walletAddress}:${today}`;
         try {
           const count = await redisClient.get(redisKey);
@@ -495,10 +505,12 @@ export class SubscriptionService {
         }
       }
 
-      const memKey = `${type}:${walletAddress}`;
-      const mem = this.memoryCache.get(memKey);
-      if (mem && mem.date === today && mem.count > used) {
-        used = mem.count;
+      if (!forceRefresh) {
+        const memKey = `${type}:${walletAddress}`;
+        const mem = this.memoryCache.get(memKey);
+        if (mem && mem.date === today && mem.count > used) {
+          used = mem.count;
+        }
       }
 
       return {

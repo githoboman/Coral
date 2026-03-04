@@ -1,5 +1,6 @@
 import "dotenv/config";
 import getSupabaseClient from "../config/supabase.js";
+import { redisClient } from "../middleware/rateLimiter.js";
 
 const supabase = getSupabaseClient();
 
@@ -31,8 +32,9 @@ async function resetPrompts() {
     return;
   }
 
-  console.log(`✅ Found user: ${user.username || 'N/A'} (${user.wallet_address})`);
-  console.log(`♻️ Resetting prompts and tasks...`);
+  const walletAddress = user.wallet_address;
+  console.log(`✅ Found user: ${user.username || 'N/A'} (${walletAddress})`);
+  console.log(`♻️ Resetting prompts and tasks in Supabase...`);
 
   const { error: updateError } = await supabase
     .from('user_profiles')
@@ -47,13 +49,40 @@ async function resetPrompts() {
       research_claimed_today: 0,
       last_task_reset_date: null
     })
-    .eq('wallet_address', user.wallet_address);
+    .eq('wallet_address', walletAddress);
 
   if (updateError) {
-    console.error("❌ Error resetting prompts:", updateError.message);
+    console.error("❌ Error resetting Supabase prompts:", updateError.message);
   } else {
-    console.log("✅ Successfully reset all daily prompt and activity counters.");
+    console.log("✅ Successfully reset all daily prompt and activity counters in Supabase.");
+    
+    // Also clear Redis if available
+    if (redisClient) {
+      console.log(`♻️ Clearing Redis cache...`);
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const taskKey = `task:prompts:${walletAddress}:${today}`;
+        const researchKey = `research:prompts:${walletAddress}:${today}`;
+        
+        // Connect if needed (though usually script handles this)
+        if (!redisClient.isOpen) await redisClient.connect();
+        
+        await redisClient.del(taskKey);
+        await redisClient.del(researchKey);
+        // Also clear general rate limit
+        await redisClient.del(`ratelimit:${walletAddress}`);
+        
+        console.log("✅ Successfully cleared Redis keys.");
+      } catch (redisErr: any) {
+        console.error("⚠️ Failed to clear Redis keys:", redisErr.message);
+      } finally {
+        if (redisClient.isOpen) await redisClient.disconnect();
+      }
+    }
   }
 }
 
-resetPrompts().catch(console.error);
+resetPrompts().catch((err) => {
+  console.error("❌ Script failed:", err);
+  process.exit(1);
+});
