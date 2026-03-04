@@ -92,9 +92,6 @@ async function main() {
     const userSpending = new Map<string, UserSpending>();
     const dailyStats = new Map<string, DailyStats>();
 
-    // ========================================================================
-    // STEP 1: Query subscriptions::PremiumSubscribed events
-    // ========================================================================
     console.log("🔍 Step 1: Querying subscription payments...");
 
     let hasNextPage = true;
@@ -122,7 +119,6 @@ async function main() {
 
         totalSubscriptionRevenue += amountPaid;
 
-        // Record transaction
         const date = new Date(timestamp).toISOString();
         allTransactions.push({
           type: "subscription",
@@ -137,7 +133,6 @@ async function main() {
           },
         });
 
-        // Update user spending
         if (!userSpending.has(walletAddress)) {
           userSpending.set(walletAddress, {
             wallet_address: walletAddress,
@@ -160,7 +155,6 @@ async function main() {
         if (date > userStats.last_transaction)
           userStats.last_transaction = date;
 
-        // Update daily stats
         const dayKey = date.split("T")[0];
         if (!dailyStats.has(dayKey)) {
           dailyStats.set(dayKey, {
@@ -195,9 +189,6 @@ async function main() {
       `\r   ✅ Processed ${subscriptionEvents} subscription payments\n`,
     );
 
-    // ========================================================================
-    // STEP 2: Query points::CheckinFeeCollected events
-    // ========================================================================
     console.log("🔍 Step 2: Querying check-in fees...");
 
     hasNextPage = true;
@@ -224,7 +215,6 @@ async function main() {
 
         totalCheckinFees += feeAmount;
 
-        // Record transaction
         const date = new Date(timestamp).toISOString();
         allTransactions.push({
           type: "checkin_fee",
@@ -234,7 +224,6 @@ async function main() {
           date,
         });
 
-        // Update user spending
         if (!userSpending.has(walletAddress)) {
           userSpending.set(walletAddress, {
             wallet_address: walletAddress,
@@ -257,7 +246,6 @@ async function main() {
         if (date > userStats.last_transaction)
           userStats.last_transaction = date;
 
-        // Update daily stats
         const dayKey = date.split("T")[0];
         if (!dailyStats.has(dayKey)) {
           dailyStats.set(dayKey, {
@@ -290,9 +278,6 @@ async function main() {
 
     console.log(`\r   ✅ Processed ${checkinFeeEvents} check-in fees\n`);
 
-    // ========================================================================
-    // STEP 3: Query subscriptions::TreasuryWithdrawn events (for audit trail)
-    // ========================================================================
     console.log("🔍 Step 3: Querying treasury withdrawals...");
 
     hasNextPage = true;
@@ -343,9 +328,6 @@ async function main() {
 
     console.log(`   ✅ Processed ${withdrawalEvents} treasury withdrawals\n`);
 
-    // ========================================================================
-    // STEP 4: Query current treasury balance
-    // ========================================================================
     let currentTreasuryBalance = 0;
 
     if (subscriptionRegistryId) {
@@ -378,9 +360,6 @@ async function main() {
       );
     }
 
-    // ========================================================================
-    // STEP 5: Calculate and Display Results
-    // ========================================================================
     const totalVolume = totalSubscriptionRevenue + totalCheckinFees;
     const totalTransactions = subscriptionEvents + checkinFeeEvents;
 
@@ -388,7 +367,6 @@ async function main() {
     console.log("💰 PLATFORM REVENUE & VOLUME SUMMARY");
     console.log("=".repeat(80) + "\n");
 
-    // Convert MIST to SUI (1 SUI = 1,000,000,000 MIST)
     const suiSubscriptions = totalSubscriptionRevenue / 1_000_000_000;
     const suiCheckins = totalCheckinFees / 1_000_000_000;
     const suiTotal = totalVolume / 1_000_000_000;
@@ -429,7 +407,6 @@ async function main() {
       console.log();
     }
 
-    // Average transaction values
     const avgSubscription =
       subscriptionEvents > 0 ? suiSubscriptions / subscriptionEvents : 0;
     const avgCheckinFee =
@@ -440,12 +417,10 @@ async function main() {
     console.log(`   Avg Check-in Fee: ${avgCheckinFee.toFixed(4)} SUI`);
     console.log();
 
-    // Sort user spending
     const topSpenders = Array.from(userSpending.values()).sort(
       (a, b) => b.total_spent - a.total_spent,
     );
 
-    // Display mode
     const mode = process.argv[2] || "summary";
 
     if (mode === "detailed" || mode === "--detailed") {
