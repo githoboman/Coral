@@ -240,7 +240,7 @@ You MUST always calculate and return due_date when the user specifies any time r
         },
         {
           role: "human",
-          content: `Current Time: ${state.clientTime ?? new Date().toISOString()}\nUser: "${state.message}"\n\nExtract intent & params.`,
+          content: `Current Time (ISO): ${state.clientTime ?? new Date().toISOString()}\nUser Message: "${state.message}"\n\nExtract intent & parameters. Ensure due_date is calculated correctly from Current Time.`,
         }
       ]),
       new Promise<never>((_, reject) =>
@@ -895,8 +895,13 @@ function parseRelativeTime(message: string, clientTime?: string): string | null 
  */
 function getUserOffset(clientTime: string): number {
   if (!clientTime) return 0;
+  // Handle UTC 'Z'
+  if (clientTime.endsWith('Z')) return 0;
+  
+  // Match offset like +01:00 or -05:00
   const match = clientTime.match(/([+-])(\d{2}):(\d{2})$/);
   if (!match) return 0;
+  
   const sign = match[1] === "+" ? 1 : -1;
   const hours = parseInt(match[2], 10);
   const mins = parseInt(match[3], 10);

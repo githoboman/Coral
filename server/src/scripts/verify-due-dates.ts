@@ -46,7 +46,7 @@ async function testSmartDates() {
 
   // 2. Run the scheduler (force private method trigger)
   console.log("[TEST] Running Scheduler Check...");
-  await (scheduler as any).processUserTasks(userId);
+  await (scheduler as any).checkDueTasks();
 
   // 3. Verify Rescheduling
   const updatedTask = await storage.getTask(userId, t1.taskId);
