@@ -504,9 +504,14 @@ const Dashboard = () => {
     const countdownSetter = selectedAgentId === "task" ? setTaskCountdown : setResearchCountdown;
     const currentCountdown = selectedAgentId === "task" ? taskCountdown : researchCountdown;
 
-    const fetchStatus = async () => {
+    const fetchStatus = async (force = false) => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`);
+        const url = new URL(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`);
+        if (force) url.searchParams.append('force', 'true');
+
+        const res = await fetch(url.toString(), {
+          cache: 'no-store', // CRITICAL: Prevent browser network caching
+        });
         if (res.ok) {
           const status = await res.json();
           setter(status);
@@ -520,6 +525,9 @@ const Dashboard = () => {
         console.error(`Failed to fetch ${selectedAgentId} prompts:`, e);
       }
     };
+
+    // Expose for manual triggering
+    (window as any).refreshPromptStatus = () => fetchStatus(true);
 
     // 1. Load from cache immediately
     const cached = localStorage.getItem(CACHE_KEY);

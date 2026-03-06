@@ -196,8 +196,8 @@ export class SuggestionEngine {
 
   constructor() {
     this.model = new ChatGoogleGenerativeAI({
-      model: "gemini-2.0-flash",
-      apiKey: process.env.GEMINI_API_KEY,
+      model: "gemini-flash-latest",
+      apiKey: process.env.GEMINI_API_KEY_RESEARCH || process.env.GEMINI_API_KEY,
       temperature: 0.7,
     });
   }

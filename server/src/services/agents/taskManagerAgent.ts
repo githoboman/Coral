@@ -56,21 +56,21 @@ const TaskAgentState = Annotation.Root({
 // ══════════════════════════════════════════════════════════════════════
 
 const fastLlm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-lite",
-  apiKey: process.env.GEMINI_API_KEY,
-  temperature: 0, // Lower = faster
-  maxRetries: 0,
-  maxOutputTokens: 1000, // Increased to allow full JSON extraction for long tasks
+  model: "gemini-2.5-flash", 
+  apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
+  temperature: 0,
+  maxRetries: 1,
+  maxOutputTokens: 2048,
 });
 
 const structuredExtractLlm = fastLlm.withStructuredOutput(IntentExtractionSchema);
 
 const chatLlm = new ChatGoogleGenerativeAI({
-  model: process.env.LLM_MODEL || "gemini-1.5-flash",
-  apiKey: process.env.GEMINI_API_KEY,
-  temperature: 0, // Lower = faster
-  maxRetries: 0,
-  maxOutputTokens: 200, // CRITICAL: Faster responses with limited output
+  model: process.env.LLM_MODEL || "gemini-2.5-flash",
+  apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
+  temperature: 0,
+  maxRetries: 1,
+  maxOutputTokens: 400, // Slightly more for better descriptive responses
 });
 
 // ══════════════════════════════════════════════════════════════════════
@@ -699,9 +699,9 @@ async function executeTask(
           }
         }
 
-        const text = typeof response.content === "string"
+        const text = response && typeof response.content === "string"
           ? response.content
-          : Array.isArray(response.content)
+          : response && Array.isArray(response.content)
             ? response.content
               .filter((c: any) => c.type === "text")
               .map((c: any) => c.text)
@@ -713,10 +713,20 @@ async function executeTask(
           actionEvent: null,
         };
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[TASK] ❌ Chat LLM error:`, error);
+        
+        // Handle specific LangChain/Google SDK crashes gracefully
+        const errorMsg = error?.message || String(error);
+        if (errorMsg.includes("429") || errorMsg.includes("Resource exhausted")) {
+          return {
+            responseText: "I'm receiving too many requests right now. Please wait a moment and try again.",
+            actionEvent: null,
+          };
+        }
+
         return {
-          responseText: "I'm having trouble connecting right now. Please try again.",
+          responseText: "I'm having a bit of trouble answering right now. Try a different request or check your task list.",
           actionEvent: null,
         };
       }
