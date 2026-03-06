@@ -54,10 +54,10 @@ Thumbs.db
 *.secret
 *.key
 
-# --- Git ---
+# --- Gitt ---
 .gitignore
 
-# --- Rough work ---
+# --- Rough work --
 file-structure.txt
 .next
 
