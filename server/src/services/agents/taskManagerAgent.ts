@@ -166,10 +166,10 @@ class BackgroundTaskQueue {
       case 'create':
         const result = await taskStorage.createTask(task.userId, task.data);
         if (result) {
-          // Send notification (fire-and-forget)
+          // Dispatch parallel notifications (Telegram Track A + Email Track B)
+          // dispatchTaskCreatedAlert handles all internal errors — safe to fire-and-forget
           const notificationService = getNotificationService();
-          notificationService.sendTaskCreatedNotification(task.userId, task.data)
-            .catch(err => console.error("Failed to send creation notification:", err));
+          notificationService.dispatchTaskCreatedAlert(task.userId, task.data);
         }
         break;
       case 'update':

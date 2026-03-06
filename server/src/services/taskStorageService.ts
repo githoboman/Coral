@@ -44,7 +44,7 @@ export class TaskStorageService {
           action_type: taskData.action_type,
           action_params: taskData.action_params,
           action_status: taskData.action_status,
-          due_notification_sent: taskData.due_notification_sent
+          due_notification_sent: taskData.due_notification_sent ?? false
         })
         .select()
         .single();

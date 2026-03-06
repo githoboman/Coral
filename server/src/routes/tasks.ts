@@ -70,12 +70,11 @@ router.post(
 
       const task = await taskStorage.getTask(user_id, result.taskId);
 
-      // Send Telegram notification
+      // Dispatch parallel notifications (Telegram Track A + Email Track B)
+      // dispatchTaskCreatedAlert handles all internal errors — safe to fire-and-forget
       const notificationService = getNotificationService();
       if (task) {
-        notificationService.sendTaskCreatedNotification(user_id, task).catch(err =>
-          console.error("Failed to send task creation notification:", err)
-        );
+        notificationService.dispatchTaskCreatedAlert(user_id, task);
       }
 
       res.json({

@@ -75,6 +75,14 @@ export class TaskScheduler {
           tags: rawTask.tags || []
         };
 
+        // If the due date is more than 5 minutes in the past, the task was missed
+        // while the server was offline — silently discard without notifying.
+        const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+        if (now.getTime() - new Date(task.due_date).getTime() > STALE_THRESHOLD_MS) {
+          await this.taskStorage.updateTask(task.user_id, task.id, { due_notification_sent: true });
+          continue;
+        }
+
         try {
           // 2. Mark as sent IMMEDIATELY to prevent duplicate triggers in next cron run
           // if the notification takes long or if multiple schedulers are running
@@ -82,10 +90,10 @@ export class TaskScheduler {
             due_notification_sent: true
           });
 
-          // 3. Send notification
-          await this.notificationService.sendTaskDueNotification(task.user_id, task);
-          
-          console.log(`[SCHEDULER] Notified user for task ${task.id}`);
+          // 3. Dispatch notifications — Telegram (Track A) + Email (Track B) in parallel
+          await this.notificationService.dispatchTaskDueAlert(task.user_id, task);
+
+          console.log(`[SCHEDULER] Dispatched parallel alert for task ${task.id}`);
 
           // 4. Handle recurrence (ONLY if explicitly marked or for specific action types)
           // For now, we only reschedule if the user message or tags indicate it, 
