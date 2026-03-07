@@ -52,63 +52,70 @@ export class TaskScheduler {
 
   private async checkDueTasks() {
     try {
-      // Fetch all users from Supabase to check their tasks
-      // In a large app, we'd query tasks table directly for due tasks, 
-      // but for now we follow the existing pattern of processing per user.
-      const { data: users, error } = await supabase
-        .from('user_profiles')
-        .select('wallet_address');
+      const now = new Date();
+      
+      // 1. Fetch ALL due tasks across ALL users in one query
+      // This is much faster and avoids iterating over user profiles which might be redundant
+      const { data: dueTasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('status', 'pending')
+        .eq('due_notification_sent', false)
+        .lte('due_date', now.toISOString());
 
       if (error) throw error;
-      if (!users || users.length === 0) return;
+      if (!dueTasks || dueTasks.length === 0) return;
 
-      for (const user of users) {
-        if (user.wallet_address) {
-          await this.processUserTasks(user.wallet_address);
+      console.log(`[SCHEDULER] Found ${dueTasks.length} tasks due for notification`);
+
+      for (const rawTask of dueTasks) {
+        const task = {
+          ...rawTask,
+          id: rawTask.id.toString(),
+          tags: rawTask.tags || []
+        };
+
+        // If the due date is more than 5 minutes in the past, the task was missed
+        // while the server was offline — silently discard without notifying.
+        const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+        if (now.getTime() - new Date(task.due_date).getTime() > STALE_THRESHOLD_MS) {
+          await this.taskStorage.updateTask(task.user_id, task.id, { due_notification_sent: true });
+          continue;
+        }
+
+        try {
+          // 2. Mark as sent IMMEDIATELY to prevent duplicate triggers in next cron run
+          // if the notification takes long or if multiple schedulers are running
+          await this.taskStorage.updateTask(task.user_id, task.id, {
+            due_notification_sent: true
+          });
+
+          // 3. Dispatch notifications — Telegram (Track A) + Email (Track B) in parallel
+          await this.notificationService.dispatchTaskDueAlert(task.user_id, task);
+
+          console.log(`[SCHEDULER] Dispatched parallel alert for task ${task.id}`);
+
+          // 4. Handle recurrence (ONLY if explicitly marked or for specific action types)
+          // For now, we only reschedule if the user message or tags indicate it, 
+          // or we can add a 'recurring' field to TaskData.
+          // FIX: Removing the hardcoded 24h reschedule for EVERY task.
+          if (task.tags?.includes('recurring') || task.tags?.includes('daily')) {
+            const currentDueDate = new Date(task.due_date!);
+            const nextDueDate = new Date(currentDueDate.getTime() + 24 * 60 * 60 * 1000);
+
+            await this.taskStorage.updateTask(task.user_id, task.id, {
+              due_date: nextDueDate.toISOString(),
+              due_notification_sent: false // Reset for next time
+            });
+            console.log(`[SCHEDULER] Rescheduled recurring task ${task.id} to ${nextDueDate.toISOString()}`);
+          }
+        } catch (taskErr) {
+          console.error(`[SCHEDULER] Failed to process task ${task.id}:`, taskErr);
         }
       }
 
     } catch (error) {
       console.error("[SCHEDULER] Error checking due tasks:", error);
-    }
-  }
-
-  private async processUserTasks(userId: string) {
-    try {
-      const tasks = await this.taskStorage.getTasks(userId);
-      const now = new Date();
-      // Find tasks that are due (or past due) and haven't been notified
-      const dueTasks = tasks.filter(task => {
-        if (!task.due_date || task.status === "completed" || task.due_notification_sent) return false;
-
-        const dueDate = new Date(task.due_date);
-        // Add a small buffer (e.g. 1 minute) to ensure we catch tasks that just became due
-        // But mainly we want to notify when Current Time >= Due Time
-        return dueDate <= now;
-      });
-
-      for (const task of dueTasks) {
-
-
-        // Send notification
-        await this.notificationService.sendTaskDueNotification(userId, task);
-
-        // RECURRING LOGIC: Reschedule for 24 hours later
-        // precisely 24 hours after the *current* due date to maintain the cadence
-        const currentDueDate = new Date(task.due_date!);
-        const nextDueDate = new Date(currentDueDate.getTime() + 24 * 60 * 60 * 1000);
-
-        await this.taskStorage.updateTask(userId, task.id, {
-          due_date: nextDueDate.toISOString(),
-          due_notification_sent: false // Reset so it triggers again next time
-        });
-
-        console.log(`[SCHEDULER] Rescheduled task ${task.id} to ${nextDueDate.toISOString()}`);
-      }
-
-    } catch (error) {
-      // Fail silently for individual users so others process
-      // console.error(`[SCHEDULER] Error processing tasks for ${userId}:`, error);
     }
   }
 

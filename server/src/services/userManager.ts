@@ -187,6 +187,7 @@ export class UserManager {
         user_id: userProfile.wallet_address,
         is_waitlisted: userProfile.is_waitlisted,
         points: userProfile.points_awarded,
+        xp: userProfile.points_awarded, // Sync XP
         joined_at: userProfile.joined_at,
         tasks_created_today: userProfile.tasks_created_today,
         tasks_claimed_today: userProfile.tasks_claimed_today,
@@ -358,6 +359,7 @@ export class UserManager {
         .from('user_profiles')
         .update({
           points: (profile.points || 0) + pointsToAdd,
+          xp: (profile.points || 0) + pointsToAdd, // Sync XP
           checkin_streak: streakDay,
           last_checkin: lastCheckinDate,
           total_checkins: (profile.total_checkins || 0) + 1

@@ -80,7 +80,10 @@ export class NotificationService {
       .replace(/'/g, "&#039;");
   }
 
-  public async sendTaskCreatedNotification(walletAddress: string, task: any) {
+  /**
+   * @deprecated — Preserved for rollback. Use dispatchTaskCreatedAlert() instead.
+   */
+  public async _legacy_sendTaskCreatedNotification(walletAddress: string, task: any) {
     // 1. Telegram (HTML Format)
     const username = await this.getUsername(walletAddress);
     const safeUsername = this.escapeHtml(username);
@@ -133,7 +136,82 @@ export class NotificationService {
     }
   }
 
-  public async sendTaskDueNotification(walletAddress: string, task: any) {
+  // ── NEW: Decoupled Parallel Dispatcher — Task Created ──────────────────────
+  // Track A (Telegram) and Track B (Email) run simultaneously via Promise.allSettled.
+  // Each track has its own try/catch — a failure in one CANNOT affect the other.
+
+  public async dispatchTaskCreatedAlert(walletAddress: string, task: any): Promise<void> {
+    const taskId = task.id ?? '?';
+
+    // ── Track A: Telegram (Standard — always fires) ──────────────────────────
+    const telegramTrack = (async () => {
+      try {
+        const username = await this.getUsername(walletAddress);
+        const safeUsername = this.escapeHtml(username);
+        const taskName = task.task_name || "New Task";
+        const safeTaskName = this.escapeHtml(taskName);
+        const rawDesc = task.description ? this.escapeHtml(task.description) : "";
+        const desc = (rawDesc && !rawDesc.toLowerCase().includes(safeTaskName.toLowerCase()) && !safeTaskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
+        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
+        const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleString("en-US", {
+          month: "numeric", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit", second: "2-digit"
+        }) : "";
+        const descLine = desc ? `\n${desc}` : "";
+        const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
+
+        await this.sendNotification(walletAddress, message);
+        console.log(`[NOTIFY] Telegram: ✓ Task ${taskId} created alert sent`);
+      } catch (err) {
+        console.error(`[NOTIFY] Telegram: ✗ Task ${taskId} created alert failed`, err);
+      }
+    })();
+
+    // ── Track B: Email (Premium — fully isolated from Track A) ──────────────
+    const emailTrack = (async () => {
+      try {
+        const email = await this.getPremiumEmail(walletAddress);
+        if (!email) {
+          console.log(`[NOTIFY] Email: — Task ${taskId} created alert skipped (not premium or no email)`);
+          return;
+        }
+        const username = await this.getUsername(walletAddress);
+        const taskName = task.task_name || "New Task";
+        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
+        const html = `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+              <p>Hey <b>${username}</b>,</p>
+              <p>You just created a new task!</p>
+              <p>Here's the <b>Details</b></p>
+              <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
+                ${(task.description && !task.description.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(task.description.toLowerCase())) ? `<p>${task.description}</p>` : ''}
+              </div>
+              ${task.due_date ? `<p><b>Due Date</b><br>${new Date(task.due_date).toLocaleString("en-US", {
+                month: "numeric", day: "numeric", year: "numeric",
+                hour: "numeric", minute: "2-digit", second: "2-digit"
+              })}</p>` : ''}
+              ${task.priority ? `<p><b>Priority</b><br>${priority}</p>` : ''}
+              <p>I'd be here to remind you once it is due.</p>
+              <p>Thanks,<br>Tovira Team</p>
+          </div>`;
+
+        const ok = await this.emailService.sendEmail(email, `New Notification!`, html);
+        if (ok) console.log(`[NOTIFY] Email: ✓ Task ${taskId} created alert sent to ${email}`);
+        else    console.warn(`[NOTIFY] Email: ✗ Task ${taskId} created alert — sendEmail returned false`);
+      } catch (err) {
+        console.error(`[NOTIFY] Email: ✗ Task ${taskId} created alert threw an error`, err);
+      }
+    })();
+
+    // Fire both tracks simultaneously; settle independently — no throw propagation
+    await Promise.allSettled([telegramTrack, emailTrack]);
+  }
+
+  /**
+   * @deprecated — Preserved for rollback. Use dispatchTaskDueAlert() instead.
+   */
+  public async _legacy_sendTaskDueNotification(walletAddress: string, task: any) {
     const taskName = task.task_name || "Task";
     const rawDesc = task.description ? task.description : "";
     const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
@@ -172,6 +250,73 @@ export class NotificationService {
         `;
       await this.emailService.sendEmail(email, `Reminder Alert!!`, html);
     }
+  }
+
+  // ── NEW: Decoupled Parallel Dispatcher — Task Due ───────────────────────────
+  // Track A (Telegram) and Track B (Email) run simultaneously via Promise.allSettled.
+  // Each track has its own try/catch — a failure in one CANNOT affect the other.
+
+  public async dispatchTaskDueAlert(walletAddress: string, task: any): Promise<void> {
+    const taskId = task.id ?? '?';
+
+    // ── Track A: Telegram (Standard — always fires) ──────────────────────────
+    const telegramTrack = (async () => {
+      try {
+        const taskName = task.task_name || "Task";
+        const rawDesc = task.description ? task.description : "";
+        const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
+        const dueDate = this.formatDate(task.due_date);
+        const username = await this.getUsername(walletAddress);
+        const safeUsername = this.escapeHtml(username);
+        const safeTaskName = this.escapeHtml(taskName);
+        const safeDesc = this.escapeHtml(desc);
+        const descLine = desc ? `\n${safeDesc}` : "";
+        const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
+
+        await this.sendNotification(walletAddress, message);
+        console.log(`[NOTIFY] Telegram: ✓ Task ${taskId} due alert sent`);
+      } catch (err) {
+        console.error(`[NOTIFY] Telegram: ✗ Task ${taskId} due alert failed`, err);
+      }
+    })();
+
+    // ── Track B: Email (Premium — fully isolated from Track A) ──────────────
+    const emailTrack = (async () => {
+      try {
+        const email = await this.getPremiumEmail(walletAddress);
+        if (!email) {
+          console.log(`[NOTIFY] Email: — Task ${taskId} due alert skipped (not premium or no email)`);
+          return;
+        }
+        const taskName = task.task_name || "Task";
+        const rawDesc = task.description ? task.description : "";
+        const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
+        const dueDate = this.formatDate(task.due_date);
+        const username = await this.getUsername(walletAddress);
+        const html = `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+              <p>Hey <b>${username}</b>,</p>
+              <p>Your task is due! Kindly attend to it.</p>
+              <p>Here's the <b>details of what you asked me to remind you</b></p>
+              <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
+                ${desc ? `<p>${desc}</p>` : ''}
+              </div>
+              <p><b>Due Date</b><br>${dueDate}</p>
+              <p>Do well to schedule more activities, I look forward to helping you stay productive.</p>
+              <p>Thanks,<br>Tovira Team</p>
+          </div>`;
+
+        const ok = await this.emailService.sendEmail(email, `Reminder Alert!!`, html);
+        if (ok) console.log(`[NOTIFY] Email: ✓ Task ${taskId} due alert sent to ${email}`);
+        else    console.warn(`[NOTIFY] Email: ✗ Task ${taskId} due alert — sendEmail returned false`);
+      } catch (err) {
+        console.error(`[NOTIFY] Email: ✗ Task ${taskId} due alert threw an error`, err);
+      }
+    })();
+
+    // Fire both tracks simultaneously; settle independently — no throw propagation
+    await Promise.allSettled([telegramTrack, emailTrack]);
   }
 
   // -- Phase 2: Proactive Suggestion Delivery --

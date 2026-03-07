@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { getSupabaseClient } from "../config/supabase";
 import { withRetry } from "../utils/retryUtils";
 
@@ -28,12 +29,17 @@ export class ChatService {
   async createChat(userId: string, agentId: string, name: string = "New conversation"): Promise<Chat | null> {
     try {
       return await withRetry(async () => {
+        const normalizedUserId = userId.toLowerCase();
+        const now = new Date().toISOString();
         const { data, error } = await this.supabase
           .from("chats")
           .insert({
-            user_id: userId,
+            chat_id: randomUUID(),
+            user_id: normalizedUserId,
             agent_id: agentId,
             name: name,
+            created_at: now,
+            last_updated: now,
           })
           .select()
           .single();
@@ -93,10 +99,11 @@ export class ChatService {
   async getChats(userId: string): Promise<Chat[]> {
     try {
       return await withRetry(async () => {
+        const normalizedUserId = userId.toLowerCase();
         const { data, error } = await this.supabase
           .from("chats")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", normalizedUserId)
           .order("last_updated", { ascending: false });
 
         if (error) throw error;

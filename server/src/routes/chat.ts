@@ -34,11 +34,13 @@ router.post("/", async (req: Request, res: Response) => {
     } = req.body;
 
     // Handle both camelCase and snake_case inputs for robustness
-    const userId = user_id || req.body.userId;
+    let userId = user_id || req.body.userId;
+    if (userId) userId = userId.toLowerCase();
+    
     const msgContent = message || req.body.message;
     const agentId = agent_id || req.body.agentId;
     const chatId = chat_id || req.body.chatId; // Optional
-    const clientTime = req.body.client_time || new Date().toISOString(); // Default to server time if missing
+    const clientTime = req.body.client_time || req.body.clientTime || new Date().toISOString(); // Handle both formats
 
     if (!userId || !msgContent) {
       return res.status(400).json({ error: "user_id and message are required" });
@@ -47,7 +49,7 @@ router.post("/", async (req: Request, res: Response) => {
     // ✅ TASK AGENT: Check daily limit
     if (agentId === "task" || agentId === "task_agent") {
       const subscriptionService = getSubscriptionService();
-      const canUse = await subscriptionService.canUsePrompt(userId, 'task');
+      const canUse = await subscriptionService.canUsePrompt(userId, 'task', true);
 
       if (!canUse) {
         const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
@@ -70,7 +72,7 @@ router.post("/", async (req: Request, res: Response) => {
     // ✅ RESEARCH AGENT: Check daily limit (3 free / 6 premium)
     if (agentId === "research") {
       const subscriptionService = getSubscriptionService();
-      const canUse = await subscriptionService.canUsePrompt(userId, 'research');
+      const canUse = await subscriptionService.canUsePrompt(userId, 'research', true);
 
       if (!canUse) {
         const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
@@ -233,9 +235,10 @@ router.post("/", async (req: Request, res: Response) => {
 // Task agent daily prompt status
 router.get("/task-prompts/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId.toLowerCase();
+    const forceRefresh = req.query.force === 'true';
     const subscriptionService = getSubscriptionService();
-    const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
+    const remaining = await subscriptionService.getPromptsRemaining(userId, 'task', forceRefresh);
 
     const now = new Date();
     const tomorrow = new Date(now);
@@ -254,9 +257,10 @@ router.get("/task-prompts/:userId", async (req, res) => {
 // Research agent daily prompt status
 router.get("/research-prompts/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId.toLowerCase();
+    const forceRefresh = req.query.force === 'true';
     const subscriptionService = getSubscriptionService();
-    const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
+    const remaining = await subscriptionService.getPromptsRemaining(userId, 'research', forceRefresh);
 
     const now = new Date();
     const tomorrow = new Date(now);

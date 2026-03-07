@@ -144,7 +144,7 @@ router.post(
   "/confirm-claim",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { user_id } = req.body;
+      let { user_id } = req.body;
 
       if (!user_id || typeof user_id !== "string") {
         res.status(400).json({
@@ -154,6 +154,7 @@ router.post(
         return;
       }
 
+      user_id = user_id.toLowerCase();
       const manager = getLocalUserManager();
       const profile = await manager.getUserProfile(user_id);
 
@@ -226,7 +227,7 @@ router.get(
   "/stats/:user_id",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { user_id } = req.params;
+      const user_id = req.params.user_id.toLowerCase();
 
       if (!user_id.startsWith("0x") || user_id.length !== 66) {
         res.status(400).json({

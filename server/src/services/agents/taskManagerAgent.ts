@@ -56,21 +56,21 @@ const TaskAgentState = Annotation.Root({
 // ══════════════════════════════════════════════════════════════════════
 
 const fastLlm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-lite",
-  apiKey: process.env.GEMINI_API_KEY,
-  temperature: 0, // Lower = faster
-  maxRetries: 0,
-  maxOutputTokens: 1000, // Increased to allow full JSON extraction for long tasks
+  model: "gemini-2.5-flash", 
+  apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
+  temperature: 0,
+  maxRetries: 1,
+  maxOutputTokens: 2048,
 });
 
 const structuredExtractLlm = fastLlm.withStructuredOutput(IntentExtractionSchema);
 
 const chatLlm = new ChatGoogleGenerativeAI({
-  model: process.env.LLM_MODEL || "gemini-1.5-flash",
-  apiKey: process.env.GEMINI_API_KEY,
-  temperature: 0, // Lower = faster
-  maxRetries: 0,
-  maxOutputTokens: 200, // CRITICAL: Faster responses with limited output
+  model: process.env.LLM_MODEL || "gemini-2.5-flash",
+  apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
+  temperature: 0,
+  maxRetries: 1,
+  maxOutputTokens: 400, // Slightly more for better descriptive responses
 });
 
 // ══════════════════════════════════════════════════════════════════════
@@ -166,10 +166,10 @@ class BackgroundTaskQueue {
       case 'create':
         const result = await taskStorage.createTask(task.userId, task.data);
         if (result) {
-          // Send notification (fire-and-forget)
+          // Dispatch parallel notifications (Telegram Track A + Email Track B)
+          // dispatchTaskCreatedAlert handles all internal errors — safe to fire-and-forget
           const notificationService = getNotificationService();
-          notificationService.sendTaskCreatedNotification(task.userId, task.data)
-            .catch(err => console.error("Failed to send creation notification:", err));
+          notificationService.dispatchTaskCreatedAlert(task.userId, task.data);
         }
         break;
       case 'update':
@@ -240,7 +240,7 @@ You MUST always calculate and return due_date when the user specifies any time r
         },
         {
           role: "human",
-          content: `Current Time: ${state.clientTime ?? new Date().toISOString()}\nUser: "${state.message}"\n\nExtract intent & params.`,
+          content: `Current Time (ISO): ${state.clientTime ?? new Date().toISOString()}\nUser Message: "${state.message}"\n\nExtract intent & parameters. Ensure due_date is calculated correctly from Current Time.`,
         }
       ]),
       new Promise<never>((_, reject) =>
@@ -699,9 +699,9 @@ async function executeTask(
           }
         }
 
-        const text = typeof response.content === "string"
+        const text = response && typeof response.content === "string"
           ? response.content
-          : Array.isArray(response.content)
+          : response && Array.isArray(response.content)
             ? response.content
               .filter((c: any) => c.type === "text")
               .map((c: any) => c.text)
@@ -713,10 +713,20 @@ async function executeTask(
           actionEvent: null,
         };
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[TASK] ❌ Chat LLM error:`, error);
+        
+        // Handle specific LangChain/Google SDK crashes gracefully
+        const errorMsg = error?.message || String(error);
+        if (errorMsg.includes("429") || errorMsg.includes("Resource exhausted")) {
+          return {
+            responseText: "I'm receiving too many requests right now. Please wait a moment and try again.",
+            actionEvent: null,
+          };
+        }
+
         return {
-          responseText: "I'm having trouble connecting right now. Please try again.",
+          responseText: "I'm having a bit of trouble answering right now. Try a different request or check your task list.",
           actionEvent: null,
         };
       }
@@ -885,8 +895,13 @@ function parseRelativeTime(message: string, clientTime?: string): string | null 
  */
 function getUserOffset(clientTime: string): number {
   if (!clientTime) return 0;
+  // Handle UTC 'Z'
+  if (clientTime.endsWith('Z')) return 0;
+  
+  // Match offset like +01:00 or -05:00
   const match = clientTime.match(/([+-])(\d{2}):(\d{2})$/);
   if (!match) return 0;
+  
   const sign = match[1] === "+" ? 1 : -1;
   const hours = parseInt(match[2], 10);
   const mins = parseInt(match[3], 10);

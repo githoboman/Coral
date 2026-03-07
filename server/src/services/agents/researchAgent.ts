@@ -116,14 +116,14 @@ const SimulationTool = {
 // ── LLM with tools (used in researchNode only) ──
 const model = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY_RESEARCH || process.env.GEMINI_API_KEY,
   temperature: 0,
 }).bindTools([tavilyTool, BlockVisionTool, SimulationTool]);
 
 // ── LLM without tools (used in reportNode to avoid Gemini re-ingestion errors) ──
 const reportModel = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY_RESEARCH || process.env.GEMINI_API_KEY,
   temperature: 0,
 });
 
