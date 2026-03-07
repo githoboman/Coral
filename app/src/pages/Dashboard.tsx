@@ -1128,7 +1128,7 @@ const Dashboard = () => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.96 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full right-0 mt-2 w-56 bg-[#111318] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+                className="absolute top-full right-[-30px] mt-2 w-56 bg-[#111318] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
               >
                 {AGENTS.map((agent) => (
                   <button
