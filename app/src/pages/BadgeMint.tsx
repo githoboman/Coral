@@ -19,7 +19,7 @@ const BADGE_IMAGE =
 const resolveImageUrl = (url: string) =>
   url.startsWith("ipfs://") ? `https://ipfs.io/ipfs/${url.slice(7)}` : url;
 
-const SUI_EXPLORER_BASE = "https://suiexplorer.com/object";
+const SUI_EXPLORER_BASE = "https://suiscan.xyz/testnet/object";
 
 const BadgeImage = ({
   revealed,
