@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { PanelLeft } from "lucide-react";
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -116,21 +115,6 @@ export function MobileDashboardSidebar({
 
       {/* Bottom Actions */}
       <div className="p-2 pt-6 border-t border-white/5 space-y-4 overflow-hidden mb-2">
-        <button
-          onClick={onClose}
-          className="sidebar-link group flex items-center h-12 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 cursor-pointer overflow-hidden transition-all duration-300 w-full px-4 gap-3"
-        >
-          <div className="flex-shrink-0 flex items-center justify-center w-6 h-6">
-            <PanelLeft
-              size={20}
-              className="transition-opacity duration-200 opacity-50 group-hover:opacity-100"
-            />
-          </div>
-          <span className="text-[15px] font-[500] tracking-tight truncate pl-3">
-            Collapse
-          </span>
-        </button>
-
         <Link
           to="/account"
           onClick={onClose}
