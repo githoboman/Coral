@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { LayoutContextType } from "@/types/LayoutTypes";
@@ -11,36 +11,120 @@ import {
   ArrowDownLeft,
   X,
 } from "lucide-react";
+import { useActivity } from "@/hooks/useActivity";
+import { sileo } from "sileo";
+import { 
+  AreaChart, 
+  Area,
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
 
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
+  const address = account?.address || null;
+  const { activity, isFetchingActivity, fetchActivity } = useActivity(address);
+
   const { walletBalanceUSD, tokens } = useOutletContext<LayoutContextType>();
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
+  const [isRecentTxModalOpen, setIsRecentTxModalOpen] = useState(false);
+  
+  const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7D" | "30D">("7D");
+  const [performanceData, setPerformanceData] = useState<any[]>([]);
+  const [isFetchingPerformance, setIsFetchingPerformance] = useState(false);
+
+  useEffect(() => {
+    if (address) {
+      fetchActivity();
+    }
+  }, [address, fetchActivity]);
+
+  // Fetch performance data
+  useEffect(() => {
+    const fetchPerformance = async () => {
+      if (!address || !tokens || tokens.length === 0) return;
+      
+      setIsFetchingPerformance(true);
+      try {
+        const days = selectedTimeframe === "24h" ? 1 : selectedTimeframe === "7D" ? 7 : 30;
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/sui/market_chart?vs_currency=usd&days=${days}&interval=${selectedTimeframe === "24h" ? "hourly" : "daily"}`
+        );
+        const data = await res.json();
+        
+        if (!data.prices) throw new Error("No price data");
+
+        // Get SUI balance
+        const suiToken = tokens.find(t => t.symbol === "SUI");
+        const currentBalance = suiToken ? suiToken.balance : 0;
+
+        // Process prices and reconstruct historical balances
+        // For simplicity, we assume other tokens are negligible or stable for now, 
+        // as we only have SUI historical data easily accessible.
+        
+        const chartData = data.prices.map(([timestamp, price]: [number, number]) => {
+          // Find transactions that happened AFTER this timestamp
+          const futureTxs = activity.filter(tx => tx.timestampMs && Number(tx.timestampMs) > timestamp);
+          
+          // Reverse transactions to get balance at this timestamp
+          let historicalBalance = currentBalance;
+          futureTxs.forEach(tx => {
+             // If we received SUI in the future, we had LESS in the past
+             // If we sent SUI in the future, we had MORE in the past
+             historicalBalance -= tx.netSUI;
+          });
+
+          return {
+            name: new Date(timestamp).toLocaleDateString(undefined, { 
+              month: 'short', 
+              day: 'numeric',
+              hour: selectedTimeframe === "24h" ? '2-digit' : undefined
+            }),
+            value: Number((historicalBalance * price).toFixed(2)),
+            timestamp
+          };
+        });
+
+        setPerformanceData(chartData);
+      } catch (err) {
+        console.error("Failed to fetch performance:", err);
+      } finally {
+        setIsFetchingPerformance(false);
+      }
+    };
+
+    fetchPerformance();
+  }, [address, tokens, activity, selectedTimeframe]);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      sileo.success({ title: "Copied", description: "Copied to clipboard!" });
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      sileo.error({ title: "Error", description: "Failed to copy to clipboard" });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8">
       <div className="max-w-[1200px] mx-auto space-y-6">
         
         {/* Header Row */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-center">
               Portfolio Dashboard
             </h1>
             <div className="flex items-center gap-5 sm:ml-2">
-              <span className="bg-[#B7FC0D33] text-[#B7FC0D] px-5 py-1.5 rounded-full text-sm font-medium">
-                View only
-              </span>
               <div className="flex items-center gap-2 text-gray-300 text-sm">
-                <span className="truncate max-w-[120px] sm:max-w-none">
+                <span className="truncate max-w-[120px] sm:max-w-none text-center">
                   {account?.address ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}` : "No wallet connected"}
                 </span>
                 {account?.address && (
                   <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(account.address);
-                    }}
+                    onClick={() => copyToClipboard(account.address)}
                     className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
                   >
                     <Copy size={14} />
@@ -56,14 +140,14 @@ export default function OnchainAnalysis() {
           
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 w-full xl:w-auto">
             {/* USD / SUI Toggle */}
-            <div className="flex items-center bg-[#0A0A0A] border border-white/10 rounded-full p-1 w-full sm:w-auto overflow-x-auto whitespace-nowrap">
+            {/* <div className="flex items-center bg-[#0A0A0A] border border-white/10 rounded-full p-1 w-full sm:w-auto overflow-x-auto whitespace-nowrap">
               <button className="flex-1 sm:flex-none px-5 py-1.5 rounded-full text-gray-400 hover:text-white text-sm font-medium transition-colors">
                 SUI
               </button>
               <button className="flex-1 sm:flex-none px-5 py-1.5 rounded-full bg-white/5 border border-[#B7FC0D]/50 text-white text-sm font-medium transition-colors">
                 USD
               </button>
-            </div>
+            </div> */}
 
             {/* Network Selector */}
             <div className="relative">
@@ -144,25 +228,55 @@ export default function OnchainAnalysis() {
 
           {/* Portfolio Performance */}
           <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 relative min-h-[160px] h-[220px] lg:h-auto flex flex-col">
-            <h3 className="text-gray-300 font-medium whitespace-nowrap">
-              Portfolio perfomance
+            <h3 className="text-gray-300 font-medium whitespace-nowrap mb-4">
+              Portfolio performance
             </h3>
-            <div className="absolute left-6 top-14 flex flex-col gap-3 text-xs font-mono">
-              <button className="text-gray-500 hover:text-white">30D</button>
-              <button className="text-[#34D399]">7D</button>
-              <button className="text-white bg-white/10 px-1.5 rounded">24h</button>
+            <div className="absolute right-6 top-6 flex items-center gap-3 text-xs font-mono z-10">
+              {(["24h", "7D", "30D"] as const).map((tf) => (
+                <button 
+                  key={tf}
+                  onClick={() => setSelectedTimeframe(tf)}
+                  className={`transition-colors px-1.5 rounded ${selectedTimeframe === tf ? 'text-[#B7FC0D] bg-white/10' : 'text-gray-500 hover:text-white'}`}
+                >
+                  {tf}
+                </button>
+              ))}
             </div>
-            {/* Mock Graph */}
-            <div className="absolute inset-0 top-14 left-16 right-6 bottom-6 flex items-end">
-                <svg viewBox="0 0 200 80" className="w-full h-full preserve-3d" preserveAspectRatio="none">
-                    <path
-                        d="M 0 40 L 20 70 L 40 45 L 60 75 L 80 50 L 100 30 L 120 45 L 140 20 L 160 30 L 180 15 L 200 25"
-                        fill="none"
-                        stroke="#34D399"
-                        strokeWidth="2"
-                        strokeLinejoin="round"
-                    />
-                </svg>
+            
+            <div className="flex-1 w-full min-h-[120px]">
+                {isFetchingPerformance ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <RefreshCw size={24} className="text-gray-600 animate-spin" />
+                    </div>
+                ) : performanceData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={performanceData}>
+                            <defs>
+                                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#34D399" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#34D399" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                itemStyle={{ color: '#34D399' }}
+                                labelStyle={{ color: '#9CA3AF' }}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="value" 
+                                stroke="#34D399" 
+                                fillOpacity={1} 
+                                fill="url(#colorValue)" 
+                                strokeWidth={2}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                        Insufficient data
+                    </div>
+                )}
             </div>
           </div>
 
@@ -212,7 +326,7 @@ export default function OnchainAnalysis() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
             
             {/* Other assets */}
-            <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 h-[350px] overflow-hidden flex flex-col">
+            <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 min-h-[220px] h-auto overflow-hidden flex flex-col">
                 <h3 className="text-gray-300 font-medium mb-6">Other assets</h3>
                 <div className="space-y-6 overflow-y-auto no-scrollbar flex-1">
                     {tokens && tokens.length > 0 ? tokens.map((token, i) => (
@@ -259,40 +373,39 @@ export default function OnchainAnalysis() {
                     </button>
                 </div>
 
-                <div className="space-y-5 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="space-y-5 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
                     <div className="min-w-[500px] space-y-5">
-                        {[
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'received', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                            { type: 'sent', amount: '10 USDC', addr: '0x1a2B3c4d5E6f....', time: '2 minutes ago' },
-                        ].map((tx, i) => (
-                            <div key={i} className="flex items-center gap-4 text-sm">
-                                <div className="w-5 flex justify-center flex-shrink-0">
-                                    {tx.type === 'sent' ? (
-                                        <ArrowUpRight className="text-[#EF4444]" size={16} />
-                                    ) : (
-                                        <ArrowDownLeft className="text-[#34D399]" size={16} />
-                                    )}
-                                </div>
-                                <div className="w-6 h-6 rounded-full bg-[#1A1A1A] flex items-center justify-center border border-[#3B82F6]/30 flex-shrink-0">
-                                       <div className="w-4 h-4 rounded-full bg-[#3B82F6] flex items-center justify-center">
-                                           <span className="text-[8px] font-bold">$</span>
-                                       </div>
-                                </div>
-                                <div className="flex flex-1 items-center gap-2 text-gray-300 min-w-[200px]">
-                                    <span>{tx.type === 'sent' ? 'Sent' : 'Recieved'}</span>
-                                    <span className="font-medium text-white">{tx.amount}</span>
-                                    <span>{tx.type === 'sent' ? 'to' : 'from'}</span>
-                                    <span className="text-white truncate" style={{ maxWidth: '100px' }}>{tx.addr}</span>
-                                </div>
-                                <div className="text-gray-500 whitespace-nowrap text-right">{tx.time}</div>
+                        {isFetchingActivity && activity.length === 0 ? (
+                            /* Skeleton */
+                            <div className="space-y-5">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="flex items-center gap-4 animate-pulse">
+                                        <div className="w-5 h-5 bg-white/5 rounded-full" />
+                                        <div className="w-6 h-6 bg-white/5 rounded-full" />
+                                        <div className="h-4 bg-white/5 rounded-full flex-1" />
+                                        <div className="w-20 h-4 bg-white/5 rounded-full" />
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        ) : activity.length > 0 ? (
+                            <>
+                                {activity.slice(0, 10).map((tx, i) => (
+                                    <TransactionRow key={i} tx={tx} />
+                                ))}
+                                {activity.length > 10 && (
+                                    <button 
+                                        onClick={() => setIsRecentTxModalOpen(true)}
+                                        className="w-full py-3 mt-2 text-sm text-[#3B82F6] hover:text-[#2563EB] font-medium transition-colors border-t border-white/5"
+                                    >
+                                        See all transactions
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-center py-10 text-gray-500 text-sm">
+                                No recent transactions found
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -323,10 +436,69 @@ export default function OnchainAnalysis() {
                         </div>
                     </div>
                 )}
+
+                {/* All Transactions Modal */}
+                {isRecentTxModalOpen && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <div className="bg-[#0A0A0A] border border-white/10 rounded-[24px] w-full max-w-[600px] max-h-[80vh] flex flex-col overflow-hidden">
+                            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                                <h3 className="text-lg font-bold">Recent Transactions</h3>
+                                <button 
+                                    onClick={() => setIsRecentTxModalOpen(false)}
+                                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto space-y-4">
+                                {activity.map((tx, i) => (
+                                    <TransactionRow key={i} tx={tx} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-            
         </div>
       </div>
     </div>
   );
+}
+
+function TransactionRow({ tx }: { tx: any }) {
+    const absAmount = Math.abs(tx.netSUI);
+    const amountStr = `${absAmount.toFixed(4)} SUI`;
+    const addr = tx.txType === 'sent' ? 'to' : tx.txType === 'received' ? 'from' : 'with';
+    const displayAddr = tx.digest.slice(0, 10) + "...";
+
+    return (
+        <a 
+            href={`https://suiscan.xyz/testnet/tx/${tx.digest}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 text-sm group hover:bg-white/5 p-1 rounded-lg transition-colors"
+        >
+            <div className="w-5 flex justify-center flex-shrink-0">
+                {tx.txType === 'received' ? (
+                    <ArrowDownLeft className="text-[#34D399]" size={16} />
+                ) : (
+                    <ArrowUpRight className="text-[#EF4444]" size={16} />
+                )}
+            </div>
+            <div className="w-6 h-6 rounded-full bg-[#1A1A1A] flex items-center justify-center border border-[#3B82F6]/30 flex-shrink-0">
+                <div className="w-4 h-4 rounded-full bg-[#3B82F6] flex items-center justify-center">
+                    <span className="text-[8px] font-bold text-white">S</span>
+                </div>
+            </div>
+            <div className="flex flex-1 items-center gap-2 text-gray-300 min-w-[200px]">
+                <span className="capitalize">{tx.txType}</span>
+                <span className="font-medium text-white">{amountStr}</span>
+                <span>{addr}</span>
+                <span className="text-white truncate" style={{ maxWidth: '100px' }}>{displayAddr}</span>
+            </div>
+            <div className="text-gray-500 whitespace-nowrap text-right">
+                {tx.timestampMs ? new Date(Number(tx.timestampMs)).toLocaleDateString() : '—'}
+            </div>
+        </a>
+    );
 }

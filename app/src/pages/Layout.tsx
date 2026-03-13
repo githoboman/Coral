@@ -19,7 +19,6 @@ import {
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
@@ -33,6 +32,7 @@ import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
 import { sileo } from "sileo";
 
+import { useActivity } from "@/hooks/useActivity";
 import { LayoutContextType } from "@/types/LayoutTypes";
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -863,9 +863,7 @@ export default function AppLayout() {
 
   const [tokens, setTokens] = useState<any[]>([]);
   const [nfts, setNfts] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any[]>([]);
-  const [isFetchingActivity, setIsFetchingActivity] = useState(false);
-  const isFetchingActivityRef = useRef(false);
+  const { activity, isFetchingActivity, fetchActivity, clearActivity, suiClient } = useActivity(address);
   const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
 
   const [sendRecipient, setSendRecipient] = useState("");
@@ -873,14 +871,6 @@ export default function AppLayout() {
   const [selectedSendToken, setSelectedSendToken] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  const suiClient = useMemo(() => {
-    const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
-      | "testnet"
-      | "mainnet";
-    return new SuiClient({
-      url: getFullnodeUrl(network),
-    });
-  }, []);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -1006,115 +996,6 @@ export default function AppLayout() {
     }
   }, [address, lastFetched, suiClient, fetchSuiPriceUSD, selectedSendToken]);
 
-  const fetchActivity = useCallback(async () => {
-    if (!address || isFetchingActivityRef.current) return;
-
-    isFetchingActivityRef.current = true;
-    setIsFetchingActivity(true);
-
-    try {
-      const [sentResult, receivedResult] = await Promise.all([
-        suiClient.queryTransactionBlocks({
-          filter: { FromAddress: address },
-          options: {
-            showEffects: true,
-            showBalanceChanges: true,
-            showInput: true,
-          },
-          limit: 25,
-          order: "descending",
-        }),
-        suiClient.queryTransactionBlocks({
-          filter: { ToAddress: address },
-          options: {
-            showEffects: true,
-            showBalanceChanges: true,
-            showInput: true,
-          },
-          limit: 25,
-          order: "descending",
-        }),
-      ]);
-
-      const seen = new Set<string>();
-      const merged = [...sentResult.data, ...receivedResult.data].filter(
-        (tx) => {
-          if (seen.has(tx.digest)) return false;
-          seen.add(tx.digest);
-          return true;
-        },
-      );
-
-      merged.sort(
-        (a, b) => Number(b.timestampMs ?? 0) - Number(a.timestampMs ?? 0),
-      );
-
-      const enriched = merged.slice(0, 30).map((tx) => {
-        const isSuccess = tx.effects?.status?.status === "success";
-        const sender = tx.transaction?.data?.sender;
-        const isSender = sender === address;
-
-        const suiChange = tx.balanceChanges?.find((change) => {
-          const owner = change.owner;
-          return (
-            owner &&
-            typeof owner === "object" &&
-            "AddressOwner" in owner &&
-            (owner as { AddressOwner: string }).AddressOwner === address &&
-            change.coinType === "0x2::sui::SUI"
-          );
-        });
-
-        const netSUIMIST = suiChange ? Number(suiChange.amount) : 0;
-        let netSUI = netSUIMIST / 1_000_000_000;
-
-        if (netSUI === 0 && tx.effects?.gasUsed) {
-          const { computationCost, storageCost, storageRebate } =
-            tx.effects.gasUsed;
-          const gasMIST =
-            Number(computationCost) +
-            Number(storageCost) -
-            Number(storageRebate);
-          netSUI = -gasMIST / 1_000_000_000;
-        }
-
-        let txType: "sent" | "received" | "transaction" | "failed";
-        if (!isSuccess) {
-          txType = "failed";
-        } else if (!isSender && netSUIMIST > 0) {
-          txType = "received";
-        } else if (isSender) {
-          const recipientGotSUI = tx.balanceChanges?.some((change) => {
-            const owner = change.owner;
-            return (
-              owner &&
-              typeof owner === "object" &&
-              "AddressOwner" in owner &&
-              (owner as { AddressOwner: string }).AddressOwner !== address &&
-              change.coinType === "0x2::sui::SUI" &&
-              Number(change.amount) > 0
-            );
-          });
-          txType = recipientGotSUI ? "sent" : "transaction";
-        } else {
-          txType = "transaction";
-        }
-
-        return { ...tx, txType, netSUI };
-      });
-
-      setActivity(enriched);
-    } catch (err) {
-      console.error("[Activity] Failed to fetch transactions:", err);
-      sileo.error({
-        title: "Failed to load activity",
-        description: "Could not fetch recent transactions.",
-      });
-    } finally {
-      isFetchingActivityRef.current = false;
-      setIsFetchingActivity(false);
-    }
-  }, [address, suiClient]);
 
   const handleTabChange = useCallback(
     (tab: "Tokens" | "Collectibles" | "Activity") => {
@@ -1140,8 +1021,8 @@ export default function AppLayout() {
   }, [address, debouncedFetchBalance, fetchBalance]);
 
   useEffect(() => {
-    setActivity([]);
-  }, [address]);
+    clearActivity();
+  }, [address, clearActivity]);
 
   const handleSend = async () => {
     if (!address || !sendAmount || !sendRecipient) {
