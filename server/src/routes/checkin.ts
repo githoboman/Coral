@@ -53,8 +53,14 @@ function localDateString(date: Date, tzOffset: number): string {
 
 /** "YYYY-MM-DD" for yesterday in the user's local timezone */
 function localYesterdayString(tzOffset: number): string {
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1_000);
-  return localDateString(yesterday, tzOffset);
+  const now = new Date();
+  const todayLocalMs = now.getTime() + tzOffset * 60_000;
+  const yesterdayLocalMs = todayLocalMs - 24 * 60 * 60 * 1_000;
+  const d = new Date(yesterdayLocalMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /** Unix ms of next midnight in the user's local timezone */
@@ -146,30 +152,46 @@ interface CheckinRecord {
  * `checkins.streak_day` was always written correctly, so streak math is still
  * accurate even for legacy rows.
  */
-async function getLatestCheckin(userId: string): Promise<CheckinRecord | null> {
+async function getLatestCheckin(userId: string, tzOffset: number): Promise<CheckinRecord | null> {
   try {
+    const normalizedId = userId.toLowerCase();
     const { data, error } = await supabase
       .from("checkins")
       .select("created_at, checkin_date, streak_day")
-      .eq("user_id", userId)
+      .eq("user_id", normalizedId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      // If no check-ins in historical table, check user_profiles for legacy/synced streak
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("last_checkin, checkin_streak, total_checkins")
+        .eq("wallet_address", normalizedId)
+        .maybeSingle();
+
+      if (!profile || !profile.last_checkin) return null;
+
+      return {
+        lastCheckinDate: profile.last_checkin,
+        lastCheckinAt: new Date(profile.last_checkin).getTime(),
+        currentStreak: profile.checkin_streak || 0,
+        totalCheckins: profile.total_checkins || 0,
+      };
+    }
 
     const { count } = await supabase
       .from("checkins")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", userId);
+      .eq("user_id", normalizedId);
 
     const lastCheckinAt = new Date(data.created_at).getTime();
 
-    // Prefer stored checkin_date; fall back to UTC date from created_at for
-    // legacy rows where checkin_date was not yet being written.
+    // Prefer stored checkin_date; fall back to calculated local date from created_at
     const lastCheckinDate =
       (data.checkin_date as string | null) ??
-      new Date(data.created_at).toISOString().slice(0, 10);
+      localDateString(new Date(data.created_at), tzOffset);
 
     return {
       lastCheckinDate,
@@ -216,14 +238,24 @@ async function recordCheckin(
  */
 async function hasCheckinForDate(userId: string, dateStr: string): Promise<boolean> {
   try {
+    const normalizedId = userId.toLowerCase();
     const { count, error } = await supabase
       .from("checkins")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
+      .eq("user_id", normalizedId)
       .eq("checkin_date", dateStr);
 
     if (error) throw error;
-    return (count || 0) > 0;
+    if ((count || 0) > 0) return true;
+
+    // Also check user_profiles.last_checkin as a backup
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("last_checkin")
+      .eq("wallet_address", normalizedId)
+      .maybeSingle();
+
+    return profile?.last_checkin === dateStr;
   } catch (err) {
     console.warn(`[CHECKIN] Failed to check for existing date ${dateStr}:`, err);
     return false;
@@ -243,6 +275,7 @@ router.get(
         return;
       }
 
+      const userId = wallet_address.toLowerCase();
       const tzOffset = sanitizeOffset(timezone_offset);
       const todayDate = localDateString(new Date(), tzOffset);
 
@@ -254,16 +287,16 @@ router.get(
       let currentStreak = 0;
       let totalCheckins = 0;
 
-      const dbData = await getLatestCheckin(wallet_address);
+      const dbData = await getLatestCheckin(userId, tzOffset);
       if (dbData) {
         ({ lastCheckinDate, lastCheckinAt, currentStreak, totalCheckins } = dbData);
       } else {
         // On-chain fallback for wallets with no Supabase rows yet
-        console.log(`[CHECKIN] No Supabase data for ${wallet_address.slice(0, 10)}..., falling back to chain`);
+        console.log(`[CHECKIN] No Supabase data for ${userId.slice(0, 10)}..., falling back to chain`);
         const [dateStr, streak, total] = await Promise.all([
-          minter.getLastCheckinDate(wallet_address),
-          minter.getCurrentStreak(wallet_address),
-          minter.getTotalCheckins(wallet_address),
+          minter.getLastCheckinDate(userId),
+          minter.getCurrentStreak(userId),
+          minter.getTotalCheckins(userId),
         ]);
         lastCheckinDate = dateStr;
         lastCheckinAt = dateStr ? new Date(dateStr).getTime() : null;
@@ -273,8 +306,8 @@ router.get(
 
       const [checkinFee, balance, alreadyCheckedInToday] = await Promise.all([
         getCachedCheckinFee(minter),
-        Promise.resolve(leaderboard.getUserBalance(wallet_address)),
-        hasCheckinForDate(wallet_address, todayDate),
+        Promise.resolve(leaderboard.getUserBalance(userId)),
+        hasCheckinForDate(userId, todayDate),
       ]);
 
       // Can check in if:
@@ -332,6 +365,7 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
       return;
     }
 
+    const userId = wallet_address.toLowerCase();
     const tzOffset = sanitizeOffset(timezone_offset);
     const todayDate = localDateString(new Date(), tzOffset);
     const minter = getLocalTicketMinter();
@@ -340,20 +374,20 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
     let lastCheckinAt: number | null = null;
     let currentStreak = 0;
 
-    const dbData = await getLatestCheckin(wallet_address);
+    const dbData = await getLatestCheckin(userId, tzOffset);
     if (dbData) {
       ({ lastCheckinDate, lastCheckinAt, currentStreak } = dbData);
     } else {
       const [dateStr, streak] = await Promise.all([
-        minter.getLastCheckinDate(wallet_address),
-        minter.getCurrentStreak(wallet_address),
+        minter.getLastCheckinDate(userId),
+        minter.getCurrentStreak(userId),
       ]);
       lastCheckinDate = dateStr;
       currentStreak = streak;
     }
 
     // Exploit Guard 1: Already checked in for this local calendar date?
-    const alreadyCheckedIn = await hasCheckinForDate(wallet_address, todayDate);
+    const alreadyCheckedIn = await hasCheckinForDate(userId, todayDate);
     if (alreadyCheckedIn || lastCheckinDate === todayDate) {
       const nextAvailableMs = nextLocalMidnightMs(tzOffset);
       const hoursRemaining = Math.max(0, Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000)));
@@ -379,7 +413,7 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
     const { nextStreak } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
     const pointsInfo = calculateCheckinPoints(nextStreak);
 
-    console.log(`[CHECKIN] Processing check-in for ${wallet_address.slice(0, 10)}...`);
+    console.log(`[CHECKIN] Processing check-in for ${userId.slice(0, 10)}...`);
     console.log(`[CHECKIN] Date: ${todayDate} | Streak: ${currentStreak} → ${nextStreak} | Points: ${pointsInfo.totalPoints}`);
 
     // If the client expects a ticket (like next-app), we mint one.
@@ -389,25 +423,25 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
     
     let ticketId: string | null = null;
     try {
-      ticketId = await minter.mintCheckinTicket(wallet_address, pointsInfo.totalPoints, todayDate);
+      ticketId = await minter.mintCheckinTicket(userId, pointsInfo.totalPoints, todayDate);
     } catch (mintErr) {
       console.warn("[CHECKIN] Ticket minting failed, falling back to gasless-only credit:", mintErr);
     }
 
     // Credit points in leaderboard instantly
-    await getLeaderboardService().creditPoints(wallet_address, pointsInfo.totalPoints);
+    await getLeaderboardService().creditPoints(userId, pointsInfo.totalPoints);
 
     try {
       await Promise.all([
-        recordCheckin(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate, tzOffset),
-        getUserManager().updateCheckinStats(wallet_address, pointsInfo.totalPoints, nextStreak, todayDate),
+        recordCheckin(userId, pointsInfo.totalPoints, nextStreak, todayDate, tzOffset),
+        getUserManager().updateCheckinStats(userId, pointsInfo.totalPoints, nextStreak, todayDate),
       ]);
     } catch (err) {
       console.warn("[CHECKIN] Database updates failed:", err);
       // We don't throw here because points were already credited and potentially a ticket minted.
     }
 
-    const newBalance = await getLeaderboardService().getUserBalance(wallet_address);
+    const newBalance = await getLeaderboardService().getUserBalance(userId);
 
     res.json({
       success: true,

@@ -11,9 +11,11 @@ import {
   Signin,
   Maintenance,
 } from "@/pages/";
+
 import Subscription from "@/pages/Subscription";
 import { SplashScreen } from "@/components/ui/SplashScreen";
 import { SileoToaster } from "@/components/SileoToaster";
+import BadgeMint from "@/pages/BadgeMint";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -38,6 +40,7 @@ function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/subscription" element={<Subscription />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/badge" element={<BadgeMint />} />
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="/chat/:chatId?" element={<Dashboard />} />
         </Route>

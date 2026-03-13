@@ -32,10 +32,8 @@ interface TaskPointsClaimedEvent {
 interface UserPointsSummary {
   wallet_address: string;
 
-  // Total from blockchain (source of truth)
   total_points_blockchain: number;
 
-  // Breakdown by source
   waitlist_points: number;
   checkin_points: number;
   checkin_base_points: number;
@@ -43,20 +41,16 @@ interface UserPointsSummary {
   task_points: number;
   other_points: number;
 
-  // Check-in stats
   total_checkins: number;
   current_streak: number;
   last_checkin_date: string;
 
-  // Task stats
   total_tasks_completed: number;
   total_task_points: number;
 
-  // Activity tracking
   first_claim_date: string;
   last_activity_date: string;
 
-  // Full history
   claim_history: Array<{
     source: string;
     reason: string;
@@ -89,9 +83,6 @@ async function main() {
   try {
     const userPoints = new Map<string, UserPointsSummary>();
 
-    // ========================================================================
-    // STEP 1: Query points::PointsClaimed events (Waitlist + Check-ins)
-    // ========================================================================
     console.log("🔍 Step 1: Querying points::PointsClaimed events...");
 
     let hasNextPage = true;
@@ -114,13 +105,12 @@ async function main() {
         const walletAddress = data.wallet_address;
         const amount = parseInt(data.amount);
         const reason = data.reason;
-        const newBalance = parseInt(data.new_balance);
         const timestamp = parseInt(data.timestamp);
 
         if (!userPoints.has(walletAddress)) {
           userPoints.set(walletAddress, {
             wallet_address: walletAddress,
-            total_points_blockchain: newBalance,
+            total_points_blockchain: 0,
             waitlist_points: 0,
             checkin_points: 0,
             checkin_base_points: 0,
@@ -140,10 +130,6 @@ async function main() {
 
         const user = userPoints.get(walletAddress)!;
 
-        // Update total (use the new_balance from event as source of truth)
-        user.total_points_blockchain = newBalance;
-
-        // Track points by category
         if (reason === "Waitlist Bonus") {
           user.waitlist_points += amount;
         } else if (reason === "Daily Check-in") {
@@ -152,7 +138,6 @@ async function main() {
           user.other_points += amount;
         }
 
-        // Update activity dates
         const eventDate = new Date(timestamp).toISOString();
         if (eventDate < user.first_claim_date) {
           user.first_claim_date = eventDate;
@@ -161,7 +146,6 @@ async function main() {
           user.last_activity_date = eventDate;
         }
 
-        // Add to history
         user.claim_history.push({
           source: "points",
           reason,
@@ -183,9 +167,6 @@ async function main() {
       `\r   ✅ Processed ${totalPointsEvents} PointsClaimed events\n`,
     );
 
-    // ========================================================================
-    // STEP 2: Query points::CheckInCompleted events (for detailed check-in stats)
-    // ========================================================================
     console.log("🔍 Step 2: Querying points::CheckInCompleted events...");
 
     hasNextPage = true;
@@ -217,7 +198,6 @@ async function main() {
           const user = userPoints.get(walletAddress)!;
           user.total_checkins++;
 
-          // Track milestone bonuses separately
           if (isMilestone && milestoneBonus > 0) {
             user.checkin_milestone_bonus += milestoneBonus;
             user.checkin_base_points += pointsEarned - milestoneBonus;
@@ -225,13 +205,11 @@ async function main() {
             user.checkin_base_points += pointsEarned;
           }
 
-          // Keep the latest streak
           if (checkinDate > user.last_checkin_date || !user.last_checkin_date) {
             user.current_streak = currentStreak;
             user.last_checkin_date = checkinDate;
           }
 
-          // Add detailed check-in to history
           const existingIndex = user.claim_history.findIndex(
             (h) =>
               h.source === "points" &&
@@ -262,9 +240,6 @@ async function main() {
 
     console.log(`\r   ✅ Processed ${checkinEvents} CheckInCompleted events\n`);
 
-    // ========================================================================
-    // STEP 3: Query task_points::TaskPointsClaimed events
-    // ========================================================================
     console.log("🔍 Step 3: Querying task_points::TaskPointsClaimed events...");
 
     hasNextPage = true;
@@ -287,13 +262,12 @@ async function main() {
         const walletAddress = data.wallet_address;
         const taskCount = parseInt(data.task_count);
         const pointsEarned = parseInt(data.points_earned);
-        const newBalance = parseInt(data.new_balance);
         const timestamp = parseInt(data.timestamp);
 
         if (!userPoints.has(walletAddress)) {
           userPoints.set(walletAddress, {
             wallet_address: walletAddress,
-            total_points_blockchain: newBalance,
+            total_points_blockchain: 0,
             waitlist_points: 0,
             checkin_points: 0,
             checkin_base_points: 0,
@@ -313,15 +287,10 @@ async function main() {
 
         const user = userPoints.get(walletAddress)!;
 
-        // Update total points (this is the new balance AFTER task points were added)
-        user.total_points_blockchain = newBalance;
-
-        // Track task points
         user.task_points += pointsEarned;
         user.total_tasks_completed += taskCount;
         user.total_task_points += pointsEarned;
 
-        // Update activity dates
         const eventDate = new Date(timestamp).toISOString();
         if (eventDate < user.first_claim_date) {
           user.first_claim_date = eventDate;
@@ -330,7 +299,6 @@ async function main() {
           user.last_activity_date = eventDate;
         }
 
-        // Add to history
         user.claim_history.push({
           source: "task_points",
           reason: "Task Completion",
@@ -354,9 +322,16 @@ async function main() {
 
     console.log(`\r   ✅ Processed ${taskEvents} TaskPointsClaimed events\n`);
 
-    // ========================================================================
-    // STEP 4: Calculate and Display Results
-    // ========================================================================
+    console.log("🔧 Recalculating totals from accumulated category sums...");
+    userPoints.forEach((user) => {
+      user.total_points_blockchain =
+        user.waitlist_points +
+        user.checkin_points +
+        user.task_points +
+        user.other_points;
+    });
+    console.log("   ✅ Totals recalculated\n");
+
     console.log("=".repeat(80));
     console.log(`📈 TOTAL USERS WITH POINTS: ${userPoints.size}`);
     console.log("=".repeat(80) + "\n");
@@ -366,7 +341,6 @@ async function main() {
       return;
     }
 
-    // Calculate platform totals
     let totalPlatformPoints = 0;
     let totalWaitlistPoints = 0;
     let totalCheckinPoints = 0;
@@ -412,12 +386,10 @@ async function main() {
     console.log(`   Total Tasks Completed: ${totalTasks.toLocaleString()}`);
     console.log();
 
-    // Sort users by total points (descending)
     const sortedUsers = Array.from(userPoints.values()).sort(
       (a, b) => b.total_points_blockchain - a.total_points_blockchain,
     );
 
-    // Display mode based on command line argument
     const mode = process.argv[2] || "summary";
 
     if (mode === "detailed" || mode === "--detailed") {
@@ -469,7 +441,6 @@ async function main() {
           `   Transaction History (${user.claim_history.length} claims):`,
         );
 
-        // Sort history by timestamp
         const sortedHistory = user.claim_history.sort(
           (a, b) => parseInt(a.timestamp) - parseInt(b.timestamp),
         );
@@ -486,7 +457,6 @@ async function main() {
         console.log();
       });
     } else {
-      // Summary mode (default)
       console.log("📋 User Summary (Top 50):\n");
       console.log(
         "Rank | Address                                                            | Total  | Waitlist | Check-ins | Tasks | Streak",
@@ -514,7 +484,6 @@ async function main() {
       }
     }
 
-    // Save to JSON
     const outputData = {
       network,
       package_id: packageId,

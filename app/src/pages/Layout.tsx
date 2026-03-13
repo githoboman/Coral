@@ -12,12 +12,13 @@ import {
   Gamepad2,
   ClipboardPaste,
   ArrowUp,
+  ArrowDown,
+  RefreshCw,
   Check,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
@@ -31,6 +32,7 @@ import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
 import { sileo } from "sileo";
 
+import { useActivity } from "@/hooks/useActivity";
 import { LayoutContextType } from "@/types/LayoutTypes";
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -47,6 +49,7 @@ interface NavItem {
   iconUrl: string;
   active: boolean;
   showDot?: boolean;
+  filterWhite?: boolean;
 }
 
 const MobileSidebarDrawer = ({
@@ -133,9 +136,11 @@ const WalletManager = ({
   signOut,
   tokens,
   activeTab,
-  setActiveTab,
+  onTabChange,
   nfts,
   activity,
+  isFetchingActivity,
+  onRefreshActivity,
   address,
   setIsWalletSelectorOpen,
   copyToClipboard,
@@ -213,7 +218,9 @@ const WalletManager = ({
         <div className="flex justify-between items-center w-full mb-8">
           <div className="flex items-center gap-2 bg-[#B7FC0D]/10 px-3 py-1.5 rounded-full border border-[#B7FC0D]/20">
             <div className="w-2 h-2 rounded-full bg-[#B7FC0D] animate-pulse" />
-            <span className="font-bold text-[#B7FC0D] text-xs uppercase tracking-wide">Testnet</span>
+            <span className="font-bold text-[#B7FC0D] text-xs uppercase tracking-wide">
+              Testnet
+            </span>
           </div>
           <button onClick={toggleWallet} className="btn btn-icon btn-ghost">
             <X size={16} className="text-white/60" />
@@ -258,7 +265,7 @@ const WalletManager = ({
             {["Tokens", "Collectibles", "Activity"].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab as any)}
+                onClick={() => onTabChange(tab as any)}
                 className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all duration-300 ${activeTab === tab ? "bg-white/10 text-white cursor-pointer" : "text-white/40 hover:text-white/60 cursor-pointer"}`}
               >
                 {tab}
@@ -365,40 +372,116 @@ const WalletManager = ({
 
           {activeTab === "Activity" && (
             <div className="space-y-4">
-              {activity.length > 0 ? (
-                activity.map((tx: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
-                        <ArrowUp
-                          size={16}
-                          className={`text-white/40 ${tx.effects?.status?.status === "success" ? "text-emerald-400" : "text-red-400"}`}
-                        />
+              {/* Refresh button — right-aligned, no header text */}
+              <div className="flex justify-end">
+                <button
+                  onClick={onRefreshActivity}
+                  disabled={isFetchingActivity}
+                  className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={`text-white/40 ${isFetchingActivity ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </div>
+
+              {isFetchingActivity && activity.length === 0 ? (
+                /* Skeleton — matches the exact row shape below */
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-white/5 animate-pulse flex-shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="w-20 h-2.5 rounded-full bg-white/5 animate-pulse" />
+                          <div className="w-14 h-2 rounded-full bg-white/5 animate-pulse" />
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-white font-bold text-xs">
-                          Transaction
+                      <div className="space-y-1.5 flex flex-col items-end">
+                        <div className="w-16 h-2.5 rounded-full bg-white/5 animate-pulse" />
+                        <div className="w-10 h-2 rounded-full bg-white/5 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : activity.length > 0 ? (
+                activity.map((tx: any, idx: number) => {
+                  const { txType, netSUI } = tx;
+                  const absAmount = Math.abs(netSUI ?? 0);
+                  const hasAmount = absAmount > 0.000001;
+
+                  const iconEl =
+                    txType === "received" ? (
+                      <ArrowDown size={16} className="text-emerald-400" />
+                    ) : txType === "failed" ? (
+                      <ArrowUp size={16} className="text-red-400" />
+                    ) : txType === "sent" ? (
+                      <ArrowUp size={16} className="text-white/60" />
+                    ) : (
+                      <ArrowUp size={16} className="text-white/30" />
+                    );
+
+                  const amountStr = hasAmount
+                    ? txType === "received"
+                      ? `+${absAmount.toFixed(4)} SUI`
+                      : txType === "failed"
+                        ? `-${absAmount.toFixed(4)} SUI`
+                        : `${netSUI < 0 ? "-" : "+"}${absAmount.toFixed(4)} SUI`
+                    : "—";
+
+                  const amountColor =
+                    txType === "received"
+                      ? "text-emerald-400"
+                      : txType === "failed"
+                        ? "text-red-400"
+                        : "text-white";
+
+                  const label =
+                    txType === "sent"
+                      ? "Sent"
+                      : txType === "received"
+                        ? "Received"
+                        : txType === "failed"
+                          ? "Failed"
+                          : "Transaction";
+
+                  return (
+                    <a
+                      key={idx}
+                      href={`https://suiscan.xyz/testnet/tx/${tx.digest}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
+                          {iconEl}
+                        </div>
+                        <div>
+                          <div className="text-white font-bold text-xs">
+                            {label}
+                          </div>
+                          <div className="text-[10px] text-white/40 font-medium">
+                            {tx.digest.slice(0, 10)}...
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-xs font-bold ${amountColor}`}>
+                          {amountStr}
                         </div>
                         <div className="text-[10px] text-white/40 font-medium">
-                          {tx.digest.slice(0, 10)}...
+                          {tx.timestampMs
+                            ? new Date(
+                                Number(tx.timestampMs),
+                              ).toLocaleDateString()
+                            : "—"}
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-white font-bold text-xs">
-                        {tx.effects?.status?.status === "success"
-                          ? "Success"
-                          : "Failed"}
-                      </div>
-                      <div className="text-[10px] text-white/40 font-medium">
-                        {new Date(Number(tx.timestampMs)).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                ))
+                    </a>
+                  );
+                })
               ) : (
                 <div className="text-center py-10 text-white/20 text-xs font-medium">
                   No recent activity
@@ -460,9 +543,7 @@ const WalletModalOverlay = (props: any) => {
     lastTxDigest,
   } = props;
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [shouldRender, setShouldRender] = useState(
-    !!activeWalletModal,
-  );
+  const [shouldRender, setShouldRender] = useState(!!activeWalletModal);
 
   useGSAP(() => {
     if (activeWalletModal) {
@@ -515,7 +596,9 @@ const WalletModalOverlay = (props: any) => {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2">Transaction Sent!</h3>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Transaction Sent!
+                  </h3>
                   <a
                     href={`https://suiscan.xyz/testnet/tx/${lastTxDigest}`}
                     target="_blank"
@@ -558,7 +641,8 @@ const WalletModalOverlay = (props: any) => {
                       You are sending
                     </span>
                     <span className="text-[11px] text-white/40">
-                      Balance: {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
+                      Balance:{" "}
+                      {selectedSendToken?.balance?.toFixed(4) || "0.0000"}
                     </span>
                   </div>
                   <div className="flex justify-between items-end">
@@ -573,7 +657,8 @@ const WalletModalOverlay = (props: any) => {
                       <span className="text-sm text-white/20 font-medium">
                         ≈ $
                         {(
-                          Number(sendAmount || 0) * (selectedSendToken?.price || 0)
+                          Number(sendAmount || 0) *
+                          (selectedSendToken?.price || 0)
                         ).toFixed(2)}
                       </span>
                     </div>
@@ -678,7 +763,10 @@ const WalletModalOverlay = (props: any) => {
               </div>
               <button
                 onClick={() =>
-                  sileo.success({ title: "Coming Soon", description: "Share functionality is coming soon!" })
+                  sileo.success({
+                    title: "Coming Soon",
+                    description: "Share functionality is coming soon!",
+                  })
                 }
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
               >
@@ -700,10 +788,10 @@ export default function AppLayout() {
   const { signOut } = useAuth();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
-  // Use address from dApp Kit wallet
   const address = currentAccount?.address || null;
 
-  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(true);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] =
+    useState(true);
   const [isWalletCollapsed, setIsWalletCollapsed] = useState(true);
   const [activeWalletModal, setActiveWalletModal] = useState<
     "deposit" | "send" | null
@@ -725,15 +813,14 @@ export default function AppLayout() {
     customAction?: React.ReactNode;
   } | null>(null);
 
-  // logic for dashboard check - treats root and dynamic chat IDs as dashboard
   const isDashboard = ![
     "/activity",
     "/account",
     "/subscription",
     "/onchain",
+    "/badge",
   ].some((path) => location.pathname.startsWith(path));
 
-  // Close sidebar on route change
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
@@ -755,9 +842,17 @@ export default function AppLayout() {
         }),
       });
       setIsAutonomyEnabled(newValue);
-      sileo.success({ title: "Autonomy Updated", description: newValue ? "Agent Autonomy Enabled" : "Agent Autonomy Disabled" });
+      sileo.success({
+        title: "Autonomy Updated",
+        description: newValue
+          ? "Agent Autonomy Enabled"
+          : "Agent Autonomy Disabled",
+      });
     } catch (e) {
-      sileo.error({ title: "Update Failed", description: "Failed to update autonomy settings" });
+      sileo.error({
+        title: "Update Failed",
+        description: "Failed to update autonomy settings",
+      });
     } finally {
       setIsUpdatingAutonomy(false);
     }
@@ -766,26 +861,16 @@ export default function AppLayout() {
   const [walletBalanceUSD, setWalletBalanceUSD] = useState<string>("0.00");
   const [lastFetched, setLastFetched] = useState<number | null>(null);
 
-  // Tab Data States
   const [tokens, setTokens] = useState<any[]>([]);
   const [nfts, setNfts] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any[]>([]);
+  const { activity, isFetchingActivity, fetchActivity, clearActivity, suiClient } = useActivity(address);
   const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
 
-  // Send Form State
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
   const [selectedSendToken, setSelectedSendToken] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  const suiClient = useMemo(() => {
-    const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
-      | "testnet"
-      | "mainnet";
-    return new SuiClient({
-      url: getFullnodeUrl(network),
-    });
-  }, []);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -855,16 +940,15 @@ export default function AppLayout() {
           icon: "/assets/images/sui-icon.png",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-        {
-          symbol: "USDC",
-          decimals: 6,
-          price: 1.0,
-          change24h: 0,
-          icon: "/assets/images/usdc-icon.png",
-        },
+          {
+            symbol: "USDC",
+            decimals: 6,
+            price: 1.0,
+            change24h: 0,
+            icon: "/assets/images/usdc-icon.png",
+          },
       };
 
-      // Always show SUI and USDC
       const displayTokens: Record<string, any> = {
         "0x2::sui::SUI": {
           ...KNOWN_TOKENS["0x2::sui::SUI"],
@@ -873,14 +957,14 @@ export default function AppLayout() {
           type: "0x2::sui::SUI",
         },
         "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-        {
-          ...KNOWN_TOKENS[
-          "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
-          ],
-          balance: 0,
-          value: 0,
-          type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
-        },
+          {
+            ...KNOWN_TOKENS[
+              "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
+            ],
+            balance: 0,
+            value: 0,
+            type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
+          },
       };
 
       for (const coin of coins) {
@@ -890,7 +974,7 @@ export default function AppLayout() {
           decimals: 9,
           price: 0,
           change24h: 0,
-          icon: "/assets/images/sui-icon.png", // Default to Sui icon if unknown
+          icon: "/assets/images/sui-icon.png",
         };
         const balance = Number(coin.totalBalance) / Math.pow(10, meta.decimals);
         const value = balance * (meta.price || 0);
@@ -910,13 +994,18 @@ export default function AppLayout() {
     } catch (err) {
       console.error(err);
     }
-  }, [
-    address,
-    lastFetched,
-    suiClient,
-    fetchSuiPriceUSD,
-    selectedSendToken,
-  ]);
+  }, [address, lastFetched, suiClient, fetchSuiPriceUSD, selectedSendToken]);
+
+
+  const handleTabChange = useCallback(
+    (tab: "Tokens" | "Collectibles" | "Activity") => {
+      setActiveTab(tab);
+      if (tab === "Activity") {
+        fetchActivity();
+      }
+    },
+    [fetchActivity],
+  );
 
   const debouncedFetchBalance = useMemo(
     () => debounce(fetchBalance, 500),
@@ -931,6 +1020,10 @@ export default function AppLayout() {
     }
   }, [address, debouncedFetchBalance, fetchBalance]);
 
+  useEffect(() => {
+    clearActivity();
+  }, [address, clearActivity]);
+
   const handleSend = async () => {
     if (!address || !sendAmount || !sendRecipient) {
       sileo.error({ title: "Error", description: "Please fill all fields" });
@@ -943,10 +1036,8 @@ export default function AppLayout() {
       const amountMIST = Math.floor(parseFloat(sendAmount) * 1_000_000_000);
       const tx = new Transaction();
 
-      // Split coin for transfer
       const [coin] = tx.splitCoins(tx.gas, [amountMIST]);
 
-      // Transfer the split coin
       tx.transferObjects([coin], sendRecipient);
 
       await signAndExecute(
@@ -956,31 +1047,29 @@ export default function AppLayout() {
             console.log("Transaction digest:", result.digest);
             setLastTxDigest(result.digest);
             setSendSuccess(true);
-            fetchBalance(); // Immediate refresh
-            // Don't close modal yet, show success screen
+            fetchBalance();
+            fetchActivity();
           },
           onError: (err) => {
             console.error("Transaction failed:", err);
             sileo.error({
               title: "Transaction Failed",
-              description: err.message || "Unknown error occurred"
+              description: err.message || "Unknown error occurred",
             });
-          }
-        }
+          },
+        },
       );
-
     } catch (e: any) {
       console.error("Send error:", e);
       sileo.error({
         title: "Error",
-        description: e.message || "Failed to send transaction"
+        description: e.message || "Failed to send transaction",
       });
     } finally {
       setIsSending(false);
     }
   };
 
-  // Fetch claimable points status
   useEffect(() => {
     if (!address) {
       setHasUnclaimedPoints(false);
@@ -989,8 +1078,11 @@ export default function AppLayout() {
 
     const checkClaimable = async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        const res = await fetch(`${baseUrl}/api/task-points/claimable?user_id=${address}`);
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        const res = await fetch(
+          `${baseUrl}/api/task-points/claimable?user_id=${address}`,
+        );
         if (res.ok) {
           const data = await res.json();
           setHasUnclaimedPoints(data.total_activities > 0);
@@ -1001,15 +1093,13 @@ export default function AppLayout() {
     };
 
     checkClaimable();
-    const interval = setInterval(checkClaimable, 60000); // Check every minute
+    const interval = setInterval(checkClaimable, 60000);
     return () => clearInterval(interval);
   }, [address]);
 
-  // Satisfy lint for setNfts and setActivity
   useEffect(() => {
     if (address) {
-      setNfts([]); // Could fetch NFTs here
-      setActivity([]); // Could fetch activity here
+      setNfts([]);
     }
   }, [address]);
 
@@ -1018,7 +1108,8 @@ export default function AppLayout() {
       name: "Chats",
       to: "/chat",
       iconUrl: "/assets/icons/edit.svg",
-      active: location.pathname === "/chat" || location.pathname.startsWith("/chat/"),
+      active:
+        location.pathname === "/chat" || location.pathname.startsWith("/chat/"),
     },
     {
       name: "Analysis",
@@ -1046,6 +1137,13 @@ export default function AppLayout() {
       iconUrl: "/assets/icons/trophy.svg",
       active: location.pathname === "/leaderboard",
     },
+    {
+      name: "Badge",
+      to: "/badge",
+      iconUrl: "/assets/icons/badge.png",
+      active: location.pathname === "/badge",
+      filterWhite: true,
+    },
   ];
 
   return (
@@ -1053,20 +1151,22 @@ export default function AppLayout() {
       <div className="absolute inset-0 bg-[#070B0F] -z-10" />
 
       <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
-        {/* Fixed Desktop Sidebar */}
         <div className="fixed top-0 left-10 h-dvh py-2 hidden md:flex z-50">
           <Sidebar
             navItems={navItems}
             isCollapsed={isDesktopSidebarCollapsed}
-            onToggle={() => setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
+            onToggle={() =>
+              setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)
+            }
           />
         </div>
 
-        {/* Main Content with dynamic margin */}
         <div
-          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${!isDashboard ? "pb-20" : ""
-            } md:pb-0 ${isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
-            }`}
+          className={`h-fit w-full flex-1 transition-all duration-300 ease-out ${
+            !isDashboard ? "pb-20" : ""
+          } md:pb-0 ${
+            isDesktopSidebarCollapsed ? "md:ml-[130px]" : "md:ml-[300px]"
+          }`}
         >
           <MobileTopBar
             balance={walletBalanceUSD}
@@ -1089,7 +1189,6 @@ export default function AppLayout() {
               } satisfies LayoutContextType
             }
           />
-
         </div>
 
         <MobileSidebarDrawer
@@ -1122,9 +1221,11 @@ export default function AppLayout() {
           signOut={signOut}
           tokens={tokens}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          onTabChange={handleTabChange}
           nfts={nfts}
           activity={activity}
+          isFetchingActivity={isFetchingActivity}
+          onRefreshActivity={fetchActivity}
           address={address}
           setIsWalletSelectorOpen={setIsWalletSelectorOpen}
           copyToClipboard={copyToClipboard}
