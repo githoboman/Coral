@@ -114,7 +114,7 @@ export default function OnchainAnalysis() {
         {/* Header Row */}
         <div className="flex flex-col items-center justify-center gap-4">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-center">
+            <h1 className="text-md md:text-2xl font-bold tracking-tight text-center">
               Portfolio Dashboard
             </h1>
             <div className="flex items-center gap-5 sm:ml-2">
