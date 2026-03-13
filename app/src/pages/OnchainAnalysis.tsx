@@ -23,7 +23,8 @@ import {
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
-  const { activity, isFetchingActivity, fetchActivity } = useActivity(address);
+  const [displayAddress, setDisplayAddress] = useState(address);
+  const { activity, isFetchingActivity, fetchActivity } = useActivity(displayAddress);
 
   const { walletBalanceUSD, tokens } = useOutletContext<LayoutContextType>();
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
@@ -33,12 +34,14 @@ export default function OnchainAnalysis() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7D" | "30D">("7D");
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [isFetchingPerformance, setIsFetchingPerformance] = useState(false);
+  const [searchAddress, setSearchAddress] = useState("");
+  const [portfolioChange, setPortfolioChange] = useState({ value: 0, isPositive: true });
 
   useEffect(() => {
-    if (address) {
+    if (displayAddress) {
       fetchActivity();
     }
-  }, [address, fetchActivity]);
+  }, [displayAddress, fetchActivity]);
 
   // Fetch performance data
   useEffect(() => {
@@ -87,6 +90,14 @@ export default function OnchainAnalysis() {
         });
 
         setPerformanceData(chartData);
+
+        // Calculate timeframe change
+        if (chartData.length > 1) {
+          const latest = chartData[chartData.length - 1].value;
+          const first = chartData[0].value;
+          const change = first !== 0 ? ((latest - first) / first) * 100 : 0;
+          setPortfolioChange({ value: Math.abs(change), isPositive: change >= 0 });
+        }
       } catch (err) {
         console.error("Failed to fetch performance:", err);
       } finally {
@@ -95,7 +106,7 @@ export default function OnchainAnalysis() {
     };
 
     fetchPerformance();
-  }, [address, tokens, activity, selectedTimeframe]);
+  }, [displayAddress, tokens, activity, selectedTimeframe]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -111,7 +122,7 @@ export default function OnchainAnalysis() {
     <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8">
       <div className="max-w-[1200px] mx-auto space-y-6">
         
-        {/* Header Row */}
+         {/* Header Row */}
         <div className="flex flex-col items-center justify-center gap-4">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
             <h1 className="text-md md:text-2xl font-bold tracking-tight text-center">
@@ -120,11 +131,11 @@ export default function OnchainAnalysis() {
             <div className="flex items-center gap-5 sm:ml-2">
               <div className="flex items-center gap-2 text-gray-300 text-sm">
                 <span className="truncate max-w-[120px] sm:max-w-none text-center">
-                  {account?.address ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}` : "No wallet connected"}
+                  {displayAddress ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}` : "No wallet connected"}
                 </span>
-                {account?.address && (
+                {displayAddress && (
                   <button 
-                    onClick={() => copyToClipboard(account.address)}
+                    onClick={() => copyToClipboard(displayAddress)}
                     className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
                   >
                     <Copy size={14} />
@@ -183,29 +194,45 @@ export default function OnchainAnalysis() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto flex-1">
             {/* Search Bar */}
-            <div className="flex-1 relative w-full">
+             <div className="flex-1 relative w-full">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search size={16} className="text-gray-400" />
               </div>
               <input
                 type="text"
+                value={searchAddress}
+                onChange={(e) => setSearchAddress(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && setDisplayAddress(searchAddress)}
                 placeholder="Enter a SUI address"
                 className="block w-full pl-10 pr-10 py-2.5 bg-[#141414] border border-white/10 rounded-full text-sm focus:outline-none focus:border-white/20 transition-colors placeholder:text-gray-500"
               />
-              <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors">
-                <X size={14} />
-              </button>
+              {searchAddress && (
+                <button 
+                  onClick={() => setSearchAddress("")}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-4 w-full sm:w-auto">
               {/* Analyze Button */}
-              <button className="flex-1 sm:flex-none bg-[#3B82F6] hover:bg-[#2563EB] text-white px-6 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap">
+              <button 
+                onClick={() => setDisplayAddress(searchAddress)}
+                disabled={!searchAddress.startsWith("0x")}
+                className="flex-1 sm:flex-none bg-[#3B82F6] hover:bg-[#2563EB] text-white px-6 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50"
+              >
                 Analyze wallet
               </button>
 
               {/* Refresh Button */}
-              <button className="p-2.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 border border-transparent flex-shrink-0 bg-[#0A0A0A] sm:bg-transparent border-white/10 sm:border-transparent">
-                <RefreshCw size={18} />
+              <button 
+                onClick={() => fetchActivity()}
+                disabled={isFetchingActivity}
+                className="p-2.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 border border-transparent flex-shrink-0 bg-[#0A0A0A] sm:bg-transparent border-white/10 sm:border-transparent"
+              >
+                <RefreshCw size={18} className={isFetchingActivity ? "animate-spin" : ""} />
               </button>
             </div>
           </div>
@@ -220,8 +247,10 @@ export default function OnchainAnalysis() {
             <div>
               <div className="text-4xl font-bold mt-2 text-center">${walletBalanceUSD || "0.00"}</div>
               <div className="flex justify-between items-end mt-4">
-                <span className="text-gray-400 text-sm">24h change</span>
-                <span className="text-green-500 font-medium text-sm">+1.56%</span>
+                <span className="text-gray-400 text-sm">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7 days" : "30 days"} change</span>
+                <span className={`font-medium text-sm ${portfolioChange.isPositive ? "text-emerald-400" : "text-rose-500"}`}>
+                  {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
+                </span>
               </div>
             </div>
           </div>
@@ -424,7 +453,12 @@ export default function OnchainAnalysis() {
                             <p className="text-xs text-gray-500 mb-8">You can subscribe to up to 3 wallets</p>
                             
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 mt-auto">
-                                <button className="w-full sm:w-auto bg-[#10B981] hover:bg-[#059669] text-white px-5 py-3 sm:py-2 rounded-full text-sm font-medium transition-colors order-1 sm:order-2">
+                                <button 
+                                    onClick={() => {
+                                        sileo.success({ title: "Subscribed", description: "You will now receive alerts for this wallet." });
+                                        setIsAlertModalOpen(false);
+                                    }}
+                                    className="w-full sm:w-auto bg-[#10B981] hover:bg-[#059669] text-white px-5 py-3 sm:py-2 rounded-full text-sm font-medium transition-colors order-1 sm:order-2">
                                     Confirm
                                 </button>
                                 <button 
@@ -466,10 +500,10 @@ export default function OnchainAnalysis() {
 }
 
 function TransactionRow({ tx }: { tx: any }) {
-    const absAmount = Math.abs(tx.netSUI);
+    const absAmount = Math.abs(tx.netSUI || 0);
     const amountStr = `${absAmount.toFixed(4)} SUI`;
     const addr = tx.txType === 'sent' ? 'to' : tx.txType === 'received' ? 'from' : 'with';
-    const displayAddr = tx.digest.slice(0, 10) + "...";
+    const displayAddr = tx.digest ? tx.digest.slice(0, 10) + "..." : "Unknown";
 
     return (
         <a 
