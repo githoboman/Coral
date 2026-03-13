@@ -123,22 +123,22 @@ export default function OnchainAnalysis() {
       <div className="max-w-[1200px] mx-auto space-y-6">
         
          {/* Header Row */}
-        <div className="flex flex-col items-center justify-center gap-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            <h1 className="text-md md:text-2xl font-bold tracking-tight text-center">
+        <div className="flex flex-col items-center sm:items-start justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center sm:items-baseline justify-center sm:justify-start gap-4 w-full">
+            <h1 className="text-md md:text-2xl font-bold tracking-tight text-center sm:text-left">
               Portfolio Dashboard
             </h1>
             <div className="flex items-center gap-5 sm:ml-2">
-              <div className="flex items-center gap-2 text-gray-300 text-sm">
-                <span className="truncate max-w-[120px] sm:max-w-none text-center">
+              <div className="flex items-center gap-2 text-gray-400 text-sm">
+                <span className="truncate max-w-[120px] sm:max-w-none text-center sm:text-left font-mono">
                   {displayAddress ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}` : "No wallet connected"}
                 </span>
                 {displayAddress && (
                   <button 
                     onClick={() => copyToClipboard(displayAddress)}
-                    className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                    className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
                   >
-                    <Copy size={14} />
+                    <Copy size={12} />
                   </button>
                 )}
               </div>
@@ -242,16 +242,17 @@ export default function OnchainAnalysis() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4">
           
           {/* Portfolio Value */}
-          <div className="lg:col-span-3 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 flex flex-col justify-between min-h-[160px]">
-            <h3 className="text-gray-300 font-medium text-center">Portfolio value</h3>
-            <div>
-              <div className="text-4xl font-bold mt-2 text-center">${walletBalanceUSD || "0.00"}</div>
-              <div className="flex justify-between items-end mt-4">
-                <span className="text-gray-400 text-sm">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7 days" : "30 days"} change</span>
-                <span className={`font-medium text-sm ${portfolioChange.isPositive ? "text-emerald-400" : "text-rose-500"}`}>
-                  {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
-                </span>
-              </div>
+          <div className="lg:col-span-3 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-between min-h-[220px]">
+            <h3 className="text-gray-500 font-medium text-sm uppercase tracking-wider">Portfolio value</h3>
+            <div className="flex-1 flex flex-col items-center justify-center py-4">
+              <div className="text-5xl font-bold text-white tracking-tight">${walletBalanceUSD || "0.00"}</div>
+            </div>
+            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+              <span className="text-gray-500 text-xs font-medium">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7D" : "30D"}</span>
+              <div className={`h-3 w-[1px] bg-white/10`} />
+              <span className={`font-bold text-xs ${portfolioChange.isPositive ? "text-[#34D399]" : "text-rose-500"}`}>
+                {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
+              </span>
             </div>
           </div>
 
@@ -352,7 +353,7 @@ export default function OnchainAnalysis() {
         </div>
 
         {/* Bottom Cards Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 items-start">
             
             {/* Other assets */}
             <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 min-h-[220px] h-auto overflow-hidden flex flex-col">
@@ -402,8 +403,8 @@ export default function OnchainAnalysis() {
                     </button>
                 </div>
 
-                <div className="space-y-5 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
-                    <div className="min-w-[500px] space-y-5">
+                <div className="space-y-5 overflow-x-auto sm:overflow-x-visible pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
+                    <div className="w-full space-y-5">
                         {isFetchingActivity && activity.length === 0 ? (
                             /* Skeleton */
                             <div className="space-y-5">
@@ -503,14 +504,14 @@ function TransactionRow({ tx }: { tx: any }) {
     const absAmount = Math.abs(tx.netSUI || 0);
     const amountStr = `${absAmount.toFixed(4)} SUI`;
     const addr = tx.txType === 'sent' ? 'to' : tx.txType === 'received' ? 'from' : 'with';
-    const displayAddr = tx.digest ? tx.digest.slice(0, 10) + "..." : "Unknown";
+    const displayAddr = tx.digest ? tx.digest.slice(0, 8) + "..." : "Unknown";
 
     return (
         <a 
             href={`https://suiscan.xyz/testnet/tx/${tx.digest}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-4 text-sm group hover:bg-white/5 p-1 rounded-lg transition-colors"
+            className="flex items-center gap-3 sm:gap-4 text-sm group hover:bg-white/5 p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
         >
             <div className="w-5 flex justify-center flex-shrink-0">
                 {tx.txType === 'received' ? (
@@ -519,19 +520,26 @@ function TransactionRow({ tx }: { tx: any }) {
                     <ArrowUpRight className="text-[#EF4444]" size={16} />
                 )}
             </div>
-            <div className="w-6 h-6 rounded-full bg-[#1A1A1A] flex items-center justify-center border border-[#3B82F6]/30 flex-shrink-0">
-                <div className="w-4 h-4 rounded-full bg-[#3B82F6] flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white">S</span>
+            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <div className="w-6 h-6 flex items-center justify-center">
+                    <img src="/assets/icons/sui.svg" className="w-full h-full object-contain" alt="SUI" />
                 </div>
             </div>
-            <div className="flex flex-1 items-center gap-2 text-gray-300 min-w-[200px]">
-                <span className="capitalize">{tx.txType}</span>
-                <span className="font-medium text-white">{amountStr}</span>
-                <span>{addr}</span>
-                <span className="text-white truncate" style={{ maxWidth: '100px' }}>{displayAddr}</span>
-            </div>
-            <div className="text-gray-500 whitespace-nowrap text-right">
-                {tx.timestampMs ? new Date(Number(tx.timestampMs)).toLocaleDateString() : '—'}
+            <div className="flex flex-1 flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="capitalize font-medium text-white/90 truncate">{tx.txType}</span>
+                    <span className="font-bold text-white whitespace-nowrap">{amountStr}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-400 text-xs sm:text-sm min-w-0">
+                    <span className="hidden sm:inline">{addr}</span>
+                    <span className="text-white/60 font-mono truncate">{displayAddr}</span>
+                    <span className="text-gray-600 sm:text-gray-500 ml-auto sm:ml-0 whitespace-nowrap">
+                        {tx.timestampMs ? new Date(Number(tx.timestampMs)).toLocaleDateString(undefined, { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        }) : '—'}
+                    </span>
+                </div>
             </div>
         </a>
     );
