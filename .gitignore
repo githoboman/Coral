@@ -54,7 +54,7 @@ Thumbs.db
 *.secret
 *.key
 
-# --- Git ---
+# --- Gi ---
 .gitignore
 
 # --- Rough work --
