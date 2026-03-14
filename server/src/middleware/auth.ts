@@ -1,41 +1,54 @@
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
-export async function validateUser(
-  req: Request,
+// Use a secure environment variable in production
+export const JWT_SECRET = process.env.JWT_SECRET || "default_dev_secret_key_please_change";
+
+export interface AuthRequest extends Request {
+  user?: {
+    wallet_address: string;
+  };
+}
+
+export const requireAuth = (
+  req: AuthRequest,
   res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const user_id = req.body.user_id || req.query.user_id || req.params.user_id;
+  next: NextFunction
+): void => {
+  const authHeader = req.headers.authorization;
 
-  if (!user_id) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       error: "Unauthorized",
-      detail: "user_id is required",
+      detail: "Missing or invalid Authorization header",
     });
     return;
   }
 
-  if (
-    typeof user_id !== "string" ||
-    !user_id.startsWith("0x") ||
-    user_id.length !== 66 ||
-    !/^0x[a-fA-F0-9]{64}$/.test(user_id)
-  ) {
-    res.status(400).json({
-      error: "Bad Request",
-      detail:
-        "Invalid wallet address format. Must be a valid Sui address (0x + 64 hex chars)",
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { wallet_address: string };
+    
+    req.user = { wallet_address: decoded.wallet_address };
+    
+    // Security verification for backward compatibility
+    // Ensure that if a user_id is provided in the request, it matches the authenticated session payload
+    const requestedUserId = req.query.user_id || req.body.user_id || req.params.user_id;
+    if (requestedUserId && requestedUserId !== decoded.wallet_address) {
+       res.status(403).json({
+         error: "Forbidden",
+         detail: "Cannot access or modify other users' data",
+       });
+       return;
+    }
+    
+    next();
+  } catch (error) {
+    res.status(401).json({
+      error: "Unauthorized",
+      detail: "Invalid or expired token",
     });
     return;
   }
-
-  next();
-}
-
-export function extractUserId(req: Request): string | null {
-  return (req.body.user_id ||
-    req.query.user_id ||
-    req.params.user_id ||
-    req.params.userId ||
-    null) as string | null;
-}
+};

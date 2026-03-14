@@ -1,12 +1,15 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { getTaskStorageService } from "../services/taskStorageService";
 import { getNotificationService } from "../services/notificationService";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 
 // Create task
 router.post(
   "/tasks",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const {
@@ -92,6 +95,7 @@ router.post(
 // Bulk create tasks
 router.post(
   "/tasks/bulk",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id, tasks } = req.body;
@@ -158,6 +162,7 @@ router.post(
 // Get all tasks for user
 router.get(
   "/tasks",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id } = req.query;
@@ -196,6 +201,7 @@ router.get(
 // Get single task
 router.get(
   "/tasks/:task_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { task_id } = req.params;
@@ -227,6 +233,7 @@ router.get(
 // Update task
 router.patch(
   "/tasks/:task_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { task_id } = req.params;
@@ -269,6 +276,7 @@ router.patch(
 // Delete task
 router.delete(
   "/tasks/:task_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { task_id } = req.params;
@@ -303,6 +311,7 @@ router.delete(
 // Complete task
 router.post(
   "/tasks/:task_id/complete",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { task_id } = req.params;
@@ -339,6 +348,7 @@ router.post(
 // Confirm task transaction (for immediate actions like token transfers)
 router.post(
   "/tasks/:task_id/confirm",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { task_id } = req.params;
@@ -382,6 +392,7 @@ router.post(
 // Get task statistics
 router.get(
   "/tasks/stats/:user_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id } = req.params;

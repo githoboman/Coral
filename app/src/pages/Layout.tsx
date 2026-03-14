@@ -33,6 +33,7 @@ import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
 import { sileo } from "sileo";
 
 import { useActivity } from "@/hooks/useActivity";
+import { useNFTs } from "@/hooks/useNFTs";
 import { LayoutContextType } from "@/types/LayoutTypes";
 
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -138,6 +139,8 @@ const WalletManager = ({
   activeTab,
   onTabChange,
   nfts,
+  isFetchingNfts,
+  onRefreshNFTs,
   activity,
   isFetchingActivity,
   onRefreshActivity,
@@ -337,36 +340,60 @@ const WalletManager = ({
           )}
 
           {activeTab === "Collectibles" && (
-            <div className="grid grid-cols-2 gap-3">
-              {nfts.length > 0 ? (
-                nfts.map((nft: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-white/5 rounded-2xl overflow-hidden aspect-square relative group cursor-pointer"
-                  >
-                    {nft.image ? (
-                      <img
-                        src={nft.image}
-                        alt={nft.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-white/5">
-                        <Gamepad2 className="text-white/20" size={24} />
-                      </div>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 p-2 bg-black/60 backdrop-blur-sm">
-                      <div className="text-[10px] font-bold text-white truncate">
-                        {nft.name}
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-end pr-1">
+                <button
+                  onClick={onRefreshNFTs}
+                  disabled={isFetchingNfts}
+                  className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={`text-white/40 ${isFetchingNfts ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </div>
+              <div
+                className={`grid grid-cols-2 gap-3 pb-6 ${isFetchingNfts ? "opacity-50" : ""}`}
+              >
+                {isFetchingNfts && nfts.length === 0 ? (
+                  /* Skeleton for NFTs */
+                  [...Array(4)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="bg-white/5 rounded-2xl aspect-square animate-pulse"
+                    />
+                  ))
+                ) : nfts.length > 0 ? (
+                  nfts.map((nft: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="bg-white/5 rounded-2xl overflow-hidden aspect-square relative group cursor-pointer border border-white/5 hover:border-white/20 transition-all"
+                    >
+                      {nft.image ? (
+                        <img
+                          src={nft.image}
+                          alt={nft.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-white/5">
+                          <Gamepad2 className="text-white/20" size={24} />
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 p-2 bg-black/60 backdrop-blur-md translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                        <div className="text-[10px] font-bold text-white truncate">
+                          {nft.name}
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-10 text-white/20 text-xs font-medium">
+                    No collectibles found
                   </div>
-                ))
-              ) : (
-                <div className="col-span-2 text-center py-10 text-white/20 text-xs font-medium">
-                  No collectibles found
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
@@ -862,7 +889,7 @@ export default function AppLayout() {
   const [lastFetched, setLastFetched] = useState<number | null>(null);
 
   const [tokens, setTokens] = useState<any[]>([]);
-  const [nfts, setNfts] = useState<any[]>([]);
+  const { nfts, isFetching: isFetchingNfts, refetch: fetchNFTs } = useNFTs(address);
   const { activity, isFetchingActivity, fetchActivity, clearActivity, suiClient } = useActivity(address);
   const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
 
@@ -1097,11 +1124,6 @@ export default function AppLayout() {
     return () => clearInterval(interval);
   }, [address]);
 
-  useEffect(() => {
-    if (address) {
-      setNfts([]);
-    }
-  }, [address]);
 
   const navItems: NavItem[] = [
     {
@@ -1223,6 +1245,8 @@ export default function AppLayout() {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           nfts={nfts}
+          isFetchingNfts={isFetchingNfts}
+          onRefreshNFTs={fetchNFTs}
           activity={activity}
           isFetchingActivity={isFetchingActivity}
           onRefreshActivity={fetchActivity}

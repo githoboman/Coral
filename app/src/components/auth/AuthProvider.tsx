@@ -5,7 +5,10 @@ import {
   useCurrentAccount,
   useCurrentWallet,
   useDisconnectWallet,
+  useSignPersonalMessage,
 } from "@mysten/dapp-kit";
+import { jwtDecode } from "jwt-decode";
+
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch } from "@/store/hooks";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -60,6 +63,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const location = useLocation();
 
   const isInitializing = connectionStatus === "connecting";
+
+  // New hook for signing messages
+  const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
 
   const apiBaseUrl =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -120,20 +126,87 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!checkingRef.current) {
       checkingRef.current = true;
       checkedWalletRef.current = activeAddress;
-      checkUserOnboardingStatus(activeAddress);
+      handleAuthentication(activeAddress);
     }
   }, [isInitializing, currentAccount, location.pathname, navigate]);
+
+  const handleAuthentication = async (walletAddress: string) => {
+    try {
+      // 1. Check if we already have a valid JWT
+      const existingToken = localStorage.getItem("tovira_jwt");
+      if (existingToken) {
+        try {
+          const decoded = jwtDecode(existingToken);
+          const currentTime = Date.now() / 1000;
+          
+          if (decoded.exp && decoded.exp > currentTime) {
+            // Token is still valid, check onboarding status directly
+            await checkUserOnboardingStatus(walletAddress);
+            return;
+          } else {
+            // Token expired
+            localStorage.removeItem("tovira_jwt");
+          }
+        } catch (e) {
+          console.error("Invalid JWT", e);
+          localStorage.removeItem("tovira_jwt");
+        }
+      }
+
+      // 2. Fetch Nonce
+      const nonceRes = await fetch(`${apiBaseUrl}/api/auth/nonce?wallet_address=${encodeURIComponent(walletAddress)}`);
+      if (!nonceRes.ok) throw new Error("Failed to fetch nonce");
+      const { nonce } = await nonceRes.json();
+
+      // 3. Sign Message
+      const messageToSign = `Welcome to Tovira!\n\nClick to sign in and accept the Tovira Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${nonce}`;
+      const messageBytes = new TextEncoder().encode(messageToSign);
+      
+      const signatureResult = await signPersonalMessage({
+        message: messageBytes,
+      });
+
+      // 4. Verify Signature & Get JWT
+      const loginRes = await fetch(`${apiBaseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: walletAddress,
+          signature: signatureResult.signature,
+          message: btoa(String.fromCharCode(...messageBytes)), // Send message as base64
+        }),
+      });
+
+      if (!loginRes.ok) throw new Error("Login failed");
+      const { token } = await loginRes.json();
+      
+      // 5. Store JWT and proceed with onboarding check
+      localStorage.setItem("tovira_jwt", token);
+      await checkUserOnboardingStatus(walletAddress);
+
+    } catch (error) {
+      console.error("Authentication failed:", error);
+      sileo.error({ title: "Authentication Failed", description: "Please sign the message to verify your wallet." });
+      signOut(); // Force sign out if auth fails
+    } finally {
+      checkingRef.current = false;
+    }
+  };
 
   const checkUserOnboardingStatus = async (walletAddress: string) => {
     const maxRetries = 3;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        const token = localStorage.getItem("tovira_jwt");
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const response = await fetch(
           `${apiBaseUrl}/api/auth/check-user?wallet_address=${encodeURIComponent(walletAddress)}`,
           {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
+            headers,
           },
         );
 
@@ -195,9 +268,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     try {
+      const token = localStorage.getItem("tovira_jwt");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           email,
           wallet_address: walletAddress,

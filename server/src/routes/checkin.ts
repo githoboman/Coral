@@ -3,6 +3,8 @@ import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import { getLeaderboardService } from "../services/leaderboardService";
 import { getUserManager } from "../services/userManager";
 import getSupabaseClient from "../config/supabase";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 const supabase = getSupabaseClient();
@@ -266,6 +268,7 @@ async function hasCheckinForDate(userId: string, dateStr: string): Promise<boole
 
 router.get(
   "/status",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { wallet_address, timezone_offset } = req.query;
@@ -465,7 +468,8 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
   }
 };
 
-router.post("/request-ticket", handleCheckin);
-router.post("/perform", handleCheckin); 
+router.post("/request-ticket", requireAuth, handleCheckin);
+router.post("/perform", requireAuth, handleCheckin); 
+
 
 export default router;

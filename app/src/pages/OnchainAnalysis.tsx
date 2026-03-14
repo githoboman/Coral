@@ -23,7 +23,8 @@ import {
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
-  const { activity, isFetchingActivity, fetchActivity } = useActivity(address);
+  const [displayAddress, setDisplayAddress] = useState(address);
+  const { activity, isFetchingActivity, fetchActivity } = useActivity(displayAddress);
 
   const { walletBalanceUSD, tokens } = useOutletContext<LayoutContextType>();
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
@@ -33,12 +34,14 @@ export default function OnchainAnalysis() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7D" | "30D">("7D");
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [isFetchingPerformance, setIsFetchingPerformance] = useState(false);
+  const [searchAddress, setSearchAddress] = useState("");
+  const [portfolioChange, setPortfolioChange] = useState({ value: 0, isPositive: true });
 
   useEffect(() => {
-    if (address) {
+    if (displayAddress) {
       fetchActivity();
     }
-  }, [address, fetchActivity]);
+  }, [displayAddress, fetchActivity]);
 
   // Fetch performance data
   useEffect(() => {
@@ -87,6 +90,14 @@ export default function OnchainAnalysis() {
         });
 
         setPerformanceData(chartData);
+
+        // Calculate timeframe change
+        if (chartData.length > 1) {
+          const latest = chartData[chartData.length - 1].value;
+          const first = chartData[0].value;
+          const change = first !== 0 ? ((latest - first) / first) * 100 : 0;
+          setPortfolioChange({ value: Math.abs(change), isPositive: change >= 0 });
+        }
       } catch (err) {
         console.error("Failed to fetch performance:", err);
       } finally {
@@ -95,7 +106,7 @@ export default function OnchainAnalysis() {
     };
 
     fetchPerformance();
-  }, [address, tokens, activity, selectedTimeframe]);
+  }, [displayAddress, tokens, activity, selectedTimeframe]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -111,23 +122,23 @@ export default function OnchainAnalysis() {
     <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8">
       <div className="max-w-[1200px] mx-auto space-y-6">
         
-        {/* Header Row */}
-        <div className="flex flex-col items-center justify-center gap-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-center">
+         {/* Header Row */}
+        <div className="flex flex-col items-center sm:items-start justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center sm:items-baseline justify-center sm:justify-start gap-4 w-full">
+            <h1 className="text-md md:text-2xl font-bold tracking-tight text-center sm:text-left">
               Portfolio Dashboard
             </h1>
             <div className="flex items-center gap-5 sm:ml-2">
-              <div className="flex items-center gap-2 text-gray-300 text-sm">
-                <span className="truncate max-w-[120px] sm:max-w-none text-center">
-                  {account?.address ? `${account.address.slice(0, 6)}...${account.address.slice(-4)}` : "No wallet connected"}
+              <div className="flex items-center gap-2 text-gray-400 text-sm">
+                <span className="truncate max-w-[120px] sm:max-w-none text-center sm:text-left font-mono">
+                  {displayAddress ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}` : "No wallet connected"}
                 </span>
-                {account?.address && (
+                {displayAddress && (
                   <button 
-                    onClick={() => copyToClipboard(account.address)}
-                    className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                    onClick={() => copyToClipboard(displayAddress)}
+                    className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
                   >
-                    <Copy size={14} />
+                    <Copy size={12} />
                   </button>
                 )}
               </div>
@@ -183,29 +194,45 @@ export default function OnchainAnalysis() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto flex-1">
             {/* Search Bar */}
-            <div className="flex-1 relative w-full">
+             <div className="flex-1 relative w-full">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search size={16} className="text-gray-400" />
               </div>
               <input
                 type="text"
+                value={searchAddress}
+                onChange={(e) => setSearchAddress(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && setDisplayAddress(searchAddress)}
                 placeholder="Enter a SUI address"
                 className="block w-full pl-10 pr-10 py-2.5 bg-[#141414] border border-white/10 rounded-full text-sm focus:outline-none focus:border-white/20 transition-colors placeholder:text-gray-500"
               />
-              <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors">
-                <X size={14} />
-              </button>
+              {searchAddress && (
+                <button 
+                  onClick={() => setSearchAddress("")}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-4 w-full sm:w-auto">
               {/* Analyze Button */}
-              <button className="flex-1 sm:flex-none bg-[#3B82F6] hover:bg-[#2563EB] text-white px-6 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap">
+              <button 
+                onClick={() => setDisplayAddress(searchAddress)}
+                disabled={!searchAddress.startsWith("0x")}
+                className="flex-1 sm:flex-none bg-[#3B82F6] hover:bg-[#2563EB] text-white px-6 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50"
+              >
                 Analyze wallet
               </button>
 
               {/* Refresh Button */}
-              <button className="p-2.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 border border-transparent flex-shrink-0 bg-[#0A0A0A] sm:bg-transparent border-white/10 sm:border-transparent">
-                <RefreshCw size={18} />
+              <button 
+                onClick={() => fetchActivity()}
+                disabled={isFetchingActivity}
+                className="p-2.5 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/5 border border-transparent flex-shrink-0 bg-[#0A0A0A] sm:bg-transparent border-white/10 sm:border-transparent"
+              >
+                <RefreshCw size={18} className={isFetchingActivity ? "animate-spin" : ""} />
               </button>
             </div>
           </div>
@@ -215,14 +242,17 @@ export default function OnchainAnalysis() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4">
           
           {/* Portfolio Value */}
-          <div className="lg:col-span-3 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 flex flex-col justify-between min-h-[160px]">
-            <h3 className="text-gray-300 font-medium text-center">Portfolio value</h3>
-            <div>
-              <div className="text-4xl font-bold mt-2 text-center">${walletBalanceUSD || "0.00"}</div>
-              <div className="flex justify-between items-end mt-4">
-                <span className="text-gray-400 text-sm">24h change</span>
-                <span className="text-green-500 font-medium text-sm">+1.56%</span>
-              </div>
+          <div className="lg:col-span-3 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-between min-h-[220px]">
+            <h3 className="text-gray-500 font-medium text-sm uppercase tracking-wider">Portfolio value</h3>
+            <div className="flex-1 flex flex-col items-center justify-center py-4">
+              <div className="text-5xl font-bold text-white tracking-tight">${walletBalanceUSD || "0.00"}</div>
+            </div>
+            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+              <span className="text-gray-500 text-xs font-medium">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7D" : "30D"}</span>
+              <div className={`h-3 w-[1px] bg-white/10`} />
+              <span className={`font-bold text-xs ${portfolioChange.isPositive ? "text-[#34D399]" : "text-rose-500"}`}>
+                {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
+              </span>
             </div>
           </div>
 
@@ -323,7 +353,7 @@ export default function OnchainAnalysis() {
         </div>
 
         {/* Bottom Cards Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 items-start">
             
             {/* Other assets */}
             <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 min-h-[220px] h-auto overflow-hidden flex flex-col">
@@ -373,8 +403,8 @@ export default function OnchainAnalysis() {
                     </button>
                 </div>
 
-                <div className="space-y-5 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
-                    <div className="min-w-[500px] space-y-5">
+                <div className="space-y-5 overflow-x-auto sm:overflow-x-visible pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
+                    <div className="w-full space-y-5">
                         {isFetchingActivity && activity.length === 0 ? (
                             /* Skeleton */
                             <div className="space-y-5">
@@ -424,7 +454,12 @@ export default function OnchainAnalysis() {
                             <p className="text-xs text-gray-500 mb-8">You can subscribe to up to 3 wallets</p>
                             
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 mt-auto">
-                                <button className="w-full sm:w-auto bg-[#10B981] hover:bg-[#059669] text-white px-5 py-3 sm:py-2 rounded-full text-sm font-medium transition-colors order-1 sm:order-2">
+                                <button 
+                                    onClick={() => {
+                                        sileo.success({ title: "Subscribed", description: "You will now receive alerts for this wallet." });
+                                        setIsAlertModalOpen(false);
+                                    }}
+                                    className="w-full sm:w-auto bg-[#10B981] hover:bg-[#059669] text-white px-5 py-3 sm:py-2 rounded-full text-sm font-medium transition-colors order-1 sm:order-2">
                                     Confirm
                                 </button>
                                 <button 
@@ -466,17 +501,17 @@ export default function OnchainAnalysis() {
 }
 
 function TransactionRow({ tx }: { tx: any }) {
-    const absAmount = Math.abs(tx.netSUI);
+    const absAmount = Math.abs(tx.netSUI || 0);
     const amountStr = `${absAmount.toFixed(4)} SUI`;
     const addr = tx.txType === 'sent' ? 'to' : tx.txType === 'received' ? 'from' : 'with';
-    const displayAddr = tx.digest.slice(0, 10) + "...";
+    const displayAddr = tx.digest ? tx.digest.slice(0, 8) + "..." : "Unknown";
 
     return (
         <a 
             href={`https://suiscan.xyz/testnet/tx/${tx.digest}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-4 text-sm group hover:bg-white/5 p-1 rounded-lg transition-colors"
+            className="flex items-center gap-3 sm:gap-4 text-sm group hover:bg-white/5 p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
         >
             <div className="w-5 flex justify-center flex-shrink-0">
                 {tx.txType === 'received' ? (
@@ -485,19 +520,26 @@ function TransactionRow({ tx }: { tx: any }) {
                     <ArrowUpRight className="text-[#EF4444]" size={16} />
                 )}
             </div>
-            <div className="w-6 h-6 rounded-full bg-[#1A1A1A] flex items-center justify-center border border-[#3B82F6]/30 flex-shrink-0">
-                <div className="w-4 h-4 rounded-full bg-[#3B82F6] flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white">S</span>
+            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <div className="w-6 h-6 flex items-center justify-center">
+                    <img src="/assets/icons/sui.svg" className="w-full h-full object-contain" alt="SUI" />
                 </div>
             </div>
-            <div className="flex flex-1 items-center gap-2 text-gray-300 min-w-[200px]">
-                <span className="capitalize">{tx.txType}</span>
-                <span className="font-medium text-white">{amountStr}</span>
-                <span>{addr}</span>
-                <span className="text-white truncate" style={{ maxWidth: '100px' }}>{displayAddr}</span>
-            </div>
-            <div className="text-gray-500 whitespace-nowrap text-right">
-                {tx.timestampMs ? new Date(Number(tx.timestampMs)).toLocaleDateString() : '—'}
+            <div className="flex flex-1 flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="capitalize font-medium text-white/90 truncate">{tx.txType}</span>
+                    <span className="font-bold text-white whitespace-nowrap">{amountStr}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-400 text-xs sm:text-sm min-w-0">
+                    <span className="hidden sm:inline">{addr}</span>
+                    <span className="text-white/60 font-mono truncate">{displayAddr}</span>
+                    <span className="text-gray-600 sm:text-gray-500 ml-auto sm:ml-0 whitespace-nowrap">
+                        {tx.timestampMs ? new Date(Number(tx.timestampMs)).toLocaleDateString(undefined, { 
+                            month: 'short', 
+                            day: 'numeric' 
+                        }) : '—'}
+                    </span>
+                </div>
             </div>
         </a>
     );
