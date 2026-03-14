@@ -4,6 +4,8 @@ import {
   getUserManager,
 } from "../services/userManager";
 import { getLeaderboardService } from "../services/leaderboardService";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 
@@ -18,6 +20,7 @@ const leaderboardService = getLeaderboardService();
 
 router.get(
   "/account/:user_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { user_id } = req.params;

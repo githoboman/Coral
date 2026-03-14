@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import { UserManager, getUserManager } from "../services/userManager";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 
@@ -23,6 +25,7 @@ function getLocalTicketMinter(): TicketMinter {
 
 router.get(
   "/fetch-user",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { user_id } = req.query;
@@ -60,6 +63,7 @@ router.get(
 
 router.post(
   "/update-user",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const {

@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from "express";
 import { UserManager, getUserManager as getUserManagerService } from "../services/userManager";
 import { getLeaderboardService } from "../services/leaderboardService";
 import getSupabaseClient from "../config/supabase";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 const supabase = getSupabaseClient();
@@ -19,6 +21,7 @@ function getTodayDate(): string {
 
 router.get(
   "/claimable",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id } = req.query;
@@ -94,6 +97,7 @@ router.get(
 
 router.post(
   "/track-creation",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { user_id, type } = req.body;
@@ -142,6 +146,7 @@ router.post(
 
 router.post(
   "/confirm-claim",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       let { user_id } = req.body;
@@ -225,6 +230,7 @@ router.post(
 
 router.get(
   "/stats/:user_id",
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user_id = req.params.user_id.toLowerCase();

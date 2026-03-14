@@ -2,6 +2,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getSupabaseClient } from '../config/supabase';
 import { validate, eventCreateSchema, eventUpdateSchema, eventBulkCreateSchema } from '../utils/validation';
+import { requireAuth } from '../middleware/auth';
+
 import { Event, EventCreateRequest, EventUpdateRequest, EventBulkCreateRequest, EventListResponse } from '../types';
 
 const router = Router();
@@ -10,7 +12,7 @@ const router = Router();
  * POST /api/events
  * Create a new event
  */
-router.post('/events', validate(eventCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events', requireAuth, validate(eventCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const eventData = req.body as EventCreateRequest;
     const supabase = getSupabaseClient();
@@ -71,7 +73,7 @@ router.post('/events', validate(eventCreateSchema), async (req: Request, res: Re
  * POST /api/events/bulk
  * Create multiple events at once (max 50)
  */
-router.post('/events/bulk', validate(eventBulkCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/bulk', requireAuth, validate(eventBulkCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const bulkData = req.body as EventBulkCreateRequest;
     const supabase = getSupabaseClient();
@@ -131,7 +133,7 @@ router.post('/events/bulk', validate(eventBulkCreateSchema), async (req: Request
  * GET /api/events
  * Get user's events with optional filters
  */
-router.get('/events', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/events', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { user_id, start_date, end_date, tags, is_all_day, limit = '100', offset = '0' } = req.query;
 
@@ -194,7 +196,7 @@ router.get('/events', async (req: Request, res: Response, next: NextFunction) =>
  * GET /api/events/:event_id
  * Get a specific event by ID
  */
-router.get('/events/:event_id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/events/:event_id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { event_id } = req.params;
     const { user_id } = req.query;
@@ -232,7 +234,7 @@ router.get('/events/:event_id', async (req: Request, res: Response, next: NextFu
  * PATCH /api/events/:event_id
  * Update an event
  */
-router.patch('/events/:event_id', validate(eventUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/events/:event_id', requireAuth, validate(eventUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { event_id } = req.params;
     const { user_id } = req.query;
@@ -303,7 +305,7 @@ router.patch('/events/:event_id', validate(eventUpdateSchema), async (req: Reque
  * DELETE /api/events/:event_id
  * Delete an event
  */
-router.delete('/events/:event_id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/events/:event_id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { event_id } = req.params;
     const { user_id } = req.query;
@@ -358,7 +360,7 @@ router.delete('/events/:event_id', async (req: Request, res: Response, next: Nex
  * GET /api/events/stats/:user_id
  * Get event statistics for a user
  */
-router.get('/events/stats/:user_id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/events/stats/:user_id', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { user_id } = req.params;
     const supabase = getSupabaseClient();

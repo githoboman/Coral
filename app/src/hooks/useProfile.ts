@@ -35,7 +35,13 @@ export function useProfile() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/fetch-user?user_id=${currentAccount.address}`);
+      const token = localStorage.getItem("tovira_jwt");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE}/api/fetch-user?user_id=${currentAccount.address}`, {
+        headers
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.exists && data.user) {
@@ -67,9 +73,13 @@ export function useProfile() {
     setProfile(prev => prev ? { ...prev, preferences: { ...prev.preferences, ...newPrefs } } : null);
 
     try {
+      const token = localStorage.getItem("tovira_jwt");
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`${API_BASE}/api/update-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           user_id: currentAccount.address,
           preferences: newPrefs,

@@ -1,4 +1,9 @@
 import { Router, Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
+import { JWT_SECRET } from "../middleware/auth";
+
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
   UserManager,
@@ -9,6 +14,9 @@ import getSupabaseClient from "../config/supabase";
 
 const supabase = getSupabaseClient();
 const router = Router();
+
+const nonceStore = new Map<string, { nonce: string, expires: number }>();
+
 
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
@@ -457,5 +465,52 @@ router.get(
     }
   },
 );
+
+router.get("/nonce", (req: Request, res: Response) => {
+  const { wallet_address } = req.query;
+  if (!wallet_address || typeof wallet_address !== "string") {
+    res.status(400).json({ error: "Missing wallet_address" });
+    return;
+  }
+  const nonce = crypto.randomBytes(32).toString("hex");
+  nonceStore.set(wallet_address, { nonce, expires: Date.now() + 1000 * 60 * 5 }); // 5 mins
+  res.json({ nonce });
+});
+
+router.post("/login", async (req: Request, res: Response) => {
+  try {
+    const { wallet_address, signature } = req.body;
+    if (!wallet_address || !signature) {
+      res.status(400).json({ error: "Missing wallet_address or signature" });
+      return;
+    }
+
+    const storedData = nonceStore.get(wallet_address);
+    if (!storedData || storedData.expires < Date.now()) {
+      res.status(401).json({ error: "Nonce expired or not requested" });
+      return;
+    }
+
+    const expectedMessage = `Welcome to Tovira!\n\nClick to sign in and accept the Tovira Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${storedData.nonce}`;
+    const message = new TextEncoder().encode(expectedMessage);
+
+    // Verify signature
+    const pubKey = await verifyPersonalMessageSignature(message, signature, {
+      client: suiClient,
+    });
+
+    if (pubKey.toSuiAddress() !== wallet_address) {
+       res.status(401).json({ error: "Signature mapped to different address" });
+       return;
+    }
+
+    nonceStore.delete(wallet_address);
+    const token = jwt.sign({ wallet_address }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token });
+  } catch (err: any) {
+    console.error("Login error:", err);
+    res.status(401).json({ error: "Invalid signature", detail: err.message });
+  }
+});
 
 export default router;

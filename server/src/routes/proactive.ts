@@ -6,6 +6,8 @@ import { getUserStateService } from "../services/userStateService";
 import { getEventMonitorService } from "../services/eventMonitorService";
 import { getSuggestionThrottler } from "../services/suggestionThrottler";
 import { getSuggestionEngine } from "../services/suggestionEngine";
+import { requireAuth } from "../middleware/auth";
+
 
 const router = Router();
 
@@ -18,7 +20,7 @@ const router = Router();
  * Register a wallet item to monitor (token, NFT, or address).
  * Body: { wallet_address, type, identifier, label }
  */
-router.post("/track", async (req: Request, res: Response) => {
+router.post("/track", requireAuth, async (req: Request, res: Response) => {
   try {
     const { wallet_address, type, identifier, label } = req.body;
 
@@ -63,7 +65,7 @@ router.post("/track", async (req: Request, res: Response) => {
  * Remove a tracked item.
  * Query: ?wallet_address=0x...
  */
-router.delete("/track/:itemId", async (req: Request, res: Response) => {
+router.delete("/track/:itemId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { itemId } = req.params;
     const walletAddress = req.query.wallet_address as string;
@@ -98,7 +100,7 @@ router.delete("/track/:itemId", async (req: Request, res: Response) => {
  * Get all tracked items for a wallet.
  * Query: ?wallet_address=0x...
  */
-router.get("/tracked", async (req: Request, res: Response) => {
+router.get("/tracked", requireAuth, async (req: Request, res: Response) => {
   try {
     const walletAddress = req.query.wallet_address as string;
 
@@ -125,7 +127,7 @@ router.get("/tracked", async (req: Request, res: Response) => {
  * Get recent wallet events (on-chain activity detected by the monitor).
  * Query: ?wallet_address=0x...&limit=20&type=token_received&unprocessed=true
  */
-router.get("/events", async (req: Request, res: Response) => {
+router.get("/events", requireAuth, async (req: Request, res: Response) => {
   try {
     const walletAddress = req.query.wallet_address as string;
     const limit = parseInt(req.query.limit as string, 10) || 20;
@@ -159,7 +161,7 @@ router.get("/events", async (req: Request, res: Response) => {
  * Get user's proactive feature preferences.
  * Query: ?wallet_address=0x...
  */
-router.get("/preferences", async (req: Request, res: Response) => {
+router.get("/preferences", requireAuth, async (req: Request, res: Response) => {
   try {
     const walletAddress = req.query.wallet_address as string;
 
@@ -182,7 +184,7 @@ router.get("/preferences", async (req: Request, res: Response) => {
  * Update user's proactive feature preferences.
  * Body: { wallet_address, risk_tolerance?, notification_frequency?, proactive_suggestions?, tracking_opt_in? }
  */
-router.put("/preferences", async (req: Request, res: Response) => {
+router.put("/preferences", requireAuth, async (req: Request, res: Response) => {
   try {
     const { wallet_address, ...prefs } = req.body;
 
@@ -216,7 +218,7 @@ router.put("/preferences", async (req: Request, res: Response) => {
  * GET /api/proactive/status
  * Get the status of the event monitoring system.
  */
-router.get("/status", async (_req: Request, res: Response) => {
+router.get("/status", requireAuth, async (_req: Request, res: Response) => {
   try {
     const eventMonitor = getEventMonitorService();
     return res.json({
@@ -237,7 +239,7 @@ router.get("/status", async (_req: Request, res: Response) => {
  * Get recent proactive suggestions for a wallet.
  * Query: ?wallet_address=0x...&limit=20
  */
-router.get("/suggestions", async (req: Request, res: Response) => {
+router.get("/suggestions", requireAuth, async (req: Request, res: Response) => {
   try {
     const walletAddress = req.query.wallet_address as string;
     const limit = parseInt(req.query.limit as string, 10) || 20;
@@ -261,7 +263,7 @@ router.get("/suggestions", async (req: Request, res: Response) => {
  * Accept or dismiss a suggestion from the web UI.
  * Body: { action: "accept" | "dismiss" }
  */
-router.post("/suggestions/:id/respond", async (req: Request, res: Response) => {
+router.post("/suggestions/:id/respond", requireAuth, async (req: Request, res: Response) => {
   try {
     const suggestionId = parseInt(req.params.id, 10);
     const { action } = req.body;
@@ -298,7 +300,7 @@ router.post("/suggestions/:id/respond", async (req: Request, res: Response) => {
  * Run a transaction simulation.
  * Body: { wallet_address, type: "transfer"|"swap"|"stake", ...params }
  */
-router.post("/simulate", async (req: Request, res: Response) => {
+router.post("/simulate", requireAuth, async (req: Request, res: Response) => {
   try {
     const { wallet_address, type, amount, recipient, coinType, targetCoin, validatorAddress } = req.body;
 
@@ -333,7 +335,7 @@ router.post("/simulate", async (req: Request, res: Response) => {
  * Get recent simulation logs for a wallet.
  * Query: ?wallet_address=0x...&limit=10
  */
-router.get("/simulations", async (req: Request, res: Response) => {
+router.get("/simulations", requireAuth, async (req: Request, res: Response) => {
   try {
     const walletAddress = req.query.wallet_address as string;
     const limit = parseInt(req.query.limit as string, 10) || 10;
@@ -358,7 +360,7 @@ router.get("/simulations", async (req: Request, res: Response) => {
  * Mark a simulation as executed with the real tx digest.
  * Body: { tx_digest: string }
  */
-router.post("/simulations/:id/execute", async (req: Request, res: Response) => {
+router.post("/simulations/:id/execute", requireAuth, async (req: Request, res: Response) => {
   try {
     const simId = parseInt(req.params.id, 10);
     const { tx_digest } = req.body;
