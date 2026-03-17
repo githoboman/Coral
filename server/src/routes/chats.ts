@@ -1,18 +1,13 @@
 import { Router, Request, Response } from "express";
 import { getChatService } from "../services/chatService";
+import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 const chatService = getChatService();
 
-// GET /api/chats - List user's chats
-router.get("/", async (req: Request, res: Response) => {
-  let userId = req.query.userId as string;
-  if (userId) userId = userId.toLowerCase();
-
-  if (!userId) {
-    res.status(400).json({ error: "userId is required" });
-    return;
-  }
+// GET /api/chats - List user's own chats only
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.wallet_address;
 
   try {
     const chats = await chatService.getChats(userId);
@@ -23,9 +18,10 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/chats/:chatId - Get chat history
-router.get("/:chatId", async (req: Request, res: Response) => {
+// GET /api/chats/:chatId - Get chat history (ownership verified)
+router.get("/:chatId", requireAuth, async (req: AuthRequest, res: Response) => {
   const { chatId } = req.params;
+  const userId = req.user!.wallet_address;
 
   if (!chatId) {
     res.status(400).json({ error: "chatId is required" });
@@ -33,6 +29,15 @@ router.get("/:chatId", async (req: Request, res: Response) => {
   }
 
   try {
+    // Verify ownership: check if this chat belongs to the authenticated user
+    const userChats = await chatService.getChats(userId);
+    const ownsChat = userChats.some(c => c.chat_id === chatId);
+
+    if (!ownsChat) {
+      res.status(403).json({ error: "Forbidden", detail: "You do not own this chat" });
+      return;
+    }
+
     const messages = await chatService.getChatHistory(chatId);
     res.json(messages);
   } catch (error) {
@@ -41,9 +46,10 @@ router.get("/:chatId", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/chats/:chatId - Delete a chat
-router.delete("/:chatId", async (req: Request, res: Response) => {
+// DELETE /api/chats/:chatId - Delete a chat (ownership verified)
+router.delete("/:chatId", requireAuth, async (req: AuthRequest, res: Response) => {
   const { chatId } = req.params;
+  const userId = req.user!.wallet_address;
 
   if (!chatId) {
     res.status(400).json({ error: "chatId is required" });
@@ -51,6 +57,15 @@ router.delete("/:chatId", async (req: Request, res: Response) => {
   }
 
   try {
+    // Verify ownership: check if this chat belongs to the authenticated user
+    const userChats = await chatService.getChats(userId);
+    const ownsChat = userChats.some(c => c.chat_id === chatId);
+
+    if (!ownsChat) {
+      res.status(403).json({ error: "Forbidden", detail: "You do not own this chat" });
+      return;
+    }
+
     const success = await chatService.deleteChat(chatId);
     if (success) {
       res.json({ success: true });

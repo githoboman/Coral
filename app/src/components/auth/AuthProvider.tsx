@@ -320,10 +320,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
+      // Step 1: Invalidate the JWT on the backend FIRST (blacklist it)
+      const currentToken = localStorage.getItem("tovira_jwt");
+      if (currentToken) {
+        try {
+          await fetch(`${apiBaseUrl}/api/auth/logout`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${currentToken}` },
+          });
+        } catch (e) {
+          // Non-blocking - continue with local cleanup even if server is unreachable
+          console.warn("[AUTH] Failed to invalidate token server-side:", e);
+        }
+      }
+
       disconnectWallet();
 
       // Clear Redux stores
-
       dispatch(clearLeaderboard());
 
       const authItems = [
@@ -363,6 +376,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
     }
   };
+
 
   if (isInitializing) return <LoadingSpinner fullScreen />;
 

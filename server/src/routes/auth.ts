@@ -2,7 +2,8 @@ import { Router, Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-import { JWT_SECRET } from "../middleware/auth";
+import { JWT_SECRET, blacklistToken, requireAuth, AuthRequest } from "../middleware/auth";
+
 
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
@@ -512,5 +513,19 @@ router.post("/login", async (req: Request, res: Response) => {
     res.status(401).json({ error: "Invalid signature", detail: err.message });
   }
 });
+
+/**
+ * POST /api/auth/logout
+ * Immediately revokes the current JWT by adding it to the blacklist.
+ * Even if the token has not expired, it will be rejected on future requests.
+ */
+router.post("/logout", requireAuth, (req: AuthRequest, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (token) {
+    blacklistToken(token);
+  }
+  res.json({ success: true, message: "Logged out successfully. Token revoked." });
+});
+
 
 export default router;

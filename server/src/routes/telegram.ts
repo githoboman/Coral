@@ -1,15 +1,15 @@
 import express from "express";
 import { getTelegramService } from "../services/telegramService";
+import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
 const telegramService = getTelegramService();
 
-router.post("/connect", async (req, res) => {
+// POST /api/telegram/connect - Generate a Telegram link code for the authenticated user
+router.post("/connect", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { walletAddress } = req.body;
-    if (!walletAddress) {
-      return res.status(400).json({ error: "Missing walletAddress" });
-    }
+    // Always use the authenticated wallet address, ignore any provided walletAddress in body
+    const walletAddress = req.user!.wallet_address;
 
     const code = await telegramService.generateCode(walletAddress);
     const botUsername = telegramService.getBotUsername();
@@ -21,12 +21,11 @@ router.post("/connect", async (req, res) => {
   }
 });
 
-router.post("/unlink", async (req, res) => {
+// POST /api/telegram/unlink - Unlink Telegram for the authenticated user only
+router.post("/unlink", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { walletAddress } = req.body;
-    if (!walletAddress) {
-      return res.status(400).json({ error: "Missing walletAddress" });
-    }
+    // Always use the authenticated wallet address, ignore any provided walletAddress in body
+    const walletAddress = req.user!.wallet_address;
 
     await telegramService.unlinkAccount(walletAddress);
     res.json({ success: true });
@@ -36,12 +35,11 @@ router.post("/unlink", async (req, res) => {
   }
 });
 
-router.get("/status", async (req, res) => {
+// GET /api/telegram/status - Check Telegram link status for the authenticated user
+router.get("/status", requireAuth, async (req: AuthRequest, res) => {
   try {
-    const { walletAddress } = req.query;
-    if (!walletAddress || typeof walletAddress !== "string") {
-      return res.status(400).json({ error: "Missing or invalid walletAddress" });
-    }
+    // Always use the authenticated wallet address
+    const walletAddress = req.user!.wallet_address;
 
     const account = await telegramService.getStatus(walletAddress);
     res.json({
