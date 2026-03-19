@@ -511,6 +511,7 @@ const Dashboard = () => {
 
         const res = await fetch(url.toString(), {
           cache: 'no-store', // CRITICAL: Prevent browser network caching
+          credentials: 'include',
         });
         if (res.ok) {
           const status = await res.json();
@@ -582,7 +583,7 @@ const Dashboard = () => {
 
     const fetchChats = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/chats?userId=${currentAccount.address}`);
+        const res = await fetch(`${API_BASE_URL}/api/chats?userId=${currentAccount.address}`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const mapped: Conversation[] = data.map((c: any) => ({
@@ -615,7 +616,7 @@ const Dashboard = () => {
     const fetchMessages = async () => {
       setIsLoadingMessages(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/api/chats/${activeConvId}`);
+        const res = await fetch(`${API_BASE_URL}/api/chats/${activeConvId}`, { credentials: 'include' });
         if (res.ok) {
           const msgs: any[] = await res.json();
           const mappedMessages: Message[] = msgs.map((m) => ({
@@ -701,6 +702,7 @@ const Dashboard = () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: "POST",
+          credentials: 'include',
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
@@ -732,7 +734,7 @@ const Dashboard = () => {
               const setter = agentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
               const countdownSetter = agentId === "task" ? setTaskCountdown : setResearchCountdown;
 
-              fetch(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`)
+              fetch(`${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`, { credentials: 'include' })
                 .then(r => r.json())
                 .then(s => {
                   setter(s);
@@ -772,7 +774,7 @@ const Dashboard = () => {
         if (agentId === "task" || agentId === "research") {
           const endpoint = agentId === "task" ? "task-prompts" : "research-prompts";
           const setter = agentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
-          fetch(`${API_BASE_URL}/api/chat/${endpoint}/${userId}`)
+          fetch(`${API_BASE_URL}/api/chat/${endpoint}/${userId}`, { credentials: 'include' })
             .then(r => r.json())
             .then(s => setter(s));
         }
@@ -1092,7 +1094,7 @@ const Dashboard = () => {
 
     // Call API
     try {
-      await fetch(`${API_BASE_URL}/api/chats/${id}`, { method: "DELETE" });
+      await fetch(`${API_BASE_URL}/api/chats/${id}`, { method: "DELETE", credentials: 'include' });
     } catch (err) {
       console.error("Failed to delete chat:", err);
     }

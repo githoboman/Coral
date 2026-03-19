@@ -99,7 +99,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const timezoneOffset = getTimezoneOffset();
       const res = await fetch(
         `${API_BASE}/api/checkin/status?wallet_address=${encodeURIComponent(addr)}&timezone_offset=${timezoneOffset}`,
-        { signal: abortControllerRef.current.signal },
+        { signal: abortControllerRef.current.signal, credentials: 'include' },
       );
 
       if (!res.ok) {
@@ -174,6 +174,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       const timezoneOffset = getTimezoneOffset();
       const res = await fetch(`${API_BASE}/api/checkin/perform`, {
         method: "POST",
+        credentials: 'include',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet_address: currentAccount.address,

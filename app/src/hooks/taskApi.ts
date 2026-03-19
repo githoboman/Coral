@@ -85,6 +85,7 @@ class TaskApiClient {
   async createTask(task: Task): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -102,6 +103,7 @@ class TaskApiClient {
   async createTasksBulk(userId: string, tasks: Omit<Task, 'user_id'>[]): Promise<Task[]> {
     const response = await fetch(`${this.baseUrl}/tasks/bulk`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -143,6 +145,7 @@ class TaskApiClient {
 
     const response = await fetch(`${this.baseUrl}/tasks?${params.toString()}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -159,6 +162,7 @@ class TaskApiClient {
   async getTask(taskId: number, userId: string): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -175,6 +179,7 @@ class TaskApiClient {
   async updateTask(taskId: number, userId: string, updates: Partial<Task>): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -192,6 +197,7 @@ class TaskApiClient {
   async deleteTask(taskId: number, userId: string): Promise<{ message: string; task_id: number; task_name: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -208,6 +214,7 @@ class TaskApiClient {
   async completeTask(taskId: number, userId: string): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/complete?user_id=${userId}`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -224,6 +231,7 @@ class TaskApiClient {
   async getTaskStats(userId: string): Promise<TaskStats> {
     const response = await fetch(`${this.baseUrl}/tasks/stats/${userId}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -243,6 +251,7 @@ class TaskApiClient {
   async getActionableTasks(userId: string): Promise<ActionableTasksResponse> {
     const response = await fetch(`${this.baseUrl}/tasks/actionable?user_id=${userId}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -262,6 +271,7 @@ class TaskApiClient {
   async executeTaskAction(taskId: number, userId: string, walletAddress: string): Promise<ActionExecuteResponse> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/execute`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -285,6 +295,7 @@ class TaskApiClient {
   async confirmTaskAction(taskId: number, userId: string, txDigest: string): Promise<ActionConfirmResponse> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/confirm`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -347,6 +358,7 @@ class EventApiClient {
   async createEvent(event: Event): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -364,6 +376,7 @@ class EventApiClient {
   async createEventsBulk(userId: string, events: Omit<Event, 'user_id'>[]): Promise<Event[]> {
     const response = await fetch(`${this.baseUrl}/events/bulk`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -404,6 +417,7 @@ class EventApiClient {
 
     const response = await fetch(`${this.baseUrl}/events?${params.toString()}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -420,6 +434,7 @@ class EventApiClient {
   async getEvent(eventId: number, userId: string): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -436,6 +451,7 @@ class EventApiClient {
   async updateEvent(eventId: number, userId: string, updates: Partial<Event>): Promise<Event> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -453,6 +469,7 @@ class EventApiClient {
   async deleteEvent(eventId: number, userId: string): Promise<{ message: string; event_id: number; event_name: string }> {
     const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -469,6 +486,7 @@ class EventApiClient {
   async getEventStats(userId: string): Promise<EventStats> {
     const response = await fetch(`${this.baseUrl}/events/stats/${userId}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
