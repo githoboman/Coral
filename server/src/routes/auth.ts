@@ -1,8 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-import { JWT_SECRET } from "../middleware/auth";
+import { requireAuth, AuthRequest } from "../middleware/auth";
+import { createToken, revokeToken, revokeAllTokens } from "../services/tokenService";
 
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
@@ -479,7 +479,7 @@ router.get("/nonce", (req: Request, res: Response) => {
 
 router.post("/login", async (req: Request, res: Response) => {
   try {
-    const { wallet_address, signature } = req.body;
+    const { wallet_address, signature, device_name } = req.body;
     if (!wallet_address || !signature) {
       res.status(400).json({ error: "Missing wallet_address or signature" });
       return;
@@ -500,17 +500,57 @@ router.post("/login", async (req: Request, res: Response) => {
     });
 
     if (pubKey.toSuiAddress() !== wallet_address) {
-       res.status(401).json({ error: "Signature mapped to different address" });
-       return;
+      res.status(401).json({ error: "Signature mapped to different address" });
+      return;
     }
 
     nonceStore.delete(wallet_address);
-    const token = jwt.sign({ wallet_address }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token });
+
+    // Issue a secure server-side token (HMAC-SHA256 stored in DB)
+    const name = typeof device_name === "string" && device_name.trim()
+      ? device_name.trim()
+      : (req.headers["user-agent"]?.slice(0, 120) ?? "Unknown device");
+
+    const { rawToken, expiresAt } = await createToken(wallet_address, name);
+
+    // Send raw token exclusively via httpOnly cookie — never in the response body
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("auth_token", rawToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "strict",
+      expires: expiresAt,
+    });
+
+    res.json({ success: true, wallet_address });
   } catch (err: any) {
     console.error("Login error:", err);
     res.status(401).json({ error: "Invalid signature", detail: err.message });
   }
 });
+
+/**
+ * POST /api/auth/logout
+ * Deletes the current token row from the DB and clears the cookie.
+ */
+router.post("/logout", requireAuth, async (req: AuthRequest, res: Response) => {
+  const rawToken = req.cookies?.auth_token;
+  if (rawToken) {
+    await revokeToken(rawToken);
+  }
+  res.clearCookie("auth_token", { httpOnly: true, sameSite: "strict" });
+  res.json({ success: true, message: "Logged out successfully." });
+});
+
+/**
+ * POST /api/auth/logout-all
+ * Deletes ALL token rows for the authenticated user, invalidating every device.
+ */
+router.post("/logout-all", requireAuth, async (req: AuthRequest, res: Response) => {
+  await revokeAllTokens(req.user!.wallet_address);
+  res.clearCookie("auth_token", { httpOnly: true, sameSite: "strict" });
+  res.json({ success: true, message: "All sessions revoked." });
+});
+
 
 export default router;

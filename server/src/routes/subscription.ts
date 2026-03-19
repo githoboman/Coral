@@ -2,7 +2,9 @@ import { Router, Request, Response, NextFunction } from "express";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { getSubscriptionService } from "../services/subscriptionService";
+import { requireAuth, AuthRequest } from "../middleware/auth";
 import "dotenv/config";
+
 
 const router = Router();
 
@@ -20,23 +22,19 @@ function getSuiClient(): SuiClient {
 }
 
 /**
- * Get subscription status for a wallet address
- * GET /api/subscription/status?wallet_address=0x...
+ * Get subscription status for the authenticated wallet address
+ * GET /api/subscription/status
  */
 router.get(
   "/status",
-  async (req: Request, res: Response, next: NextFunction) => {
+  requireAuth,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { wallet_address } = req.query;
+      // Use JWT wallet address — no longer exposed to query param spoofing
+      const wallet_address = req.user!.wallet_address;
 
       console.log("📥 Subscription status request for:", wallet_address);
 
-      if (!wallet_address || typeof wallet_address !== "string") {
-        return res.status(400).json({
-          error: "Bad Request",
-          detail: "Wallet address is required",
-        });
-      }
 
       if (!PACKAGE_ID || !SUBSCRIPTION_REGISTRY) {
         console.error("❌ Missing environment variables:", {

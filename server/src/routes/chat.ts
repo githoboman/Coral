@@ -1,50 +1,37 @@
-// server/src/routes/chat.ts
-// SSE chat endpoint that routes messages to AI agents
-
 import { Router, Request, Response, NextFunction } from "express";
 import { createSSEWriter, type ChatRequest } from "../services/agents/agentTypes";
-// import { unifiedRateLimitMiddleware } from "../middleware/unifiedRateLimiter"; // Removed
 import { getTaskManagerAgent } from "../services/agents/taskManagerAgent";
 import { getSubscriptionService } from "../services/subscriptionService";
 import { getChatService } from "../services/chatService";
 import { getResearchAgent } from "../services/agents/researchAgent";
 import { getUserStateService } from "../services/userStateService";
 import { trackTaskCreation } from "../services/agents/taskManagerAgent";
-
+import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
+
 /**
  * POST /api/chat
- * Body: { user_id, message, chat_id, agent_id, ... }
+ * Body: { message, chat_id, agent_id, ... }
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   console.log("[CHAT ROUTE] POST /api/chat endpoint hit!");
 
   try {
-    const {
-      user_id, // Note: Frontend sends snake_case or camelCase? checks below... 
-      // Actually the user snippet uses snake_case in destructuring: 
-      // const { user_id, message, chat_id, agent_id } = req.body
-      message,
-      chat_id,
-      agent_id,
-      transaction_hash,
-      history
-    } = req.body;
+    // Use the authenticated wallet address as the userId (prevents impersonation)
+    const userId = req.user!.wallet_address;
 
-    // Handle both camelCase and snake_case inputs for robustness
-    let userId = user_id || req.body.userId;
-    if (userId) userId = userId.toLowerCase();
-    
+    const { message, agent_id, chat_id } = req.body;
     const msgContent = message || req.body.message;
     const agentId = agent_id || req.body.agentId;
     const chatId = chat_id || req.body.chatId; // Optional
-    const clientTime = req.body.client_time || req.body.clientTime || new Date().toISOString(); // Handle both formats
+    const clientTime = req.body.client_time || req.body.clientTime || new Date().toISOString();
 
-    if (!userId || !msgContent) {
-      return res.status(400).json({ error: "user_id and message are required" });
+    if (!msgContent) {
+      return res.status(400).json({ error: "message is required" });
     }
+
 
     // ✅ TASK AGENT: Check daily limit
     if (agentId === "task" || agentId === "task_agent") {
@@ -232,10 +219,12 @@ router.post("/", async (req: Request, res: Response) => {
 
 // ✅ Legacy endpoints requested by user
 
-// Task agent daily prompt status
-router.get("/task-prompts/:userId", async (req, res) => {
+// Task agent daily prompt status - authenticated, returns own usage only
+router.get("/task-prompts/:userId", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.params.userId.toLowerCase();
+    // Use authenticated user address, ignore the :userId param
+    const userId = req.user!.wallet_address;
+
     const forceRefresh = req.query.force === 'true';
     const subscriptionService = getSubscriptionService();
     const remaining = await subscriptionService.getPromptsRemaining(userId, 'task', forceRefresh);
@@ -254,10 +243,12 @@ router.get("/task-prompts/:userId", async (req, res) => {
   }
 });
 
-// Research agent daily prompt status
-router.get("/research-prompts/:userId", async (req, res) => {
+// Research agent daily prompt status - authenticated, returns own usage only
+router.get("/research-prompts/:userId", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.params.userId.toLowerCase();
+    // Use authenticated user address, ignore the :userId param
+    const userId = req.user!.wallet_address;
+
     const forceRefresh = req.query.force === 'true';
     const subscriptionService = getSubscriptionService();
     const remaining = await subscriptionService.getPromptsRemaining(userId, 'research', forceRefresh);
