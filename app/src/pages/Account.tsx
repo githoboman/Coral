@@ -25,17 +25,12 @@ import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
 import { Tooltip } from "@/components/ui/Tooltip";
 
-// ── Solana wallet hooks ───────────────────────────────────────────────
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
-// ── Ethereum wallet hooks (wagmi) ─────────────────────────────────────
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 
-// ─────────────────────────────────────────────────────────────────────
-// Phantom SVG icon (inline — no extra package needed)
-// ─────────────────────────────────────────────────────────────────────
 function PhantomIcon({ size = 28 }: { size?: number }) {
   return (
     <svg
@@ -62,9 +57,6 @@ function PhantomIcon({ size = 28 }: { size?: number }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// MetaMask SVG icon (inline)
-// ─────────────────────────────────────────────────────────────────────
 function MetaMaskIcon({ size = 28 }: { size?: number }) {
   return (
     <svg
@@ -277,9 +269,6 @@ const TelegramConnect = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// PhantomConnect — Solana wallet row
-// ─────────────────────────────────────────────────────────────────────
 const PhantomConnect = () => {
   const { publicKey, connected, disconnect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
@@ -325,9 +314,6 @@ const PhantomConnect = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// MetaMaskConnect — Ethereum wallet row
-// ─────────────────────────────────────────────────────────────────────
 const MetaMaskConnect = () => {
   const { address, isConnected } = useAccount();
   const { connect, isPending } = useConnect();
@@ -339,7 +325,6 @@ const MetaMaskConnect = () => {
     : null;
 
   function handleConnect() {
-    // Check if MetaMask (or any injected wallet) is available
     if (typeof window !== "undefined" && !(window as any).ethereum) {
       setNoMetaMask(true);
       setTimeout(() => setNoMetaMask(false), 3000);

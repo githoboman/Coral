@@ -1,7 +1,3 @@
-// server/src/routes/chat.ts
-// DIFF from original: added bridge agent case + subscription check
-// Lines marked NEW are additions; everything else is preserved exactly.
-
 import { Router, Request, Response } from "express";
 import {
   createSSEWriter,
@@ -14,7 +10,7 @@ import { getResearchAgent } from "../services/agents/researchAgent";
 import { getUserStateService } from "../services/userStateService";
 import { trackTaskCreation } from "../services/agents/taskManagerAgent";
 import { requireAuth, AuthRequest } from "../middleware/auth";
-import { getBridgeAgent } from "../services/agents/bridgeAgent"; // NEW
+import { getBridgeAgent } from "../services/agents/bridgeAgent";
 
 const router = Router();
 
@@ -103,10 +99,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       subscriptionService.trackPromptUsage(userId, "research").catch(() => {});
     }
 
-    // NEW: BRIDGE AGENT — no hard limit enforced in MVP; use subscription check if desired
-    // (currently bridge is treated as a free utility)
-
-    // ✅ SSE headers
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -114,7 +106,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const sse = createSSEWriter(res);
 
-    // ── Handle Conversation ID ─────────────────────────────────────
     const chatService = getChatService();
     let finalConversationId = chatId;
 
@@ -144,14 +135,12 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
       sse.conversation(finalConversationId);
     }
 
-    // Save user message (fire-and-forget)
     chatService
       .addMessage(finalConversationId, userId, "user", msgContent)
       .catch((err) =>
         console.error("[CHAT] Failed to save user message:", err),
       );
 
-    // ── Route to agent ─────────────────────────────────────────────
     try {
       console.log(
         `[CHAT] ${agentId} agent request from ${userId.substring(0, 10)}...`,
@@ -196,7 +185,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           break;
         }
 
-        // NEW: Bridge Agent ──────────────────────────────────────────
         case "bridge": {
           const agent = getBridgeAgent();
           fullResponse = await agent.handle(
@@ -212,7 +200,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           );
           break;
         }
-        // ────────────────────────────────────────────────────────────
 
         case "tovira":
         case "alert": {
@@ -229,7 +216,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           return;
       }
 
-      // Save AI response (fire-and-forget)
       if (finalConversationId && fullResponse) {
         chatService
           .addMessage(finalConversationId, null, "ai", fullResponse)
@@ -238,7 +224,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           );
       }
 
-      // Track interaction pattern (fire-and-forget)
       (async () => {
         try {
           const userStateService = getUserStateService();
@@ -248,12 +233,9 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           await userStateService.recordInteraction(userId, interactionType, {
             token: tokenMatch ? tokenMatch[1].toUpperCase() : undefined,
           });
-        } catch (err) {
-          // Non-critical
-        }
+        } catch (err) {}
       })();
 
-      // Post-research suggestion trigger (fire-and-forget)
       if (normalizedAgentId === "research" && fullResponse) {
         (async () => {
           try {
@@ -264,9 +246,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
               msgContent,
               fullResponse,
             );
-          } catch (err) {
-            // Non-critical
-          }
+          } catch (err) {}
         })();
       }
 

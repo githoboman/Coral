@@ -1,17 +1,14 @@
 // server/src/services/agents/agentTypes.ts
-// Shared types for all AI agents
 
 import type { Response } from "express";
 
-// ── Request / Response Types ───────────────────────────────────────────
-
 export interface ChatRequest {
-  userId: string; // wallet address
-  agentId: string; // "task" | "research" | "tovira" | "alert"
+  userId: string;
+  agentId: string;
   message: string;
   conversationId?: string;
-  clientTime?: string; // ISO string from frontend
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>; // ADD THIS
+  clientTime?: string;
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 /**

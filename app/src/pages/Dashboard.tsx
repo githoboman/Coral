@@ -138,14 +138,13 @@ export interface BridgeTx {
   created_at: string;
 }
 
-// Delivery phase shown inside BridgeActionCard after signing
 type DeliveryPhase =
-  | "submitted" // source tx sent, waiting for relayer
-  | "relayer_detected" // relayer picked it up
-  | "signing" // Ika MPC signing
-  | "confirming" // broadcast to dest chain
-  | "delivered" // balance confirmed on dest
-  | "timed_out"; // polling gave up
+  | "submitted"
+  | "relayer_detected"
+  | "signing"
+  | "confirming"
+  | "delivered"
+  | "timed_out";
 
 export const DELIVERY_PHASES: Record<
   DeliveryPhase,
@@ -179,7 +178,7 @@ const AGENTS: Agent[] = [
   {
     id: "bridge",
     name: "Eva",
-    icon: "/assets/images/agents/bridge-agent.svg",
+    icon: "/assets/images/agents/EVA.png",
     cost: "Free",
   },
 ];
@@ -1079,26 +1078,24 @@ function BridgeActionCard({
   const [destTxHash, setDestTxHash] = useState<string | null>(null);
   const [dbTxId, setDbTxId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [evaMessageIndex, setEvaMessageIndex] = useState(0); // NEW
+  const [evaMessageIndex, setEvaMessageIndex] = useState(0);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
 
   const POLL_INTERVAL = 5_000;
-  const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+  const TIMEOUT_MS = 3 * 60 * 1000;
 
   const chain = payload.txPayload.chain;
   const isComplete = deliveryPhase === "delivered";
   const isTimedOut = deliveryPhase === "timed_out";
 
-  // ── Cleanup on unmount ────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
-  // ── Eva message rotation — cycles every 4s per phase ─────────────
   useEffect(() => {
     if (!deliveryPhase || isComplete || isTimedOut) return;
     setEvaMessageIndex(0);
@@ -1109,8 +1106,6 @@ function BridgeActionCard({
     }, 4000);
     return () => clearInterval(interval);
   }, [deliveryPhase, isComplete, isTimedOut]);
-
-  // ── Helpers ───────────────────────────────────────────────────────
 
   function resolveRecipient(): string | null {
     if (payload.recipientAddress) return payload.recipientAddress;
@@ -1161,8 +1156,6 @@ function BridgeActionCard({
     }
   }
 
-  // ── Delivery polling ──────────────────────────────────────────────
-
   function startDeliveryPolling(sourceTx: string, savedDbId: number | null) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
@@ -1170,7 +1163,6 @@ function BridgeActionCard({
     pollRef.current = setInterval(async () => {
       elapsedRef.current += POLL_INTERVAL;
 
-      // Time-based phase advancement (mirrors actual relayer timing)
       if (elapsedRef.current > 15_000) {
         setDeliveryPhase((p) => (p === "submitted" ? "relayer_detected" : p));
       }
@@ -1187,7 +1179,6 @@ function BridgeActionCard({
         return;
       }
 
-      // Active chain polling for confirmed delivery
       try {
         const recipient = resolveRecipient();
         if (!recipient) return;
@@ -1238,10 +1229,7 @@ function BridgeActionCard({
             return;
           }
         }
-        // SUI_TO_ETH: time-based only (wagmi not available here)
-      } catch {
-        // Non-fatal — keep polling
-      }
+      } catch {}
     }, POLL_INTERVAL);
   }
 
@@ -1360,8 +1348,6 @@ function BridgeActionCard({
     }
   }
 
-  // ── Explorer URLs ─────────────────────────────────────────────────
-
   function sourceTxUrl(): string | null {
     if (!sourceTxHash) return null;
     if (chain === "sui")
@@ -1384,8 +1370,6 @@ function BridgeActionCard({
 
   const isLoading = signStatus === "signing" || signStatus === "submitted";
   const showSignButton = !deliveryPhase && !isComplete;
-
-  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-w-sm">
@@ -1442,7 +1426,7 @@ function BridgeActionCard({
       {payload.recipientMissing && !resolveRecipient() && !deliveryPhase && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3 text-xs text-amber-400">
           ⚠ Connect your {payload.destChain} wallet to receive funds, then click
-          Sign & Bridge.
+          Confirm.
         </div>
       )}
 
@@ -1816,7 +1800,7 @@ const Dashboard = () => {
   const [streamedText, setStreamedText] = useState("");
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
   const [showRecents, setShowRecents] = useState(false);
-  const [showTransactions, setShowTransactions] = useState(false); // NEW
+  const [showTransactions, setShowTransactions] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Record<string, "up" | "down">>({});
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -1860,8 +1844,6 @@ const Dashboard = () => {
       s = seconds % 60;
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
-
-  // ── Effects (unchanged from previous version) ────────────────────
 
   useEffect(() => {
     if (!currentAccount?.address) return;
@@ -2448,8 +2430,6 @@ const Dashboard = () => {
     showAgentDropdown,
     selectedAgentId,
   ]);
-
-  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-dvh md:h-[calc(100dvh)] text-white overflow-hidden relative">

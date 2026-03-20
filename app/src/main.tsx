@@ -18,7 +18,6 @@ import { getFullnodeUrl } from "@mysten/sui/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RegisterEnokiWallets } from "./components/auth/RegisterEnokiWallets";
 
-// ── Solana wallet providers ───────────────────────────────────────────
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
@@ -27,7 +26,6 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
-// ── Wagmi (Ethereum) providers ────────────────────────────────────────
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
 
@@ -65,9 +63,6 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   return originalFetch(input, init);
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// Sui network config
-// ─────────────────────────────────────────────────────────────────────
 const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
   | "testnet"
   | "mainnet";
@@ -78,17 +73,11 @@ const { networkConfig } = createNetworkConfig({
   mainnet: { url: getFullnodeUrl("mainnet") },
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// Solana config
-// ─────────────────────────────────────────────────────────────────────
 const SOLANA_RPC =
   import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
 
 const solanaWallets = [new PhantomWalletAdapter()];
 
-// ─────────────────────────────────────────────────────────────────────
-// Wagmi (Ethereum Sepolia) config
-// ─────────────────────────────────────────────────────────────────────
 const wagmiConfig = createConfig({
   chains: [sepolia],
   transports: {
@@ -99,25 +88,15 @@ const wagmiConfig = createConfig({
   },
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// React Query client (shared — one instance for the whole app)
-// ─────────────────────────────────────────────────────────────────────
 const queryClient = new QueryClient();
 
-// ─────────────────────────────────────────────────────────────────────
-// Render
-// ─────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* React Query — must be outermost so all hooks can use it */}
     <QueryClientProvider client={queryClient}>
-      {/* Wagmi (Ethereum) — wraps before Sui so both can share QueryClient */}
       <WagmiProvider config={wagmiConfig}>
-        {/* Solana connection + wallet modal */}
         <ConnectionProvider endpoint={SOLANA_RPC}>
           <SolanaWalletProvider wallets={solanaWallets} autoConnect>
             <WalletModalProvider>
-              {/* Sui */}
               <SuiClientProvider
                 networks={networkConfig}
                 defaultNetwork={network}

@@ -1,35 +1,8 @@
-// server/src/routes/bridgeTransactions.ts
-// Stores and retrieves bridge transaction history per user.
-// Table: bridge_transactions (create with migration below)
-//
-// SQL to run in Supabase:
-// ─────────────────────────────────────────────────────────────
-// create table bridge_transactions (
-//   id            bigserial primary key,
-//   user_id       text not null,
-//   direction     text not null,           -- 'SUI_TO_SOL' | 'SOL_TO_SUI' | etc.
-//   source_chain  text not null,
-//   dest_chain    text not null,
-//   amount_in     text not null,           -- human display e.g. "0.5000 SUI"
-//   amount_out    text not null,           -- human display e.g. "0.00529 SOL"
-//   source_tx     text not null,           -- tx hash / digest on source chain
-//   dest_tx       text,                    -- filled once delivery confirmed
-//   status        text not null default 'submitted',  -- submitted | delivered | failed
-//   created_at    timestamptz not null default now(),
-//   updated_at    timestamptz not null default now()
-// );
-// create index on bridge_transactions(user_id, created_at desc);
-// ─────────────────────────────────────────────────────────────
-
 import { Router, Response } from "express";
 import { getSupabaseClient } from "../config/supabase";
 import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
-
-// ── POST /api/bridge/transactions ─────────────────────────────────────
-// Called by the frontend immediately after the user signs and the
-// source-chain tx hash is known.
 
 router.post(
   "/transactions",
@@ -86,9 +59,6 @@ router.post(
   },
 );
 
-// ── PATCH /api/bridge/transactions/:id ────────────────────────────────
-// Called by the frontend once delivery is confirmed (dest_tx known).
-
 router.patch(
   "/transactions/:id",
   requireAuth,
@@ -109,7 +79,7 @@ router.patch(
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)
-        .eq("user_id", userId); // security: only owner can update
+        .eq("user_id", userId);
 
       if (error) {
         console.error("[BRIDGE TX] Update error:", error);
@@ -123,9 +93,6 @@ router.patch(
     }
   },
 );
-
-// ── GET /api/bridge/transactions ──────────────────────────────────────
-// Fetch all bridge transactions for the authenticated user.
 
 router.get(
   "/transactions",
