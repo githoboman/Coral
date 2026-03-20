@@ -6,10 +6,8 @@ import { Annotation, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
 import { getTaskStorageService } from "../taskStorageService";
 import { getNotificationService } from "../notificationService";
-import type {
-  ChatRequest,
-  createSSEWriter,
-} from "./agentTypes";
+import { getUserManager } from "../userManager.js";
+import { type ChatRequest, type createSSEWriter } from "./agentTypes.js";
 
 // ══════════════════════════════════════════════════════════════════════
 // SCHEMAS
@@ -937,17 +935,14 @@ function formatDateForUser(date: Date | string, clientTime: string, dateOnly = f
 
 export async function trackTaskCreation(userId: string, type: "task" | "research" = "task"): Promise<void> {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000";
-    const res = await fetch(`${API_BASE_URL}/api/task-points/track-creation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, type }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`[TASK] trackTaskCreation failed (${res.status}):`, body);
+    const userManager = getUserManager();
+    const today = new Date().toISOString().split("T")[0];
+    const success = await userManager.incrementActivityCount(userId, type, today);
+    
+    if (!success) {
+      console.error(`[TASK] incrementActivityCount failed for ${userId.substring(0, 10)}...`);
     } else {
-      console.log(`[TASK] Task creation tracked for ${userId.substring(0, 10)}...`);
+      console.log(`[TASK] ${type} creation tracked for ${userId.substring(0, 10)}...`);
     }
   } catch (error) {
     console.error("[TASK] trackTaskCreation error:", error);

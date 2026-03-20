@@ -39,7 +39,9 @@ export function useTelegramLinking() {
     if (!hasCache) setInitialLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/telegram/status?walletAddress=${account.address}`);
+      const res = await fetch(`${API_BASE}/api/telegram/status?walletAddress=${account.address}`, {
+        credentials: 'include'
+      });
       if (res.ok) {
         const data = await res.json();
         const currentCache = localStorage.getItem(`telegram_status_${account.address}`);
@@ -68,6 +70,7 @@ export function useTelegramLinking() {
     try {
       const res = await fetch(`${API_BASE}/api/telegram/connect`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: account?.address })
       });
@@ -93,6 +96,7 @@ export function useTelegramLinking() {
     try {
       await fetch(`${API_BASE}/api/telegram/unlink`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress: account.address })
       });

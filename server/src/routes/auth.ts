@@ -1,9 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { verifyPersonalMessageSignature } from "@mysten/sui/verify";
-import { JWT_SECRET, blacklistToken, requireAuth, AuthRequest } from "../middleware/auth";
-
+import { requireAuth, AuthRequest } from "../middleware/auth";
+import { createToken, revokeToken, revokeAllTokens, revokeDeviceTokens, validateToken } from "../services/tokenService";
 
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import {
@@ -22,6 +21,7 @@ const nonceStore = new Map<string, { nonce: string, expires: number }>();
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
+const isProduction = process.env.NODE_ENV === "production";
 
 let userManager: UserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
@@ -467,6 +467,23 @@ router.get(
   },
 );
 
+/**
+ * GET /api/auth/verify
+ * Lightweight check to resume a session without signing a new message.
+ * Verifies the httpOnly cookie and returns the user's profile if authenticated.
+ */
+router.get("/verify", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const wallet_address = req.user!.wallet_address;
+    const um = getLocalUserManager();
+    const profile = await um.getUserProfile(wallet_address);
+    res.json({ exists: true, is_onboarded: !!profile?.email, user: profile || { wallet_address } });
+  } catch (error) {
+    console.error("Error in /verify:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/nonce", (req: Request, res: Response) => {
   const { wallet_address } = req.query;
   if (!wallet_address || typeof wallet_address !== "string") {
@@ -480,7 +497,7 @@ router.get("/nonce", (req: Request, res: Response) => {
 
 router.post("/login", async (req: Request, res: Response) => {
   try {
-    const { wallet_address, signature } = req.body;
+    const { wallet_address, signature, device_name } = req.body;
     if (!wallet_address || !signature) {
       res.status(400).json({ error: "Missing wallet_address or signature" });
       return;
@@ -501,13 +518,58 @@ router.post("/login", async (req: Request, res: Response) => {
     });
 
     if (pubKey.toSuiAddress() !== wallet_address) {
-       res.status(401).json({ error: "Signature mapped to different address" });
-       return;
+      res.status(401).json({ error: "Signature mapped to different address" });
+      return;
     }
 
     nonceStore.delete(wallet_address);
-    const token = jwt.sign({ wallet_address }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token });
+
+    // Issue a secure server-side token (HMAC-SHA256 stored in DB)
+    const name = typeof device_name === "string" && device_name.trim()
+      ? device_name.trim()
+      : (req.headers["user-agent"]?.slice(0, 120) ?? "Unknown device");
+
+    // Duplicate token guard: if request already has a valid cookie for this user, reuse it.
+    const existingRawToken = req.cookies?.auth_token;
+    let reused = false;
+    
+    if (existingRawToken) {
+      const existingUserId = await validateToken(existingRawToken);
+      if (existingUserId === wallet_address) {
+        reused = true;
+        // Re-set the cookie to extend expiry
+        const expiresInDays = parseInt(process.env.TOKEN_EXPIRES_DAYS || '7', 10);
+        const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+        
+        res.cookie("auth_token", existingRawToken, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: isProduction ? "none" : "lax",
+          expires: expiresAt,
+        });
+        
+        res.json({ success: true, wallet_address, reused: true });
+        return;
+      }
+    }
+
+    if (!reused) {
+      // No valid cookie found. Delete old tokens for this device to prevent bloat.
+      await revokeDeviceTokens(wallet_address, name);
+
+      // Generate new token
+      const { rawToken, expiresAt } = await createToken(wallet_address, name);
+
+      // Send raw token exclusively via httpOnly cookie — never in the response body
+      res.cookie("auth_token", rawToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        expires: expiresAt,
+      });
+
+      res.json({ success: true, wallet_address, reused: false });
+    }
   } catch (err: any) {
     console.error("Login error:", err);
     res.status(401).json({ error: "Invalid signature", detail: err.message });
@@ -516,15 +578,33 @@ router.post("/login", async (req: Request, res: Response) => {
 
 /**
  * POST /api/auth/logout
- * Immediately revokes the current JWT by adding it to the blacklist.
- * Even if the token has not expired, it will be rejected on future requests.
+ * Deletes the current token row from the DB and clears the cookie.
  */
-router.post("/logout", requireAuth, (req: AuthRequest, res: Response) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (token) {
-    blacklistToken(token);
+router.post("/logout", requireAuth, async (req: AuthRequest, res: Response) => {
+  const rawToken = req.cookies?.auth_token;
+  if (rawToken) {
+    await revokeToken(rawToken);
   }
-  res.json({ success: true, message: "Logged out successfully. Token revoked." });
+  res.clearCookie("auth_token", { 
+    httpOnly: true, 
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax" 
+  });
+  res.json({ success: true, message: "Logged out successfully." });
+});
+
+/**
+ * POST /api/auth/logout-all
+ * Deletes ALL token rows for the authenticated user, invalidating every device.
+ */
+router.post("/logout-all", requireAuth, async (req: AuthRequest, res: Response) => {
+  await revokeAllTokens(req.user!.wallet_address);
+  res.clearCookie("auth_token", { 
+    httpOnly: true, 
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax" 
+  });
+  res.json({ success: true, message: "All sessions revoked." });
 });
 
 

@@ -7,7 +7,6 @@ import {
   useDisconnectWallet,
   useSignPersonalMessage,
 } from "@mysten/dapp-kit";
-import { jwtDecode } from "jwt-decode";
 
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch } from "@/store/hooks";
@@ -132,62 +131,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const handleAuthentication = async (walletAddress: string) => {
     try {
-      // 1. Check if we already have a valid JWT
-      const existingToken = localStorage.getItem("tovira_jwt");
-      if (existingToken) {
-        try {
-          const decoded = jwtDecode(existingToken);
-          const currentTime = Date.now() / 1000;
-          
-          if (decoded.exp && decoded.exp > currentTime) {
-            // Token is still valid, check onboarding status directly
-            await checkUserOnboardingStatus(walletAddress);
-            return;
-          } else {
-            // Token expired
-            localStorage.removeItem("tovira_jwt");
-          }
-        } catch (e) {
-          console.error("Invalid JWT", e);
-          localStorage.removeItem("tovira_jwt");
+      // 1. Fast path: Verify existing session cookie
+      try {
+        const verifyRes = await fetch(`${apiBaseUrl}/api/auth/verify`, {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (verifyRes.ok) {
+          // Session alive, skip signature and proceed to check onboarding
+          await checkUserOnboardingStatus(walletAddress);
+          return;
         }
+      } catch (err) {
+        console.warn("Session verification failed, falling back to signature", err);
       }
 
-      // 2. Fetch Nonce
-      const nonceRes = await fetch(`${apiBaseUrl}/api/auth/nonce?wallet_address=${encodeURIComponent(walletAddress)}`);
+      // 2. Fetch nonce
+      const nonceRes = await fetch(
+        `${apiBaseUrl}/api/auth/nonce?wallet_address=${encodeURIComponent(walletAddress)}`,
+      );
       if (!nonceRes.ok) throw new Error("Failed to fetch nonce");
       const { nonce } = await nonceRes.json();
 
-      // 3. Sign Message
+      // 2. Sign message
       const messageToSign = `Welcome to Tovira!\n\nClick to sign in and accept the Tovira Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${nonce}`;
       const messageBytes = new TextEncoder().encode(messageToSign);
-      
-      const signatureResult = await signPersonalMessage({
-        message: messageBytes,
-      });
 
-      // 4. Verify Signature & Get JWT
+      const signatureResult = await signPersonalMessage({ message: messageBytes });
+
+      // 3. Verify signature — server sets httpOnly auth_token cookie on success
       const loginRes = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet_address: walletAddress,
           signature: signatureResult.signature,
-          message: btoa(String.fromCharCode(...messageBytes)), // Send message as base64
+          message: btoa(String.fromCharCode(...messageBytes)),
         }),
       });
 
       if (!loginRes.ok) throw new Error("Login failed");
-      const { token } = await loginRes.json();
-      
-      // 5. Store JWT and proceed with onboarding check
-      localStorage.setItem("tovira_jwt", token);
-      await checkUserOnboardingStatus(walletAddress);
 
+      // 4. Check onboarding status (cookie is sent automatically)
+      await checkUserOnboardingStatus(walletAddress);
     } catch (error) {
       console.error("Authentication failed:", error);
       sileo.error({ title: "Authentication Failed", description: "Please sign the message to verify your wallet." });
-      signOut(); // Force sign out if auth fails
+      signOut();
     } finally {
       checkingRef.current = false;
     }
@@ -198,15 +191,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const token = localStorage.getItem("tovira_jwt");
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
         const response = await fetch(
           `${apiBaseUrl}/api/auth/check-user?wallet_address=${encodeURIComponent(walletAddress)}`,
           {
             method: "GET",
-            headers,
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
           },
         );
 
@@ -268,13 +258,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     try {
-      const token = localStorage.getItem("tovira_jwt");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: "POST",
-        headers,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           wallet_address: walletAddress,
@@ -320,18 +307,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     try {
-      // Step 1: Invalidate the JWT on the backend FIRST (blacklist it)
-      const currentToken = localStorage.getItem("tovira_jwt");
-      if (currentToken) {
-        try {
-          await fetch(`${apiBaseUrl}/api/auth/logout`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${currentToken}` },
-          });
-        } catch (e) {
-          // Non-blocking - continue with local cleanup even if server is unreachable
-          console.warn("[AUTH] Failed to invalidate token server-side:", e);
-        }
+      // Step 1: Revoke the server-side token (deletes the DB row + clears cookie)
+      try {
+        await fetch(`${apiBaseUrl}/api/auth/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (e) {
+        // Non-blocking — continue with local cleanup even if server is unreachable
+        console.warn("[AUTH] Failed to invalidate token server-side:", e);
       }
 
       disconnectWallet();
@@ -339,6 +323,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Clear Redux stores
       dispatch(clearLeaderboard());
 
+      // Clear Sui wallet / Enoki items from storage
       const authItems = [
         "zklogin_jwt",
         "enoki_jwt",
@@ -352,6 +337,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
 
+      // Clear any remaining tovira_ cache keys (chat cache etc.)
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);

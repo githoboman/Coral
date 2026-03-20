@@ -18,6 +18,7 @@ import { getFullnodeUrl } from "@mysten/sui/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RegisterEnokiWallets } from "./components/auth/RegisterEnokiWallets";
 
+// ── Solana wallet providers (tom branch — bridge feature) ─────────────
 import {
   ConnectionProvider,
   WalletProvider as SolanaWalletProvider,
@@ -26,11 +27,12 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
+// ── Ethereum / Wagmi providers (tom branch — bridge feature) ──────────
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { sepolia } from "wagmi/chains";
 
 // ─────────────────────────────────────────────────────────────────────
-// Global fetch interceptor — adds JWT to all /api/ requests
+// Global fetch interceptor — adds JWT to all /api/ requests (dev branch)
 // ─────────────────────────────────────────────────────────────────────
 const originalFetch = window.fetch;
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -63,6 +65,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   return originalFetch(input, init);
 };
 
+// ── Sui network config ────────────────────────────────────────────────
 const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
   | "testnet"
   | "mainnet";
@@ -73,11 +76,12 @@ const { networkConfig } = createNetworkConfig({
   mainnet: { url: getFullnodeUrl("mainnet") },
 });
 
+// ── Solana config ─────────────────────────────────────────────────────
 const SOLANA_RPC =
   import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
-
 const solanaWallets = [new PhantomWalletAdapter()];
 
+// ── Wagmi / Ethereum config ───────────────────────────────────────────
 const wagmiConfig = createConfig({
   chains: [sepolia],
   transports: {
@@ -90,6 +94,10 @@ const wagmiConfig = createConfig({
 
 const queryClient = new QueryClient();
 
+// ── Provider tree ─────────────────────────────────────────────────────
+// Order (outermost → innermost):
+//   React Query → Wagmi → Solana Connection → Solana Wallet → Solana Modal
+//   → Sui Client → Sui Wallet → Enoki → Redux → Router → Auth → App
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

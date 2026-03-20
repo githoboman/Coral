@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 import { AccountSkeleton } from "@/components/ui/SkeletonLoader";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -18,8 +19,9 @@ import {
   Copy,
   Check,
   Link as LinkIcon,
-  CheckCircle2,
-  AlertCircle,
+  CheckCircle2, // tom — used in PhantomConnect & MetaMaskConnect
+  AlertCircle, // tom — used in MetaMaskConnect
+  LogOut, // dev — logout button
 } from "lucide-react";
 import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
@@ -102,7 +104,7 @@ function MetaMaskIcon({ size = 28 }: { size?: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// TelegramModal (unchanged from original)
+// TelegramModal
 // ─────────────────────────────────────────────────────────────────────
 const TelegramModal = ({
   isOpen,
@@ -188,7 +190,64 @@ const TelegramModal = ({
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// TelegramConnect (unchanged from original)
+// LogoutModal (dev branch)
+// ─────────────────────────────────────────────────────────────────────
+const LogoutModal = ({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) => {
+  const { signOut } = useAuth();
+
+  if (!isOpen) return null;
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#1A1A1A] border border-red-500/20 rounded-3xl p-6 w-full max-w-md relative shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+        >
+          <X size={20} />
+        </button>
+        <div className="mb-6 flex justify-center">
+          <div className="p-4 bg-red-500/10 rounded-full border border-red-500/20">
+            <LogOut size={40} className="text-red-500" />
+          </div>
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2 text-center text-red-500">
+          Confirm Logout
+        </h3>
+        <p className="text-white/60 text-sm mb-8 text-center leading-relaxed">
+          Are you sure you want to log out?
+        </p>
+        <div className="flex gap-4">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// TelegramConnect
 // ─────────────────────────────────────────────────────────────────────
 const TelegramConnect = () => {
   const {
@@ -269,6 +328,9 @@ const TelegramConnect = () => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// PhantomConnect (tom — uses CheckCircle2)
+// ─────────────────────────────────────────────────────────────────────
 const PhantomConnect = () => {
   const { publicKey, connected, disconnect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
@@ -314,6 +376,9 @@ const PhantomConnect = () => {
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// MetaMaskConnect (tom — uses CheckCircle2 + AlertCircle)
+// ─────────────────────────────────────────────────────────────────────
 const MetaMaskConnect = () => {
   const { address, isConnected } = useAccount();
   const { connect, isPending } = useConnect();
@@ -379,6 +444,7 @@ const MetaMaskConnect = () => {
 // Account page
 // ─────────────────────────────────────────────────────────────────────
 const Account = () => {
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
   const { mutate: disconnectWallet } = useDisconnectWallet();
@@ -461,6 +527,12 @@ const Account = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {/* Logout Modal (dev) */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+      />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 md:mb-12 gap-6">
         <div className="flex items-center gap-4 sm:gap-6">
@@ -535,15 +607,35 @@ const Account = () => {
                 </div>
                 <button
                   onClick={() => handlePermissionToggle(p.key)}
-                  className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${permissions[p.key as keyof typeof permissions] ? "bg-[#B7FC0D]" : "bg-white/10"}`}
+                  className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${
+                    permissions[p.key as keyof typeof permissions]
+                      ? "bg-[#B7FC0D]"
+                      : "bg-white/10"
+                  }`}
                 >
                   <div
-                    className={`absolute top-1 w-3 h-3 rounded-full transition-all ${permissions[p.key as keyof typeof permissions] ? "right-1 bg-black" : "left-1 bg-white/40"}`}
+                    className={`absolute top-1 w-3 h-3 rounded-full transition-all ${
+                      permissions[p.key as keyof typeof permissions]
+                        ? "right-1 bg-black"
+                        : "left-1 bg-white/40"
+                    }`}
                   />
                 </button>
               </div>
             ))}
           </div>
+
+          {/* Logout button (dev) */}
+          <button
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="w-min px-6 py-2.5 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/20 rounded-xl flex items-center gap-3 transition-colors mt-auto group"
+          >
+            <LogOut
+              size={18}
+              className="text-[#EF4444] group-hover:scale-110 transition-transform"
+            />
+            <span className="text-[#EF4444] font-medium text-sm">Logout</span>
+          </button>
         </div>
 
         {/* Right column */}
@@ -565,7 +657,7 @@ const Account = () => {
             </div>
 
             <div className="space-y-6">
-              {/* Google (unchanged) */}
+              {/* Google */}
               <div className="flex justify-between items-center gap-4">
                 <div className="flex items-center gap-3">
                   <GoogleIcon size={28} className="shrink-0" />
@@ -581,18 +673,10 @@ const Account = () => {
               </div>
 
               <div className="h-px bg-white/5" />
-
-              {/* Telegram (unchanged) */}
               <TelegramConnect />
-
               <div className="h-px bg-white/5" />
-
-              {/* Phantom — Solana */}
               <PhantomConnect />
-
               <div className="h-px bg-white/5" />
-
-              {/* MetaMask — Ethereum */}
               <MetaMaskConnect />
             </div>
 
@@ -606,7 +690,7 @@ const Account = () => {
             </div>
           </div>
 
-          {/* Daily Check-in (unchanged) */}
+          {/* Daily Check-in */}
           <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6 relative z-10 w-full">
@@ -634,7 +718,11 @@ const Account = () => {
                 disabled={
                   !checkinState.canCheckin && checkinState.status !== "error"
                 }
-                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${checkinState.canCheckin || checkinState.status === "error" ? "bg-[#B7FC0D] text-black hover:scale-105 active:scale-95" : "bg-white/5 text-white/20"}`}
+                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${
+                  checkinState.canCheckin || checkinState.status === "error"
+                    ? "bg-[#B7FC0D] text-black hover:scale-105 active:scale-95"
+                    : "bg-white/5 text-white/20"
+                }`}
               >
                 {(() => {
                   if (checkinState.status === "checking")
@@ -643,7 +731,12 @@ const Account = () => {
                     return "Requesting...";
                   if (checkinState.status === "error") return "Retry";
                   if (checkinState.canCheckin) return "Check In";
-                  return `Next: ${timeRemaining || (checkinState.hoursRemaining !== null ? `~${checkinState.hoursRemaining}h` : "...")}`;
+                  return `Next: ${
+                    timeRemaining ||
+                    (checkinState.hoursRemaining !== null
+                      ? `~${checkinState.hoursRemaining}h`
+                      : "...")
+                  }`;
                 })()}
               </button>
               {checkinState.status === "error" && (

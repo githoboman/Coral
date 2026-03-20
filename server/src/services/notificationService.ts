@@ -2,6 +2,7 @@ import { getTelegramService } from "./telegramService";
 import { getEmailService } from "./emailService";
 import { getSubscriptionService } from "./subscriptionService";
 import { getUserManager } from "./userManager";
+import { getNotificationCopyService } from "./notificationCopyService";
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -142,23 +143,15 @@ export class NotificationService {
 
   public async dispatchTaskCreatedAlert(walletAddress: string, task: any): Promise<void> {
     const taskId = task.id ?? '?';
+    const copyService = getNotificationCopyService();
+    const llmCopy = await copyService.generateCopy(task, task.created_at || new Date());
 
     // ── Track A: Telegram (Standard — always fires) ──────────────────────────
     const telegramTrack = (async () => {
       try {
         const username = await this.getUsername(walletAddress);
         const safeUsername = this.escapeHtml(username);
-        const taskName = task.task_name || "New Task";
-        const safeTaskName = this.escapeHtml(taskName);
-        const rawDesc = task.description ? this.escapeHtml(task.description) : "";
-        const desc = (rawDesc && !rawDesc.toLowerCase().includes(safeTaskName.toLowerCase()) && !safeTaskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
-        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
-        const dueDateStr = task.due_date ? new Date(task.due_date).toLocaleString("en-US", {
-          month: "numeric", day: "numeric", year: "numeric",
-          hour: "numeric", minute: "2-digit", second: "2-digit"
-        }) : "";
-        const descLine = desc ? `\n${desc}` : "";
-        const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
+        const message = `Hey <b>${safeUsername}</b>!\n\nYou just set a new Task to ${this.escapeHtml(llmCopy.task_context)}.\n\nYou said to remind you ${this.escapeHtml(llmCopy.reminder_time_context)}.\n\nSee you soon!`;
 
         await this.sendNotification(walletAddress, message);
         console.log(`[NOTIFY] Telegram: ✓ Task ${taskId} created alert sent`);
@@ -176,24 +169,12 @@ export class NotificationService {
           return;
         }
         const username = await this.getUsername(walletAddress);
-        const taskName = task.task_name || "New Task";
-        const priority = task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "Medium";
         const html = `
           <div style="font-family: sans-serif; padding: 20px; color: #333;">
-              <p>Hey <b>${username}</b>,</p>
-              <p>You just created a new task!</p>
-              <p>Here's the <b>Details</b></p>
-              <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
-                ${(task.description && !task.description.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(task.description.toLowerCase())) ? `<p>${task.description}</p>` : ''}
-              </div>
-              ${task.due_date ? `<p><b>Due Date</b><br>${new Date(task.due_date).toLocaleString("en-US", {
-                month: "numeric", day: "numeric", year: "numeric",
-                hour: "numeric", minute: "2-digit", second: "2-digit"
-              })}</p>` : ''}
-              ${task.priority ? `<p><b>Priority</b><br>${priority}</p>` : ''}
-              <p>I'd be here to remind you once it is due.</p>
-              <p>Thanks,<br>Tovira Team</p>
+              <p>Hey <b>${this.escapeHtml(username)}</b>!</p>
+              <p>You just set a new Task to ${this.escapeHtml(llmCopy.task_context)}.</p>
+              <p>You said to remind you ${this.escapeHtml(llmCopy.reminder_time_context)}.</p>
+              <p>See you soon!</p>
           </div>`;
 
         const ok = await this.emailService.sendEmail(email, `New Notification!`, html);
@@ -258,20 +239,15 @@ export class NotificationService {
 
   public async dispatchTaskDueAlert(walletAddress: string, task: any): Promise<void> {
     const taskId = task.id ?? '?';
+    const copyService = getNotificationCopyService();
+    const llmCopy = await copyService.generateCopy(task, task.created_at || new Date());
 
     // ── Track A: Telegram (Standard — always fires) ──────────────────────────
     const telegramTrack = (async () => {
       try {
-        const taskName = task.task_name || "Task";
-        const rawDesc = task.description ? task.description : "";
-        const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
-        const dueDate = this.formatDate(task.due_date);
         const username = await this.getUsername(walletAddress);
         const safeUsername = this.escapeHtml(username);
-        const safeTaskName = this.escapeHtml(taskName);
-        const safeDesc = this.escapeHtml(desc);
-        const descLine = desc ? `\n${safeDesc}` : "";
-        const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
+        const message = `Hey <b>${safeUsername}</b>!\n\nHere to remind you to ${this.escapeHtml(llmCopy.task_context)}.\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nWell then, Get to it!`;
 
         await this.sendNotification(walletAddress, message);
         console.log(`[NOTIFY] Telegram: ✓ Task ${taskId} due alert sent`);
@@ -288,23 +264,13 @@ export class NotificationService {
           console.log(`[NOTIFY] Email: — Task ${taskId} due alert skipped (not premium or no email)`);
           return;
         }
-        const taskName = task.task_name || "Task";
-        const rawDesc = task.description ? task.description : "";
-        const desc = (rawDesc && !rawDesc.toLowerCase().includes(taskName.toLowerCase()) && !taskName.toLowerCase().includes(rawDesc.toLowerCase())) ? rawDesc : "";
-        const dueDate = this.formatDate(task.due_date);
         const username = await this.getUsername(walletAddress);
         const html = `
           <div style="font-family: sans-serif; padding: 20px; color: #333;">
-              <p>Hey <b>${username}</b>,</p>
-              <p>Your task is due! Kindly attend to it.</p>
-              <p>Here's the <b>details of what you asked me to remind you</b></p>
-              <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                <p style="font-weight: bold; margin-top: 0;">${taskName}</p>
-                ${desc ? `<p>${desc}</p>` : ''}
-              </div>
-              <p><b>Due Date</b><br>${dueDate}</p>
+              <p>Hey <b>${this.escapeHtml(username)}</b>!</p>
+              <p>Here to remind you to ${this.escapeHtml(llmCopy.task_context)}.</p>
               <p>Do well to schedule more activities, I look forward to helping you stay productive.</p>
-              <p>Thanks,<br>Tovira Team</p>
+              <p>Well then, Get to it!</p>
           </div>`;
 
         const ok = await this.emailService.sendEmail(email, `Reminder Alert!!`, html);

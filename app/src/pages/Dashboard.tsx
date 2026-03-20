@@ -63,6 +63,7 @@ interface Agent {
   name: string;
   icon: string;
   cost: string;
+  isWip?: boolean; // dev — flag for work-in-progress agents
 }
 
 interface Message {
@@ -811,7 +812,7 @@ function BridgeTransactionsModal({
   useEffect(() => {
     if (!isOpen || !userId) return;
     setLoading(true);
-    fetch(`${API_BASE_URL}/api/bridge/transactions`)
+    fetch(`${API_BASE_URL}/api/bridge/transactions`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => setTxs(Array.isArray(data) ? data : []))
       .catch(() => setTxs([]))
@@ -870,7 +871,6 @@ function BridgeTransactionsModal({
         className="w-full max-w-lg bg-[#111318] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <History size={16} className="text-[#B7FC0D]" />
@@ -886,7 +886,6 @@ function BridgeTransactionsModal({
           </button>
         </div>
 
-        {/* Body */}
         <div className="max-h-[480px] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -916,7 +915,6 @@ function BridgeTransactionsModal({
                   hour: "numeric",
                   minute: "2-digit",
                 });
-
                 return (
                   <div
                     key={tx.id}
@@ -961,8 +959,6 @@ function BridgeTransactionsModal({
                         {date}
                       </span>
                     </div>
-
-                    {/* Tx links */}
                     <div className="flex items-center gap-3 mt-2 ml-11">
                       <a
                         href={explorerUrl(tx, "source")}
@@ -993,6 +989,7 @@ function BridgeTransactionsModal({
     </div>
   );
 }
+
 const EVA_DELIVERY_VOICE: Record<
   DeliveryPhase,
   { primary: string; messages: string[] }
@@ -1124,6 +1121,7 @@ function BridgeActionCard({
     try {
       const res = await fetch(`${API_BASE_URL}/api/bridge/transactions`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           direction: payload.direction,
@@ -1148,6 +1146,7 @@ function BridgeActionCard({
     try {
       await fetch(`${API_BASE_URL}/api/bridge/transactions/${id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "delivered", dest_tx: destTx || null }),
       });
@@ -1163,15 +1162,12 @@ function BridgeActionCard({
     pollRef.current = setInterval(async () => {
       elapsedRef.current += POLL_INTERVAL;
 
-      if (elapsedRef.current > 15_000) {
+      if (elapsedRef.current > 15_000)
         setDeliveryPhase((p) => (p === "submitted" ? "relayer_detected" : p));
-      }
-      if (elapsedRef.current > 40_000) {
+      if (elapsedRef.current > 40_000)
         setDeliveryPhase((p) => (p === "relayer_detected" ? "signing" : p));
-      }
-      if (elapsedRef.current > 90_000) {
+      if (elapsedRef.current > 90_000)
         setDeliveryPhase((p) => (p === "signing" ? "confirming" : p));
-      }
 
       if (elapsedRef.current >= TIMEOUT_MS) {
         clearInterval(pollRef.current!);
@@ -1232,8 +1228,6 @@ function BridgeActionCard({
       } catch {}
     }, POLL_INTERVAL);
   }
-
-  // ── Sign handler ──────────────────────────────────────────────────
 
   async function handleSign() {
     setSignStatus("signing");
@@ -1373,7 +1367,6 @@ function BridgeActionCard({
 
   return (
     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-w-sm">
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-white/50 uppercase tracking-widest">
@@ -1393,7 +1386,6 @@ function BridgeActionCard({
         )}
       </div>
 
-      {/* Amount row */}
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-1 bg-white/5 rounded-xl p-3 text-center">
           <div className="text-white font-bold text-sm">
@@ -1414,7 +1406,6 @@ function BridgeActionCard({
         </div>
       </div>
 
-      {/* Fee */}
       <div className="flex justify-between items-center px-1 mb-4">
         <span className="text-white/30 text-xs">Fee</span>
         <span className="text-white/50 text-xs font-mono">
@@ -1422,7 +1413,6 @@ function BridgeActionCard({
         </span>
       </div>
 
-      {/* Recipient missing warning */}
       {payload.recipientMissing && !resolveRecipient() && !deliveryPhase && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3 text-xs text-amber-400">
           ⚠ Connect your {payload.destChain} wallet to receive funds, then click
@@ -1430,7 +1420,6 @@ function BridgeActionCard({
         </div>
       )}
 
-      {/* Sign error */}
       {signStatus === "failed" && error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
           <XCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
@@ -1438,13 +1427,11 @@ function BridgeActionCard({
         </div>
       )}
 
-      {/* ── Eva delivery commentary panel ── */}
       {deliveryPhase &&
         (() => {
           const voice = EVA_DELIVERY_VOICE[deliveryPhase];
           const msgs = voice.messages;
           const rotatingMsg = msgs[evaMessageIndex % msgs.length];
-
           return (
             <div
               className={`rounded-xl p-3 mb-3 border transition-colors duration-500 ${
@@ -1455,7 +1442,6 @@ function BridgeActionCard({
                     : "bg-white/[0.03] border-white/10"
               }`}
             >
-              {/* Phase indicator row */}
               <div className="flex items-center gap-2 mb-2">
                 {isComplete ? (
                   <CheckCircle2
@@ -1483,7 +1469,6 @@ function BridgeActionCard({
                 </span>
               </div>
 
-              {/* Progress bar */}
               {!isTimedOut && (
                 <div className="w-full bg-white/5 rounded-full h-0.5 mb-3 overflow-hidden">
                   <div
@@ -1499,7 +1484,6 @@ function BridgeActionCard({
                 </div>
               )}
 
-              {/* Eva's primary message for this phase */}
               <p
                 className={`text-sm font-medium leading-snug mb-2 ${
                   isComplete
@@ -1512,7 +1496,6 @@ function BridgeActionCard({
                 {voice.primary}
               </p>
 
-              {/* Rotating sub-message (while in progress) */}
               {!isComplete && !isTimedOut && (
                 <AnimatePresence mode="wait">
                   <motion.p
@@ -1528,7 +1511,6 @@ function BridgeActionCard({
                 </AnimatePresence>
               )}
 
-              {/* Timeout rotating message */}
               {isTimedOut && (
                 <AnimatePresence mode="wait">
                   <motion.p
@@ -1543,7 +1525,6 @@ function BridgeActionCard({
                 </AnimatePresence>
               )}
 
-              {/* Powered by — shown during active (non-complete, non-timed-out) phases */}
               {!isComplete && !isTimedOut && (
                 <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/5">
                   <span className="text-[10px] text-white/20">Powered by</span>
@@ -1557,7 +1538,6 @@ function BridgeActionCard({
                 </div>
               )}
 
-              {/* Source tx link */}
               {sourceTxHash && sourceTxUrl() && (
                 <div className="flex items-center gap-1 mt-2">
                   <span className="text-[10px] text-white/20">Source tx:</span>
@@ -1573,7 +1553,6 @@ function BridgeActionCard({
                 </div>
               )}
 
-              {/* Delivery tx link — once confirmed */}
               {destTxHash && destTxUrl() && isComplete && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-[10px] text-white/20">
@@ -1594,7 +1573,6 @@ function BridgeActionCard({
           );
         })()}
 
-      {/* Sign & Bridge CTA */}
       {showSignButton && (
         <button
           onClick={handleSign}
@@ -1845,6 +1823,7 @@ const Dashboard = () => {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
+  // ── Prompt status fetching (with credentials — dev auth) ─────────────
   useEffect(() => {
     if (!currentAccount?.address) return;
     if (selectedAgentId !== "task" && selectedAgentId !== "research") return;
@@ -1859,13 +1838,17 @@ const Dashboard = () => {
       selectedAgentId === "task" ? setTaskCountdown : setResearchCountdown;
     const currentCountdown =
       selectedAgentId === "task" ? taskCountdown : researchCountdown;
+
     const fetchStatus = async (force = false) => {
       try {
         const url = new URL(
           `${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`,
         );
         if (force) url.searchParams.append("force", "true");
-        const res = await fetch(url.toString(), { cache: "no-store" });
+        const res = await fetch(url.toString(), {
+          cache: "no-store",
+          credentials: "include",
+        });
         if (res.ok) {
           const s = await res.json();
           setter(s);
@@ -1876,6 +1859,7 @@ const Dashboard = () => {
         /* ignore */
       }
     };
+
     (window as any).refreshPromptStatus = () => fetchStatus(true);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -1911,51 +1895,73 @@ const Dashboard = () => {
     return () => clearInterval(t);
   }, [researchCountdown]);
 
+  // ── Fetch chats (async/await + credentials — dev pattern) ────────────
   useEffect(() => {
     if (!currentAccount?.address) return;
-    fetch(`${API_BASE_URL}/api/chats?userId=${currentAccount.address}`)
-      .then((r) => r.json())
-      .then((data) =>
-        setConversations(
-          data.map((c: any) => ({
-            id: c.chat_id,
-            title: c.name,
-            agentId: c.agent_id,
-            createdAt: c.created_at,
-            messages: [],
-          })),
-        ),
-      )
-      .catch(console.error);
+    const fetchChats = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/chats?userId=${currentAccount.address}`,
+          { credentials: "include" },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(
+            data.map((c: any) => ({
+              id: c.chat_id,
+              title: c.name,
+              agentId: c.agent_id,
+              createdAt: c.created_at,
+              messages: [],
+            })),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch chats:", err);
+      }
+    };
+    fetchChats();
   }, [currentAccount?.address]);
 
+  // ── Fetch messages on conversation select (async/await + credentials) ─
   useEffect(() => {
     if (!activeConvId || activeConvId.startsWith("conv-") || isStreaming)
       return;
     const conv = conversations.find((c) => c.id === activeConvId);
     if (!conv || conv.messages.length > 0) return;
-    setIsLoadingMessages(true);
-    fetch(`${API_BASE_URL}/api/chats/${activeConvId}`)
-      .then((r) => r.json())
-      .then((msgs: any[]) =>
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === activeConvId
-              ? {
-                  ...c,
-                  messages: msgs.map((m) => ({
-                    id: m.id,
-                    role: m.sender as "user" | "assistant",
-                    content: m.query,
-                    agentId: conv?.agentId,
-                  })),
-                }
-              : c,
-          ),
-        ),
-      )
-      .catch(console.error)
-      .finally(() => setIsLoadingMessages(false));
+
+    const fetchMessages = async () => {
+      setIsLoadingMessages(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/chats/${activeConvId}`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const msgs: any[] = await res.json();
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === activeConvId
+                ? {
+                    ...c,
+                    messages: msgs.map((m) => ({
+                      id: m.id,
+                      role: m.sender as "user" | "assistant",
+                      content: m.query,
+                      agentId: conv?.agentId,
+                    })),
+                  }
+                : c,
+            ),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    fetchMessages();
   }, [activeConvId, isStreaming]);
 
   useEffect(() => {
@@ -1973,6 +1979,7 @@ const Dashboard = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeConv?.messages, streamedText, isThinking]);
+
   useEffect(() => {
     return () => {
       if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
@@ -1980,7 +1987,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  // ── Handlers ─────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────
 
   const handleNewChat = useCallback(() => {
     navigate("/chat");
@@ -2001,6 +2008,7 @@ const Dashboard = () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
@@ -2029,6 +2037,28 @@ const Dashboard = () => {
           if (err.requiresUpgrade) {
             setShowUpgradeModal(true);
             setIsThinking(false);
+            // Refresh status after upgrade prompt (dev)
+            if (currentAccount?.address) {
+              const endpoint =
+                agentId === "task" ? "task-prompts" : "research-prompts";
+              const setter =
+                agentId === "task"
+                  ? setTaskPromptStatus
+                  : setResearchPromptStatus;
+              const countdownSetter =
+                agentId === "task" ? setTaskCountdown : setResearchCountdown;
+              fetch(
+                `${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`,
+                {
+                  credentials: "include",
+                },
+              )
+                .then((r) => r.json())
+                .then((s) => {
+                  setter(s);
+                  if (s.resetInSeconds) countdownSetter(s.resetInSeconds);
+                });
+            }
             return false;
           }
           setIsThinking(false);
@@ -2058,7 +2088,9 @@ const Dashboard = () => {
             agentId === "task" ? "task-prompts" : "research-prompts";
           const setter =
             agentId === "task" ? setTaskPromptStatus : setResearchPromptStatus;
-          fetch(`${API_BASE_URL}/api/chat/${endpoint}/${userId}`)
+          fetch(`${API_BASE_URL}/api/chat/${endpoint}/${userId}`, {
+            credentials: "include",
+          })
             .then((r) => r.json())
             .then((s) => setter(s));
         }
@@ -2144,10 +2176,11 @@ const Dashboard = () => {
                     if (userId) {
                       fetch(
                         `${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`,
+                        { credentials: "include" },
                       )
                         .then((r) => r.json())
                         .then((data) => {
-                          if (data.total_activities > 0)
+                          if (data.total_activities > 0) {
                             setTimeout(
                               () =>
                                 sileo.info({
@@ -2156,6 +2189,7 @@ const Dashboard = () => {
                                 }),
                               1500,
                             );
+                          }
                         })
                         .catch(() => {});
                     }
@@ -2301,12 +2335,14 @@ const Dashboard = () => {
       /* noop */
     }
   }, []);
+
   const handleFeedback = useCallback((msgId: string, type: "up" | "down") => {
     setFeedback((prev) => ({
       ...prev,
       [msgId]: prev[msgId] === type ? undefined! : type,
     }));
   }, []);
+
   const handleRegenerate = useCallback(async () => {
     if (isStreaming || isThinking || !activeConv) return;
     setConversations((prev) =>
@@ -2342,6 +2378,7 @@ const Dashboard = () => {
       handleSend();
     }
   };
+
   const selectConversation = (convId: string) => {
     if (isStreaming || isThinking) return;
     navigate(`/chat/${convId}`);
@@ -2349,16 +2386,21 @@ const Dashboard = () => {
     if (conv) setSelectedAgentId(conv.agentId);
     setShowRecents(false);
   };
+
   const selectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
     setShowAgentDropdown(false);
   };
+
   const handleDeleteConversation = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
       setConversations((prev) => prev.filter((c) => c.id !== id));
       try {
-        await fetch(`${API_BASE_URL}/api/chats/${id}`, { method: "DELETE" });
+        await fetch(`${API_BASE_URL}/api/chats/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
       } catch {
         /* ignore */
       }
@@ -2367,6 +2409,7 @@ const Dashboard = () => {
     [activeConvId, navigate],
   );
 
+  // ── Mobile actions ────────────────────────────────────────────────────
   useEffect(() => {
     setMobileActions?.({
       onRecentClick: () => setShowRecents((p) => !p),
@@ -2396,21 +2439,42 @@ const Dashboard = () => {
                   <button
                     key={agent.id}
                     onClick={() => {
+                      if (agent.isWip) return;
                       selectAgent(agent.id);
                       setShowAgentDropdown(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-3 transition-colors cursor-pointer ${selectedAgentId === agent.id ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"}`}
+                    disabled={agent.isWip}
+                    className={`w-full flex items-center gap-3 px-3 py-3 transition-colors ${
+                      agent.isWip
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    } ${
+                      selectedAgentId === agent.id
+                        ? "bg-white/[0.06]"
+                        : agent.isWip
+                          ? ""
+                          : "hover:bg-white/[0.04]"
+                    }`}
                   >
                     <img
                       src={agent.icon}
                       alt=""
                       className="w-7 h-7 object-contain"
                     />
-                    <span className="text-sm font-medium text-white flex-1 text-left">
+                    <span className="text-sm font-medium text-white flex-1 text-left flex items-center gap-2">
                       {agent.name}
+                      {agent.isWip && (
+                        <span className="text-[9px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded flex-shrink-0 font-bold tracking-wider">
+                          WIP
+                        </span>
+                      )}
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${agent.cost === "Free" ? "bg-emerald-500/15 text-emerald-400" : "bg-[#B7FC0D]/15 text-[#B7FC0D]"}`}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        agent.cost === "Free"
+                          ? "bg-emerald-500/15 text-emerald-400"
+                          : "bg-[#B7FC0D]/15 text-[#B7FC0D]"
+                      }`}
                     >
                       {agent.cost}
                     </span>
@@ -2442,7 +2506,6 @@ const Dashboard = () => {
         onDelete={handleDeleteConversation}
       />
 
-      {/* Bridge Transactions Modal — NEW */}
       <AnimatePresence>
         {showTransactions && (
           <BridgeTransactionsModal
@@ -2527,10 +2590,13 @@ const Dashboard = () => {
       {/* Desktop Header */}
       <div className="absolute hidden md:flex items-center justify-between px-10 w-full mx-auto pt-6 flex-shrink-0 z-20">
         <div className="w-full max-w-[1000px] mx-auto flex items-center gap-3">
-          {/* Recents */}
           <button
             onClick={() => setShowRecents((p) => !p)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${showRecents ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${
+              showRecents
+                ? "bg-white/10 border-white/20 text-white"
+                : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"
+            }`}
           >
             <Clock size={14} />
             <span className="text-sm font-medium">Recents</span>
@@ -2567,11 +2633,29 @@ const Dashboard = () => {
                   {AGENTS.map((agent) => (
                     <button
                       key={agent.id}
-                      onClick={() => selectAgent(agent.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors cursor-pointer ${selectedAgentId === agent.id ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"}`}
+                      onClick={() => {
+                        if (agent.isWip) return;
+                        selectAgent(agent.id);
+                      }}
+                      disabled={agent.isWip}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors ${
+                        agent.isWip
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-pointer"
+                      } ${
+                        selectedAgentId === agent.id
+                          ? "bg-white/[0.06]"
+                          : agent.isWip
+                            ? ""
+                            : "hover:bg-white/[0.04]"
+                      }`}
                     >
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedAgentId === agent.id ? "ring-2 ring-[#B7FC0D]/50" : ""}`}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          selectedAgentId === agent.id
+                            ? "ring-2 ring-[#B7FC0D]/50"
+                            : ""
+                        }`}
                       >
                         <img
                           src={agent.icon}
@@ -2579,11 +2663,20 @@ const Dashboard = () => {
                           className="w-7 h-7 object-contain"
                         />
                       </div>
-                      <span className="text-sm font-medium text-white flex-1 text-left">
+                      <span className="text-sm font-medium text-white flex-1 text-left flex items-center gap-2">
                         {agent.name}
+                        {agent.isWip && (
+                          <span className="text-[9px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded flex-shrink-0 font-bold tracking-wider">
+                            WIP
+                          </span>
+                        )}
                       </span>
                       <span
-                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${agent.cost === "Free" ? "bg-emerald-500/15 text-emerald-400" : "bg-[#B7FC0D]/15 text-[#B7FC0D]"}`}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          agent.cost === "Free"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-[#B7FC0D]/15 text-[#B7FC0D]"
+                        }`}
                       >
                         {agent.cost}
                       </span>
@@ -2605,7 +2698,6 @@ const Dashboard = () => {
             </AnimatePresence>
           </div>
 
-          {/* New Chat */}
           <button
             onClick={handleNewChat}
             className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-all cursor-pointer text-white/60 hover:text-white"
@@ -2614,10 +2706,13 @@ const Dashboard = () => {
             <span className="text-sm font-medium">New Chat</span>
           </button>
 
-          {/* Transactions — NEW */}
           <button
             onClick={() => setShowTransactions((p) => !p)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${showTransactions ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${
+              showTransactions
+                ? "bg-white/10 border-white/20 text-white"
+                : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"
+            }`}
           >
             <History size={14} />
             <span className="text-sm font-medium">Transactions</span>
@@ -2662,6 +2757,7 @@ const Dashboard = () => {
                           <button
                             key={idx}
                             onClick={() => {
+                              if (activeAgent.isWip) return;
                               const currentStatus =
                                 selectedAgentId === "task"
                                   ? taskPromptStatus
@@ -2670,6 +2766,7 @@ const Dashboard = () => {
                                 setShowUpgradeModal(true);
                                 return;
                               }
+                              // Bridge categories send immediately; others fill the input
                               if (selectedAgentId === "bridge")
                                 handleSend(category.value);
                               else {
@@ -2677,8 +2774,17 @@ const Dashboard = () => {
                                 inputRef.current?.focus();
                               }
                             }}
-                            disabled={isStreaming || isThinking}
-                            className={`flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-left transition-all duration-200 backdrop-blur-md group ${(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"}`}
+                            disabled={
+                              isStreaming || isThinking || activeAgent.isWip
+                            }
+                            className={`flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-left transition-all duration-200 backdrop-blur-md group ${
+                              (selectedAgentId === "task"
+                                ? taskPromptStatus
+                                : researchPromptStatus
+                              )?.remaining === 0 || activeAgent.isWip
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                            }`}
                           >
                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-white/20 transition-colors">
                               <category.icon
@@ -2779,7 +2885,13 @@ const Dashboard = () => {
                 : researchPromptStatus) && (
                 <div className="flex justify-between items-center px-4 mb-2 text-xs font-medium">
                   <span
-                    className={`${(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)!.remaining === 0 ? "text-red-400" : "text-white/40"}`}
+                    className={`${
+                      (selectedAgentId === "task"
+                        ? taskPromptStatus
+                        : researchPromptStatus)!.remaining === 0
+                        ? "text-red-400"
+                        : "text-white/40"
+                    }`}
                   >
                     {
                       (selectedAgentId === "task"
@@ -2834,6 +2946,7 @@ const Dashboard = () => {
                           <button
                             key={idx}
                             onClick={() => {
+                              if (activeAgent.isWip) return;
                               const currentStatus =
                                 selectedAgentId === "task"
                                   ? taskPromptStatus
@@ -2851,8 +2964,16 @@ const Dashboard = () => {
                                 inputRef.current?.focus();
                               } else handleSend(prompt.prompt);
                             }}
-                            disabled={isStreaming || isThinking}
-                            className={`w-full flex items-center gap-3 p-4 transition-colors text-left group border-b border-white/5 last:border-0 ${taskPromptStatus?.remaining === 0 && selectedAgentId === "task" ? "opacity-50 cursor-not-allowed bg-white/5" : "hover:bg-white/5 cursor-pointer"}`}
+                            disabled={
+                              isStreaming || isThinking || activeAgent.isWip
+                            }
+                            className={`w-full flex items-center gap-3 p-4 transition-colors text-left group border-b border-white/5 last:border-0 ${
+                              (taskPromptStatus?.remaining === 0 &&
+                                selectedAgentId === "task") ||
+                              activeAgent.isWip
+                                ? "opacity-50 cursor-not-allowed bg-white/5"
+                                : "hover:bg-white/5 cursor-pointer"
+                            }`}
                           >
                             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 text-white/70 group-hover:text-white group-hover:bg-white/20 transition-all">
                               <prompt.icon size={16} />
@@ -2885,17 +3006,20 @@ const Dashboard = () => {
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder={
-                      (selectedAgentId === "task"
-                        ? taskPromptStatus
-                        : researchPromptStatus
-                      )?.remaining === 0
-                        ? "Daily limit reached. Upgrade to continue."
-                        : `Message ${activeAgent.name}...`
+                      activeAgent.isWip
+                        ? "Agent is WIP: New chats disabled"
+                        : (selectedAgentId === "task"
+                              ? taskPromptStatus
+                              : researchPromptStatus
+                            )?.remaining === 0
+                          ? "Daily limit reached. Upgrade to continue."
+                          : `Message ${activeAgent.name}...`
                     }
                     rows={1}
                     disabled={
                       isStreaming ||
                       isThinking ||
+                      activeAgent.isWip ||
                       (selectedAgentId === "task"
                         ? taskPromptStatus
                         : researchPromptStatus
@@ -2910,10 +3034,18 @@ const Dashboard = () => {
                       !input.trim() ||
                       isStreaming ||
                       isThinking ||
+                      activeAgent.isWip ||
                       (taskPromptStatus?.remaining === 0 &&
                         selectedAgentId === "task")
                     }
-                    className={`absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${input.trim() && !isStreaming && !isThinking ? "bg-[#326AFD] hover:bg-[#2959D6] text-white shadow-lg shadow-[#326AFD]/25" : "bg-white/5 text-white/20"} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                      input.trim() &&
+                      !isStreaming &&
+                      !isThinking &&
+                      !activeAgent.isWip
+                        ? "bg-[#326AFD] hover:bg-[#2959D6] text-white shadow-lg shadow-[#326AFD]/25"
+                        : "bg-white/5 text-white/20"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <ArrowUp size={18} />
                   </button>
