@@ -63,7 +63,7 @@ interface Agent {
   name: string;
   icon: string;
   cost: string;
-  isWip?: boolean; // dev — flag for work-in-progress agents
+  isWip?: boolean;
 }
 
 interface Message {
@@ -1823,7 +1823,6 @@ const Dashboard = () => {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  // ── Prompt status fetching (with credentials — dev auth) ─────────────
   useEffect(() => {
     if (!currentAccount?.address) return;
     if (selectedAgentId !== "task" && selectedAgentId !== "research") return;
@@ -1895,7 +1894,6 @@ const Dashboard = () => {
     return () => clearInterval(t);
   }, [researchCountdown]);
 
-  // ── Fetch chats (async/await + credentials — dev pattern) ────────────
   useEffect(() => {
     if (!currentAccount?.address) return;
     const fetchChats = async () => {
@@ -1923,7 +1921,6 @@ const Dashboard = () => {
     fetchChats();
   }, [currentAccount?.address]);
 
-  // ── Fetch messages on conversation select (async/await + credentials) ─
   useEffect(() => {
     if (!activeConvId || activeConvId.startsWith("conv-") || isStreaming)
       return;
@@ -2037,7 +2034,6 @@ const Dashboard = () => {
           if (err.requiresUpgrade) {
             setShowUpgradeModal(true);
             setIsThinking(false);
-            // Refresh status after upgrade prompt (dev)
             if (currentAccount?.address) {
               const endpoint =
                 agentId === "task" ? "task-prompts" : "research-prompts";
@@ -2766,7 +2762,6 @@ const Dashboard = () => {
                                 setShowUpgradeModal(true);
                                 return;
                               }
-                              // Bridge categories send immediately; others fill the input
                               if (selectedAgentId === "bridge")
                                 handleSend(category.value);
                               else {

@@ -19,9 +19,9 @@ import {
   Copy,
   Check,
   Link as LinkIcon,
-  CheckCircle2, // tom — used in PhantomConnect & MetaMaskConnect
-  AlertCircle, // tom — used in MetaMaskConnect
-  LogOut, // dev — logout button
+  CheckCircle2,
+  AlertCircle,
+  LogOut,
 } from "lucide-react";
 import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
@@ -328,9 +328,6 @@ const TelegramConnect = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// PhantomConnect (tom — uses CheckCircle2)
-// ─────────────────────────────────────────────────────────────────────
 const PhantomConnect = () => {
   const { publicKey, connected, disconnect, connecting } = useWallet();
   const { setVisible } = useWalletModal();
@@ -376,9 +373,6 @@ const PhantomConnect = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// MetaMaskConnect (tom — uses CheckCircle2 + AlertCircle)
-// ─────────────────────────────────────────────────────────────────────
 const MetaMaskConnect = () => {
   const { address, isConnected } = useAccount();
   const { connect, isPending } = useConnect();
