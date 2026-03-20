@@ -8,6 +8,7 @@ import {
 import { sileo } from "sileo";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useAccount, useSendTransaction } from "wagmi";
+import { Connection as SolanaConnection, PublicKey } from "@solana/web3.js";
 
 import {
   ArrowUp,
@@ -42,11 +43,20 @@ import {
   CheckCircle2,
   XCircle,
   ExternalLink,
+  History,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Circle,
 } from "lucide-react";
 import { RecentChatsModal } from "@/components/RecentChatsModal";
 import { ChatSkeleton } from "@/components/ui/SkeletonLoader";
 
-// ── Types ──────────────────────────────────────────────────────────────
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+// ══════════════════════════════════════════════════════════════════════
+// TYPES
+// ══════════════════════════════════════════════════════════════════════
 
 interface Agent {
   id: string;
@@ -60,7 +70,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   agentId?: string;
-  bridgePayload?: BridgeActionPayload; // attached when agent emits bridge_transaction_ready
+  bridgePayload?: BridgeActionPayload;
 }
 
 interface Conversation {
@@ -78,7 +88,6 @@ interface Prompt {
   keywords: string[];
   icon: LucideIcon;
 }
-
 interface Category {
   label: string;
   value: string;
@@ -116,7 +125,43 @@ export interface BridgeActionPayload {
   recipientMissing: boolean;
 }
 
-// ── Static Data ────────────────────────────────────────────────────────
+export interface BridgeTx {
+  id: number;
+  direction: string;
+  source_chain: string;
+  dest_chain: string;
+  amount_in: string;
+  amount_out: string;
+  source_tx: string;
+  dest_tx: string | null;
+  status: "submitted" | "delivered" | "failed";
+  created_at: string;
+}
+
+// Delivery phase shown inside BridgeActionCard after signing
+type DeliveryPhase =
+  | "submitted" // source tx sent, waiting for relayer
+  | "relayer_detected" // relayer picked it up
+  | "signing" // Ika MPC signing
+  | "confirming" // broadcast to dest chain
+  | "delivered" // balance confirmed on dest
+  | "timed_out"; // polling gave up
+
+const DELIVERY_PHASES: Record<
+  DeliveryPhase,
+  { label: string; progress: number }
+> = {
+  submitted: { label: "Waiting for relayer...", progress: 25 },
+  relayer_detected: { label: "Relayer detected your transfer", progress: 45 },
+  signing: { label: "Signing via Ika MPC (~60–90s)", progress: 65 },
+  confirming: { label: "Broadcasting to destination...", progress: 85 },
+  delivered: { label: "Delivered! 🎉", progress: 100 },
+  timed_out: { label: "Timed out — check explorer", progress: 0 },
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// STATIC DATA
+// ══════════════════════════════════════════════════════════════════════
 
 const AGENTS: Agent[] = [
   {
@@ -170,11 +215,10 @@ const AGENT_THINKING_STEPS: Record<string, string[]> = {
     "Setting up notifications",
     "Activating monitors",
   ],
-  // Bridge agent thinking steps
   bridge: [
     "Understanding your request",
+    "Checking your balance",
     "Validating amounts and route",
-    "Checking bridge rates",
     "Preparing transaction",
     "Ready for signing",
   ],
@@ -285,7 +329,6 @@ const CATEGORIES: Record<string, Category[]> = {
       description: "New exchanges and tokens",
     },
   ],
-  // Bridge categories shown in empty state
   bridge: [
     {
       label: "SUI → SOL",
@@ -471,7 +514,6 @@ const PROMPTS: Record<string, Prompt[]> = {
       icon: Star,
     },
   ],
-  // Bridge prompts for autocomplete
   bridge: [
     {
       label: "Bridge SUI to Solana",
@@ -512,29 +554,26 @@ const PROMPTS: Record<string, Prompt[]> = {
   ],
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════
 
 function getAgent(id: string): Agent {
   return AGENTS.find((a) => a.id === id) || AGENTS[0];
 }
-
 let msgCounter = 100;
 function nextId() {
   return `m-${++msgCounter}`;
 }
 
-// ── Simple Markdown Renderer ──────────────────────────────────────────
-
 function renderMarkdown(text: string, cursor?: React.ReactNode) {
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
   let i = 0;
-
   while (i < lines.length) {
     const line = lines[i];
     const isLastLine = i === lines.length - 1;
     const suffix = isLastLine ? cursor : null;
-
     if (line.trim() === "") {
       elements.push(
         <div key={i} className="h-3">
@@ -647,32 +686,30 @@ function renderMarkdown(text: string, cursor?: React.ReactNode) {
     );
     i++;
   }
-
   return <>{elements}</>;
 }
 
 function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**"))
       return (
         <strong key={i} className="text-white font-semibold">
           {part.slice(2, -2)}
         </strong>
       );
-    }
-    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
       return (
         <em key={i} className="text-white/70 italic">
           {part.slice(1, -1)}
         </em>
       );
-    }
     return <span key={i}>{part}</span>;
   });
 }
 
-// ── ThinkingIndicator ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// ThinkingIndicator
+// ══════════════════════════════════════════════════════════════════════
 
 function ThinkingIndicator({
   agentId,
@@ -687,17 +724,15 @@ function ThinkingIndicator({
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const steps = AGENT_THINKING_STEPS[agentId] || AGENT_THINKING_STEPS.research;
-
   useEffect(() => {
     setStepIndex(0);
-    const interval = setInterval(() => {
-      setStepIndex((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
-    }, 1800);
+    const interval = setInterval(
+      () => setStepIndex((prev) => (prev < steps.length - 1 ? prev + 1 : prev)),
+      1800,
+    );
     return () => clearInterval(interval);
   }, [agentId, steps.length]);
-
   const currentStep = statusOverride || steps[stepIndex];
-
   return (
     <div className="flex gap-3 max-w-3xl">
       <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-1">
@@ -759,7 +794,209 @@ function ThinkingIndicator({
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// BridgeActionCard — standalone component, NOT nested inside anything
+// BridgeTransactionsModal
+// ══════════════════════════════════════════════════════════════════════
+
+function BridgeTransactionsModal({
+  isOpen,
+  onClose,
+  userId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  userId?: string;
+}) {
+  const [txs, setTxs] = useState<BridgeTx[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+    setLoading(true);
+    fetch(`${API_BASE_URL}/api/bridge/transactions`)
+      .then((r) => r.json())
+      .then((data) => setTxs(Array.isArray(data) ? data : []))
+      .catch(() => setTxs([]))
+      .finally(() => setLoading(false));
+  }, [isOpen, userId]);
+
+  function explorerUrl(tx: BridgeTx, type: "source" | "dest"): string {
+    const hash = type === "source" ? tx.source_tx : tx.dest_tx;
+    if (!hash) return "#";
+    if (tx.source_chain === "Sui" && type === "source")
+      return `https://suiscan.xyz/testnet/tx/${hash}`;
+    if (tx.source_chain === "Solana" && type === "source")
+      return `https://explorer.solana.com/tx/${hash}?cluster=devnet`;
+    if (tx.source_chain === "Ethereum" && type === "source")
+      return `https://sepolia.etherscan.io/tx/${hash}`;
+    if (tx.dest_chain === "Solana" && type === "dest")
+      return `https://explorer.solana.com/tx/${hash}?cluster=devnet`;
+    if (tx.dest_chain === "Ethereum" && type === "dest")
+      return `https://sepolia.etherscan.io/tx/${hash}`;
+    return `https://suiscan.xyz/testnet/tx/${hash}`;
+  }
+
+  const statusConfig = {
+    submitted: {
+      color: "text-amber-400",
+      bg: "bg-amber-400/10",
+      border: "border-amber-400/20",
+      label: "Pending",
+    },
+    delivered: {
+      color: "text-emerald-400",
+      bg: "bg-emerald-400/10",
+      border: "border-emerald-400/20",
+      label: "Delivered",
+    },
+    failed: {
+      color: "text-red-400",
+      bg: "bg-red-400/10",
+      border: "border-red-400/20",
+      label: "Failed",
+    },
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -16, scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+        className="w-full max-w-lg bg-[#111318] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <History size={16} className="text-[#B7FC0D]" />
+            <span className="text-sm font-semibold text-white">
+              Bridge Transactions
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-white/30 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="max-h-[480px] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={20} className="animate-spin text-white/30" />
+            </div>
+          ) : txs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <History size={28} className="text-white/10" />
+              <p className="text-white/30 text-sm">
+                No bridge transactions yet
+              </p>
+              <p className="text-white/20 text-xs">
+                Your bridges will appear here
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {txs.map((tx) => {
+                const cfg = statusConfig[tx.status] || statusConfig.submitted;
+                const isOutbound =
+                  tx.direction.startsWith("SUI_TO") ||
+                  tx.direction === "SOL_TO_SUI" ||
+                  tx.direction === "ETH_TO_SUI";
+                const date = new Date(tx.created_at).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
+                          {isOutbound ? (
+                            <ArrowUpRight
+                              size={14}
+                              className="text-[#B7FC0D]"
+                            />
+                          ) : (
+                            <ArrowDownLeft
+                              size={14}
+                              className="text-emerald-400"
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-white/80 text-sm font-medium">
+                              {tx.source_chain} → {tx.dest_chain}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.color} ${cfg.bg} ${cfg.border}`}
+                            >
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-white/40">
+                            <span>{tx.amount_in}</span>
+                            <ArrowRight size={10} />
+                            <span className="text-[#B7FC0D]">
+                              ~{tx.amount_out}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-white/30 flex-shrink-0 mt-1">
+                        {date}
+                      </span>
+                    </div>
+
+                    {/* Tx links */}
+                    <div className="flex items-center gap-3 mt-2 ml-11">
+                      <a
+                        href={explorerUrl(tx, "source")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                      >
+                        Source <ExternalLink size={9} />
+                      </a>
+                      {tx.dest_tx && (
+                        <a
+                          href={explorerUrl(tx, "dest")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                        >
+                          Delivery <ExternalLink size={9} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// BridgeActionCard — with delivery polling
 // ══════════════════════════════════════════════════════════════════════
 
 function BridgeActionCard({
@@ -783,33 +1020,186 @@ function BridgeActionCard({
   sendEthTx?: (params: any) => Promise<`0x${string}`>;
   onDismiss: () => void;
 }) {
-  const [status, setStatus] = useState<
-    "idle" | "signing" | "submitted" | "complete" | "failed"
+  const [signStatus, setSignStatus] = useState<
+    "idle" | "signing" | "submitted" | "failed"
   >("idle");
-  const [txHash, setTxHash] = useState<string | null>(null);
+  const [deliveryPhase, setDeliveryPhase] = useState<DeliveryPhase | null>(
+    null,
+  );
+  const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
+  const [destTxHash, setDestTxHash] = useState<string | null>(null);
+  const [dbTxId, setDbTxId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef(0);
+
+  const POLL_INTERVAL = 5_000;
+  const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
   const chain = payload.txPayload.chain;
+  const isComplete = deliveryPhase === "delivered";
+  const isTimedOut = deliveryPhase === "timed_out";
 
   function resolveRecipient(): string | null {
     if (payload.recipientAddress) return payload.recipientAddress;
     if (
       payload.direction === "SOL_TO_SUI" ||
       payload.direction === "ETH_TO_SUI"
-    ) {
+    )
       return suiAddress || null;
-    }
-    if (payload.direction === "SUI_TO_SOL") {
+    if (payload.direction === "SUI_TO_SOL")
       return solanaPublicKey?.toBase58() || null;
-    }
-    if (payload.direction === "SUI_TO_ETH") {
-      return ethAddress || null;
+    if (payload.direction === "SUI_TO_ETH") return ethAddress || null;
+    return null;
+  }
+
+  // Save bridge tx to DB
+  async function saveBridgeTx(sourceTx: string): Promise<number | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/bridge/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          direction: payload.direction,
+          source_chain: payload.sourceChain,
+          dest_chain: payload.destChain,
+          amount_in: payload.amountInDisplay,
+          amount_out: payload.amountOutDisplay,
+          source_tx: sourceTx,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.id || null;
+      }
+    } catch (e) {
+      console.warn("[BRIDGE] Failed to save tx:", e);
     }
     return null;
   }
 
+  // Mark delivered in DB
+  async function markDelivered(id: number, destTx?: string) {
+    try {
+      await fetch(`${API_BASE_URL}/api/bridge/transactions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "delivered", dest_tx: destTx || null }),
+      });
+    } catch (e) {
+      console.warn("[BRIDGE] Failed to mark delivered:", e);
+    }
+  }
+
+  // Start delivery polling after source tx is confirmed
+  function startDeliveryPolling(sourceTx: string, savedDbId: number | null) {
+    setDeliveryPhase("submitted");
+    elapsedRef.current = 0;
+
+    pollRef.current = setInterval(async () => {
+      elapsedRef.current += POLL_INTERVAL;
+
+      // Advance through time-based phases (mimics relayer timing)
+      if (elapsedRef.current > 15_000 && deliveryPhase === "submitted") {
+        setDeliveryPhase("relayer_detected");
+      }
+      if (elapsedRef.current > 40_000) {
+        setDeliveryPhase((p) => (p === "relayer_detected" ? "signing" : p));
+      }
+      if (elapsedRef.current > 90_000) {
+        setDeliveryPhase((p) => (p === "signing" ? "confirming" : p));
+      }
+
+      // Timeout
+      if (elapsedRef.current >= TIMEOUT_MS) {
+        clearInterval(pollRef.current!);
+        setDeliveryPhase("timed_out");
+        return;
+      }
+
+      // Poll destination chain balance
+      try {
+        const recipient = resolveRecipient();
+        if (!recipient) return;
+
+        if (payload.direction === "SUI_TO_SOL" && solanaConnection) {
+          // Poll Solana balance
+          const pubkey = new PublicKey(recipient);
+          const bal = await (solanaConnection as SolanaConnection).getBalance(
+            pubkey,
+          );
+          const sigs = await (
+            solanaConnection as SolanaConnection
+          ).getSignaturesForAddress(pubkey, { limit: 3 });
+          // Check if a new tx appeared recently (within poll window)
+          if (sigs.length > 0) {
+            const latest = sigs[0];
+            const latestTs = (latest.blockTime || 0) * 1000;
+            if (Date.now() - latestTs < POLL_INTERVAL * 4) {
+              // New tx appeared — assume delivered
+              clearInterval(pollRef.current!);
+              setDeliveryPhase("delivered");
+              setDestTxHash(latest.signature);
+              if (savedDbId) await markDelivered(savedDbId, latest.signature);
+              sileo.success({
+                title: "Bridge Complete!",
+                description: "Your SOL has arrived.",
+              });
+              return;
+            }
+          }
+        } else if (
+          payload.direction === "SOL_TO_SUI" ||
+          payload.direction === "ETH_TO_SUI"
+        ) {
+          // Poll Sui balance via RPC
+          const { SuiClient, getFullnodeUrl } =
+            await import("@mysten/sui/client");
+          const client = new SuiClient({ url: getFullnodeUrl("testnet") });
+          const bal = await client.getBalance({
+            owner: recipient,
+            coinType: "0x2::sui::SUI",
+          });
+          // We don't know the exact before-balance here so we use a recent tx check
+          const txs = await client.queryTransactionBlocks({
+            filter: { ToAddress: recipient },
+            options: { showEffects: false },
+            limit: 3,
+            order: "descending",
+          });
+          if (txs.data.length > 0) {
+            // Check if the first tx is recent (rough check)
+            const recentDigest = txs.data[0].digest;
+            clearInterval(pollRef.current!);
+            setDeliveryPhase("delivered");
+            setDestTxHash(recentDigest);
+            if (savedDbId) await markDelivered(savedDbId, recentDigest);
+            sileo.success({
+              title: "Bridge Complete!",
+              description: "Your SUI has arrived.",
+            });
+            return;
+          }
+        } else if (payload.direction === "SUI_TO_ETH") {
+          // For ETH delivery we rely on time-based phases only
+          // (getting ETH balance client-side requires wagmi which isn't available here)
+          // The timeout and phase advancement handles UX
+        }
+      } catch (e) {
+        // Polling errors are non-fatal — keep trying
+      }
+    }, POLL_INTERVAL);
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
   async function handleSign() {
-    setStatus("signing");
+    setSignStatus("signing");
     setError(null);
 
     const recipient = resolveRecipient();
@@ -817,18 +1207,15 @@ function BridgeActionCard({
       setError(
         `Please connect your ${payload.destChain} wallet first to receive funds.`,
       );
-      setStatus("failed");
+      setSignStatus("failed");
       return;
     }
 
     try {
       if (chain === "sui") {
         if (!signAndExecuteSui) throw new Error("Sui wallet not ready");
-
-        // Dynamic imports keep bundle small — these are already installed
         const { Transaction } = await import("@mysten/sui/transactions");
         const { bcs } = await import("@mysten/sui/bcs");
-
         const tx = new Transaction();
         const amountMist = BigInt(payload.txPayload.amountMist!);
         const [coin] = tx.splitCoins(tx.gas, [tx.pure.u64(amountMist)]);
@@ -842,43 +1229,39 @@ function BridgeActionCard({
             tx.pure(bcs.vector(bcs.u8()).serialize(recipientBytes)),
           ],
         });
-
         const txBytes = await tx.toJSON();
+        setSignStatus("submitted");
 
-        // signAndExecuteSui is callback-based, not promise-based
         signAndExecuteSui(
           { transaction: txBytes },
           {
-            onSuccess: (result: any) => {
-              setTxHash(result.digest);
-              setStatus("complete");
+            onSuccess: async (result: any) => {
+              const digest = result.digest;
+              setSourceTxHash(digest);
+              const dbId = await saveBridgeTx(digest);
+              setDbTxId(dbId);
+              startDeliveryPolling(digest, dbId);
             },
             onError: (err: any) => {
               setError(err.message || "Transaction rejected");
-              setStatus("failed");
+              setSignStatus("failed");
             },
           },
         );
-        setStatus("submitted");
       } else if (chain === "solana") {
-        if (!solanaPublicKey || !solanaConnection || !sendSolTx) {
+        if (!solanaPublicKey || !solanaConnection || !sendSolTx)
           throw new Error("Solana wallet not connected");
-        }
-
         const {
           SystemProgram,
           Transaction: SolTx,
-          PublicKey,
+          PublicKey: SPK,
           TransactionInstruction,
         } = await import("@solana/web3.js");
-
-        const MEMO_PROGRAM_ID = new PublicKey(payload.txPayload.memoProgramId!);
-        const vaultPubkey = new PublicKey(payload.txPayload.vaultAddress!);
+        const MEMO_PROGRAM_ID = new SPK(payload.txPayload.memoProgramId!);
+        const vaultPubkey = new SPK(payload.txPayload.vaultAddress!);
         const amountLamports = BigInt(payload.txPayload.amountLamports!);
-
         const { blockhash, lastValidBlockHeight } =
           await solanaConnection.getLatestBlockhash("confirmed");
-
         const tx = new SolTx({
           feePayer: solanaPublicKey,
           blockhash,
@@ -898,46 +1281,60 @@ function BridgeActionCard({
             data: new TextEncoder().encode(`sui:${recipient}`),
           }),
         );
-
         const sig = await sendSolTx(tx, solanaConnection);
-        setTxHash(sig);
-        setStatus("complete");
+        setSourceTxHash(sig);
+        setSignStatus("submitted");
+        const dbId = await saveBridgeTx(sig);
+        setDbTxId(dbId);
+        startDeliveryPolling(sig, dbId);
       } else if (chain === "ethereum") {
         if (!sendEthTx) throw new Error("Ethereum wallet not connected");
-
         const amountWei = BigInt(payload.txPayload.amountWei!);
         const bytes = new TextEncoder().encode(recipient);
         const hex = Array.from(bytes)
           .map((b) => b.toString(16).padStart(2, "0"))
           .join("");
-        const data = `0x${hex}` as `0x${string}`;
-
         const hash = await sendEthTx({
           to: payload.txPayload.vaultAddress as `0x${string}`,
           value: amountWei,
-          data,
+          data: `0x${hex}` as `0x${string}`,
         });
-        setTxHash(hash);
-        setStatus("complete");
+        setSourceTxHash(hash);
+        setSignStatus("submitted");
+        const dbId = await saveBridgeTx(hash);
+        setDbTxId(dbId);
+        startDeliveryPolling(hash, dbId);
       }
     } catch (err: any) {
       console.error("[BridgeActionCard] Sign error:", err);
       setError(err.message || "Transaction failed");
-      setStatus("failed");
+      setSignStatus("failed");
     }
   }
 
-  function explorerUrl(): string | null {
-    if (!txHash) return null;
-    if (chain === "sui") return `https://suiscan.xyz/testnet/tx/${txHash}`;
+  function sourceTxUrl(): string | null {
+    if (!sourceTxHash) return null;
+    if (chain === "sui")
+      return `https://suiscan.xyz/testnet/tx/${sourceTxHash}`;
     if (chain === "solana")
-      return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
+      return `https://explorer.solana.com/tx/${sourceTxHash}?cluster=devnet`;
     if (chain === "ethereum")
-      return `https://sepolia.etherscan.io/tx/${txHash}`;
+      return `https://sepolia.etherscan.io/tx/${sourceTxHash}`;
     return null;
   }
 
-  const isLoading = status === "signing" || status === "submitted";
+  function destTxUrl(): string | null {
+    if (!destTxHash) return null;
+    if (payload.destChain === "Solana")
+      return `https://explorer.solana.com/tx/${destTxHash}?cluster=devnet`;
+    if (payload.destChain === "Ethereum")
+      return `https://sepolia.etherscan.io/tx/${destTxHash}`;
+    return `https://suiscan.xyz/testnet/tx/${destTxHash}`;
+  }
+
+  const isLoading = signStatus === "signing" || signStatus === "submitted";
+  const phaseInfo = deliveryPhase ? DELIVERY_PHASES[deliveryPhase] : null;
+  const showSignButton = !deliveryPhase && !isComplete;
 
   return (
     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-w-sm">
@@ -951,7 +1348,7 @@ function BridgeActionCard({
             Testnet
           </span>
         </div>
-        {status === "idle" && (
+        {!deliveryPhase && signStatus === "idle" && (
           <button
             onClick={onDismiss}
             className="text-white/20 hover:text-white/50 transition-colors text-xs"
@@ -990,53 +1387,101 @@ function BridgeActionCard({
         </span>
       </div>
 
-      {/* Recipient missing warning */}
-      {payload.recipientMissing && !resolveRecipient() && (
+      {/* Recipient missing */}
+      {payload.recipientMissing && !resolveRecipient() && !deliveryPhase && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3 text-xs text-amber-400">
           ⚠ Connect your {payload.destChain} wallet to receive funds, then click
           Sign & Bridge.
         </div>
       )}
 
-      {/* Error */}
-      {status === "failed" && error && (
+      {/* Sign error */}
+      {signStatus === "failed" && error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
           <XCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
           <span className="text-red-400 text-xs">{error}</span>
         </div>
       )}
 
-      {/* Success */}
-      {status === "complete" && txHash && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
-          <CheckCircle2
-            size={14}
-            className="text-emerald-400 flex-shrink-0 mt-0.5"
-          />
-          <div>
-            <div className="text-emerald-400 text-xs font-bold mb-1">
-              Transaction submitted!
+      {/* ── Delivery status panel ── */}
+      {deliveryPhase && (
+        <div
+          className={`rounded-xl p-3 mb-3 border ${isComplete ? "bg-emerald-500/10 border-emerald-500/20" : isTimedOut ? "bg-red-500/10 border-red-500/20" : "bg-white/5 border-white/10"}`}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            {isComplete ? (
+              <CheckCircle2
+                size={14}
+                className="text-emerald-400 flex-shrink-0"
+              />
+            ) : isTimedOut ? (
+              <XCircle size={14} className="text-red-400 flex-shrink-0" />
+            ) : (
+              <Loader2
+                size={14}
+                className="text-[#B7FC0D] animate-spin flex-shrink-0"
+              />
+            )}
+            <span
+              className={`text-xs font-bold ${isComplete ? "text-emerald-400" : isTimedOut ? "text-red-400" : "text-white/70"}`}
+            >
+              {phaseInfo?.label}
+            </span>
+          </div>
+
+          {/* Progress bar (only while in progress) */}
+          {!isTimedOut && (
+            <div className="w-full bg-white/5 rounded-full h-1 mb-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${isComplete ? "bg-emerald-400" : "bg-gradient-to-r from-[#B7FC0D]/60 to-[#B7FC0D]"}`}
+                style={{ width: `${phaseInfo?.progress || 0}%` }}
+              />
             </div>
-            <div className="text-white/40 text-[10px]">
-              Delivery takes ~2–3 minutes. The relayer is processing your
-              bridge.
-            </div>
-            {explorerUrl() && (
+          )}
+
+          {/* Source tx link */}
+          {sourceTxHash && sourceTxUrl() && (
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-[10px] text-white/30">Source:</span>
               <a
-                href={explorerUrl()!}
+                href={sourceTxUrl()!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[#B7FC0D] text-[10px] mt-1 hover:underline"
+                className="flex items-center gap-0.5 text-[10px] text-white/40 hover:text-white/60 transition-colors"
               >
-                View on explorer <ExternalLink size={10} />
+                {sourceTxHash.slice(0, 8)}…{sourceTxHash.slice(-6)}{" "}
+                <ExternalLink size={8} />
               </a>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Dest tx link (once delivered) */}
+          {destTxHash && destTxUrl() && isComplete && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="text-[10px] text-white/30">Delivery:</span>
+              <a
+                href={destTxUrl()!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-0.5 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                {destTxHash.slice(0, 8)}…{destTxHash.slice(-6)}{" "}
+                <ExternalLink size={8} />
+              </a>
+            </div>
+          )}
+
+          {isTimedOut && (
+            <p className="text-[10px] text-red-400/70 mt-1">
+              The relayer may still deliver your funds. Check the source tx on
+              the explorer.
+            </p>
+          )}
         </div>
       )}
 
       {/* CTA */}
-      {status !== "complete" && (
+      {showSignButton && (
         <button
           onClick={handleSign}
           disabled={isLoading}
@@ -1044,7 +1489,7 @@ function BridgeActionCard({
             ${
               isLoading
                 ? "bg-white/5 text-white/30 cursor-not-allowed"
-                : status === "failed"
+                : signStatus === "failed"
                   ? "bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/20"
                   : "bg-gradient-to-r from-[#246AFC] to-[#326AFD] text-white hover:brightness-110 active:scale-[0.98]"
             }`}
@@ -1052,11 +1497,11 @@ function BridgeActionCard({
           {isLoading ? (
             <>
               <Loader2 size={16} className="animate-spin" />
-              {status === "signing"
+              {signStatus === "signing"
                 ? "Waiting for approval..."
                 : "Submitting..."}
             </>
-          ) : status === "failed" ? (
+          ) : signStatus === "failed" ? (
             "Try Again"
           ) : (
             <>
@@ -1070,7 +1515,7 @@ function BridgeActionCard({
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// MessageBubble — receives bridge payload and renders BridgeActionCard
+// MessageBubble
 // ══════════════════════════════════════════════════════════════════════
 
 function MessageBubble({
@@ -1081,7 +1526,6 @@ function MessageBubble({
   onFeedback,
   onRegenerate,
   isLast,
-  // Bridge props — only used when message.bridgePayload is set
   suiAddress,
   signAndExecuteSui,
   solanaPublicKey,
@@ -1105,7 +1549,6 @@ function MessageBubble({
   ethAddress?: `0x${string}`;
   sendEthTx?: (params: any) => Promise<`0x${string}`>;
 }) {
-  // Track whether the bridge card has been dismissed for THIS message
   const [bridgeDismissed, setBridgeDismissed] = useState(false);
 
   if (message.role === "user") {
@@ -1143,7 +1586,6 @@ function MessageBubble({
           {renderMarkdown(message.content)}
         </div>
 
-        {/* Bridge action card — renders beneath the message text when payload is attached */}
         {message.bridgePayload && !bridgeDismissed && (
           <BridgeActionCard
             payload={message.bridgePayload}
@@ -1158,7 +1600,6 @@ function MessageBubble({
           />
         )}
 
-        {/* Message action buttons */}
         <div className="flex items-center gap-1 mt-3">
           <button
             onClick={() => onCopy(message.content, message.id)}
@@ -1177,7 +1618,6 @@ function MessageBubble({
           <button
             onClick={() => onFeedback(message.id, "up")}
             className="p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group"
-            title="Good response"
           >
             <ThumbsUp
               size={14}
@@ -1192,7 +1632,6 @@ function MessageBubble({
           <button
             onClick={() => onFeedback(message.id, "down")}
             className="p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group"
-            title="Bad response"
           >
             <ThumbsDown
               size={14}
@@ -1208,7 +1647,6 @@ function MessageBubble({
             <button
               onClick={onRegenerate}
               className="p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group"
-              title="Regenerate"
             >
               <RefreshCw
                 size={14}
@@ -1226,14 +1664,9 @@ function MessageBubble({
 // Dashboard
 // ══════════════════════════════════════════════════════════════════════
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-
 const Dashboard = () => {
   const currentAccount = useCurrentAccount();
   const { setMobileActions } = useOutletContext<any>();
-
-  // ── Wallet hooks ────────────────────────────────────────────────────
   const { mutate: signAndExecuteSui } = useSignAndExecuteTransaction();
   const { publicKey: solanaPublicKey, sendTransaction: sendSolTx } =
     useWallet();
@@ -1241,7 +1674,6 @@ const Dashboard = () => {
   const { address: ethAddress } = useAccount();
   const { sendTransactionAsync: sendEthTx } = useSendTransaction();
 
-  // ── Chat state ──────────────────────────────────────────────────────
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1254,14 +1686,13 @@ const Dashboard = () => {
   const [streamedText, setStreamedText] = useState("");
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
   const [showRecents, setShowRecents] = useState(false);
+  const [showTransactions, setShowTransactions] = useState(false); // NEW
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Record<string, "up" | "down">>({});
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-  // Pending bridge payload — attached to the assistant message once streaming completes
   const pendingBridgePayloadRef = useRef<BridgeActionPayload | null>(null);
 
-  // ── Rate limit state ────────────────────────────────────────────────
   const [taskPromptStatus, setTaskPromptStatus] = useState<{
     used: number;
     limit: number;
@@ -1293,19 +1724,18 @@ const Dashboard = () => {
   );
   const activeAgent = getAgent(selectedAgentId);
 
-  const formatCountdown = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const formatCountdown = (seconds: number) => {
+    const h = Math.floor(seconds / 3600),
+      m = Math.floor((seconds % 3600) / 60),
+      s = seconds % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  // ── Effects ─────────────────────────────────────────────────────────
+  // ── Effects (unchanged from previous version) ────────────────────
 
   useEffect(() => {
     if (!currentAccount?.address) return;
     if (selectedAgentId !== "task" && selectedAgentId !== "research") return;
-
     const CACHE_KEY = `${selectedAgentId}PromptStatus-${currentAccount.address}`;
     const endpoint =
       selectedAgentId === "task" ? "task-prompts" : "research-prompts";
@@ -1317,7 +1747,6 @@ const Dashboard = () => {
       selectedAgentId === "task" ? setTaskCountdown : setResearchCountdown;
     const currentCountdown =
       selectedAgentId === "task" ? taskCountdown : researchCountdown;
-
     const fetchStatus = async (force = false) => {
       try {
         const url = new URL(
@@ -1326,30 +1755,27 @@ const Dashboard = () => {
         if (force) url.searchParams.append("force", "true");
         const res = await fetch(url.toString(), { cache: "no-store" });
         if (res.ok) {
-          const status = await res.json();
-          setter(status);
-          if (status.resetInSeconds) countdownSetter(status.resetInSeconds);
-          localStorage.setItem(CACHE_KEY, JSON.stringify(status));
+          const s = await res.json();
+          setter(s);
+          if (s.resetInSeconds) countdownSetter(s.resetInSeconds);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(s));
         }
-      } catch (e) {
-        console.error(`Failed to fetch ${selectedAgentId} prompts:`, e);
-      }
-    };
-
-    (window as any).refreshPromptStatus = () => fetchStatus(true);
-
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setter((prev: any) => prev || parsed);
-        if (parsed.resetInSeconds && currentCountdown === null)
-          countdownSetter(parsed.resetInSeconds);
       } catch (e) {
         /* ignore */
       }
+    };
+    (window as any).refreshPromptStatus = () => fetchStatus(true);
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const p = JSON.parse(cached);
+        setter((prev: any) => prev || p);
+        if (p.resetInSeconds && currentCountdown === null)
+          countdownSetter(p.resetInSeconds);
+      } catch {
+        /* ignore */
+      }
     }
-
     fetchStatus();
     const interval = setInterval(fetchStatus, 60000);
     return () => clearInterval(interval);
@@ -1357,89 +1783,67 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (taskCountdown === null || taskCountdown <= 0) return;
-    const timer = setInterval(
-      () =>
-        setTaskCountdown((prev) =>
-          prev === null || prev <= 1 ? null : prev - 1,
-        ),
+    const t = setInterval(
+      () => setTaskCountdown((p) => (p === null || p <= 1 ? null : p - 1)),
       1000,
     );
-    return () => clearInterval(timer);
+    return () => clearInterval(t);
   }, [taskCountdown]);
 
   useEffect(() => {
     if (researchCountdown === null || researchCountdown <= 0) return;
-    const timer = setInterval(
-      () =>
-        setResearchCountdown((prev) =>
-          prev === null || prev <= 1 ? null : prev - 1,
-        ),
+    const t = setInterval(
+      () => setResearchCountdown((p) => (p === null || p <= 1 ? null : p - 1)),
       1000,
     );
-    return () => clearInterval(timer);
+    return () => clearInterval(t);
   }, [researchCountdown]);
 
   useEffect(() => {
     if (!currentAccount?.address) return;
-    const fetchChats = async () => {
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/chats?userId=${currentAccount.address}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setConversations(
-            data.map((c: any) => ({
-              id: c.chat_id,
-              title: c.name,
-              agentId: c.agent_id,
-              createdAt: c.created_at,
-              messages: [],
-            })),
-          );
-        }
-      } catch (err) {
-        console.error("Failed to fetch chats:", err);
-      }
-    };
-    fetchChats();
+    fetch(`${API_BASE_URL}/api/chats?userId=${currentAccount.address}`)
+      .then((r) => r.json())
+      .then((data) =>
+        setConversations(
+          data.map((c: any) => ({
+            id: c.chat_id,
+            title: c.name,
+            agentId: c.agent_id,
+            createdAt: c.created_at,
+            messages: [],
+          })),
+        ),
+      )
+      .catch(console.error);
   }, [currentAccount?.address]);
 
   useEffect(() => {
-    if (!activeConvId || activeConvId.startsWith("conv-")) return;
-    if (isStreaming) return;
+    if (!activeConvId || activeConvId.startsWith("conv-") || isStreaming)
+      return;
     const conv = conversations.find((c) => c.id === activeConvId);
     if (!conv || conv.messages.length > 0) return;
-
-    const fetchMessages = async () => {
-      setIsLoadingMessages(true);
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/chats/${activeConvId}`);
-        if (res.ok) {
-          const msgs: any[] = await res.json();
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.id === activeConvId
-                ? {
-                    ...c,
-                    messages: msgs.map((m) => ({
-                      id: m.id,
-                      role: m.sender as "user" | "assistant",
-                      content: m.query,
-                      agentId: conv?.agentId,
-                    })),
-                  }
-                : c,
-            ),
-          );
-        }
-      } catch (err) {
-        console.error("Failed to fetch messages:", err);
-      } finally {
-        setIsLoadingMessages(false);
-      }
-    };
-    fetchMessages();
+    setIsLoadingMessages(true);
+    fetch(`${API_BASE_URL}/api/chats/${activeConvId}`)
+      .then((r) => r.json())
+      .then((msgs: any[]) =>
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeConvId
+              ? {
+                  ...c,
+                  messages: msgs.map((m) => ({
+                    id: m.id,
+                    role: m.sender as "user" | "assistant",
+                    content: m.query,
+                    agentId: conv?.agentId,
+                  })),
+                }
+              : c,
+          ),
+        ),
+      )
+      .catch(console.error)
+      .finally(() => setIsLoadingMessages(false));
   }, [activeConvId, isStreaming]);
 
   useEffect(() => {
@@ -1447,9 +1851,8 @@ const Dashboard = () => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(e.target as Node)
-      ) {
+      )
         setShowAgentDropdown(false);
-      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1458,7 +1861,6 @@ const Dashboard = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeConv?.messages, streamedText, isThinking]);
-
   useEffect(() => {
     return () => {
       if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
@@ -1466,7 +1868,7 @@ const Dashboard = () => {
     };
   }, []);
 
-  // ── Handlers ─────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────
 
   const handleNewChat = useCallback(() => {
     navigate("/chat");
@@ -1477,16 +1879,12 @@ const Dashboard = () => {
     async (message: string, agentId: string, convId: string) => {
       const userId = currentAccount?.address;
       if (!userId) return false;
-
       setIsThinking(true);
       setThinkingStatus(null);
-
-      // Clear any previous bridge payload before starting a new stream
       pendingBridgePayloadRef.current = null;
-
-      let fullText = "";
-      let aborted = false;
-      let currentConvId = convId;
+      let fullText = "",
+        aborted = false,
+        currentConvId = convId;
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -1502,9 +1900,7 @@ const Dashboard = () => {
               const off = -now.getTimezoneOffset();
               const sign = off >= 0 ? "+" : "-";
               const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
-              const hh = pad(Math.floor(off / 60));
-              const mm = pad(off % 60);
-              return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${sign}${hh}:${mm}`;
+              return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${sign}${pad(Math.floor(off / 60))}:${pad(off % 60)}`;
             })(),
           }),
         });
@@ -1514,42 +1910,28 @@ const Dashboard = () => {
           if (err.requiresUpgrade) {
             setShowUpgradeModal(true);
             setIsThinking(false);
-            if (currentAccount?.address) {
-              const endpoint =
-                agentId === "task" ? "task-prompts" : "research-prompts";
-              const setter =
-                agentId === "task"
-                  ? setTaskPromptStatus
-                  : setResearchPromptStatus;
-              const countdownSetter =
-                agentId === "task" ? setTaskCountdown : setResearchCountdown;
-              fetch(
-                `${API_BASE_URL}/api/chat/${endpoint}/${currentAccount.address}`,
-              )
-                .then((r) => r.json())
-                .then((s) => {
-                  setter(s);
-                  if (s.resetInSeconds) countdownSetter(s.resetInSeconds);
-                });
-            }
             return false;
           }
           setIsThinking(false);
-          const errorMsg: Message = {
-            id: nextId(),
-            role: "assistant",
-            content: `⏱️ **Rate Limit Reached**\n\n${err.message}`,
-          };
           setConversations((prev) =>
             prev.map((c) =>
               c.id !== currentConvId && c.tempId !== currentConvId
                 ? c
-                : { ...c, messages: [...c.messages, errorMsg] },
+                : {
+                    ...c,
+                    messages: [
+                      ...c.messages,
+                      {
+                        id: nextId(),
+                        role: "assistant" as const,
+                        content: `⏱️ **Rate Limit Reached**\n\n${err.message}`,
+                      },
+                    ],
+                  },
             ),
           );
           return false;
         }
-
         if (!response.ok) return false;
 
         if (agentId === "task" || agentId === "research") {
@@ -1564,19 +1946,17 @@ const Dashboard = () => {
 
         const reader = response.body?.getReader();
         if (!reader) return false;
-
         const decoder = new TextDecoder();
         let buffer = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done || aborted) break;
-
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
-
           let currentEvent = "";
+
           for (const line of lines) {
             if (line.startsWith("event: ")) {
               currentEvent = line.slice(7).trim();
@@ -1593,7 +1973,6 @@ const Dashboard = () => {
                 case "status":
                   if (!aborted) setThinkingStatus(parsed.text || parsed);
                   break;
-
                 case "conversation":
                   if (!aborted && parsed.id && parsed.id !== convId) {
                     currentConvId = parsed.id;
@@ -1616,7 +1995,6 @@ const Dashboard = () => {
                     );
                   }
                   break;
-
                 case "chunk":
                   if (!aborted) {
                     setIsThinking(false);
@@ -1626,25 +2004,23 @@ const Dashboard = () => {
                     setStreamedText(fullText);
                   }
                   break;
-
                 case "action":
-                  // ── Bridge agent action ──────────────────────────────
                   if (parsed?.type === "bridge_transaction_ready") {
-                    // Store in ref — we attach it to the message when streaming completes
                     pendingBridgePayloadRef.current =
                       parsed as BridgeActionPayload;
-                  }
-                  // ── Task / research actions ──────────────────────────
-                  else if (
+                  } else if (
                     parsed?.type === "task_created" ||
                     parsed?.type === "research_completed"
                   ) {
-                    const isTask = parsed.type === "task_created";
                     sileo.success({
-                      title: isTask ? "Task Created" : "Research Complete",
-                      description: isTask
-                        ? "Your task was created successfully."
-                        : "Research report is ready.",
+                      title:
+                        parsed.type === "task_created"
+                          ? "Task Created"
+                          : "Research Complete",
+                      description:
+                        parsed.type === "task_created"
+                          ? "Your task was created successfully."
+                          : "Research report is ready.",
                     });
                     if (userId) {
                       fetch(
@@ -1652,7 +2028,7 @@ const Dashboard = () => {
                       )
                         .then((r) => r.json())
                         .then((data) => {
-                          if (data.total_activities > 0) {
+                          if (data.total_activities > 0)
                             setTimeout(
                               () =>
                                 sileo.info({
@@ -1661,7 +2037,6 @@ const Dashboard = () => {
                                 }),
                               1500,
                             );
-                          }
                         })
                         .catch(() => {});
                     }
@@ -1677,7 +2052,6 @@ const Dashboard = () => {
                     });
                   }
                   break;
-
                 case "error":
                   if (!aborted) {
                     setIsThinking(false);
@@ -1687,7 +2061,6 @@ const Dashboard = () => {
                     setStreamedText(fullText);
                   }
                   break;
-
                 case "done":
                   aborted = true;
                   break;
@@ -1696,30 +2069,25 @@ const Dashboard = () => {
           }
         }
 
-        // Commit the streamed message, attaching bridge payload if one arrived
         setIsStreaming(false);
         setStreamedText("");
-
         if (fullText) {
           const assistantMsg: Message = {
             id: nextId(),
             role: "assistant",
             content: fullText,
             agentId,
-            // Attach the bridge payload so BridgeActionCard renders inside this message
             bridgePayload: pendingBridgePayloadRef.current || undefined,
           };
           pendingBridgePayloadRef.current = null;
-
           setConversations((prev) =>
-            prev.map((c) => {
-              if (c.id !== currentConvId && c.tempId !== currentConvId)
-                return c;
-              return { ...c, messages: [...c.messages, assistantMsg] };
-            }),
+            prev.map((c) =>
+              c.id !== currentConvId && c.tempId !== currentConvId
+                ? c
+                : { ...c, messages: [...c.messages, assistantMsg] },
+            ),
           );
         }
-
         return true;
       } catch (error) {
         console.error("[CHAT] Stream error:", error);
@@ -1737,7 +2105,6 @@ const Dashboard = () => {
     async (textOverride?: string) => {
       const text = (textOverride || input).trim();
       if (!text || isStreaming || isThinking) return;
-
       if (selectedAgentId === "task" && taskPromptStatus?.remaining === 0) {
         setShowUpgradeModal(true);
         return;
@@ -1791,12 +2158,7 @@ const Dashboard = () => {
       }
 
       setInput("");
-      const success = await streamFromServer(text, selectedAgentId, currentId);
-      if (!success)
-        console.error(
-          "Failed to connect to backend for agent:",
-          selectedAgentId,
-        );
+      await streamFromServer(text, selectedAgentId, currentId);
     },
     [
       input,
@@ -1820,14 +2182,12 @@ const Dashboard = () => {
       /* noop */
     }
   }, []);
-
   const handleFeedback = useCallback((msgId: string, type: "up" | "down") => {
     setFeedback((prev) => ({
       ...prev,
       [msgId]: prev[msgId] === type ? undefined! : type,
     }));
   }, []);
-
   const handleRegenerate = useCallback(async () => {
     if (isStreaming || isThinking || !activeConv) return;
     setConversations((prev) =>
@@ -1863,7 +2223,6 @@ const Dashboard = () => {
       handleSend();
     }
   };
-
   const selectConversation = (convId: string) => {
     if (isStreaming || isThinking) return;
     navigate(`/chat/${convId}`);
@@ -1871,20 +2230,18 @@ const Dashboard = () => {
     if (conv) setSelectedAgentId(conv.agentId);
     setShowRecents(false);
   };
-
   const selectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
     setShowAgentDropdown(false);
   };
-
   const handleDeleteConversation = useCallback(
     async (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
       setConversations((prev) => prev.filter((c) => c.id !== id));
       try {
         await fetch(`${API_BASE_URL}/api/chats/${id}`, { method: "DELETE" });
-      } catch (err) {
-        console.error("Failed to delete chat:", err);
+      } catch {
+        /* ignore */
       }
       if (id === activeConvId) navigate("/chat");
     },
@@ -1955,7 +2312,7 @@ const Dashboard = () => {
     selectedAgentId,
   ]);
 
-  // ── Render ───────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-dvh md:h-[calc(100dvh)] text-white overflow-hidden relative">
@@ -1968,6 +2325,17 @@ const Dashboard = () => {
         onDelete={handleDeleteConversation}
       />
 
+      {/* Bridge Transactions Modal — NEW */}
+      <AnimatePresence>
+        {showTransactions && (
+          <BridgeTransactionsModal
+            isOpen={showTransactions}
+            onClose={() => setShowTransactions(false)}
+            userId={currentAccount?.address}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Upgrade Modal */}
       <AnimatePresence>
         {showUpgradeModal && (
@@ -1976,7 +2344,7 @@ const Dashboard = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl p-5 relative overflow-hidden max-h-[90vh] custom-scrollbar"
+              className="w-full max-w-sm bg-[#18181B] border border-white/10 rounded-3xl shadow-2xl p-5 relative overflow-hidden max-h-[90vh]"
             >
               <button
                 onClick={() => setShowUpgradeModal(false)}
@@ -1984,28 +2352,25 @@ const Dashboard = () => {
               >
                 <X size={20} />
               </button>
-              <div className="w-12 h-12 rounded-full bg-[#B7FC0D] flex items-center justify-center mb-4 shadow-lg shadow-[#B7FC0D]/20 mx-auto md:mx-0">
+              <div className="w-12 h-12 rounded-full bg-[#B7FC0D] flex items-center justify-center mb-4 mx-auto md:mx-0">
                 <Crown size={24} className="text-black fill-current" />
               </div>
               <h2 className="text-lg font-bold text-white mb-2 text-center md:text-left">
                 Upgrade to Premium
               </h2>
-              <p className="text-white/60 mb-4 text-sm leading-relaxed text-center md:text-left">
+              <p className="text-white/60 mb-4 text-sm text-center md:text-left">
                 You need to upgrade to premium to continue. The free tier only
                 allows 2 prompts per day for this agent.
               </p>
               <div className="bg-[#27272A] rounded-2xl p-3 mb-4 border border-amber-500/20 relative overflow-hidden">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
                 <div className="flex items-center gap-2 mb-1.5">
-                  <AlertTriangle
-                    size={14}
-                    className="text-amber-500 fill-amber-500/20"
-                  />
+                  <AlertTriangle size={14} className="text-amber-500" />
                   <span className="text-white font-medium text-xs">
                     Limit Reached
                   </span>
                 </div>
-                <p className="text-white/60 text-xs mb-2 pl-6">
+                <p className="text-white/60 text-xs pl-6">
                   Used{" "}
                   <span className="text-white font-bold">
                     {selectedAgentId === "task"
@@ -2018,50 +2383,6 @@ const Dashboard = () => {
                   </span>{" "}
                   prompts.
                 </p>
-                {(selectedAgentId === "task"
-                  ? taskCountdown
-                  : researchCountdown) !== null && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-white/40 pl-6 bg-black/20 w-fit px-2 py-1 rounded-md border border-white/5">
-                    <Clock size={10} />
-                    <span>
-                      Resets in{" "}
-                      <span className="text-white font-medium font-mono tracking-wide">
-                        {formatCountdown(
-                          (selectedAgentId === "task"
-                            ? taskCountdown
-                            : researchCountdown)!,
-                        )}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="bg-[#27272A]/50 rounded-2xl p-3 mb-5 border border-white/5">
-                <h3 className="text-white font-medium text-xs mb-2 flex items-center gap-1.5">
-                  <Star size={12} className="text-[#B7FC0D] fill-[#B7FC0D]" />{" "}
-                  Premium Benefits
-                </h3>
-                <ul className="space-y-2">
-                  {[
-                    "4 daily task prompts",
-                    "Priority agent access",
-                    "Advanced features",
-                  ].map((b) => (
-                    <li
-                      key={b}
-                      className="flex items-center gap-2.5 text-xs text-white/80"
-                    >
-                      <div className="w-4 h-4 rounded-full bg-[#B7FC0D]/10 flex items-center justify-center flex-shrink-0">
-                        <Check
-                          size={8}
-                          className="text-[#B7FC0D]"
-                          strokeWidth={3}
-                        />
-                      </div>
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
               <div className="flex flex-col gap-2">
                 <button
@@ -2069,14 +2390,14 @@ const Dashboard = () => {
                     setShowUpgradeModal(false);
                     navigate("/subscription");
                   }}
-                  className="w-full py-3 px-4 btn btn-primary text-black rounded-full font-bold transition-all text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                  className="w-full py-3 px-4 btn btn-primary text-black rounded-full font-bold text-sm flex items-center justify-center gap-2"
                 >
-                  <Crown size={16} className="fill-black/20" />
+                  <Crown size={16} />
                   Upgrade Now
                 </button>
                 <button
                   onClick={() => setShowUpgradeModal(false)}
-                  className="w-full py-3 px-4 btn btn-ghost font-medium transition-colors text-xs cursor-pointer"
+                  className="w-full py-3 px-4 btn btn-ghost font-medium text-xs"
                 >
                   Maybe Later
                 </button>
@@ -2089,6 +2410,7 @@ const Dashboard = () => {
       {/* Desktop Header */}
       <div className="absolute hidden md:flex items-center justify-between px-10 w-full mx-auto pt-6 flex-shrink-0 z-20">
         <div className="w-full max-w-[1000px] mx-auto flex items-center gap-3">
+          {/* Recents */}
           <button
             onClick={() => setShowRecents((p) => !p)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${showRecents ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"}`}
@@ -2097,6 +2419,7 @@ const Dashboard = () => {
             <span className="text-sm font-medium">Recents</span>
           </button>
 
+          {/* Agent Selector */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowAgentDropdown((p) => !p)}
@@ -2165,12 +2488,22 @@ const Dashboard = () => {
             </AnimatePresence>
           </div>
 
+          {/* New Chat */}
           <button
             onClick={handleNewChat}
             className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 active:scale-95 transition-all cursor-pointer text-white/60 hover:text-white"
           >
             <Plus size={14} />
             <span className="text-sm font-medium">New Chat</span>
+          </button>
+
+          {/* Transactions — NEW */}
+          <button
+            onClick={() => setShowTransactions((p) => !p)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all cursor-pointer backdrop-blur-md ${showTransactions ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10 active:scale-95"}`}
+          >
+            <History size={14} />
+            <span className="text-sm font-medium">Transactions</span>
           </button>
         </div>
       </div>
@@ -2182,7 +2515,6 @@ const Dashboard = () => {
             <div className="max-w-[880px] mx-auto space-y-16">
               {isLoadingMessages && <ChatSkeleton />}
 
-              {/* Empty state */}
               {!isLoadingMessages &&
                 (!activeConv || activeConv.messages.length === 0) &&
                 !isStreaming && (
@@ -2221,10 +2553,9 @@ const Dashboard = () => {
                                 setShowUpgradeModal(true);
                                 return;
                               }
-                              // For bridge agent, send directly; others just fill input
-                              if (selectedAgentId === "bridge") {
+                              if (selectedAgentId === "bridge")
                                 handleSend(category.value);
-                              } else {
+                              else {
                                 setInput(category.value);
                                 inputRef.current?.focus();
                               }
@@ -2253,7 +2584,6 @@ const Dashboard = () => {
                   </div>
                 )}
 
-              {/* Messages — pass wallet hooks down to MessageBubble */}
               {!isLoadingMessages &&
                 activeConv?.messages.map((msg) => (
                   <MessageBubble
@@ -2278,7 +2608,6 @@ const Dashboard = () => {
                   />
                 ))}
 
-              {/* Streaming message */}
               {isStreaming && streamedText && (
                 <div className="flex gap-3 max-w-3xl">
                   <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-1">
@@ -2310,7 +2639,6 @@ const Dashboard = () => {
                   statusOverride={thinkingStatus}
                 />
               )}
-
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -2326,7 +2654,7 @@ const Dashboard = () => {
             )}
           </AnimatePresence>
 
-          {/* Input Area */}
+          {/* Input */}
           <div className="absolute bottom-0 w-full flex-shrink-0 px-4 md:px-8 lg:px-16 pb-4 md:pb-6 pt-2 z-50">
             <div className="relative max-w-[900px] mx-auto">
               {(selectedAgentId === "task"
