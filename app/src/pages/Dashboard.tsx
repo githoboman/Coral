@@ -863,7 +863,7 @@ const Dashboard = () => {
 
                     // Check for claimable activity points
                     if (userId) {
-                      fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`)
+                      fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`, { credentials: 'include' })
                         .then(r => r.json())
                         .then(data => {
                           if (data.total_activities > 0) {

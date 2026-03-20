@@ -22,9 +22,10 @@ export function usePoints() {
 
     try {
       const [accountRes, claimRes] = await Promise.all([
-        fetch(`${API_BASE}/api/account/${encodeURIComponent(addr)}`),
+        fetch(`${API_BASE}/api/account/${encodeURIComponent(addr)}`, { credentials: 'include' }),
         fetch(
           `${API_BASE}/api/auth/check-claim-status?wallet_address=${encodeURIComponent(addr)}`,
+          { credentials: 'include' }
         ),
       ]);
 
