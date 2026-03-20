@@ -109,3 +109,11 @@ export async function revokeToken(rawToken: string): Promise<void> {
 export async function revokeAllTokens(userId: string): Promise<void> {
   await supabase.from('user_tokens').delete().eq('user_id', userId);
 }
+
+/**
+ * Revoke all tokens for a specific user and device name.
+ * Prevents growing piles of tokens per device.
+ */
+export async function revokeDeviceTokens(userId: string, name: string): Promise<void> {
+  await supabase.from('user_tokens').delete().eq('user_id', userId).eq('name', name);
+}

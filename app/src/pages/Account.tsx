@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 import { AccountSkeleton } from "@/components/ui/SkeletonLoader";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -19,7 +20,8 @@ import {
   X,
   Copy,
   Check,
-  Link as LinkIcon
+  Link as LinkIcon,
+  LogOut
 } from "lucide-react";
 import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
@@ -87,6 +89,52 @@ const TelegramModal = ({ isOpen, onClose, code, botUsername }: { isOpen: boolean
         >
           Open Telegram Bot
         </a>
+      </div>
+    </div>
+  );
+};
+
+const LogoutModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { signOut } = useAuth();
+
+  if (!isOpen) return null;
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-[#1A1A1A] border border-red-500/20 rounded-3xl p-6 w-full max-w-md relative shadow-2xl">
+        <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors">
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 flex justify-center">
+          <div className="p-4 bg-red-500/10 rounded-full border border-red-500/20">
+            <LogOut size={40} className="text-red-500" />
+          </div>
+        </div>
+
+        <h3 className="text-xl font-bold text-white mb-2 text-center text-red-500">Confirm Logout</h3>
+        <p className="text-white/60 text-sm mb-8 text-center leading-relaxed">
+          Are you sure you want to log out?
+        </p>
+        
+        <div className="flex gap-4">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -163,6 +211,7 @@ const TelegramConnect = () => {
 };
 
 const Account = () => {
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
   const { mutate: disconnectWallet } = useDisconnectWallet();
@@ -250,6 +299,7 @@ const Account = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <LogoutModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} />
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 md:mb-12 gap-6">
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="relative group">
@@ -307,6 +357,14 @@ const Account = () => {
               Test Toast Notification
             </button>
           </div> */}
+
+          <button 
+            onClick={() => setIsLogoutModalOpen(true)} 
+            className="w-min px-6 py-2.5 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/20 rounded-xl flex items-center gap-3 transition-colors mt-auto group"
+          >
+            <LogOut size={18} className="text-[#EF4444] group-hover:scale-110 transition-transform" />
+            <span className="text-[#EF4444] font-medium text-sm">Logout</span>
+          </button>
         </div>
 
         <div className="flex flex-col gap-6 sm:gap-8">
