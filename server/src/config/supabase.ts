@@ -1,7 +1,7 @@
 // src/config/supabase.ts
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import fetch from 'node-fetch';
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -13,7 +13,9 @@ export const getSupabaseClient = (): SupabaseClient => {
     const supabaseKey = process.env.SUPABASE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_KEY environment variables');
+      throw new Error(
+        "Missing SUPABASE_URL or SUPABASE_KEY environment variables",
+      );
     }
 
     supabaseClient = createClient(supabaseUrl, supabaseKey, {
@@ -26,9 +28,9 @@ export const getSupabaseClient = (): SupabaseClient => {
       },
     });
 
-    console.log('✓ Supabase client initialized successfully');
-    console.log('  URL:', supabaseUrl.split('//')[1]?.split('/')[0]); // Log host only
-    console.log('  Key present:', !!supabaseKey);
+    console.log("✓ Supabase client initialized successfully");
+    console.log("  URL:", supabaseUrl.split("//")[1]?.split("/")[0]); // Log host only
+    console.log("  Key present:", !!supabaseKey);
   }
 
   return supabaseClient;

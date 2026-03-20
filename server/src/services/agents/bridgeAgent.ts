@@ -1,13 +1,25 @@
 // server/src/services/agents/bridgeAgent.ts
 // Eva — Tovira's bridge companion.
-// Logic is identical to the previous version.
-// Only the response voice has changed: warmer, more direct, less documentation.
+//
+// Changes in this version:
+//   1. WALLET CONTEXT   — fetchWalletContextNode runs first, fetches SUI balance
+//                         from BlockVision. Eva can answer "what's my balance?"
+//                         and resolve relative amounts like "half my SUI".
+//   2. RELATIVE AMOUNTS — LLM receives user's actual balance so it can compute
+//                         "half", "all", "everything", "a quarter", etc.
+//   3. CONVERSATION MEMORY — last 4 messages passed as history so Eva can
+//                         handle "actually make it 0.8" or "cancel that".
+//   4. TX HISTORY AWARENESS — recent bridge transactions injected into context
+//                         so Eva can answer "did my last bridge go through?"
+//   5. POST-BRIDGE NUDGE — after a successful bridge intent, Eva offers a
+//                         natural follow-up via sileo on the frontend (action event).
 
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { Annotation, StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
 import type { ChatRequest, createSSEWriter } from "./agentTypes";
 import { getBlockVisionService } from "../blockVisionService";
+import { getSupabaseClient } from "../../config/supabase";
 
 // ══════════════════════════════════════════════════════════════════════
 // BRIDGE CONFIGURATION
@@ -40,6 +52,8 @@ export const BRIDGE_CFG = {
     "0xb3eC343184311fA58F85f3f52027F27849472624") as `0x${string}`,
   solanaMemoProgramId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
   estimatedSuiGasMist: BigInt(10_000_000),
+  // Reserve 0.02 SUI for gas when bridging "all" to avoid sweeping gas money
+  gasReserveMist: BigInt(20_000_000),
 } as const;
 
 export type BridgeDirection =
@@ -111,13 +125,43 @@ function displayRate(direction: BridgeDirection): string {
   }
 }
 
+// ── Types ─────────────────────────────────────────────────────────────
+
+interface WalletContext {
+  suiBalance: string; // human-readable e.g. "2.4500"
+  suiBalanceMist: bigint;
+  // Bridgeable = balance minus gas reserve
+  bridgeableMaxSui: string;
+  bridgeableMaxMist: bigint;
+}
+
+interface RecentBridgeTx {
+  direction: string;
+  source_chain: string;
+  dest_chain: string;
+  amount_in: string;
+  amount_out: string;
+  status: string;
+  created_at: string;
+}
+
 // ── Intent schema ─────────────────────────────────────────────────────
 
 const BridgeIntentSchema = z.object({
-  intent: z.enum(["bridge", "quote", "status", "help", "cancel", "unrelated"]),
+  intent: z.enum([
+    "bridge",
+    "quote",
+    "balance",
+    "history",
+    "status",
+    "help",
+    "cancel",
+    "unrelated",
+  ]),
   direction: z
     .enum(["SUI_TO_SOL", "SOL_TO_SUI", "SUI_TO_ETH", "ETH_TO_SUI"])
     .optional(),
+  // Amount as resolved numeric string — LLM resolves "half" to actual number using wallet context
   amount: z.string().optional(),
   recipientAddress: z.string().optional(),
   amountMissing: z.boolean().optional(),
@@ -132,6 +176,14 @@ const BridgeAgentState = Annotation.Root({
   userId: Annotation<string>,
   message: Annotation<string>,
   sse: Annotation<ReturnType<typeof createSSEWriter>>,
+  // NEW: wallet context fetched before intent parsing
+  walletContext: Annotation<WalletContext | null>,
+  // NEW: recent bridge transactions for history awareness
+  recentTxs: Annotation<RecentBridgeTx[]>,
+  // NEW: conversation history for multi-turn memory
+  conversationHistory: Annotation<
+    Array<{ role: "user" | "assistant"; content: string }>
+  >,
   intent: Annotation<BridgeIntent | null>,
   validationError: Annotation<string | null>,
   responseText: Annotation<string>,
@@ -150,16 +202,143 @@ const llm = new ChatGoogleGenerativeAI({
 });
 const structuredLlm = llm.withStructuredOutput(BridgeIntentSchema);
 
+// Conversational LLM for balance/history responses — slightly warmer temp
+const conversationalLlm = new ChatGoogleGenerativeAI({
+  model: "gemini-2.5-flash",
+  apiKey: process.env.GEMINI_API_KEY,
+  temperature: 0.4,
+  maxRetries: 1,
+  maxOutputTokens: 600,
+});
+
 // ══════════════════════════════════════════════════════════════════════
 // NODES
 // ══════════════════════════════════════════════════════════════════════
 
+// ── Node 1: fetchWalletContext ─────────────────────────────────────────
+// Runs before everything else. Fetches SUI balance + recent tx history.
+// Non-fatal — if it fails, Eva continues without context.
+
+async function fetchWalletContextNode(state: typeof BridgeAgentState.State) {
+  const { userId } = state;
+  let walletContext: WalletContext | null = null;
+  let recentTxs: RecentBridgeTx[] = [];
+
+  // Fetch SUI balance
+  if (userId) {
+    try {
+      const blockVision = getBlockVisionService();
+      const portfolio = await blockVision.getAccountPortfolio(userId);
+      const suiCoin = portfolio.coins.find(
+        (c: any) => c.coinType === "0x2::sui::SUI" || c.symbol === "SUI",
+      );
+
+      if (suiCoin) {
+        const balanceSui = parseFloat(
+          suiCoin.balance.toString().replace(/,/g, ""),
+        );
+        const balanceMist = BigInt(Math.floor(balanceSui * 1e9));
+        // Bridgeable max = balance minus gas reserve, clamped to 0
+        const bridgeableMist =
+          balanceMist > BRIDGE_CFG.gasReserveMist
+            ? balanceMist - BRIDGE_CFG.gasReserveMist
+            : 0n;
+
+        walletContext = {
+          suiBalance: balanceSui.toFixed(4),
+          suiBalanceMist: balanceMist,
+          bridgeableMaxSui: formatSui(bridgeableMist),
+          bridgeableMaxMist: bridgeableMist,
+        };
+      }
+    } catch (err: any) {
+      console.warn(
+        "[BRIDGE] Wallet context fetch failed (non-fatal):",
+        err?.message,
+      );
+    }
+
+    // Fetch recent bridge transactions from Supabase
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from("bridge_transactions")
+        .select(
+          "direction, source_chain, dest_chain, amount_in, amount_out, status, created_at",
+        )
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (data) recentTxs = data as RecentBridgeTx[];
+    } catch (err: any) {
+      console.warn(
+        "[BRIDGE] Recent tx fetch failed (non-fatal):",
+        err?.message,
+      );
+    }
+    console.log(
+      `[BRIDGE] Fetched ${recentTxs.length} recent txs for ${userId.substring(0, 10)}`,
+    );
+  }
+
+  return { walletContext, recentTxs };
+}
+
+// ── Node 2: parseIntent ────────────────────────────────────────────────
+// Now includes wallet context + conversation history in the prompt.
+
 async function parseIntentNode(state: typeof BridgeAgentState.State) {
   state.sse.status("On it...");
 
-  const systemPrompt = `You are a bridge intent extractor for a cross-chain bridge supporting Sui, Solana, and Ethereum.
+  const { walletContext, recentTxs, conversationHistory } = state;
 
-Extract the user's bridging intent from their message.
+  // Build wallet context block for the prompt
+  let walletBlock = "";
+  if (walletContext) {
+    const half = (parseFloat(walletContext.suiBalance) / 2).toFixed(4);
+    const quarter = (parseFloat(walletContext.suiBalance) / 4).toFixed(4);
+    walletBlock = `
+USER WALLET (Sui):
+- Balance: ${walletContext.suiBalance} SUI
+- Max bridgeable (after gas reserve): ${walletContext.bridgeableMaxSui} SUI
+
+RELATIVE AMOUNT RESOLUTION — resolve these before extracting amount:
+- "half" / "50%" → ${half} SUI
+- "quarter" / "25%" → ${quarter} SUI
+- "all" / "everything" / "max" → ${walletContext.bridgeableMaxSui} SUI
+- "most of it" → ${(parseFloat(walletContext.bridgeableMaxSui) * 0.9).toFixed(4)} SUI
+Use the resolved numeric value as the amount field.`;
+  }
+
+  // Build recent tx history block
+  let historyBlock = "";
+  if (recentTxs.length > 0) {
+    const txLines = recentTxs
+      .map((tx) => {
+        const ago = Math.round(
+          (Date.now() - new Date(tx.created_at).getTime()) / 60000,
+        );
+        return `- ${tx.source_chain}→${tx.dest_chain} ${tx.amount_in} (${tx.status}, ${ago}m ago)`;
+      })
+      .join("\n");
+    historyBlock = `\nRECENT BRIDGES:\n${txLines}`;
+  }
+
+  // Intent classification now includes "balance" and "history"
+  const systemPrompt = `You are a bridge intent extractor for Eva, a cross-chain bridge AI supporting Sui, Solana, and Ethereum.
+
+Extract the user's intent from their message and conversation history.
+
+INTENT TYPES:
+- bridge: user wants to move assets between chains
+- quote: asking for exchange rate or fee
+- balance: asking about their wallet balance or holdings
+- history: asking about past bridges ("did my last bridge go through?", "show my transactions")
+- status: asking about a specific in-progress bridge
+- help: asking how Eva works
+- cancel: wants to cancel a pending bridge
+- unrelated: not about bridging or this wallet
 
 DIRECTION MAPPING:
 - "SUI to SOL/Solana" → SUI_TO_SOL
@@ -167,17 +346,32 @@ DIRECTION MAPPING:
 - "SUI to ETH/Ethereum" → SUI_TO_ETH
 - "ETH/Ethereum to SUI" → ETH_TO_SUI
 - SOL↔ETH is NOT supported
+${walletBlock}${historyBlock}
 
-AMOUNT: Extract the numeric amount as a string. If no amount, set amountMissing: true.
-RECIPIENT: Only set recipientAddress if the user explicitly provides an address.
-If user says "to my wallet" — leave recipientAddress empty and set recipientMissing: true.`;
+AMOUNT: Extract as resolved numeric string. If wallet context is available, resolve relative amounts.
+If truly no amount and cannot be resolved, set amountMissing: true.
+RECIPIENT: Only set if user explicitly provides an address. "to my wallet" → recipientMissing: true.
+
+CONVERSATION HISTORY: Use prior messages to resolve references like "make it 0.8 instead", "cancel that", "same route again".`;
+
+  // Build messages array with conversation history
+  const messages: Array<{
+    role: "system" | "human" | "assistant";
+    content: string;
+  }> = [{ role: "system", content: systemPrompt }];
+
+  // Inject last 4 turns of history for context
+  for (const turn of (conversationHistory || []).slice(-4)) {
+    messages.push({
+      role: turn.role === "user" ? "human" : "assistant",
+      content: turn.content,
+    });
+  }
+  messages.push({ role: "human", content: state.message });
 
   try {
     const result = (await Promise.race([
-      structuredLlm.invoke([
-        { role: "system", content: systemPrompt },
-        { role: "human", content: state.message },
-      ]),
+      structuredLlm.invoke(messages),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("LLM timeout")), 8000),
       ),
@@ -189,22 +383,25 @@ If user says "to my wallet" — leave recipientAddress empty and set recipientMi
   }
 }
 
-// ── validateNode ──────────────────────────────────────────────────────
+// ── Node 3: validate ──────────────────────────────────────────────────
 
 async function validateNode(state: typeof BridgeAgentState.State) {
-  const { intent, userId } = state;
+  const { intent, walletContext } = state;
   if (!intent || intent.intent !== "bridge") return { validationError: null };
 
   if (intent.directionMissing || !intent.direction) {
     return {
       validationError:
-        'Which direction are we moving? Just tell me something like *"Bridge 0.5 SUI to Solana"* or *"0.002 SOL to SUI"* and I\'ll take it from there.',
+        'Which direction are we moving? Try something like *"Bridge 0.5 SUI to Solana"* or *"0.002 SOL to SUI"*.',
     };
   }
 
   if (intent.amountMissing || !intent.amount) {
+    const hint = walletContext
+      ? ` You have ${walletContext.suiBalance} SUI available.`
+      : "";
     return {
-      validationError: `How much ${sourceTokenOf(intent.direction as BridgeDirection)} do you want to move? Drop an amount and I'll put it together for you.`,
+      validationError: `How much ${sourceTokenOf(intent.direction as BridgeDirection)} do you want to move?${hint} Drop an amount and I'll get it ready.`,
     };
   }
 
@@ -232,22 +429,20 @@ async function validateNode(state: typeof BridgeAgentState.State) {
         break;
     }
   } catch {
-    return {
-      validationError: "That amount is way too large for me to handle.",
-    };
+    return { validationError: "That amount is too large for me to handle." };
   }
 
-  // Min/max checks — Eva keeps it plain
+  // Min/max checks
   switch (dir) {
     case "SUI_TO_SOL":
     case "SUI_TO_ETH":
       if (amountBase < BRIDGE_CFG.minAmountSui)
         return {
-          validationError: `The minimum I can bridge is **${formatSui(BRIDGE_CFG.minAmountSui)} SUI**. You're a little short — bump it up and we're good.`,
+          validationError: `The minimum I can bridge is **${formatSui(BRIDGE_CFG.minAmountSui)} SUI**. Bump it up a little and we're good.`,
         };
       if (amountBase > BRIDGE_CFG.maxAmountSui)
         return {
-          validationError: `I can only move up to **${formatSui(BRIDGE_CFG.maxAmountSui)} SUI** per transaction right now. Want to split it into multiple bridges?`,
+          validationError: `I can only move up to **${formatSui(BRIDGE_CFG.maxAmountSui)} SUI** per transaction. Want to split it?`,
         };
       break;
     case "SOL_TO_SUI":
@@ -263,90 +458,188 @@ async function validateNode(state: typeof BridgeAgentState.State) {
     case "ETH_TO_SUI":
       if (amountBase < BRIDGE_CFG.minAmountEth)
         return {
-          validationError: `The minimum here is **${formatEth(BRIDGE_CFG.minAmountEth)} ETH**. Just a tiny bit more and we're set.`,
+          validationError: `Minimum here is **${formatEth(BRIDGE_CFG.minAmountEth)} ETH**. Just a bit more and we're set.`,
         };
       if (amountBase > BRIDGE_CFG.maxAmountEth)
         return {
-          validationError: `I can only handle up to **${formatEth(BRIDGE_CFG.maxAmountEth)} ETH** at a time. Want to break it up?`,
+          validationError: `I can only handle up to **${formatEth(BRIDGE_CFG.maxAmountEth)} ETH** at a time.`,
         };
       break;
   }
 
-  // Balance check for SUI outbound routes
-  if ((dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH") && userId) {
-    try {
-      state.sse.status("Checking your balance...");
-      const blockVision = getBlockVisionService();
-      const portfolio = await blockVision.getAccountPortfolio(userId);
-      const suiCoin = portfolio.coins.find(
-        (c) => c.coinType === "0x2::sui::SUI" || c.symbol === "SUI",
-      );
+  // Balance check for SUI outbound — use walletContext if available, else fall back to BlockVision
+  if (dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH") {
+    const balanceMist = walletContext?.suiBalanceMist ?? null;
 
-      if (suiCoin) {
-        const balanceSui = parseFloat(
-          suiCoin.balance.toString().replace(/,/g, ""),
-        );
-        const balanceMist = BigInt(Math.floor(balanceSui * 1e9));
-        const totalNeeded = amountBase + BRIDGE_CFG.estimatedSuiGasMist;
-
-        if (balanceMist < totalNeeded) {
-          const needed = formatSui(totalNeeded);
-          const have = formatSui(balanceMist);
-          return {
-            validationError:
-              `You're a bit short for this one. This bridge needs **${needed} SUI** (that includes gas), but I'm only seeing **${have} SUI** in your wallet. ` +
-              `Top it up or try a smaller amount and we'll get it done.`,
-          };
-        }
+    if (balanceMist !== null) {
+      const totalNeeded = amountBase + BRIDGE_CFG.estimatedSuiGasMist;
+      if (balanceMist < totalNeeded) {
+        const needed = formatSui(totalNeeded);
+        const have = formatSui(balanceMist);
+        return {
+          validationError:
+            `You're a bit short for this one. This bridge needs **${needed} SUI** (including gas), but I'm seeing **${have} SUI** in your wallet. ` +
+            `Top it up or try a smaller amount.`,
+        };
       }
-    } catch (err: any) {
-      console.warn(
-        `[BRIDGE] Balance check failed (non-fatal): ${err?.message}`,
-      );
+    } else if (state.userId) {
+      // Fallback: fetch directly if walletContext failed
+      try {
+        state.sse.status("Checking your balance...");
+        const blockVision = getBlockVisionService();
+        const portfolio = await blockVision.getAccountPortfolio(state.userId);
+        const suiCoin = portfolio.coins.find(
+          (c: any) => c.coinType === "0x2::sui::SUI" || c.symbol === "SUI",
+        );
+        if (suiCoin) {
+          const balSui = parseFloat(
+            suiCoin.balance.toString().replace(/,/g, ""),
+          );
+          const balMist = BigInt(Math.floor(balSui * 1e9));
+          const totalNeeded = amountBase + BRIDGE_CFG.estimatedSuiGasMist;
+          if (balMist < totalNeeded) {
+            return {
+              validationError: `You're a bit short. Need **${formatSui(totalNeeded)} SUI** (including gas), have **${formatSui(balMist)} SUI**. Top it up or try less.`,
+            };
+          }
+        }
+      } catch (err: any) {
+        console.warn("[BRIDGE] Balance check fallback failed:", err?.message);
+      }
     }
   }
 
   return { validationError: null };
 }
 
-// ── buildTxNode ───────────────────────────────────────────────────────
+// ── Node 4: buildTx ───────────────────────────────────────────────────
 
 async function buildTxNode(state: typeof BridgeAgentState.State) {
-  const { intent, validationError } = state;
+  const {
+    intent,
+    validationError,
+    walletContext,
+    recentTxs,
+    conversationHistory,
+  } = state;
 
-  if (!intent)
+  if (!intent) {
     return {
       responseText:
-        "I didn't quite catch that. Try something like *\"Bridge 0.5 SUI to Solana\"* and I'll handle the rest.",
+        'I didn\'t quite catch that. Try something like *"Bridge 0.5 SUI to Solana"*.',
       actionEvent: null,
     };
+  }
 
+  // ── Balance inquiry ────────────────────────────────────────────────
+  if (intent.intent === "balance") {
+    if (walletContext) {
+      const half = (parseFloat(walletContext.suiBalance) / 2).toFixed(4);
+      return {
+        responseText:
+          `You've got **${walletContext.suiBalance} SUI** in your wallet.\n\n` +
+          `Max you can bridge right now is **${walletContext.bridgeableMaxSui} SUI** (reserving a little for gas).\n\n` +
+          `Want to move some? Try *"Bridge ${half} SUI to Solana"* or tell me the amount.`,
+        actionEvent: null,
+      };
+    }
+    return {
+      responseText:
+        "I couldn't reach your wallet right now — BlockVision may be slow. Try again in a moment.",
+      actionEvent: null,
+    };
+  }
+
+  // ── Transaction history inquiry ────────────────────────────────────
+  if (intent.intent === "history") {
+    state.sse.status("Checking your bridge history..."); // ADD THIS
+    if (recentTxs.length === 0) {
+      return {
+        responseText:
+          "You haven't bridged anything yet — or at least nothing I can see. Start one and I'll track it for you.",
+        actionEvent: null,
+      };
+    }
+
+    // Use conversational LLM to summarise recent txs in Eva's voice
+    const txSummary = recentTxs
+      .map((tx, i) => {
+        const ago = Math.round(
+          (Date.now() - new Date(tx.created_at).getTime()) / 60000,
+        );
+        return `${i + 1}. ${tx.source_chain}→${tx.dest_chain}: ${tx.amount_in} → ~${tx.amount_out} | ${tx.status} | ${ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`}`;
+      })
+      .join("\n");
+
+    try {
+      const response = await conversationalLlm.invoke([
+        {
+          role: "system",
+          content: `You are Eva, a warm and direct bridge AI companion. The user asked about their recent bridge transactions.
+Summarise the following transactions naturally in Eva's voice — conversational, not a table.
+Highlight the most recent one first. Note if anything is still pending.
+Keep it brief (3–5 sentences max). End with a helpful offer.`,
+        },
+        {
+          role: "human",
+          content: `Recent bridges:\n${txSummary}\n\nUser asked: "${state.message}"`,
+        },
+      ]);
+      return {
+        responseText: (response as any).content as string,
+        actionEvent: null,
+      };
+    } catch {
+      // Fallback: plain text summary
+      return {
+        responseText: `Here's what I see from your recent bridges:\n\n${txSummary}\n\nYou can also check the **Transactions** button at the top for full details and explorer links.`,
+        actionEvent: null,
+      };
+    }
+  }
+
+  // ── Status inquiry ─────────────────────────────────────────────────
+  if (intent.intent === "status") {
+    state.sse.status("Looking up your bridges..."); // ADD THIS
+
+    const pending = recentTxs.find((tx) => tx.status === "submitted");
+    if (pending) {
+      const ago = Math.round(
+        (Date.now() - new Date(pending.created_at).getTime()) / 60000,
+      );
+      return {
+        responseText: `Your most recent bridge (${pending.source_chain}→${pending.dest_chain}, ${pending.amount_in}) is still **pending** — started ${ago} minutes ago. Delivery usually takes 1–3 minutes. Check the **Transactions** button for the full status.`,
+        actionEvent: null,
+      };
+    }
+    return {
+      responseText:
+        "Hit the **Transactions** button up top — all your bridges are tracked there with status and explorer links.",
+      actionEvent: null,
+    };
+  }
+
+  // ── Standard intents ───────────────────────────────────────────────
   if (intent.intent === "help")
-    return { responseText: buildHelpMessage(), actionEvent: null };
+    return { responseText: buildHelpMessage(walletContext), actionEvent: null };
   if (intent.intent === "quote")
     return {
       responseText: buildQuoteMessage(
         intent.direction as BridgeDirection | undefined,
+        walletContext,
       ),
-      actionEvent: null,
-    };
-  if (intent.intent === "status")
-    return {
-      responseText:
-        "Hit the **Transactions** button up top — all your recent bridges are tracked there, including status and explorer links.",
       actionEvent: null,
     };
   if (intent.intent === "cancel")
     return {
       responseText:
-        "Cancelled, no worries. Whenever you're ready, just tell me where you want to move your assets.",
+        "Cancelled. Whenever you're ready, just tell me where you want to move your assets.",
       actionEvent: null,
     };
-
   if (intent.intent === "unrelated") {
     return {
       responseText:
-        "I'm Eva, your bridge assistant. I move assets between Sui, Solana, and Ethereum — that's my thing.\n\nTry something like *\"Bridge 0.5 SUI to Solana\"* and I'll set it up for you.",
+        "I'm Eva — I move assets between Sui, Solana, and Ethereum. That's my thing.\n\nTry *\"Bridge 0.5 SUI to Solana\"* and I'll set it up.",
       actionEvent: null,
     };
   }
@@ -356,8 +649,9 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
 
   if (intent.intent !== "bridge" || !intent.direction || !intent.amount) {
     return {
-      responseText:
-        'Tell me the amount and which direction — something like *"Bridge 0.5 SUI to Solana"* — and I\'ll get it ready.',
+      responseText: walletContext
+        ? `Tell me the amount and direction. You have **${walletContext.suiBalance} SUI** available — want to bridge some of it?`
+        : 'Tell me the amount and which direction — something like *"Bridge 0.5 SUI to Solana"*.',
       actionEvent: null,
     };
   }
@@ -411,14 +705,20 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
   const feePercent = (BRIDGE_CFG.feeBps / 100).toFixed(2);
   const txPayload = buildTxPayload(dir, amountIn, intent.recipientAddress);
 
-  // Eva's bridge preview — same data, different tone
+  // Balance-aware preview message
+  const balanceNote =
+    walletContext && (dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH")
+      ? `\n*Remaining after bridge: ~${formatSui(walletContext.suiBalanceMist - amountIn - BRIDGE_CFG.estimatedSuiGasMist)} SUI*`
+      : "";
+
   const responseText =
     `Here's what this bridge looks like:\n\n` +
     `**Sending:** ${amountInDisplay}\n` +
     `**Arriving:** ~${amountOutDisplay}\n` +
     `**Route:** ${sourceChainOf(dir)} → ${destChainOf(dir)}\n` +
     `**Fee:** ${feePercent}%  ·  **Rate:** ${displayRate(dir)}\n` +
-    `**ETA:** ~1–2 minutes after you sign\n\n` +
+    `**ETA:** ~1–2 minutes after you sign` +
+    `${balanceNote}\n\n` +
     `Looks good? Hit **Sign & Bridge** and approve it in your wallet. I'll watch the delivery from there.`;
 
   const actionEvent: Record<string, unknown> = {
@@ -441,6 +741,8 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
   return { responseText, actionEvent };
 }
 
+// ── Node 5: respond ───────────────────────────────────────────────────
+
 async function respondNode(state: typeof BridgeAgentState.State) {
   state.sse.chunk(state.responseText);
   if (state.actionEvent)
@@ -449,7 +751,7 @@ async function respondNode(state: typeof BridgeAgentState.State) {
   return {};
 }
 
-// ── Tx payload builder (unchanged) ───────────────────────────────────
+// ── Tx payload builder ────────────────────────────────────────────────
 
 function buildTxPayload(
   direction: BridgeDirection,
@@ -508,39 +810,53 @@ function destChainOf(dir: BridgeDirection) {
       : "Sui";
 }
 
-// ── Eva's voice ───────────────────────────────────────────────────────
-
-function buildHelpMessage(): string {
+function buildHelpMessage(walletContext: WalletContext | null): string {
+  const balanceLine = walletContext
+    ? `\n**Your SUI balance:** ${walletContext.suiBalance} SUI (${walletContext.bridgeableMaxSui} SUI bridgeable)\n`
+    : "";
   return (
     `Hey, I'm **Eva** — I move your assets between chains so you don't have to think about the plumbing.\n\n` +
     `**What I can do:**\n` +
     `- SUI → SOL  ·  SOL → SUI\n` +
-    `- SUI → ETH  ·  ETH → SUI\n\n` +
+    `- SUI → ETH  ·  ETH → SUI\n` +
+    balanceLine +
+    `\n` +
     `**How it goes:**\n` +
-    `Just tell me what you want to move and I'll check your balance, calculate what arrives on the other side, and set up the transaction. ` +
-    `You approve it in your wallet — I never touch your keys — and I'll track the delivery until it lands.\n\n` +
+    `Tell me what you want to move — including relative amounts like "half my SUI" or "bridge everything to Solana". ` +
+    `I'll check your balance, calculate what arrives on the other side, and set up the transaction. ` +
+    `You approve it in your wallet — I never touch your keys — and I'll track delivery until it lands.\n\n` +
     `**Current fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% · Delivery is usually 1–2 minutes.\n\n` +
-    `*Try: "Bridge 0.5 SUI to Solana" or "What's the rate for ETH to SUI?"*`
+    `*Try: "How much SUI do I have?", "Bridge half my SUI to Solana", or "What's the rate for ETH to SUI?"*`
   );
 }
 
-function buildQuoteMessage(direction?: BridgeDirection): string {
+function buildQuoteMessage(
+  direction?: BridgeDirection,
+  walletContext?: WalletContext | null,
+): string {
+  const balanceLine = walletContext
+    ? `\n*You have ${walletContext.suiBalance} SUI available.*`
+    : "";
+
   if (!direction) {
     const lines = SUPPORTED_ROUTES.map(
       (d) => `- **${sourceChainOf(d)} → ${destChainOf(d)}:** ${displayRate(d)}`,
     );
     return (
-      `Current rates (${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% fee already baked in):\n\n` +
+      `Current rates (${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% fee baked in):\n\n` +
       lines.join("\n") +
-      `\n\nRates move with the market, but they're updated regularly. Ready to move something? Just tell me the amount.`
+      balanceLine +
+      `\n\nRates update with the market. Ready to move something? Just tell me the amount.`
     );
   }
 
   return (
     `**${sourceChainOf(direction)} → ${destChainOf(direction)}**\n\n` +
     `Rate: ${displayRate(direction)}\n` +
-    `Fee: ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}%\n\n` +
-    `Want to go ahead? Try *"Bridge 0.5 ${sourceTokenOf(direction)} to ${destChainOf(direction)}"* and I'll get it ready.`
+    `Fee: ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}%` +
+    balanceLine +
+    `\n\n` +
+    `Want to go? Try *"Bridge 0.5 ${sourceTokenOf(direction)} to ${destChainOf(direction)}"* and I'll get it ready.`
   );
 }
 
@@ -551,11 +867,13 @@ let compiledGraph: any = null;
 function getCompiledGraph() {
   if (!compiledGraph) {
     compiledGraph = new StateGraph(BridgeAgentState)
+      .addNode("fetchWalletContext", fetchWalletContextNode) // NEW first node
       .addNode("parseIntent", parseIntentNode)
       .addNode("validate", validateNode)
       .addNode("buildTx", buildTxNode)
       .addNode("respond", respondNode)
-      .addEdge("__start__", "parseIntent")
+      .addEdge("__start__", "fetchWalletContext") // NEW first edge
+      .addEdge("fetchWalletContext", "parseIntent")
       .addEdge("parseIntent", "validate")
       .addEdge("validate", "buildTx")
       .addEdge("buildTx", "respond")
@@ -575,6 +893,7 @@ export class BridgeAgent {
     console.log(
       `[BRIDGE] Eva handling request from ${req.userId.substring(0, 10)}...`,
     );
+
     let fullResponse = "";
     const wrappedSSE = {
       ...sse,
@@ -588,11 +907,16 @@ export class BridgeAgent {
       conversation: sse.conversation,
       error: sse.error,
     };
+
     try {
       await getCompiledGraph().invoke({
         userId: req.userId,
         message: req.message,
         sse: wrappedSSE,
+        // Pass conversation history from the request
+        conversationHistory: (req as any).conversationHistory || [],
+        walletContext: null,
+        recentTxs: [],
         intent: null,
         validationError: null,
         responseText: "",

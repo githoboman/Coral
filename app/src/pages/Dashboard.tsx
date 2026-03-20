@@ -2032,6 +2032,13 @@ const Dashboard = () => {
               const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
               return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${sign}${pad(Math.floor(off / 60))}:${pad(off % 60)}`;
             })(),
+            ...(agentId === "bridge" && (activeConv?.messages?.length ?? 0) > 0
+              ? {
+                  conversationHistory: activeConv?.messages
+                    .slice(-6)
+                    .map((m) => ({ role: m.role, content: m.content })),
+                }
+              : {}),
           }),
         });
 

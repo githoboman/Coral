@@ -11,6 +11,7 @@ export interface ChatRequest {
   message: string;
   conversationId?: string;
   clientTime?: string; // ISO string from frontend
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>; // ADD THIS
 }
 
 /**
@@ -21,7 +22,13 @@ export interface ChatRequest {
  *  done    - signals end of response
  *  error   - error message
  */
-export type SSEEventType = "status" | "chunk" | "action" | "done" | "error" | "conversation";
+export type SSEEventType =
+  | "status"
+  | "chunk"
+  | "action"
+  | "done"
+  | "error"
+  | "conversation";
 
 export interface SSEEvent {
   type: SSEEventType;
@@ -57,7 +64,8 @@ export function createSSEWriter(res: Response) {
   return {
     status: (text: string) => send("status", JSON.stringify({ text })),
     chunk: (text: string) => send("chunk", JSON.stringify({ text })),
-    action: (payload: Record<string, unknown>) => send("action", JSON.stringify(payload)),
+    action: (payload: Record<string, unknown>) =>
+      send("action", JSON.stringify(payload)),
     done: () => {
       send("done", JSON.stringify({}));
       res.end();

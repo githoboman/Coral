@@ -206,6 +206,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
               message: msgContent,
               conversationId: finalConversationId,
               clientTime,
+              conversationHistory: req.body.conversationHistory || [],
             },
             sse,
           );
