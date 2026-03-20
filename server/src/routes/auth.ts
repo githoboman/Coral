@@ -21,7 +21,6 @@ const nonceStore = new Map<string, { nonce: string, expires: number }>();
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
 const PACKAGE_ID = process.env.SUI_PACKAGE_ID || "";
-const isProduction = process.env.NODE_ENV === "production";
 
 let userManager: UserManager | null = null;
 let ticketMinter: TicketMinter | null = null;
@@ -532,6 +531,7 @@ router.post("/login", async (req: Request, res: Response) => {
     // Duplicate token guard: if request already has a valid cookie for this user, reuse it.
     const existingRawToken = req.cookies?.auth_token;
     let reused = false;
+    const isProduction = process.env.NODE_ENV === "production";
     
     if (existingRawToken) {
       const existingUserId = await validateToken(existingRawToken);
@@ -544,7 +544,7 @@ router.post("/login", async (req: Request, res: Response) => {
         res.cookie("auth_token", existingRawToken, {
           httpOnly: true,
           secure: isProduction,
-          sameSite: isProduction ? "none" : "lax",
+          sameSite: "strict",
           expires: expiresAt,
         });
         
@@ -564,7 +564,7 @@ router.post("/login", async (req: Request, res: Response) => {
       res.cookie("auth_token", rawToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
+        sameSite: "strict",
         expires: expiresAt,
       });
 
@@ -576,26 +576,26 @@ router.post("/login", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/auth/logout
+ * Deletes the current token row from the DB and clears the cookie.
+ */
 router.post("/logout", requireAuth, async (req: AuthRequest, res: Response) => {
   const rawToken = req.cookies?.auth_token;
   if (rawToken) {
     await revokeToken(rawToken);
   }
-  res.clearCookie("auth_token", { 
-    httpOnly: true, 
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax" 
-  });
+  res.clearCookie("auth_token", { httpOnly: true, sameSite: "strict" });
   res.json({ success: true, message: "Logged out successfully." });
 });
 
+/**
+ * POST /api/auth/logout-all
+ * Deletes ALL token rows for the authenticated user, invalidating every device.
+ */
 router.post("/logout-all", requireAuth, async (req: AuthRequest, res: Response) => {
   await revokeAllTokens(req.user!.wallet_address);
-  res.clearCookie("auth_token", { 
-    httpOnly: true, 
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax" 
-  });
+  res.clearCookie("auth_token", { httpOnly: true, sameSite: "strict" });
   res.json({ success: true, message: "All sessions revoked." });
 });
 
