@@ -8,6 +8,7 @@ import { getUserStateService } from "../userStateService";
 import { getRedFlagService } from "../redFlagService";
 import { getSentimentService } from "../sentimentService";
 import type { ChatRequest, createSSEWriter } from "./agentTypes";
+import { getUserManager } from "../userManager.js";
 
 // ======================================================================
 // STATE
@@ -608,6 +609,22 @@ const graph = new StateGraph(ResearchState)
   .addEdge("postProcessor", "__end__")
   .compile();
 
+async function trackResearchCreation(userId: string): Promise<void> {
+  try {
+    const userManager = getUserManager();
+    const today = new Date().toISOString().split("T")[0];
+    const success = await userManager.incrementActivityCount(userId, "research", today);
+
+    if (!success) {
+      console.error(`[RESEARCH] incrementActivityCount failed for ${userId.substring(0, 10)}...`);
+    } else {
+      console.log(`[RESEARCH] Research creation tracked for ${userId.substring(0, 10)}...`);
+    }
+  } catch (error) {
+    console.error("[RESEARCH] trackResearchCreation error:", error);
+  }
+}
+
 // ======================================================================
 // EXPORT
 // ======================================================================
@@ -630,6 +647,10 @@ export const researchAgent = {
 
       sse.chunk(finalState.finalReport);
       sse.action({ type: "research_completed" });
+
+      // Track research points in background
+      trackResearchCreation(req.userId).catch(() => { });
+
       sse.done();
       return finalState.finalReport;
     } catch (error) {

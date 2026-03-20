@@ -255,6 +255,7 @@ const Activity = () => {
 
       const response = await fetch(`${API_BASE_URL}/api/tasks`, {
         method: "POST",
+        credentials: 'include',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
@@ -277,7 +278,9 @@ const Activity = () => {
 
         // Check for claimable activity points and notify
         try {
-          const claimRes = await fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`);
+          const claimRes = await fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`, {
+            credentials: 'include'
+          });
           const claimData = await claimRes.json();
           if (claimData.total_activities > 0) {
             setTimeout(() => {
@@ -335,6 +338,7 @@ const Activity = () => {
       // Use PATCH to update status
       const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
         method: "PATCH",
+        credentials: 'include',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
@@ -872,6 +876,7 @@ const TaskPointsClaimSection = () => {
 
     fetch(
       `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
+      { credentials: 'include' }
     )
       .then((res) => res.json())
       .then((data) => setClaimable(data))
@@ -891,6 +896,7 @@ const TaskPointsClaimSection = () => {
     try {
       const resp = await fetch(`${API_BASE_URL}/api/task-points/confirm-claim`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: currentAccount.address
@@ -908,6 +914,7 @@ const TaskPointsClaimSection = () => {
 
       const refreshResponse = await fetch(
         `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
+        { credentials: 'include' }
       );
       const refreshData = await refreshResponse.json();
       setClaimable(refreshData);
