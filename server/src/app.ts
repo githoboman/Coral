@@ -16,7 +16,7 @@ app.use(helmet());
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['*'];
+  : ['http://localhost:5173', 'http://localhost:3000'];
 
 app.use(
   cors({
@@ -28,9 +28,12 @@ app.use(
         return callback(null, true);
       }
 
+      console.warn(`[CORS] Rejected origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
