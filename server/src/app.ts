@@ -16,7 +16,25 @@ app.use(helmet());
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['*'];
+  : [];
+
+// Add origins from ALLOWED_ORIGINS if it's a JSON array
+if (process.env.ALLOWED_ORIGINS) {
+  try {
+    const parsed = JSON.parse(process.env.ALLOWED_ORIGINS);
+    if (Array.isArray(parsed)) {
+      parsed.forEach(o => {
+        if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+      });
+    }
+  } catch (e) {
+    // If not JSON, try splitting by comma
+    process.env.ALLOWED_ORIGINS.split(',').forEach(o => {
+      const trimmed = o.trim();
+      if (trimmed && !allowedOrigins.includes(trimmed)) allowedOrigins.push(trimmed);
+    });
+  }
+}
 
 app.use(
   cors({
@@ -28,6 +46,7 @@ app.use(
         return callback(null, true);
       }
 
+      console.warn(`[CORS] Rejected origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
