@@ -9,6 +9,7 @@ import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
+app.set("trust proxy", 1);
 
 console.log(`[INIT] LangChain Tracing: ${process.env.LANGCHAIN_TRACING_V2 === 'true' ? 'ENABLED' : 'DISABLED'}`);
 
