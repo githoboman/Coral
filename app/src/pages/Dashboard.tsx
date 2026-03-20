@@ -43,6 +43,7 @@ interface Agent {
   name: string;
   icon: string;
   cost: string; // "Free" or "$0.0008" etc
+  isWip?: boolean;
 }
 
 interface Message {
@@ -89,6 +90,7 @@ const AGENTS: Agent[] = [
     name: "Research Agent",
     icon: "/assets/images/agents/research-agent.svg",
     cost: "Free", // Or set a cost if applicable
+    isWip: true,
   },
 ];
 
@@ -1136,12 +1138,14 @@ const Dashboard = () => {
                   <button
                     key={agent.id}
                     onClick={() => {
+                      if (agent.isWip) return;
                       selectAgent(agent.id);
                       setShowAgentDropdown(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-3 transition-colors cursor-pointer ${selectedAgentId === agent.id
+                    disabled={agent.isWip}
+                    className={`w-full flex items-center gap-3 px-3 py-3 transition-colors ${agent.isWip ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${selectedAgentId === agent.id
                       ? "bg-white/[0.06]"
-                      : "hover:bg-white/[0.04]"
+                      : agent.isWip ? "" : "hover:bg-white/[0.04]"
                       }`}
                   >
                     <img
@@ -1149,8 +1153,9 @@ const Dashboard = () => {
                       alt=""
                       className="w-7 h-7 object-contain"
                     />
-                    <span className="text-sm font-medium text-white flex-1 text-left">
+                    <span className="text-sm font-medium text-white flex-1 text-left flex items-center gap-2">
                       {agent.name}
+                      {agent.isWip && <span className="text-[9px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded flex-shrink-0 font-bold tracking-wider">WIP</span>}
                     </span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${agent.cost === "Free"
@@ -1330,10 +1335,14 @@ const Dashboard = () => {
                   {AGENTS.map((agent) => (
                     <button
                       key={agent.id}
-                      onClick={() => selectAgent(agent.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors cursor-pointer ${selectedAgentId === agent.id
+                      onClick={() => {
+                        if (agent.isWip) return;
+                        selectAgent(agent.id);
+                      }}
+                      disabled={agent.isWip}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors ${agent.isWip ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${selectedAgentId === agent.id
                         ? "bg-white/[0.06]"
-                        : "hover:bg-white/[0.04]"
+                        : agent.isWip ? "" : "hover:bg-white/[0.04]"
                         }`}
                     >
                       <div
@@ -1348,8 +1357,9 @@ const Dashboard = () => {
                           className="w-7 h-7 object-contain"
                         />
                       </div>
-                      <span className="text-sm font-medium text-white flex-1 text-left">
+                      <span className="text-sm font-medium text-white flex-1 text-left flex items-center gap-2">
                         {agent.name}
+                        {agent.isWip && <span className="text-[9px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded flex-shrink-0 font-bold tracking-wider">WIP</span>}
                       </span>
                       <span
                         className={`text-xs font-bold px-2.5 py-1 rounded-full ${agent.cost === "Free"
@@ -1428,6 +1438,7 @@ const Dashboard = () => {
                         <button
                           key={idx}
                           onClick={() => {
+                            if (activeAgent.isWip) return;
                             const currentStatus = selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus;
                             if (currentStatus?.remaining === 0) {
                               setShowUpgradeModal(true);
@@ -1436,9 +1447,9 @@ const Dashboard = () => {
                             setInput(category.value);
                             inputRef.current?.focus();
                           }}
-                          disabled={isStreaming || isThinking}
+                          disabled={isStreaming || isThinking || activeAgent.isWip}
                           className={`flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-left transition-all duration-200 backdrop-blur-md group
-                            ${((selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0)
+                            ${((selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0 || activeAgent.isWip)
                               ? "opacity-50 cursor-not-allowed"
                               : "hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             }`}
@@ -1568,6 +1579,7 @@ const Dashboard = () => {
                           <button
                             key={idx}
                             onClick={() => {
+                              if (activeAgent.isWip) return;
                               const currentStatus = selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus;
                               if (currentStatus?.remaining === 0) {
                                 setShowUpgradeModal(true);
@@ -1587,9 +1599,9 @@ const Dashboard = () => {
                                 handleSend(prompt.prompt);
                               }
                             }}
-                            disabled={isStreaming || isThinking}
+                            disabled={isStreaming || isThinking || activeAgent.isWip}
                             className={`w-full flex items-center gap-3 p-4 transition-colors text-left group border-b border-white/5 last:border-0
-                              ${taskPromptStatus?.remaining === 0 && selectedAgentId === "task"
+                              ${(taskPromptStatus?.remaining === 0 && selectedAgentId === "task") || activeAgent.isWip
                                 ? "opacity-50 cursor-not-allowed bg-white/5"
                                 : "hover:bg-white/5 cursor-pointer"
                               }`}
@@ -1625,16 +1637,16 @@ const Dashboard = () => {
                         Math.min(e.target.scrollHeight, 120) + "px";
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder={(selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0 ? "Daily limit reached. Upgrade to continue." : `Message ${activeAgent.name}...`}
+                    placeholder={activeAgent.isWip ? "Agent is WIP: New chats disabled" : ((selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0 ? "Daily limit reached. Upgrade to continue." : `Message ${activeAgent.name}...`)}
                     rows={1}
-                    disabled={isStreaming || isThinking || (selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0}
+                    disabled={isStreaming || isThinking || activeAgent.isWip || (selectedAgentId === "task" ? taskPromptStatus : researchPromptStatus)?.remaining === 0}
                     className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 px-5 py-4 pr-14 resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed w-full max-h-[120px] overflow-y-auto"
                     style={{ minHeight: "52px" }}
                   />
                   <button
                     onClick={() => handleSend()}
-                    disabled={!input.trim() || isStreaming || isThinking || (taskPromptStatus?.remaining === 0 && selectedAgentId === "task")}
-                    className={`absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${input.trim() && !isStreaming && !isThinking
+                    disabled={!input.trim() || isStreaming || isThinking || activeAgent.isWip || (taskPromptStatus?.remaining === 0 && selectedAgentId === "task")}
+                    className={`absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${input.trim() && !isStreaming && !isThinking && !activeAgent.isWip
                       ? "bg-[#326AFD] hover:bg-[#2959D6] text-white shadow-lg shadow-[#326AFD]/25"
                       : "bg-white/5 text-white/20"
                       } disabled:opacity-50 disabled:cursor-not-allowed`}

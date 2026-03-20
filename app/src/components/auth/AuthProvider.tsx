@@ -131,7 +131,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const handleAuthentication = async (walletAddress: string) => {
     try {
-      // 1. Fetch nonce
+      // 1. Fast path: Verify existing session cookie
+      try {
+        const verifyRes = await fetch(`${apiBaseUrl}/api/auth/verify`, {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (verifyRes.ok) {
+          // Session alive, skip signature and proceed to check onboarding
+          await checkUserOnboardingStatus(walletAddress);
+          return;
+        }
+      } catch (err) {
+        console.warn("Session verification failed, falling back to signature", err);
+      }
+
+      // 2. Fetch nonce
       const nonceRes = await fetch(
         `${apiBaseUrl}/api/auth/nonce?wallet_address=${encodeURIComponent(walletAddress)}`,
       );
