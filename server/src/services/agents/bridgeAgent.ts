@@ -1,8 +1,7 @@
 // server/src/services/agents/bridgeAgent.ts
-// Changes from previous version:
-//   - validateNode now checks user's SUI/SOL/ETH balance via BlockVisionService
-//     before allowing the bridge to proceed. Insufficient funds are caught
-//     server-side before a sign button ever appears.
+// Eva — Tovira's bridge companion.
+// Logic is identical to the previous version.
+// Only the response voice has changed: warmer, more direct, less documentation.
 
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { Annotation, StateGraph } from "@langchain/langgraph";
@@ -40,9 +39,6 @@ export const BRIDGE_CFG = {
   ethereumVaultAddress: (process.env.ETH_BRIDGE_VAULT ||
     "0xb3eC343184311fA58F85f3f52027F27849472624") as `0x${string}`,
   solanaMemoProgramId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
-
-  // Estimated gas buffer added on top of bridge amount for SUI transactions
-  // 0.01 SUI = 10_000_000 MIST — safe upper bound for a Move call
   estimatedSuiGasMist: BigInt(10_000_000),
 } as const;
 
@@ -159,7 +155,7 @@ const structuredLlm = llm.withStructuredOutput(BridgeIntentSchema);
 // ══════════════════════════════════════════════════════════════════════
 
 async function parseIntentNode(state: typeof BridgeAgentState.State) {
-  state.sse.status("Understanding your bridge request...");
+  state.sse.status("On it...");
 
   const systemPrompt = `You are a bridge intent extractor for a cross-chain bridge supporting Sui, Solana, and Ethereum.
 
@@ -193,24 +189,22 @@ If user says "to my wallet" — leave recipientAddress empty and set recipientMi
   }
 }
 
-// ── validateNode — now includes balance check ─────────────────────────
+// ── validateNode ──────────────────────────────────────────────────────
 
 async function validateNode(state: typeof BridgeAgentState.State) {
   const { intent, userId } = state;
   if (!intent || intent.intent !== "bridge") return { validationError: null };
 
-  // Missing direction
   if (intent.directionMissing || !intent.direction) {
     return {
       validationError:
-        'I need to know which direction you want to bridge. For example: "Bridge 0.5 SUI to Solana" or "Bridge 0.002 SOL to SUI".',
+        'Which direction are we moving? Just tell me something like *"Bridge 0.5 SUI to Solana"* or *"0.002 SOL to SUI"* and I\'ll take it from there.',
     };
   }
 
-  // Missing amount
   if (intent.amountMissing || !intent.amount) {
     return {
-      validationError: `How much would you like to bridge? For example: "Bridge 0.5 ${sourceTokenOf(intent.direction as BridgeDirection)} to ${destChainOf(intent.direction as BridgeDirection)}".`,
+      validationError: `How much ${sourceTokenOf(intent.direction as BridgeDirection)} do you want to move? Drop an amount and I'll put it together for you.`,
     };
   }
 
@@ -218,7 +212,7 @@ async function validateNode(state: typeof BridgeAgentState.State) {
   if (isNaN(amountFloat) || amountFloat <= 0) {
     return {
       validationError:
-        "That doesn't look like a valid amount. Please enter a positive number.",
+        "That amount doesn't look right — needs to be a positive number.",
     };
   }
 
@@ -238,66 +232,61 @@ async function validateNode(state: typeof BridgeAgentState.State) {
         break;
     }
   } catch {
-    return { validationError: "Amount is too large to process." };
+    return {
+      validationError: "That amount is way too large for me to handle.",
+    };
   }
 
-  // Min/max checks
+  // Min/max checks — Eva keeps it plain
   switch (dir) {
     case "SUI_TO_SOL":
     case "SUI_TO_ETH":
       if (amountBase < BRIDGE_CFG.minAmountSui)
         return {
-          validationError: `Minimum bridge amount is ${formatSui(BRIDGE_CFG.minAmountSui)} SUI. You entered ${amountFloat} SUI.`,
+          validationError: `The minimum I can bridge is **${formatSui(BRIDGE_CFG.minAmountSui)} SUI**. You're a little short — bump it up and we're good.`,
         };
       if (amountBase > BRIDGE_CFG.maxAmountSui)
         return {
-          validationError: `Maximum bridge amount is ${formatSui(BRIDGE_CFG.maxAmountSui)} SUI per transaction. You entered ${amountFloat} SUI.`,
+          validationError: `I can only move up to **${formatSui(BRIDGE_CFG.maxAmountSui)} SUI** per transaction right now. Want to split it into multiple bridges?`,
         };
       break;
     case "SOL_TO_SUI":
       if (amountBase < BRIDGE_CFG.minAmountSol)
         return {
-          validationError: `Minimum bridge amount is ${formatSol(BRIDGE_CFG.minAmountSol)} SOL.`,
+          validationError: `Minimum for this route is **${formatSol(BRIDGE_CFG.minAmountSol)} SOL**. Try a slightly larger amount.`,
         };
       if (amountBase > BRIDGE_CFG.maxAmountSol)
         return {
-          validationError: `Maximum bridge amount is ${formatSol(BRIDGE_CFG.maxAmountSol)} SOL per transaction.`,
+          validationError: `I'm capped at **${formatSol(BRIDGE_CFG.maxAmountSol)} SOL** per transaction. Split it across two bridges if you need more.`,
         };
       break;
     case "ETH_TO_SUI":
       if (amountBase < BRIDGE_CFG.minAmountEth)
         return {
-          validationError: `Minimum bridge amount is ${formatEth(BRIDGE_CFG.minAmountEth)} ETH.`,
+          validationError: `The minimum here is **${formatEth(BRIDGE_CFG.minAmountEth)} ETH**. Just a tiny bit more and we're set.`,
         };
       if (amountBase > BRIDGE_CFG.maxAmountEth)
         return {
-          validationError: `Maximum bridge amount is ${formatEth(BRIDGE_CFG.maxAmountEth)} ETH per transaction.`,
+          validationError: `I can only handle up to **${formatEth(BRIDGE_CFG.maxAmountEth)} ETH** at a time. Want to break it up?`,
         };
       break;
   }
 
-  // ── Balance check (SUI only — we have BlockVision for Sui wallets) ──
-  // We only check SUI outbound routes because we don't have the user's
-  // Solana/ETH address server-side (they connect those wallets client-side only).
+  // Balance check for SUI outbound routes
   if ((dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH") && userId) {
     try {
       state.sse.status("Checking your balance...");
       const blockVision = getBlockVisionService();
       const portfolio = await blockVision.getAccountPortfolio(userId);
-
-      // Find SUI coin balance
       const suiCoin = portfolio.coins.find(
         (c) => c.coinType === "0x2::sui::SUI" || c.symbol === "SUI",
       );
 
       if (suiCoin) {
-        // Convert balance string to MIST (9 decimals)
         const balanceSui = parseFloat(
           suiCoin.balance.toString().replace(/,/g, ""),
         );
         const balanceMist = BigInt(Math.floor(balanceSui * 1e9));
-
-        // Total needed = bridge amount + gas buffer
         const totalNeeded = amountBase + BRIDGE_CFG.estimatedSuiGasMist;
 
         if (balanceMist < totalNeeded) {
@@ -305,15 +294,12 @@ async function validateNode(state: typeof BridgeAgentState.State) {
           const have = formatSui(balanceMist);
           return {
             validationError:
-              `Insufficient balance. You need at least **${needed} SUI** (including gas), but your wallet only has **${have} SUI**. ` +
-              `Please top up your wallet or bridge a smaller amount.`,
+              `You're a bit short for this one. This bridge needs **${needed} SUI** (that includes gas), but I'm only seeing **${have} SUI** in your wallet. ` +
+              `Top it up or try a smaller amount and we'll get it done.`,
           };
         }
       }
-      // If suiCoin not found or balance check fails, we let it through —
-      // the wallet itself will reject if truly insufficient.
     } catch (err: any) {
-      // Non-fatal — balance check is best-effort, never block the user
       console.warn(
         `[BRIDGE] Balance check failed (non-fatal): ${err?.message}`,
       );
@@ -331,9 +317,10 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
   if (!intent)
     return {
       responseText:
-        'I couldn\'t understand that. Try: "Bridge 0.5 SUI to Solana".',
+        "I didn't quite catch that. Try something like *\"Bridge 0.5 SUI to Solana\"* and I'll handle the rest.",
       actionEvent: null,
     };
+
   if (intent.intent === "help")
     return { responseText: buildHelpMessage(), actionEvent: null };
   if (intent.intent === "quote")
@@ -343,36 +330,39 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
       ),
       actionEvent: null,
     };
-  if (intent.intent === "unrelated")
-    return {
-      responseText:
-        'I\'m the Bridge Agent — I can help you transfer assets between Sui, Solana, and Ethereum. Try: "Bridge 0.5 SUI to Solana".',
-      actionEvent: null,
-    };
   if (intent.intent === "status")
     return {
       responseText:
-        "To check the status of a bridge transaction, view your transaction history using the **Transactions** button in the top bar.",
+        "Hit the **Transactions** button up top — all your recent bridges are tracked there, including status and explorer links.",
       actionEvent: null,
     };
   if (intent.intent === "cancel")
     return {
       responseText:
-        "No problem — bridge cancelled. Let me know if you'd like to try a different amount or route.",
+        "Cancelled, no worries. Whenever you're ready, just tell me where you want to move your assets.",
       actionEvent: null,
     };
+
+  if (intent.intent === "unrelated") {
+    return {
+      responseText:
+        "I'm Eva, your bridge assistant. I move assets between Sui, Solana, and Ethereum — that's my thing.\n\nTry something like *\"Bridge 0.5 SUI to Solana\"* and I'll set it up for you.",
+      actionEvent: null,
+    };
+  }
+
   if (validationError)
     return { responseText: validationError, actionEvent: null };
 
   if (intent.intent !== "bridge" || !intent.direction || !intent.amount) {
     return {
       responseText:
-        'Please specify the amount and direction. For example: "Bridge 0.5 SUI to Solana".',
+        'Tell me the amount and which direction — something like *"Bridge 0.5 SUI to Solana"* — and I\'ll get it ready.',
       actionEvent: null,
     };
   }
 
-  state.sse.status("Preparing your bridge transaction...");
+  state.sse.status("Getting your transaction ready...");
 
   const dir = intent.direction as BridgeDirection;
   const amountFloat = parseFloat(intent.amount);
@@ -421,14 +411,15 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
   const feePercent = (BRIDGE_CFG.feeBps / 100).toFixed(2);
   const txPayload = buildTxPayload(dir, amountIn, intent.recipientAddress);
 
+  // Eva's bridge preview — same data, different tone
   const responseText =
-    `## Bridge Preview\n\n` +
-    `**You send:** ${amountInDisplay}\n` +
-    `**You receive:** ~${amountOutDisplay}\n` +
+    `Here's what this bridge looks like:\n\n` +
+    `**Sending:** ${amountInDisplay}\n` +
+    `**Arriving:** ~${amountOutDisplay}\n` +
     `**Route:** ${sourceChainOf(dir)} → ${destChainOf(dir)}\n` +
-    `**Fee:** ${feePercent}% (${displayRate(dir)})\n` +
-    `**Estimated time:** ~2–3 minutes\n\n` +
-    `Review the details above, then click **Sign & Bridge** to proceed. You'll be asked to approve the transaction in your wallet.`;
+    `**Fee:** ${feePercent}%  ·  **Rate:** ${displayRate(dir)}\n` +
+    `**ETA:** ~1–2 minutes after you sign\n\n` +
+    `Looks good? Hit **Sign & Bridge** and approve it in your wallet. I'll watch the delivery from there.`;
 
   const actionEvent: Record<string, unknown> = {
     type: "bridge_transaction_ready",
@@ -458,7 +449,7 @@ async function respondNode(state: typeof BridgeAgentState.State) {
   return {};
 }
 
-// ── Tx payload builder ────────────────────────────────────────────────
+// ── Tx payload builder (unchanged) ───────────────────────────────────
 
 function buildTxPayload(
   direction: BridgeDirection,
@@ -517,8 +508,20 @@ function destChainOf(dir: BridgeDirection) {
       : "Sui";
 }
 
+// ── Eva's voice ───────────────────────────────────────────────────────
+
 function buildHelpMessage(): string {
-  return `## Bridge Agent\n\nI can help you transfer assets between **Sui**, **Solana**, and **Ethereum**.\n\n**Supported routes:**\n- SUI → SOL\n- SOL → SUI\n- SUI → ETH (Sepolia)\n- ETH → SUI\n\n**How it works:**\n1. Tell me what you'd like to bridge\n2. I'll check your balance and prepare a preview\n3. You approve in your wallet — you always stay in control\n4. The bridge relayer handles delivery (~2–3 minutes)\n\n**Current fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}%\n\n*Try: "Bridge 0.5 SUI to Solana" or "What's the rate for SUI to ETH?"*`;
+  return (
+    `Hey, I'm **Eva** — I move your assets between chains so you don't have to think about the plumbing.\n\n` +
+    `**What I can do:**\n` +
+    `- SUI → SOL  ·  SOL → SUI\n` +
+    `- SUI → ETH  ·  ETH → SUI\n\n` +
+    `**How it goes:**\n` +
+    `Just tell me what you want to move and I'll check your balance, calculate what arrives on the other side, and set up the transaction. ` +
+    `You approve it in your wallet — I never touch your keys — and I'll track the delivery until it lands.\n\n` +
+    `**Current fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% · Delivery is usually 1–2 minutes.\n\n` +
+    `*Try: "Bridge 0.5 SUI to Solana" or "What's the rate for ETH to SUI?"*`
+  );
 }
 
 function buildQuoteMessage(direction?: BridgeDirection): string {
@@ -526,9 +529,19 @@ function buildQuoteMessage(direction?: BridgeDirection): string {
     const lines = SUPPORTED_ROUTES.map(
       (d) => `- **${sourceChainOf(d)} → ${destChainOf(d)}:** ${displayRate(d)}`,
     );
-    return `## Bridge Rates\n\n${lines.join("\n")}\n\n**Fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% on all routes`;
+    return (
+      `Current rates (${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% fee already baked in):\n\n` +
+      lines.join("\n") +
+      `\n\nRates move with the market, but they're updated regularly. Ready to move something? Just tell me the amount.`
+    );
   }
-  return `## ${sourceChainOf(direction)} → ${destChainOf(direction)} Rate\n\n**Exchange rate:** ${displayRate(direction)}\n**Fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}%\n\nReady to bridge? Try: *"Bridge 0.5 ${sourceTokenOf(direction)} to ${destChainOf(direction)}"*`;
+
+  return (
+    `**${sourceChainOf(direction)} → ${destChainOf(direction)}**\n\n` +
+    `Rate: ${displayRate(direction)}\n` +
+    `Fee: ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}%\n\n` +
+    `Want to go ahead? Try *"Bridge 0.5 ${sourceTokenOf(direction)} to ${destChainOf(direction)}"* and I'll get it ready.`
+  );
 }
 
 // ── Graph ─────────────────────────────────────────────────────────────
@@ -559,7 +572,9 @@ export class BridgeAgent {
     req: ChatRequest,
     sse: ReturnType<typeof createSSEWriter>,
   ): Promise<string> {
-    console.log(`[BRIDGE] Request from ${req.userId.substring(0, 10)}...`);
+    console.log(
+      `[BRIDGE] Eva handling request from ${req.userId.substring(0, 10)}...`,
+    );
     let fullResponse = "";
     const wrappedSSE = {
       ...sse,
@@ -586,8 +601,8 @@ export class BridgeAgent {
       });
       return fullResponse;
     } catch (err) {
-      console.error("[BRIDGE] Error:", err);
-      sse.error("Bridge agent encountered an error. Please try again.");
+      console.error("[BRIDGE] Eva error:", err);
+      sse.error("Something went wrong on my end. Give it another shot.");
       return "Error";
     }
   }

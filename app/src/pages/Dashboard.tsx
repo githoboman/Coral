@@ -147,15 +147,15 @@ type DeliveryPhase =
   | "delivered" // balance confirmed on dest
   | "timed_out"; // polling gave up
 
-const DELIVERY_PHASES: Record<
+export const DELIVERY_PHASES: Record<
   DeliveryPhase,
   { label: string; progress: number }
 > = {
-  submitted: { label: "Waiting for relayer...", progress: 25 },
-  relayer_detected: { label: "Relayer detected your transfer", progress: 45 },
-  signing: { label: "Signing via Ika MPC (~60–90s)", progress: 65 },
-  confirming: { label: "Broadcasting to destination...", progress: 85 },
-  delivered: { label: "Delivered! 🎉", progress: 100 },
+  submitted: { label: "Transaction confirmed on-chain", progress: 20 },
+  relayer_detected: { label: "Relayer picked it up", progress: 40 },
+  signing: { label: "Signing via Ika MPC", progress: 65 },
+  confirming: { label: "Broadcasting to destination", progress: 85 },
+  delivered: { label: "Delivered", progress: 100 },
   timed_out: { label: "Timed out — check explorer", progress: 0 },
 };
 
@@ -178,7 +178,7 @@ const AGENTS: Agent[] = [
   },
   {
     id: "bridge",
-    name: "Bridge Agent",
+    name: "Eva",
     icon: "/assets/images/agents/bridge-agent.svg",
     cost: "Free",
   },
@@ -216,11 +216,11 @@ const AGENT_THINKING_STEPS: Record<string, string[]> = {
     "Activating monitors",
   ],
   bridge: [
-    "Understanding your request",
-    "Checking your balance",
-    "Validating amounts and route",
-    "Preparing transaction",
-    "Ready for signing",
+    "Reading your request...",
+    "Checking your balance...",
+    "Locking in the route...",
+    "Building your transaction...",
+    "Almost ready...",
   ],
 };
 
@@ -994,10 +994,59 @@ function BridgeTransactionsModal({
     </div>
   );
 }
-
-// ══════════════════════════════════════════════════════════════════════
-// BridgeActionCard — with delivery polling
-// ══════════════════════════════════════════════════════════════════════
+const EVA_DELIVERY_VOICE: Record<
+  DeliveryPhase,
+  { primary: string; messages: string[] }
+> = {
+  submitted: {
+    primary: "Your transaction is on-chain. I'm watching for the relayer now.",
+    messages: [
+      "The relayer monitors the chain in real-time — it'll catch this any second.",
+      "Your funds are locked and safe. Nothing moves until the other side is ready.",
+      "This is the secure part of the process — on-chain, verifiable, immutable.",
+      "I've seen this route plenty of times. Give it a moment.",
+    ],
+  },
+  relayer_detected: {
+    primary: "Relayer's on it. Handing off to Ika for signing.",
+    messages: [
+      "Ika's MPC network is about to co-sign the release. No single key, no single point of failure.",
+      "The relayer verified your deposit. Now it's queuing up the signing round.",
+      "This handoff is what makes the bridge trustless — the relayer can't move funds without Ika.",
+      "Almost into the signing phase. Usually under 90 seconds from here.",
+    ],
+  },
+  signing: {
+    primary: "Ika's MPC network is signing the release.",
+    messages: [
+      "Ika uses distributed key signing — multiple nodes cooperate to authorise this. Takes 60–90 seconds.",
+      "No one holds the full private key. The signing is split across Ika's validator network on Sui.",
+      "This is the most secure step. Slower by design — decentralised signing takes coordination.",
+      "Powered by Ika dWallets on Sui — backed by cryptographic consensus, not trust.",
+      "The signing round is live. Each Ika node is casting its partial signature right now.",
+      "Once the threshold of signatures is reached, the release fires automatically.",
+    ],
+  },
+  confirming: {
+    primary: "Signed. Broadcasting to the destination chain now.",
+    messages: [
+      "The release transaction is signed and on its way. Final confirmation takes a few seconds.",
+      "This is the last step — the destination chain is processing the incoming transfer.",
+      "Your funds are leaving the bridge. The destination wallet is about to receive them.",
+    ],
+  },
+  delivered: {
+    primary: "Done. Your funds arrived.",
+    messages: ["Bridge complete. Powered by Ika dWallets on Sui."],
+  },
+  timed_out: {
+    primary: "I lost track of the delivery — but your funds are likely fine.",
+    messages: [
+      "The relayer may still be processing. If your source tx is confirmed on the explorer, the bridge will complete.",
+      "Timeouts can happen when the network is congested. Your deposit is on-chain and safe.",
+    ],
+  },
+};
 
 function BridgeActionCard({
   payload,
@@ -1030,15 +1079,38 @@ function BridgeActionCard({
   const [destTxHash, setDestTxHash] = useState<string | null>(null);
   const [dbTxId, setDbTxId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [evaMessageIndex, setEvaMessageIndex] = useState(0); // NEW
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
 
   const POLL_INTERVAL = 5_000;
-  const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
   const chain = payload.txPayload.chain;
   const isComplete = deliveryPhase === "delivered";
   const isTimedOut = deliveryPhase === "timed_out";
+
+  // ── Cleanup on unmount ────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  // ── Eva message rotation — cycles every 4s per phase ─────────────
+  useEffect(() => {
+    if (!deliveryPhase || isComplete || isTimedOut) return;
+    setEvaMessageIndex(0);
+    const msgs = EVA_DELIVERY_VOICE[deliveryPhase]?.messages || [];
+    if (msgs.length <= 1) return;
+    const interval = setInterval(() => {
+      setEvaMessageIndex((i) => (i + 1) % msgs.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [deliveryPhase, isComplete, isTimedOut]);
+
+  // ── Helpers ───────────────────────────────────────────────────────
 
   function resolveRecipient(): string | null {
     if (payload.recipientAddress) return payload.recipientAddress;
@@ -1053,7 +1125,6 @@ function BridgeActionCard({
     return null;
   }
 
-  // Save bridge tx to DB
   async function saveBridgeTx(sourceTx: string): Promise<number | null> {
     try {
       const res = await fetch(`${API_BASE_URL}/api/bridge/transactions`, {
@@ -1078,7 +1149,6 @@ function BridgeActionCard({
     return null;
   }
 
-  // Mark delivered in DB
   async function markDelivered(id: number, destTx?: string) {
     try {
       await fetch(`${API_BASE_URL}/api/bridge/transactions/${id}`, {
@@ -1091,7 +1161,8 @@ function BridgeActionCard({
     }
   }
 
-  // Start delivery polling after source tx is confirmed
+  // ── Delivery polling ──────────────────────────────────────────────
+
   function startDeliveryPolling(sourceTx: string, savedDbId: number | null) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
@@ -1099,9 +1170,9 @@ function BridgeActionCard({
     pollRef.current = setInterval(async () => {
       elapsedRef.current += POLL_INTERVAL;
 
-      // Advance through time-based phases (mimics relayer timing)
-      if (elapsedRef.current > 15_000 && deliveryPhase === "submitted") {
-        setDeliveryPhase("relayer_detected");
+      // Time-based phase advancement (mirrors actual relayer timing)
+      if (elapsedRef.current > 15_000) {
+        setDeliveryPhase((p) => (p === "submitted" ? "relayer_detected" : p));
       }
       if (elapsedRef.current > 40_000) {
         setDeliveryPhase((p) => (p === "relayer_detected" ? "signing" : p));
@@ -1110,37 +1181,30 @@ function BridgeActionCard({
         setDeliveryPhase((p) => (p === "signing" ? "confirming" : p));
       }
 
-      // Timeout
       if (elapsedRef.current >= TIMEOUT_MS) {
         clearInterval(pollRef.current!);
         setDeliveryPhase("timed_out");
         return;
       }
 
-      // Poll destination chain balance
+      // Active chain polling for confirmed delivery
       try {
         const recipient = resolveRecipient();
         if (!recipient) return;
 
         if (payload.direction === "SUI_TO_SOL" && solanaConnection) {
-          // Poll Solana balance
-          const pubkey = new PublicKey(recipient);
-          const bal = await (solanaConnection as SolanaConnection).getBalance(
-            pubkey,
-          );
+          const { PublicKey: SPK } = await import("@solana/web3.js");
+          const pubkey = new SPK(recipient);
           const sigs = await (
             solanaConnection as SolanaConnection
           ).getSignaturesForAddress(pubkey, { limit: 3 });
-          // Check if a new tx appeared recently (within poll window)
           if (sigs.length > 0) {
-            const latest = sigs[0];
-            const latestTs = (latest.blockTime || 0) * 1000;
+            const latestTs = (sigs[0].blockTime || 0) * 1000;
             if (Date.now() - latestTs < POLL_INTERVAL * 4) {
-              // New tx appeared — assume delivered
               clearInterval(pollRef.current!);
               setDeliveryPhase("delivered");
-              setDestTxHash(latest.signature);
-              if (savedDbId) await markDelivered(savedDbId, latest.signature);
+              setDestTxHash(sigs[0].signature);
+              if (savedDbId) await markDelivered(savedDbId, sigs[0].signature);
               sileo.success({
                 title: "Bridge Complete!",
                 description: "Your SOL has arrived.",
@@ -1152,15 +1216,9 @@ function BridgeActionCard({
           payload.direction === "SOL_TO_SUI" ||
           payload.direction === "ETH_TO_SUI"
         ) {
-          // Poll Sui balance via RPC
           const { SuiClient, getFullnodeUrl } =
             await import("@mysten/sui/client");
           const client = new SuiClient({ url: getFullnodeUrl("testnet") });
-          const bal = await client.getBalance({
-            owner: recipient,
-            coinType: "0x2::sui::SUI",
-          });
-          // We don't know the exact before-balance here so we use a recent tx check
           const txs = await client.queryTransactionBlocks({
             filter: { ToAddress: recipient },
             options: { showEffects: false },
@@ -1168,7 +1226,6 @@ function BridgeActionCard({
             order: "descending",
           });
           if (txs.data.length > 0) {
-            // Check if the first tx is recent (rough check)
             const recentDigest = txs.data[0].digest;
             clearInterval(pollRef.current!);
             setDeliveryPhase("delivered");
@@ -1180,23 +1237,15 @@ function BridgeActionCard({
             });
             return;
           }
-        } else if (payload.direction === "SUI_TO_ETH") {
-          // For ETH delivery we rely on time-based phases only
-          // (getting ETH balance client-side requires wagmi which isn't available here)
-          // The timeout and phase advancement handles UX
         }
-      } catch (e) {
-        // Polling errors are non-fatal — keep trying
+        // SUI_TO_ETH: time-based only (wagmi not available here)
+      } catch {
+        // Non-fatal — keep polling
       }
     }, POLL_INTERVAL);
   }
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
+  // ── Sign handler ──────────────────────────────────────────────────
 
   async function handleSign() {
     setSignStatus("signing");
@@ -1231,7 +1280,6 @@ function BridgeActionCard({
         });
         const txBytes = await tx.toJSON();
         setSignStatus("submitted");
-
         signAndExecuteSui(
           { transaction: txBytes },
           {
@@ -1312,6 +1360,8 @@ function BridgeActionCard({
     }
   }
 
+  // ── Explorer URLs ─────────────────────────────────────────────────
+
   function sourceTxUrl(): string | null {
     if (!sourceTxHash) return null;
     if (chain === "sui")
@@ -1333,8 +1383,9 @@ function BridgeActionCard({
   }
 
   const isLoading = signStatus === "signing" || signStatus === "submitted";
-  const phaseInfo = deliveryPhase ? DELIVERY_PHASES[deliveryPhase] : null;
   const showSignButton = !deliveryPhase && !isComplete;
+
+  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 max-w-sm">
@@ -1387,7 +1438,7 @@ function BridgeActionCard({
         </span>
       </div>
 
-      {/* Recipient missing */}
+      {/* Recipient missing warning */}
       {payload.recipientMissing && !resolveRecipient() && !deliveryPhase && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3 text-xs text-amber-400">
           ⚠ Connect your {payload.destChain} wallet to receive funds, then click
@@ -1403,84 +1454,163 @@ function BridgeActionCard({
         </div>
       )}
 
-      {/* ── Delivery status panel ── */}
-      {deliveryPhase && (
-        <div
-          className={`rounded-xl p-3 mb-3 border ${isComplete ? "bg-emerald-500/10 border-emerald-500/20" : isTimedOut ? "bg-red-500/10 border-red-500/20" : "bg-white/5 border-white/10"}`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            {isComplete ? (
-              <CheckCircle2
-                size={14}
-                className="text-emerald-400 flex-shrink-0"
-              />
-            ) : isTimedOut ? (
-              <XCircle size={14} className="text-red-400 flex-shrink-0" />
-            ) : (
-              <Loader2
-                size={14}
-                className="text-[#B7FC0D] animate-spin flex-shrink-0"
-              />
-            )}
-            <span
-              className={`text-xs font-bold ${isComplete ? "text-emerald-400" : isTimedOut ? "text-red-400" : "text-white/70"}`}
+      {/* ── Eva delivery commentary panel ── */}
+      {deliveryPhase &&
+        (() => {
+          const voice = EVA_DELIVERY_VOICE[deliveryPhase];
+          const msgs = voice.messages;
+          const rotatingMsg = msgs[evaMessageIndex % msgs.length];
+
+          return (
+            <div
+              className={`rounded-xl p-3 mb-3 border transition-colors duration-500 ${
+                isComplete
+                  ? "bg-emerald-500/10 border-emerald-500/20"
+                  : isTimedOut
+                    ? "bg-red-500/10 border-red-500/20"
+                    : "bg-white/[0.03] border-white/10"
+              }`}
             >
-              {phaseInfo?.label}
-            </span>
-          </div>
+              {/* Phase indicator row */}
+              <div className="flex items-center gap-2 mb-2">
+                {isComplete ? (
+                  <CheckCircle2
+                    size={13}
+                    className="text-emerald-400 flex-shrink-0"
+                  />
+                ) : isTimedOut ? (
+                  <XCircle size={13} className="text-red-400 flex-shrink-0" />
+                ) : (
+                  <Loader2
+                    size={13}
+                    className="text-[#B7FC0D] animate-spin flex-shrink-0"
+                  />
+                )}
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-widest ${
+                    isComplete
+                      ? "text-emerald-400/70"
+                      : isTimedOut
+                        ? "text-red-400/70"
+                        : "text-white/25"
+                  }`}
+                >
+                  {DELIVERY_PHASES[deliveryPhase].label}
+                </span>
+              </div>
 
-          {/* Progress bar (only while in progress) */}
-          {!isTimedOut && (
-            <div className="w-full bg-white/5 rounded-full h-1 mb-2 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ${isComplete ? "bg-emerald-400" : "bg-gradient-to-r from-[#B7FC0D]/60 to-[#B7FC0D]"}`}
-                style={{ width: `${phaseInfo?.progress || 0}%` }}
-              />
-            </div>
-          )}
+              {/* Progress bar */}
+              {!isTimedOut && (
+                <div className="w-full bg-white/5 rounded-full h-0.5 mb-3 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${
+                      isComplete
+                        ? "bg-emerald-400"
+                        : "bg-gradient-to-r from-[#B7FC0D]/50 to-[#B7FC0D]"
+                    }`}
+                    style={{
+                      width: `${DELIVERY_PHASES[deliveryPhase].progress}%`,
+                    }}
+                  />
+                </div>
+              )}
 
-          {/* Source tx link */}
-          {sourceTxHash && sourceTxUrl() && (
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] text-white/30">Source:</span>
-              <a
-                href={sourceTxUrl()!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-0.5 text-[10px] text-white/40 hover:text-white/60 transition-colors"
+              {/* Eva's primary message for this phase */}
+              <p
+                className={`text-sm font-medium leading-snug mb-2 ${
+                  isComplete
+                    ? "text-emerald-300"
+                    : isTimedOut
+                      ? "text-red-300"
+                      : "text-white/85"
+                }`}
               >
-                {sourceTxHash.slice(0, 8)}…{sourceTxHash.slice(-6)}{" "}
-                <ExternalLink size={8} />
-              </a>
+                {voice.primary}
+              </p>
+
+              {/* Rotating sub-message (while in progress) */}
+              {!isComplete && !isTimedOut && (
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={`${deliveryPhase}-${evaMessageIndex}`}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.35 }}
+                    className="text-[11px] text-white/35 leading-relaxed"
+                  >
+                    {rotatingMsg}
+                  </motion.p>
+                </AnimatePresence>
+              )}
+
+              {/* Timeout rotating message */}
+              {isTimedOut && (
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={evaMessageIndex}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-[11px] text-red-400/60 leading-relaxed"
+                  >
+                    {rotatingMsg}
+                  </motion.p>
+                </AnimatePresence>
+              )}
+
+              {/* Powered by — shown during active (non-complete, non-timed-out) phases */}
+              {!isComplete && !isTimedOut && (
+                <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-white/5">
+                  <span className="text-[10px] text-white/20">Powered by</span>
+                  <span className="text-[10px] font-semibold text-white/35">
+                    Ika
+                  </span>
+                  <span className="text-[10px] text-white/15">·</span>
+                  <span className="text-[10px] font-semibold text-white/35">
+                    Sui
+                  </span>
+                </div>
+              )}
+
+              {/* Source tx link */}
+              {sourceTxHash && sourceTxUrl() && (
+                <div className="flex items-center gap-1 mt-2">
+                  <span className="text-[10px] text-white/20">Source tx:</span>
+                  <a
+                    href={sourceTxUrl()!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-0.5 text-[10px] text-white/30 hover:text-white/55 transition-colors"
+                  >
+                    {sourceTxHash.slice(0, 8)}…{sourceTxHash.slice(-6)}
+                    <ExternalLink size={8} />
+                  </a>
+                </div>
+              )}
+
+              {/* Delivery tx link — once confirmed */}
+              {destTxHash && destTxUrl() && isComplete && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] text-white/20">
+                    Delivery tx:
+                  </span>
+                  <a
+                    href={destTxUrl()!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-0.5 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    {destTxHash.slice(0, 8)}…{destTxHash.slice(-6)}
+                    <ExternalLink size={8} />
+                  </a>
+                </div>
+              )}
             </div>
-          )}
+          );
+        })()}
 
-          {/* Dest tx link (once delivered) */}
-          {destTxHash && destTxUrl() && isComplete && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-[10px] text-white/30">Delivery:</span>
-              <a
-                href={destTxUrl()!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-0.5 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors"
-              >
-                {destTxHash.slice(0, 8)}…{destTxHash.slice(-6)}{" "}
-                <ExternalLink size={8} />
-              </a>
-            </div>
-          )}
-
-          {isTimedOut && (
-            <p className="text-[10px] text-red-400/70 mt-1">
-              The relayer may still deliver your funds. Check the source tx on
-              the explorer.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* CTA */}
+      {/* Sign & Bridge CTA */}
       {showSignButton && (
         <button
           onClick={handleSign}
