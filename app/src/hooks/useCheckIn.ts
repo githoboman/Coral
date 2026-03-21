@@ -81,7 +81,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
     return d.getTime() - tzOffsetMinutes * 60_000; // convert back to UTC ms
   }, []);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (options?: { skipStreakUpdate?: boolean }) => {
     const addr = currentAccount?.address;
     if (!addr) {
       setState((prev) => ({ ...prev, status: "idle" }));
@@ -117,7 +117,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
         nextAvailableAt: data.next_available_at,
         hoursRemaining: data.hours_remaining,
         balance: data.balance,
-        currentStreak: data.current_streak || 0,
+        currentStreak: options?.skipStreakUpdate ? prev.currentStreak : (data.current_streak || 0),
         totalCheckins: data.total_checkins || 0,
         nextStreak: data.next_streak || 1,
         streakWillReset: data.streak_will_reset || false,
@@ -227,7 +227,7 @@ export function useCheckin(onPointsUpdated?: (newBalance: number) => void) {
       });
 
       window.dispatchEvent(new Event("pointsUpdated"));
-      setTimeout(fetchStatus, 2000);
+      setTimeout(() => fetchStatus({ skipStreakUpdate: true }), 3500);
 
     } catch (err: any) {
       let errorMsg = "Check-in failed. Please try again.";
