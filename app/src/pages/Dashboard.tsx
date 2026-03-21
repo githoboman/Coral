@@ -1597,7 +1597,7 @@ function BridgeActionCard({
             "Try Again"
           ) : (
             <>
-              Sign & Bridge <ArrowRight size={16} />
+              Confirm <ArrowRight size={16} />
             </>
           )}
         </button>
