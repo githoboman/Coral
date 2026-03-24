@@ -110,15 +110,16 @@ interface StreakResult {
  */
 function computeNextStreak(
   lastCheckinDate: string | null,
+  lastCheckinTzOffset: number,
   currentStreak: number,
-  tzOffset: number,
+  currentTzOffset: number,
 ): StreakResult {
   if (!lastCheckinDate) {
     return { nextStreak: 1, streakWillReset: false };
   }
 
-  const today = localDateString(new Date(), tzOffset);
-  const yesterday = localYesterdayString(tzOffset);
+  const today = localDateString(new Date(), currentTzOffset);
+  const yesterday = localYesterdayString(lastCheckinTzOffset);
 
   if (lastCheckinDate === yesterday) {
     return { nextStreak: currentStreak + 1, streakWillReset: false };
@@ -139,6 +140,7 @@ function computeNextStreak(
 interface CheckinRecord {
   lastCheckinDate: string | null; // "YYYY-MM-DD" stored at check-in time
   lastCheckinAt: number | null;   // epoch ms
+  lastCheckinTzOffset: number;    // timezone offset used when recorded
   currentStreak: number;
   totalCheckins: number;
 }
@@ -159,7 +161,7 @@ async function getLatestCheckin(userId: string, tzOffset: number): Promise<Check
     const normalizedId = userId.toLowerCase();
     const { data, error } = await supabase
       .from("checkins")
-      .select("created_at, checkin_date, streak_day")
+      .select("created_at, checkin_date, streak_day, timezone_offset")
       .eq("user_id", normalizedId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -178,6 +180,7 @@ async function getLatestCheckin(userId: string, tzOffset: number): Promise<Check
       return {
         lastCheckinDate: profile.last_checkin,
         lastCheckinAt: new Date(profile.last_checkin).getTime(),
+        lastCheckinTzOffset: tzOffset, // Fallback to current if missing in profile
         currentStreak: profile.checkin_streak || 0,
         totalCheckins: profile.total_checkins || 0,
       };
@@ -198,6 +201,7 @@ async function getLatestCheckin(userId: string, tzOffset: number): Promise<Check
     return {
       lastCheckinDate,
       lastCheckinAt,
+      lastCheckinTzOffset: data.timezone_offset ?? tzOffset,
       currentStreak: data.streak_day || 0,
       totalCheckins: count || 0,
     };
@@ -287,12 +291,13 @@ router.get(
 
       let lastCheckinDate: string | null = null;
       let lastCheckinAt: number | null = null;
+      let lastCheckinTzOffset = tzOffset;
       let currentStreak = 0;
       let totalCheckins = 0;
 
       const dbData = await getLatestCheckin(userId, tzOffset);
       if (dbData) {
-        ({ lastCheckinDate, lastCheckinAt, currentStreak, totalCheckins } = dbData);
+        ({ lastCheckinDate, lastCheckinAt, lastCheckinTzOffset, currentStreak, totalCheckins } = dbData);
       } else {
         // On-chain fallback for wallets with no Supabase rows yet
         console.log(`[CHECKIN] No Supabase data for ${userId.slice(0, 10)}..., falling back to chain`);
@@ -324,7 +329,7 @@ router.get(
         ? Math.max(0, Math.ceil((nextAvailableMs - Date.now()) / (60 * 60 * 1_000)))
         : null;
 
-      const { nextStreak, streakWillReset } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
+      const { nextStreak, streakWillReset } = computeNextStreak(lastCheckinDate, lastCheckinTzOffset, currentStreak, tzOffset);
       const pointsInfo = calculateCheckinPoints(nextStreak);
 
       res.json({
@@ -375,11 +380,12 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
 
     let lastCheckinDate: string | null = null;
     let lastCheckinAt: number | null = null;
+    let lastCheckinTzOffset = tzOffset;
     let currentStreak = 0;
 
     const dbData = await getLatestCheckin(userId, tzOffset);
     if (dbData) {
-      ({ lastCheckinDate, lastCheckinAt, currentStreak } = dbData);
+      ({ lastCheckinDate, lastCheckinAt, lastCheckinTzOffset, currentStreak } = dbData);
     } else {
       const [dateStr, streak] = await Promise.all([
         minter.getLastCheckinDate(userId),
@@ -413,7 +419,7 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { nextStreak } = computeNextStreak(lastCheckinDate, currentStreak, tzOffset);
+    const { nextStreak, streakWillReset: _reset } = computeNextStreak(lastCheckinDate, lastCheckinTzOffset || tzOffset, currentStreak, tzOffset);
     const pointsInfo = calculateCheckinPoints(nextStreak);
 
     console.log(`[CHECKIN] Processing check-in for ${userId.slice(0, 10)}...`);
