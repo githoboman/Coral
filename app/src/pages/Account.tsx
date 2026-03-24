@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertCircle,
   LogOut,
+  ChevronRight,
 } from "lucide-react";
 import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
@@ -32,76 +33,9 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
+import { WalletPhantom } from '@web3icons/react'
+import { WalletMetamask } from '@web3icons/react'
 
-function PhantomIcon({ size = 28 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 128 128"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="128" height="128" rx="32" fill="#AB9FF2" />
-      <path
-        d="M110.584 64.956c0 25.503-20.654 46.177-46.131 46.177-25.478 0-46.132-20.674-46.132-46.177S38.975 18.779 64.453 18.779c25.477 0 46.131 20.674 46.131 46.177z"
-        fill="#fff"
-      />
-      <path
-        d="M93.31 64.956c0 6.18-2.149 11.854-5.703 16.31H40.39a29.133 29.133 0 01-5.703-16.31c0-16.122 13.062-29.2 29.184-29.2 16.122 0 29.44 13.078 29.44 29.2z"
-        fill="#AB9FF2"
-      />
-      <ellipse cx="52.004" cy="63.388" rx="5.427" ry="8.648" fill="#fff" />
-      <ellipse cx="76.902" cy="63.388" rx="5.427" ry="8.648" fill="#fff" />
-      <ellipse cx="52.004" cy="64.2" rx="2.713" ry="4.324" fill="#3D3D3D" />
-      <ellipse cx="76.902" cy="64.2" rx="2.713" ry="4.324" fill="#3D3D3D" />
-    </svg>
-  );
-}
-
-function MetaMaskIcon({ size = 28 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 128 128"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="128" height="128" rx="32" fill="#F6851B" />
-      <path
-        d="M103 25L67.5 51.5l6.4-15.2L103 25z"
-        fill="#E2761B"
-        stroke="#E2761B"
-        strokeWidth="0.5"
-      />
-      <path
-        d="M25 25l35.1 26.8-6.1-15.5L25 25z"
-        fill="#E4761B"
-        stroke="#E4761B"
-        strokeWidth="0.5"
-      />
-      <path
-        d="M89.7 80.4l-9.4 14.4 20.1 5.5 5.8-19.6-16.5-.3zM21.9 80.7l5.7 19.6 20.1-5.5-9.4-14.4-16.4.3z"
-        fill="#E4761B"
-        stroke="#E4761B"
-        strokeWidth="0.5"
-      />
-      <path
-        d="M46.4 57.6l-5.6 8.5 20 .9-.7-21.5-13.7 12.1zM81.6 57.6L67.7 45.3l-.4 21.7 19.9-.9-5.6-8.5z"
-        fill="#E4761B"
-        stroke="#E4761B"
-        strokeWidth="0.5"
-      />
-      <path
-        d="M47.7 94.8l12-5.8-10.4-8.1-1.6 13.9zM68.3 89l12 5.8-1.7-13.9-10.3 8.1z"
-        fill="#E4761B"
-        stroke="#E4761B"
-        strokeWidth="0.5"
-      />
-    </svg>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────
 // TelegramModal
@@ -328,107 +262,155 @@ const TelegramConnect = () => {
   );
 };
 
-const PhantomConnect = () => {
-  const { publicKey, connected, disconnect, connecting } = useWallet();
-  const { setVisible } = useWalletModal();
+// ─────────────────────────────────────────────────────────────────────
+// ExternalWalletConnect — collapsed row + picker popup
+// ─────────────────────────────────────────────────────────────────────
+const ExternalWalletConnect = () => {
+  const [open, setOpen] = useState(false);
 
-  const shortAddress = publicKey
+  // Phantom
+  const { publicKey, connected: solConnected, disconnect: solDisconnect, connecting: solConnecting } = useWallet();
+  const { setVisible } = useWalletModal();
+  const shortSolAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 5)}...${publicKey.toBase58().slice(-4)}`
     : null;
 
-  return (
-    <div className="flex justify-between items-center gap-4">
-      <div className="flex items-center gap-3">
-        <PhantomIcon size={28} />
-        <div className="flex flex-col">
-          <span className="text-white/80 text-sm sm:text-base">Phantom</span>
-          {connected && shortAddress ? (
-            <span className="text-white/40 text-xs flex items-center gap-1">
-              <CheckCircle2 size={10} className="text-emerald-400" />
-              {shortAddress}
-            </span>
-          ) : (
-            <span className="text-white/30 text-xs">Not connected</span>
-          )}
-        </div>
-      </div>
-      {connected ? (
-        <button onClick={() => disconnect()} className="btn btn-danger">
-          Disconnect
-        </button>
-      ) : (
-        <button
-          onClick={() => setVisible(true)}
-          disabled={connecting}
-          className="btn btn-primary"
-        >
-          {connecting ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            "Connect"
-          )}
-        </button>
-      )}
-    </div>
-  );
-};
-
-const MetaMaskConnect = () => {
-  const { address, isConnected } = useAccount();
-  const { connect, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
+  // MetaMask
+  const { address: ethAddress, isConnected: ethConnected } = useAccount();
+  const { connect: ethConnect, isPending: ethPending } = useConnect();
+  const { disconnect: ethDisconnect } = useDisconnect();
   const [noMetaMask, setNoMetaMask] = useState(false);
-
-  const shortAddress = address
-    ? `${address.slice(0, 5)}...${address.slice(-4)}`
+  const shortEthAddress = ethAddress
+    ? `${ethAddress.slice(0, 5)}...${ethAddress.slice(-4)}`
     : null;
 
-  function handleConnect() {
+  function handleEthConnect() {
     if (typeof window !== "undefined" && !(window as any).ethereum) {
       setNoMetaMask(true);
       setTimeout(() => setNoMetaMask(false), 3000);
       return;
     }
-    connect({ connector: injected() });
+    ethConnect({ connector: injected() });
   }
 
+  const anyConnected = solConnected || ethConnected;
+
   return (
-    <div className="flex justify-between items-center gap-4">
-      <div className="flex items-center gap-3">
-        <MetaMaskIcon size={28} />
-        <div className="flex flex-col">
-          <span className="text-white/80 text-sm sm:text-base">MetaMask</span>
-          {isConnected && shortAddress ? (
-            <span className="text-white/40 text-xs flex items-center gap-1">
-              <CheckCircle2 size={10} className="text-emerald-400" />
-              {shortAddress}
+    <div className="relative">
+      {/* Collapsed trigger row */}
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className="w-full flex items-center justify-between gap-3 group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="relative w-8 h-8 shrink-0">
+            {solConnected ? (
+              <WalletPhantom size={28} />
+            ) : ethConnected ? (
+              <WalletMetamask size={28} />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
+                <Wallet size={16} className="text-white/40" />
+              </div>
+            )}
+            {anyConnected && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#1A1A1A]" />
+            )}
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-white/80 text-sm sm:text-base">
+              {anyConnected ? "External Wallets" : "Connect an external wallet"}
             </span>
-          ) : noMetaMask ? (
-            <span className="text-amber-400 text-xs flex items-center gap-1">
-              <AlertCircle size={10} />
-              MetaMask not found — install the extension
-            </span>
-          ) : (
-            <span className="text-white/30 text-xs">Not connected</span>
-          )}
+            {solConnected && shortSolAddress && (
+              <span className="text-white/40 text-xs">Phantom · {shortSolAddress}</span>
+            )}
+            {ethConnected && shortEthAddress && (
+              <span className="text-white/40 text-xs">MetaMask · {shortEthAddress}</span>
+            )}
+            {!anyConnected && (
+              <span className="text-white/30 text-xs">Phantom, MetaMask</span>
+            )}
+          </div>
         </div>
-      </div>
-      {isConnected ? (
-        <button onClick={() => disconnect()} className="btn btn-danger">
-          Disconnect
-        </button>
-      ) : (
-        <button
-          onClick={handleConnect}
-          disabled={isPending}
-          className="btn btn-primary"
-        >
-          {isPending ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            "Connect"
-          )}
-        </button>
+        <ChevronRight
+          size={16}
+          className={`text-white/30 group-hover:text-white/60 transition-all duration-200 ${
+            open ? "rotate-90" : ""
+          }`}
+        />
+      </button>
+
+      {/* Picker popup */}
+      {open && (
+        <div className="mt-3 ml-11 bg-[#111] border border-white/10 rounded-2xl p-3 flex flex-col gap-2 shadow-xl">
+          {/* Phantom row */}
+          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+            <div className="flex items-center gap-2.5">
+              <WalletPhantom size={24} />
+              <div className="flex flex-col">
+                <span className="text-white/80 text-sm">Phantom</span>
+                {solConnected && shortSolAddress ? (
+                  <span className="text-white/40 text-xs flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-400" />
+                    {shortSolAddress}
+                  </span>
+                ) : (
+                  <span className="text-white/30 text-xs">Not connected</span>
+                )}
+              </div>
+            </div>
+            {solConnected ? (
+              <button onClick={() => solDisconnect()} className="btn btn-danger text-xs py-1 px-3">
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={() => setVisible(true)}
+                disabled={solConnecting}
+                className="btn btn-primary text-xs py-1 px-3"
+              >
+                {solConnecting ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
+              </button>
+            )}
+          </div>
+
+          <div className="h-px bg-white/5 mx-2" />
+
+          {/* MetaMask row */}
+          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+            <div className="flex items-center gap-2.5">
+              <WalletMetamask size={24} />
+              <div className="flex flex-col">
+                <span className="text-white/80 text-sm">MetaMask</span>
+                {ethConnected && shortEthAddress ? (
+                  <span className="text-white/40 text-xs flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-400" />
+                    {shortEthAddress}
+                  </span>
+                ) : noMetaMask ? (
+                  <span className="text-amber-400 text-xs flex items-center gap-1">
+                    <AlertCircle size={10} /> Not found — install extension
+                  </span>
+                ) : (
+                  <span className="text-white/30 text-xs">Not connected</span>
+                )}
+              </div>
+            </div>
+            {ethConnected ? (
+              <button onClick={() => ethDisconnect()} className="btn btn-danger text-xs py-1 px-3">
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={handleEthConnect}
+                disabled={ethPending}
+                className="btn btn-primary text-xs py-1 px-3"
+              >
+                {ethPending ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -548,9 +530,9 @@ const Account = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Left column */}
-        <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 flex flex-col min-h-[400px]">
+        <div className="flex flex-col gap-6 sm:gap-8 min-h-[400px]">
           {/* Sui wallet */}
-          <div className="bg-white/5 p-4 sm:p-6 rounded-3xl mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4 w-full sm:w-auto">
               <Wallet className="text-white/40 shrink-0" />
               <span className="text-white font-medium truncate">
@@ -568,7 +550,7 @@ const Account = () => {
           </div>
 
           {/* Permissions */}
-          <div className="space-y-6 bg-white/5 p-4 sm:p-6 rounded-3xl mb-8">
+          <div className="space-y-6 bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8">
             <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider">
               Permissions
             </h3>
@@ -622,7 +604,7 @@ const Account = () => {
           {/* Logout button (dev) */}
           <button
             onClick={() => setIsLogoutModalOpen(true)}
-            className="w-min px-6 py-2.5 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/20 rounded-xl flex items-center gap-3 transition-colors mt-auto group"
+            className="w-min px-6 py-2.5 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/20 rounded-xl flex items-center gap-3 transition-colors group"
           >
             <LogOut
               size={18}
@@ -669,9 +651,7 @@ const Account = () => {
               <div className="h-px bg-white/5" />
               <TelegramConnect />
               <div className="h-px bg-white/5" />
-              <PhantomConnect />
-              <div className="h-px bg-white/5" />
-              <MetaMaskConnect />
+              <ExternalWalletConnect />
             </div>
 
             {/* Bridge hint */}
