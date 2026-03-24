@@ -11,11 +11,11 @@ import checkinRouter from "./checkin";
 import taskPointsRouter from "./taskPoints";
 import subscriptionRoutes from "./subscription";
 
-
 import chatsRouter from "./chats";
 import telegramRouter from "./telegram";
 import priceRouter from "./price";
 import proactiveRouter from "./proactive";
+import bridgeTransactionsRouter from "./bridgeTransactions";
 
 const router = Router();
 
@@ -35,6 +35,7 @@ router.use("/chats", chatsRouter);
 router.use("/telegram", telegramRouter);
 router.use("/price", priceRouter);
 router.use("/proactive", proactiveRouter);
+router.use("/bridge", bridgeTransactionsRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
@@ -88,8 +89,6 @@ router.get("/info", (_req: Request, res: Response) => {
         "GET /api/proactive/simulations",
         "POST /api/proactive/simulations/:id/execute",
       ],
-
-
     },
     storage: "Supabase",
     blockchain: "Sui",

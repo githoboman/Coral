@@ -1,5 +1,8 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { createSSEWriter, type ChatRequest } from "../services/agents/agentTypes";
+import { Router, Request, Response } from "express";
+import {
+  createSSEWriter,
+  type ChatRequest,
+} from "../services/agents/agentTypes";
 import { getTaskManagerAgent } from "../services/agents/taskManagerAgent";
 import { getSubscriptionService } from "../services/subscriptionService";
 import { getChatService } from "../services/chatService";
@@ -7,9 +10,9 @@ import { getResearchAgent } from "../services/agents/researchAgent";
 import { getUserStateService } from "../services/userStateService";
 import { trackTaskCreation } from "../services/agents/taskManagerAgent";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { getBridgeAgent } from "../services/agents/bridgeAgent";
 
 const router = Router();
-
 
 /**
  * POST /api/chat
@@ -19,67 +22,83 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   console.log("[CHAT ROUTE] POST /api/chat endpoint hit!");
 
   try {
-    // Use the authenticated wallet address as the userId (prevents impersonation)
     const userId = req.user!.wallet_address;
 
     const { message, agent_id, chat_id } = req.body;
     const msgContent = message || req.body.message;
     const agentId = agent_id || req.body.agentId;
-    const chatId = chat_id || req.body.chatId; // Optional
-    const clientTime = req.body.client_time || req.body.clientTime || new Date().toISOString();
+    const chatId = chat_id || req.body.chatId;
+    const clientTime =
+      req.body.client_time || req.body.clientTime || new Date().toISOString();
 
     if (!msgContent) {
       return res.status(400).json({ error: "message is required" });
     }
 
-
     // ✅ TASK AGENT: Check daily limit
     if (agentId === "task" || agentId === "task_agent") {
       const subscriptionService = getSubscriptionService();
-      const canUse = await subscriptionService.canUsePrompt(userId, 'task', true);
+      const canUse = await subscriptionService.canUsePrompt(
+        userId,
+        "task",
+        true,
+      );
 
       if (!canUse) {
-        const remaining = await subscriptionService.getPromptsRemaining(userId, 'task');
-        console.log(`[TASK AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`);
+        const remaining = await subscriptionService.getPromptsRemaining(
+          userId,
+          "task",
+        );
+        console.log(
+          `[TASK AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`,
+        );
         return res.status(429).json({
           error: "Task Agent Limit Reached",
-          message: remaining.tier === 0
-            ? "You need to upgrade to premium to continue chatting. Free tier only gets 2 prompts per day."
-            : "You've reached your daily limit of 4 task agent prompts. Try again tomorrow.",
+          message:
+            remaining.tier === 0
+              ? "You need to upgrade to premium to continue chatting. Free tier only gets 2 prompts per day."
+              : "You've reached your daily limit of 4 task agent prompts. Try again tomorrow.",
           limit: remaining.limit,
           used: remaining.used,
           requiresUpgrade: remaining.tier === 0,
         });
       }
 
-      // Track usage
-      subscriptionService.trackPromptUsage(userId, 'task').catch(() => { });
+      subscriptionService.trackPromptUsage(userId, "task").catch(() => {});
     }
 
-    // ✅ RESEARCH AGENT: Check daily limit (3 free / 6 premium)
+    // ✅ RESEARCH AGENT: Check daily limit
     if (agentId === "research") {
       const subscriptionService = getSubscriptionService();
-      const canUse = await subscriptionService.canUsePrompt(userId, 'research', true);
+      const canUse = await subscriptionService.canUsePrompt(
+        userId,
+        "research",
+        true,
+      );
 
       if (!canUse) {
-        const remaining = await subscriptionService.getPromptsRemaining(userId, 'research');
-        console.log(`[RESEARCH AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`);
+        const remaining = await subscriptionService.getPromptsRemaining(
+          userId,
+          "research",
+        );
+        console.log(
+          `[RESEARCH AGENT LIMIT] User ${userId.substring(0, 10)}... blocked - ${remaining.used}/${remaining.limit} used`,
+        );
         return res.status(429).json({
           error: "Research Agent Limit Reached",
-          message: remaining.tier === 0
-            ? "You need to upgrade to premium to continue. Free tier only gets 2 research prompts per day."
-            : "You've reached your daily limit of 5 research prompts. Try again tomorrow.",
+          message:
+            remaining.tier === 0
+              ? "You need to upgrade to premium to continue. Free tier only gets 2 research prompts per day."
+              : "You've reached your daily limit of 5 research prompts. Try again tomorrow.",
           limit: remaining.limit,
           used: remaining.used,
           requiresUpgrade: remaining.tier === 0,
         });
       }
 
-      // Track usage
-      subscriptionService.trackPromptUsage(userId, 'research').catch(() => { });
+      subscriptionService.trackPromptUsage(userId, "research").catch(() => {});
     }
 
-    // ✅ SSE headers set immediately
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -87,7 +106,6 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
 
     const sse = createSSEWriter(res);
 
-    // ── Handle Conversation ID ───────────────────────────────────────
     const chatService = getChatService();
     let finalConversationId = chatId;
 
@@ -96,7 +114,9 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         const newChat = await chatService.createChat(
           userId,
           agentId || "task",
-          msgContent.length > 30 ? msgContent.substring(0, 30) + "..." : msgContent
+          msgContent.length > 30
+            ? msgContent.substring(0, 30) + "..."
+            : msgContent,
         );
 
         if (newChat) {
@@ -112,30 +132,36 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         sse.conversation(finalConversationId);
       }
     } else {
-      // Send existing ID to ensure client sync
       sse.conversation(finalConversationId);
     }
 
-    // ✅ SPEED FIX: User message save is fire-and-forget
-    chatService.addMessage(finalConversationId, userId, "user", msgContent)
-      .catch((err) => console.error("[CHAT] Failed to save user message:", err));
+    chatService
+      .addMessage(finalConversationId, userId, "user", msgContent)
+      .catch((err) =>
+        console.error("[CHAT] Failed to save user message:", err),
+      );
 
-
-    // ── Route to agent ───────────────────────────────────────────────
     try {
-      console.log(`[CHAT] ${agentId} agent request from ${userId.substring(0, 10)}...`);
+      console.log(
+        `[CHAT] ${agentId} agent request from ${userId.substring(0, 10)}...`,
+      );
 
       const agentStart = Date.now();
       let fullResponse = "";
 
-      // Map "task_agent" from legacy payload to "task"
-      const normalizedAgentId = (agentId === "task_agent") ? "task" : agentId;
+      const normalizedAgentId = agentId === "task_agent" ? "task" : agentId;
 
       switch (normalizedAgentId) {
         case "task": {
           const agent = getTaskManagerAgent();
           fullResponse = await agent.handle(
-            { userId, agentId: "task", message: msgContent, conversationId: finalConversationId, clientTime },
+            {
+              userId,
+              agentId: "task",
+              message: msgContent,
+              conversationId: finalConversationId,
+              clientTime,
+            },
             sse,
           );
           break;
@@ -144,11 +170,34 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
         case "research": {
           const agent = getResearchAgent();
           fullResponse = await agent.handle(
-            { userId, agentId: "research", message: msgContent, conversationId: finalConversationId, clientTime },
-            sse
+            {
+              userId,
+              agentId: "research",
+              message: msgContent,
+              conversationId: finalConversationId,
+              clientTime,
+            },
+            sse,
           );
-          // Reward user for research agent usage
-          trackTaskCreation(userId, "research").catch(err => console.error("[CHAT] Failed to track research points:", err));
+          trackTaskCreation(userId, "research").catch((err) =>
+            console.error("[CHAT] Failed to track research points:", err),
+          );
+          break;
+        }
+
+        case "bridge": {
+          const agent = getBridgeAgent();
+          fullResponse = await agent.handle(
+            {
+              userId,
+              agentId: "bridge",
+              message: msgContent,
+              conversationId: finalConversationId,
+              clientTime,
+              conversationHistory: req.body.conversationHistory || [],
+            },
+            sse,
+          );
           break;
         }
 
@@ -167,48 +216,47 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           return;
       }
 
-      // Save AI Response (fire-and-forget)
       if (finalConversationId && fullResponse) {
-        chatService.addMessage(finalConversationId, null, "ai", fullResponse)
-          .catch((err) => console.error("[CHAT] Failed to save AI message:", err));
+        chatService
+          .addMessage(finalConversationId, null, "ai", fullResponse)
+          .catch((err) =>
+            console.error("[CHAT] Failed to save AI message:", err),
+          );
       }
 
-      // Phase 1: Track interaction pattern (fire-and-forget)
       (async () => {
         try {
           const userStateService = getUserStateService();
-          const interactionType = normalizedAgentId === "research" ? "research" : "task";
-          // Extract token mention from message for research tracking
+          const interactionType =
+            normalizedAgentId === "research" ? "research" : "task";
           const tokenMatch = msgContent.match(/\b(SUI|USDC|USDT|BTC|ETH)\b/i);
           await userStateService.recordInteraction(userId, interactionType, {
             token: tokenMatch ? tokenMatch[1].toUpperCase() : undefined,
           });
-        } catch (err) {
-          // Non-critical, never block the response
-        }
+        } catch (err) {}
       })();
 
-      // Phase 2: Post-research suggestion trigger (fire-and-forget)
       if (normalizedAgentId === "research" && fullResponse) {
         (async () => {
           try {
-            const { getSuggestionEngine } = await import("../services/suggestionEngine");
-            await getSuggestionEngine().onResearchComplete(userId, msgContent, fullResponse);
-          } catch (err) {
-            // Non-critical
-          }
+            const { getSuggestionEngine } =
+              await import("../services/suggestionEngine");
+            await getSuggestionEngine().onResearchComplete(
+              userId,
+              msgContent,
+              fullResponse,
+            );
+          } catch (err) {}
         })();
       }
 
       console.log(`[CHAT] Agent completed in ${Date.now() - agentStart}ms`);
-
     } catch (error) {
       console.error("[CHAT] Agent error:", error);
       try {
         sse.error("An unexpected error occurred. Please try again.");
-      } catch { }
+      } catch {}
     }
-
   } catch (error) {
     console.error("[CHAT ROUTE] Chat error:", error);
     if (!res.headersSent) {
@@ -217,55 +265,62 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// ✅ Legacy endpoints requested by user
+// ── Prompt status endpoints (unchanged) ───────────────────────────────
 
-// Task agent daily prompt status - authenticated, returns own usage only
-router.get("/task-prompts/:userId", requireAuth, async (req: AuthRequest, res: Response) => {
-  try {
-    // Use authenticated user address, ignore the :userId param
-    const userId = req.user!.wallet_address;
+router.get(
+  "/task-prompts/:userId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.wallet_address;
+      const forceRefresh = req.query.force === "true";
+      const subscriptionService = getSubscriptionService();
+      const remaining = await subscriptionService.getPromptsRemaining(
+        userId,
+        "task",
+        forceRefresh,
+      );
 
-    const forceRefresh = req.query.force === 'true';
-    const subscriptionService = getSubscriptionService();
-    const remaining = await subscriptionService.getPromptsRemaining(userId, 'task', forceRefresh);
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setUTCHours(24, 0, 0, 0);
+      const resetInSeconds = Math.floor(
+        (tomorrow.getTime() - now.getTime()) / 1000,
+      );
 
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setUTCHours(24, 0, 0, 0);
-    const resetInSeconds = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+      res.json({ ...remaining, resetInSeconds });
+    } catch (error) {
+      res.json({ used: 0, limit: 2, remaining: 2, tier: 0 });
+    }
+  },
+);
 
-    res.json({
-      ...remaining,
-      resetInSeconds,
-    });
-  } catch (error) {
-    res.json({ used: 0, limit: 2, remaining: 2, tier: 0 });
-  }
-});
+router.get(
+  "/research-prompts/:userId",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.wallet_address;
+      const forceRefresh = req.query.force === "true";
+      const subscriptionService = getSubscriptionService();
+      const remaining = await subscriptionService.getPromptsRemaining(
+        userId,
+        "research",
+        forceRefresh,
+      );
 
-// Research agent daily prompt status - authenticated, returns own usage only
-router.get("/research-prompts/:userId", requireAuth, async (req: AuthRequest, res: Response) => {
-  try {
-    // Use authenticated user address, ignore the :userId param
-    const userId = req.user!.wallet_address;
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setUTCHours(24, 0, 0, 0);
+      const resetInSeconds = Math.floor(
+        (tomorrow.getTime() - now.getTime()) / 1000,
+      );
 
-    const forceRefresh = req.query.force === 'true';
-    const subscriptionService = getSubscriptionService();
-    const remaining = await subscriptionService.getPromptsRemaining(userId, 'research', forceRefresh);
-
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setUTCHours(24, 0, 0, 0);
-    const resetInSeconds = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
-
-    res.json({
-      ...remaining,
-      resetInSeconds,
-    });
-  } catch (error) {
-    res.json({ used: 0, limit: 3, remaining: 3, tier: 0 });
-  }
-});
-
+      res.json({ ...remaining, resetInSeconds });
+    } catch (error) {
+      res.json({ used: 0, limit: 3, remaining: 3, tier: 0 });
+    }
+  },
+);
 
 export default router;
