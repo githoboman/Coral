@@ -342,7 +342,7 @@ const ExternalWalletConnect = () => {
 
       {/* Picker popup */}
       {open && (
-        <div className="mt-3 ml-11 bg-[#111] border border-white/10 rounded-2xl p-3 flex flex-col gap-2 shadow-xl">
+        <div className="mt-3 bg-[#111] border border-white/10 rounded-2xl p-3 flex flex-col gap-2 shadow-xl">
           {/* Phantom row */}
           <div className="flex items-center justify-between gap-3 px-2 py-1.5">
             <div className="flex items-center gap-2.5">
@@ -360,14 +360,14 @@ const ExternalWalletConnect = () => {
               </div>
             </div>
             {solConnected ? (
-              <button onClick={() => solDisconnect()} className="btn btn-danger text-xs py-1 px-3">
+              <button onClick={() => solDisconnect()} className="bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-medium py-1.5 px-4 rounded-full transition-colors">
                 Disconnect
               </button>
             ) : (
               <button
                 onClick={() => setVisible(true)}
                 disabled={solConnecting}
-                className="btn btn-primary text-xs py-1 px-3"
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-medium py-1.5 px-4 rounded-full transition-colors disabled:opacity-50"
               >
                 {solConnecting ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
               </button>
@@ -397,14 +397,14 @@ const ExternalWalletConnect = () => {
               </div>
             </div>
             {ethConnected ? (
-              <button onClick={() => ethDisconnect()} className="btn btn-danger text-xs py-1 px-3">
+              <button onClick={() => ethDisconnect()} className="bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-medium py-1.5 px-4 rounded-full transition-colors">
                 Disconnect
               </button>
             ) : (
               <button
                 onClick={handleEthConnect}
                 disabled={ethPending}
-                className="btn btn-primary text-xs py-1 px-3"
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-medium py-1.5 px-4 rounded-full transition-colors disabled:opacity-50"
               >
                 {ethPending ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
               </button>
