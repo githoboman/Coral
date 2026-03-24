@@ -2398,6 +2398,7 @@ const Dashboard = () => {
   useEffect(() => {
     setMobileActions?.({
       onRecentClick: () => setShowRecents((p) => !p),
+      onTransactionsClick: () => setShowTransactions((p) => !p),
       onNewClick: handleNewChat,
       customAction: (
         <div className="relative pointer-events-auto" ref={dropdownRef}>
