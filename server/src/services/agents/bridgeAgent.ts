@@ -21,15 +21,15 @@ export const BRIDGE_CFG = {
   maxAmountEth: BigInt(process.env.MAX_BRIDGE_AMOUNT_ETH || "100000000000000"),
   suiPackageId:
     process.env.SUI_BRIDGE_PACKAGE_ID ||
-    "0x4fa5caa2a56279b502ae4ee94f9a0e4ff13f5ec76670a6a628f6c3c26b84a21a",
+    "0x0d096ec87af88d0bd178484a4489266c9be13aa977ffed2e0490218795be1315",
   suiPoolObjectId:
     process.env.SUI_BRIDGE_POOL_ID ||
-    "0x3a9ee2a78579db7fbbd9cb8a43208f94682f6724abe3351d20c4110dfdfc0371",
+    "0x31391a529d8b954c940fa6e583031c8ded882d5375947c4a234997fe6206cb98",
   solanaVaultAddress:
     process.env.SOLANA_BRIDGE_VAULT ||
-    "61Tadihhy2J6MtjAubiz2qAGHSEhmmK7RH18wDRawzQP",
+    "3fTg9t975rDKEc2t5BuQWt5kG4pe2SjaUuytbxi2U8fC",
   ethereumVaultAddress: (process.env.ETH_BRIDGE_VAULT ||
-    "0xb3eC343184311fA58F85f3f52027F27849472624") as `0x${string}`,
+    "0x83D00Cc1581E64333811F26626fAE1c0B0b6A52d") as `0x${string}`,
   solanaMemoProgramId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
   estimatedSuiGasMist: BigInt(10_000_000),
   gasReserveMist: BigInt(20_000_000),
