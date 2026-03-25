@@ -8,7 +8,7 @@ import {
 import { sileo } from "sileo";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useAccount, useSendTransaction } from "wagmi";
-import { Connection as SolanaConnection, PublicKey } from "@solana/web3.js";
+import { Connection as SolanaConnection } from "@solana/web3.js";
 
 import {
   ArrowUp,
@@ -46,7 +46,6 @@ import {
   History,
   ArrowUpRight,
   ArrowDownLeft,
-  Circle,
 } from "lucide-react";
 import { RecentChatsModal } from "@/components/RecentChatsModal";
 import { ChatSkeleton } from "@/components/ui/SkeletonLoader";
@@ -1073,7 +1072,6 @@ function BridgeActionCard({
   );
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
   const [destTxHash, setDestTxHash] = useState<string | null>(null);
-  const [dbTxId, setDbTxId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaMessageIndex, setEvaMessageIndex] = useState(0);
 
@@ -1155,7 +1153,7 @@ function BridgeActionCard({
     }
   }
 
-  function startDeliveryPolling(sourceTx: string, savedDbId: number | null) {
+  function startDeliveryPolling(_sourceTx: string, savedDbId: number | null) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
 
@@ -1269,7 +1267,6 @@ function BridgeActionCard({
               const digest = result.digest;
               setSourceTxHash(digest);
               const dbId = await saveBridgeTx(digest);
-              setDbTxId(dbId);
               startDeliveryPolling(digest, dbId);
             },
             onError: (err: any) => {
@@ -1308,14 +1305,13 @@ function BridgeActionCard({
           new TransactionInstruction({
             keys: [],
             programId: MEMO_PROGRAM_ID,
-            data: new TextEncoder().encode(`sui:${recipient}`),
+            data: Buffer.from(`sui:${recipient}`),
           }),
         );
         const sig = await sendSolTx(tx, solanaConnection);
         setSourceTxHash(sig);
         setSignStatus("submitted");
         const dbId = await saveBridgeTx(sig);
-        setDbTxId(dbId);
         startDeliveryPolling(sig, dbId);
       } else if (chain === "ethereum") {
         if (!sendEthTx) throw new Error("Ethereum wallet not connected");
@@ -1332,7 +1328,6 @@ function BridgeActionCard({
         setSourceTxHash(hash);
         setSignStatus("submitted");
         const dbId = await saveBridgeTx(hash);
-        setDbTxId(dbId);
         startDeliveryPolling(hash, dbId);
       }
     } catch (err: any) {
@@ -1816,12 +1811,6 @@ const Dashboard = () => {
   );
   const activeAgent = getAgent(selectedAgentId);
 
-  const formatCountdown = (seconds: number) => {
-    const h = Math.floor(seconds / 3600),
-      m = Math.floor((seconds % 3600) / 60),
-      s = seconds % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
 
   useEffect(() => {
     if (!currentAccount?.address) return;
@@ -2409,6 +2398,7 @@ const Dashboard = () => {
   useEffect(() => {
     setMobileActions?.({
       onRecentClick: () => setShowRecents((p) => !p),
+      onTransactionsClick: () => setShowTransactions((p) => !p),
       onNewClick: handleNewChat,
       customAction: (
         <div className="relative pointer-events-auto" ref={dropdownRef}>

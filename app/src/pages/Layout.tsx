@@ -837,6 +837,7 @@ export default function AppLayout() {
   const [mobileActions, setMobileActions] = useState<{
     onRecentClick?: () => void;
     onNewClick?: () => void;
+    onTransactionsClick?: () => void;
     customAction?: React.ReactNode;
   } | null>(null);
 
@@ -1199,6 +1200,7 @@ export default function AppLayout() {
             onMenuClick={() => setIsSidebarOpen(true)}
             onRecentChatsClick={mobileActions?.onRecentClick}
             onNewChatClick={mobileActions?.onNewClick}
+            onTransactionsClick={mobileActions?.onTransactionsClick}
             showChatActions={!!mobileActions}
             customAction={mobileActions?.customAction}
           />

@@ -5,6 +5,7 @@ export type LayoutContextType = {
     actions: {
       onRecentClick?: () => void;
       onNewClick?: () => void;
+      onTransactionsClick?: () => void;
       customAction?: React.ReactNode;
     } | null,
   ) => void;
