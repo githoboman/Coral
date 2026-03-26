@@ -37,6 +37,10 @@ export interface UserProfile {
   // Research prompts
   daily_research_prompts_used?: number;
   last_research_prompt_date?: string;
+
+  // Tracked wallets
+  recently_analyzed?: string[];
+  alert_wallets?: string[];
 }
 
 export interface DecryptedUserProfile {
@@ -72,6 +76,10 @@ export interface DecryptedUserProfile {
   // Research prompts
   daily_research_prompts_used?: number;
   last_research_prompt_date?: string;
+
+  // Tracked wallets
+  recently_analyzed?: string[];
+  alert_wallets?: string[];
 }
 
 export class UserManager {
@@ -275,6 +283,8 @@ export class UserManager {
         last_prompt_date: profile.last_prompt_date,
         daily_research_prompts_used: profile.daily_research_prompts_used,
         last_research_prompt_date: profile.last_research_prompt_date,
+        recently_analyzed: profile.recently_analyzed || [],
+        alert_wallets: profile.alert_wallets || [],
       };
     } catch (error) {
       console.error("[USER_MANAGER] Error fetching profile from Supabase:", error);
@@ -461,6 +471,49 @@ export class UserManager {
     } catch (error) {
       console.error(`[USER_MANAGER] Error incrementing ${type} activity count:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Prepends a wallet address to the recently_analyzed array, capped at 5.
+   */
+  async addRecentlyAnalyzed(
+    walletAddress: string,
+    analyzedWallet: string
+  ): Promise<string[] | null> {
+    try {
+      // First fetch the current array
+      const { data, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('recently_analyzed')
+        .eq('wallet_address', walletAddress)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      let currentArray: string[] = data?.recently_analyzed || [];
+      
+      // Remove if it exists to avoid duplicates
+      currentArray = currentArray.filter(addr => addr !== analyzedWallet);
+      
+      // Prepend the new one
+      currentArray.unshift(analyzedWallet);
+      
+      // Keep only last 5
+      currentArray = currentArray.slice(0, 5);
+      
+      // Update DB
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ recently_analyzed: currentArray })
+        .eq('wallet_address', walletAddress);
+        
+      if (updateError) throw updateError;
+      
+      return currentArray;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error updating recently analyzed:", error);
+      return null;
     }
   }
 }

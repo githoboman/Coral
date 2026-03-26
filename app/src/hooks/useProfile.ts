@@ -19,6 +19,8 @@ export interface UserProfile {
   preferences?: UserPreferences;
   referral_code?: string;
   referrals_count?: number;
+  recently_analyzed?: string[];
+  alert_wallets?: string[];
 }
 
 export function useProfile() {
