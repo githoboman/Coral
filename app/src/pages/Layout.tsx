@@ -1062,7 +1062,7 @@ export default function AppLayout() {
     <div className="w-full relative bg-black overflow-hidden">
       <div className="absolute inset-0 bg-[#070B0F] -z-10" />
 
-      <div className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
+      <div id="main-scroll-container" className="flex w-full h-dvh overflow-x-hidden overflow-y-auto">
         <div className="fixed top-0 left-10 h-dvh py-2 hidden md:flex z-50">
           <Sidebar
             navItems={navItems}
