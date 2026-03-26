@@ -123,4 +123,40 @@ router.post(
   },
 );
 
+router.post(
+  "/user/recently-analyzed",
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { wallet_address } = req.body;
+      const user = (req as any).user;
+
+      if (!wallet_address || typeof wallet_address !== "string") {
+        return res.status(400).json({ error: "wallet_address is required" });
+      }
+
+      const manager = getLocalUserManager();
+      
+      // We assume user is attached via requireAuth and has wallet_address property
+      // If it's a token payload, it might be in user.wallet_address or user.id
+      const currentUserWallet = user?.wallet_address || user?.id;
+      
+      if (!currentUserWallet) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const updatedArray = await manager.addRecentlyAnalyzed(currentUserWallet, wallet_address);
+
+      if (!updatedArray) {
+        return res.status(500).json({ error: "Failed to update recently analyzed list" });
+      }
+
+      return res.json({ recently_analyzed: updatedArray });
+    } catch (error) {
+      console.error("Error in recently-analyzed:", error);
+      next(error);
+    }
+  }
+);
+
 export default router;

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { gsap } from "gsap";
+import { useGSAP } from "@gsap/react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import { LayoutContextType } from "@/types/LayoutTypes";
 import {
   Search,
   ChevronDown,
@@ -10,8 +10,13 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   X,
+  ChevronLeft,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { useActivity } from "@/hooks/useActivity";
+import { useTokens } from "@/hooks/useTokens";
+import { useProfile } from "@/hooks/useProfile";
 import { sileo } from "sileo";
 import { 
   AreaChart, 
@@ -19,14 +24,18 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { SkeletonBox } from "@/components/ui/SkeletonLoader";
 
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
-  const [displayAddress, setDisplayAddress] = useState(address);
-  const { activity, isFetchingActivity, fetchActivity } = useActivity(displayAddress);
+  const [viewedWallet, setViewedWallet] = useState<string | null>(null);
+  const effectiveAddress = viewedWallet || address;
+  const { activity, isFetchingActivity, fetchActivity } = useActivity(effectiveAddress);
 
-  const { walletBalanceUSD, tokens } = useOutletContext<LayoutContextType>();
+  const { walletBalanceUSD, tokens, isFetchingTokens } = useTokens(effectiveAddress);
+  const { profile, refetch: refetchProfile } = useProfile();
+
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const [isRecentTxModalOpen, setIsRecentTxModalOpen] = useState(false);
@@ -37,11 +46,137 @@ export default function OnchainAnalysis() {
   const [searchAddress, setSearchAddress] = useState("");
   const [portfolioChange, setPortfolioChange] = useState({ value: 0, isPositive: true });
 
+  const [isRecentlyAnalyzedOpen, setIsRecentlyAnalyzedOpen] = useState(false);
+  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
+  const [isAlertManagerView, setIsAlertManagerView] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const recentlyAnalyzedRef = useRef<HTMLDivElement>(null);
+  const networkDropdownRef = useRef<HTMLDivElement>(null);
+  const addressToSaveRef = useRef<string | null>(null);
+
+  const recentlyAnalyzedMenuRef = useRef<HTMLDivElement>(null);
+  const networkMenuRef = useRef<HTMLDivElement>(null);
+  const searchSuggestionsMenuRef = useRef<HTMLDivElement>(null);
+
+  const [shouldRenderRecentlyAnalyzed, setShouldRenderRecentlyAnalyzed] = useState(false);
+  const [shouldRenderNetwork, setShouldRenderNetwork] = useState(false);
+  const [shouldRenderSearchSuggestions, setShouldRenderSearchSuggestions] = useState(false);
+
   useEffect(() => {
-    if (displayAddress) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
+        setIsSearchSuggestionsOpen(false);
+      }
+      if (recentlyAnalyzedRef.current && !recentlyAnalyzedRef.current.contains(target)) {
+        setIsRecentlyAnalyzedOpen(false);
+      }
+      if (networkDropdownRef.current && !networkDropdownRef.current.contains(target)) {
+        setIsNetworkDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSearch = async (addr: string) => {
+    if (!addr || !addr.startsWith("0x")) return;
+    setViewedWallet(addr);
+    setIsRecentlyAnalyzedOpen(false);
+    setIsSearchSuggestionsOpen(false);
+    setSearchAddress(addr); // Autofill
+    
+    // Set ref to trigger save after data finishes loading
+    if (address && addr !== address) {
+      addressToSaveRef.current = addr;
+    }
+  };
+
+  useEffect(() => {
+    if (effectiveAddress) {
       fetchActivity();
     }
-  }, [displayAddress, fetchActivity]);
+  }, [effectiveAddress, fetchActivity]);
+
+  // Save recently analyzed address after successful fetch
+  useEffect(() => {
+    if (addressToSaveRef.current && !isFetchingTokens && !isFetchingActivity) {
+      const addr = addressToSaveRef.current;
+      addressToSaveRef.current = null; // Prevent duplicate saves
+
+      (async () => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+          await fetch(`${baseUrl}/api/user/recently-analyzed`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wallet_address: addr })
+          });
+          refetchProfile();
+        } catch (err) {
+          console.error("Failed to add recently analyzed:", err);
+        }
+      })();
+    }
+  }, [isFetchingTokens, isFetchingActivity, refetchProfile]);
+
+  // Animate Recently Analyzed Dropdown (Top Right)
+  useEffect(() => {
+    if (isRecentlyAnalyzedOpen) setShouldRenderRecentlyAnalyzed(true);
+  }, [isRecentlyAnalyzedOpen]);
+
+  useGSAP(() => {
+    if (isRecentlyAnalyzedOpen && recentlyAnalyzedMenuRef.current) {
+      gsap.fromTo(recentlyAnalyzedMenuRef.current,
+        { opacity: 0, scale: 0.95, y: -10, transformOrigin: "top right" },
+        { opacity: 1, scale: 1, y: 0, duration: 0.2, ease: "power2.out" }
+      );
+    } else if (!isRecentlyAnalyzedOpen && recentlyAnalyzedMenuRef.current) {
+      gsap.to(recentlyAnalyzedMenuRef.current, {
+        opacity: 0, scale: 0.95, y: -10, duration: 0.15, ease: "power2.in",
+        onComplete: () => setShouldRenderRecentlyAnalyzed(false)
+      });
+    }
+  }, [isRecentlyAnalyzedOpen, shouldRenderRecentlyAnalyzed]);
+
+  // Animate Network Dropdown
+  useEffect(() => {
+    if (isNetworkDropdownOpen) setShouldRenderNetwork(true);
+  }, [isNetworkDropdownOpen]);
+
+  useGSAP(() => {
+    if (isNetworkDropdownOpen && networkMenuRef.current) {
+      gsap.fromTo(networkMenuRef.current,
+        { opacity: 0, scale: 0.95, y: -10, transformOrigin: "top left" },
+        { opacity: 1, scale: 1, y: 0, duration: 0.2, ease: "power2.out" }
+      );
+    } else if (!isNetworkDropdownOpen && networkMenuRef.current) {
+      gsap.to(networkMenuRef.current, {
+        opacity: 0, scale: 0.95, y: -10, duration: 0.15, ease: "power2.in",
+        onComplete: () => setShouldRenderNetwork(false)
+      });
+    }
+  }, [isNetworkDropdownOpen, shouldRenderNetwork]);
+
+  // Animate Search Suggestions
+  useEffect(() => {
+    if (isSearchSuggestionsOpen) setShouldRenderSearchSuggestions(true);
+  }, [isSearchSuggestionsOpen]);
+
+  useGSAP(() => {
+    if (isSearchSuggestionsOpen && searchSuggestionsMenuRef.current) {
+      gsap.fromTo(searchSuggestionsMenuRef.current,
+        { opacity: 0, scale: 0.95, y: -10, transformOrigin: "top left" },
+        { opacity: 1, scale: 1, y: 0, duration: 0.2, ease: "power2.out" }
+      );
+    } else if (!isSearchSuggestionsOpen && searchSuggestionsMenuRef.current) {
+      gsap.to(searchSuggestionsMenuRef.current, {
+        opacity: 0, scale: 0.95, y: -10, duration: 0.15, ease: "power2.in",
+        onComplete: () => setShouldRenderSearchSuggestions(false)
+      });
+    }
+  }, [isSearchSuggestionsOpen, shouldRenderSearchSuggestions]);
 
   // Fetch performance data
   useEffect(() => {
@@ -106,7 +241,7 @@ export default function OnchainAnalysis() {
     };
 
     fetchPerformance();
-  }, [displayAddress, tokens, activity, selectedTimeframe]);
+  }, [effectiveAddress, tokens, activity, selectedTimeframe]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -122,32 +257,95 @@ export default function OnchainAnalysis() {
     <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8">
       <div className="max-w-[1200px] mx-auto space-y-6">
         
-         {/* Header Row */}
-        <div className="flex flex-col items-center sm:items-start justify-center gap-4">
-          <div className="flex flex-col sm:flex-row items-center sm:items-baseline justify-center sm:justify-start gap-4 w-full">
-            <h1 className="text-md md:text-2xl font-bold tracking-tight text-center sm:text-left">
+        {/* Header Row (Image 1 & 2 Style) */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
               Portfolio Dashboard
+              {isAlertManagerView && <span className="text-gray-300 font-light ml-3">/ Alert Manager</span>}
             </h1>
-            <div className="flex items-center gap-5 sm:ml-2">
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <span className="truncate max-w-[120px] sm:max-w-none text-center sm:text-left font-mono">
-                  {displayAddress ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}` : "No wallet connected"}
-                </span>
-                {displayAddress && (
+            
+            {!isAlertManagerView && (
+              <>
+                {viewedWallet && (
+                  <span className="bg-[#253203] text-[#B7FC0D] px-4 py-2 rounded-full text-[13px]  ml-1">
+                    View only
+                  </span>
+                )}
+                <div className="flex items-center gap-2 ml-1">
+                  <span className="font-mono text-sm text-gray-400">
+                    {effectiveAddress ? `${effectiveAddress.slice(0, 10)}...${effectiveAddress.slice(-6)}` : "No wallet connected"}
+                  </span>
+                  {effectiveAddress && (
+                    <button 
+                      onClick={() => copyToClipboard(effectiveAddress)}
+                      className="text-gray-600 hover:text-white transition-colors"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 md:pr-15">
+            {!isAlertManagerView ? (
+              <>
+                {/* Recently Analyzed Dropdown Button */}
+                <div className="relative" ref={recentlyAnalyzedRef}>
                   <button 
-                    onClick={() => copyToClipboard(displayAddress)}
-                    className="text-gray-500 hover:text-white transition-colors flex-shrink-0"
+                    onClick={() => setIsRecentlyAnalyzedOpen(!isRecentlyAnalyzedOpen)}
+                    className="flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#141414] border border-white/10 px-5 py-2 rounded-full text-sm font-medium transition-all"
                   >
-                    <Copy size={12} />
+                    Recently analysed <ChevronDown size={14} className={`text-gray-500 transition-transform ${isRecentlyAnalyzedOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {shouldRenderRecentlyAnalyzed && profile?.recently_analyzed && profile.recently_analyzed.length > 0 && (
+                    <div ref={recentlyAnalyzedMenuRef} className="absolute top-full right-0 mt-2 w-64 bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[70] p-1">
+                      {profile.recently_analyzed.map((addr: string, idx: number) => (
+                        <button 
+                          key={idx}
+                          onClick={() => {
+                            handleSearch(addr);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors flex items-center justify-between rounded-xl"
+                        >
+                          <span className="font-mono text-xs text-white/80">{addr.slice(0, 12)}...{addr.slice(-4)}</span>
+                          <span className="text-[10px] text-gray-500 italic">Recently analyzed</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {viewedWallet && (
+                  <button 
+                    onClick={() => {
+                      setViewedWallet(null);
+                      setSearchAddress("");
+                    }}
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft size={16} /> Back to my wallet
                   </button>
                 )}
-              </div>
-            </div>
+              </>
+            ) : (
+              <button 
+                onClick={() => setIsAlertManagerView(false)}
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <ChevronLeft size={16} /> Back to Dashboard
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Action Bar */}
-        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 pt-2">
+        {!isAlertManagerView && (
+          <>
+            {/* Action Bar */}
+            <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 pt-2">
           
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-4 w-full xl:w-auto">
             {/* USD / SUI Toggle */}
@@ -161,7 +359,7 @@ export default function OnchainAnalysis() {
             </div> */}
 
             {/* Network Selector */}
-            <div className="relative">
+            <div className="relative" ref={networkDropdownRef}>
               <button 
                 onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
                 className="flex items-center justify-between w-full sm:w-auto gap-2 bg-[#0A0A0A] border border-white/10 px-4 py-2 rounded-full hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-white/20 whitespace-nowrap"
@@ -170,8 +368,8 @@ export default function OnchainAnalysis() {
                 <ChevronDown size={14} className={`text-gray-400 transition-transform ${isNetworkDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               
-              {isNetworkDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-full sm:w-36 bg-[#0A0A0A] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
+              {shouldRenderNetwork && (
+                <div ref={networkMenuRef} className="absolute top-full left-0 mt-2 w-full sm:w-36 bg-[#0A0A0A] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
                   <div className="py-1">
                     <button 
                       onClick={() => setIsNetworkDropdownOpen(false)}
@@ -194,7 +392,7 @@ export default function OnchainAnalysis() {
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto flex-1">
             {/* Search Bar */}
-             <div className="flex-1 relative w-full">
+             <div className="flex-1 relative w-full" ref={dropdownRef}>
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search size={16} className="text-gray-400" />
               </div>
@@ -202,9 +400,12 @@ export default function OnchainAnalysis() {
                 type="text"
                 value={searchAddress}
                 onChange={(e) => setSearchAddress(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && setDisplayAddress(searchAddress)}
+                onFocus={() => setIsSearchSuggestionsOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSearch(searchAddress);
+                }}
                 placeholder="Enter a SUI address"
-                className="block w-full pl-10 pr-10 py-2.5 bg-[#141414] border border-white/10 rounded-full text-sm focus:outline-none focus:border-white/20 transition-colors placeholder:text-gray-500"
+                className="block w-full pl-11 pr-10 py-2.5 bg-[#0A0A0A] border border-white/10 rounded-full text-sm focus:outline-none focus:border-white/20 transition-all placeholder:text-gray-500 shadow-inner"
               />
               {searchAddress && (
                 <button 
@@ -214,14 +415,32 @@ export default function OnchainAnalysis() {
                   <X size={14} />
                 </button>
               )}
+              {shouldRenderSearchSuggestions && profile?.recently_analyzed && profile.recently_analyzed.length > 0 && (
+                <div ref={searchSuggestionsMenuRef} className="absolute top-full left-0 mt-2 w-full bg-[#0A0A0A] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60]">
+                  <div className="py-2">
+                    <div className="px-4 py-1 text-xs text-gray-500 font-medium">Recently Analyzed</div>
+                    {profile.recently_analyzed.map((addr: string, idx: number) => (
+                      <button 
+                        key={idx}
+                        onClick={() => {
+                          handleSearch(addr);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/5 transition-colors font-mono"
+                      >
+                        {addr.slice(0, 6)}...{addr.slice(-4)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4 w-full sm:w-auto">
               {/* Analyze Button */}
               <button 
-                onClick={() => setDisplayAddress(searchAddress)}
+                onClick={() => handleSearch(searchAddress)}
                 disabled={!searchAddress.startsWith("0x")}
-                className="flex-1 sm:flex-none bg-[#3B82F6] hover:bg-[#2563EB] text-white px-6 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50"
+                className="flex-1 sm:flex-none bg-[#246AFC] hover:bg-[#1C54CB] text-white px-8 py-2.5 rounded-full text-sm font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-50"
               >
                 Analyze wallet
               </button>
@@ -245,15 +464,23 @@ export default function OnchainAnalysis() {
           <div className="lg:col-span-3 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-between min-h-[220px]">
             <h3 className="text-gray-500 font-medium text-sm uppercase tracking-wider">Portfolio value</h3>
             <div className="flex-1 flex flex-col items-center justify-center py-4">
-              <div className="text-5xl font-bold text-white tracking-tight">${walletBalanceUSD || "0.00"}</div>
+              {isFetchingTokens ? (
+                <SkeletonBox className="h-12 w-32" />
+              ) : (
+                <div className="text-5xl font-bold text-white tracking-tight">${walletBalanceUSD || "0.00"}</div>
+              )}
             </div>
-            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
-              <span className="text-gray-500 text-xs font-medium">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7D" : "30D"}</span>
-              <div className={`h-3 w-[1px] bg-white/10`} />
-              <span className={`font-bold text-xs ${portfolioChange.isPositive ? "text-[#34D399]" : "text-rose-500"}`}>
-                {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
-              </span>
-            </div>
+            {isFetchingTokens ? (
+              <SkeletonBox className="h-6 w-24 rounded-full" />
+            ) : (
+              <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                <span className="text-gray-500 text-xs font-medium">{selectedTimeframe === "24h" ? "24h" : selectedTimeframe === "7D" ? "7D" : "30D"}</span>
+                <div className={`h-3 w-[1px] bg-white/10`} />
+                <span className={`font-bold text-xs ${portfolioChange.isPositive ? "text-[#34D399]" : "text-rose-500"}`}>
+                  {portfolioChange.isPositive ? "+" : "-"}{portfolioChange.value.toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Portfolio Performance */}
@@ -274,9 +501,9 @@ export default function OnchainAnalysis() {
             </div>
             
             <div className="flex-1 w-full min-h-[120px]">
-                {isFetchingPerformance ? (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <RefreshCw size={24} className="text-gray-600 animate-spin" />
+                {isFetchingPerformance || isFetchingTokens ? (
+                    <div className="w-full h-full">
+                        <SkeletonBox className="w-full h-full rounded-xl" />
                     </div>
                 ) : performanceData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -315,38 +542,51 @@ export default function OnchainAnalysis() {
             
             {/* Donut Chart */}
             <div className="relative w-40 h-40 sm:w-32 sm:h-32 flex-shrink-0">
-               {/* Pure CSS Donut Chart */}
-               <div className="w-full h-full rounded-full bg-[#1A1A1A] relative"
-                    style={{
-                        background: 'conic-gradient(#B7FC0D 0% 25%, #3B82F6 25% 100%)'
-                    }}>
-                    <div className="absolute inset-4 rounded-full bg-[#000000] flex flex-col items-center justify-center">
-                        <span className="text-xl font-bold">60%</span>
-                        <span className="text-xs text-gray-400">SUI</span>
-                    </div>
-               </div>
+               {isFetchingTokens ? (
+                   <SkeletonBox className="w-full h-full rounded-full" />
+               ) : (
+                   /* Pure CSS Donut Chart */
+                   <div className="w-full h-full rounded-full bg-[#1A1A1A] relative"
+                        style={{
+                            background: 'conic-gradient(#B7FC0D 0% 25%, #3B82F6 25% 100%)'
+                        }}>
+                        <div className="absolute inset-4 rounded-full bg-[#000000] flex flex-col items-center justify-center">
+                            <span className="text-xl font-bold">60%</span>
+                            <span className="text-xs text-gray-400">SUI</span>
+                        </div>
+                   </div>
+               )}
             </div>
 
             {/* Distribution Bars */}
             <div className="w-full sm:flex-1 sm:ml-8 space-y-5">
-                {[
-                    { 
-                      label: 'Liquid SUI', 
-                      value: tokens?.find(t => t.symbol === 'SUI') ? `${tokens.find(t => t.symbol === 'SUI').balance.toFixed(2)} SUI` : '0.00 SUI', 
-                      color: 'bg-[#3B82F6]', 
-                      width: '60%' 
-                    },
-                    { label: 'Staked SUI', value: '0.00 SUI', color: 'bg-[#3B82F6]', width: '5%' },
-                    { label: 'Locked SUI', value: '0.00 SUI', color: 'bg-[#3B82F6]', width: '2%' },
-                ].map((item, idx) => (
-                    <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <div className="w-full sm:w-24 text-sm text-gray-300">{item.label}</div>
-                        <div className="flex-1 h-6 bg-[#262626] rounded-full relative overflow-hidden flex items-center justify-end px-3">
-                            <div className={`absolute top-0 left-0 bottom-0 ${item.color} rounded-full`} style={{ width: item.width }} />
-                            <span className="relative z-10 text-xs text-gray-400 font-medium mix-blend-difference">{item.value}</span>
+                {isFetchingTokens ? (
+                    [...Array(3)].map((_, i) => (
+                        <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <SkeletonBox className="w-24 h-4" />
+                            <SkeletonBox className="flex-1 h-6 rounded-full" />
                         </div>
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    [
+                        { 
+                          label: 'Liquid SUI', 
+                          value: tokens?.find(t => t.symbol === 'SUI') ? `${tokens.find(t => t.symbol === 'SUI').balance.toFixed(2)} SUI` : '0.00 SUI', 
+                          color: 'bg-[#3B82F6]', 
+                          width: '60%' 
+                        },
+                        { label: 'Staked SUI', value: '0.00 SUI', color: 'bg-[#3B82F6]', width: '5%' },
+                        { label: 'Locked SUI', value: '0.00 SUI', color: 'bg-[#3B82F6]', width: '2%' },
+                    ].map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <div className="w-full sm:w-24 text-sm text-gray-300">{item.label}</div>
+                            <div className="flex-1 h-6 bg-[#262626] rounded-full relative overflow-hidden flex items-center justify-end px-3">
+                                <div className={`absolute top-0 left-0 bottom-0 ${item.color} rounded-full`} style={{ width: item.width }} />
+                                <span className="relative z-10 text-xs text-gray-400 font-medium mix-blend-difference">{item.value}</span>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
 
           </div>
@@ -359,7 +599,18 @@ export default function OnchainAnalysis() {
             <div className="lg:col-span-4 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 min-h-[220px] h-auto overflow-hidden flex flex-col">
                 <h3 className="text-gray-300 font-medium mb-6">Other assets</h3>
                 <div className="space-y-6 overflow-y-auto no-scrollbar flex-1">
-                    {tokens && tokens.length > 0 ? tokens.map((token, i) => (
+                    {isFetchingTokens ? (
+                        [...Array(4)].map((_, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <SkeletonBox className="w-8 h-8 rounded-full" />
+                                    <SkeletonBox className="h-4 w-20" />
+                                </div>
+                                <SkeletonBox className="h-4 w-16" />
+                            </div>
+                        ))
+                    ) : tokens && tokens.length > 0 ? (
+                        tokens.map((token, i) => (
                         <div key={i} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-[#1A1A1A] flex items-center justify-center overflow-hidden">
@@ -371,20 +622,12 @@ export default function OnchainAnalysis() {
                                        </div>
                                    )}
                                 </div>
-                                <div>
-                                    <div className="font-medium">{token.balance.toFixed(2)} {token.symbol}</div>
-                                    <div className="text-gray-500 text-xs mt-0.5">${token.price?.toFixed(2) || "0.00"}</div>
-                                </div>
+                                <div className="text-sm font-medium text-white">{token.symbol}</div>
                             </div>
-                            <div className="text-right">
-                                <div className="font-medium">${(token.balance * token.price).toFixed(2)}</div>
-                                <div className={`${(token.change24h || 0) >= 0 ? "text-[#34D399]" : "text-red-500"} text-xs mt-0.5`}>
-                                    {(token.change24h || 0) >= 0 ? "+" : ""}{(token.change24h || 0).toFixed(2)}%
-                                </div>
-                            </div>
+                            <div className="text-sm font-bold text-white">${token.value?.toFixed(2)}</div>
                         </div>
-                    )) : (
-                        <div className="text-center text-gray-500 text-sm mt-10">No assets found</div>
+                    ))) : (
+                        <div className="text-center py-4 text-gray-500 text-xs">No assets found</div>
                     )}
                 </div>
             </div>
@@ -396,24 +639,33 @@ export default function OnchainAnalysis() {
                         <h3 className="text-gray-300 font-medium">Recent transactions</h3>
                         <span className="text-gray-500 text-sm">Last 10 transactions</span>
                     </div>
-                    <button 
-                         onClick={() => setIsAlertModalOpen(true)}
-                         className="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors w-full sm:w-auto">
-                        Enable Live alerts
-                    </button>
+                    <div className="flex items-center gap-6">
+                      <button 
+                           onClick={() => setIsAlertManagerView(true)}
+                           className="text-[#246AFC] hover:text-[#1C54CB] text-sm font-medium transition-colors">
+                          Manage alerts
+                      </button>
+                      {viewedWallet && (
+                        <button 
+                             onClick={() => setIsAlertModalOpen(true)}
+                             className="bg-[#246AFC] hover:bg-[#1C54CB] text-white px-5 py-2 rounded-full text-sm font-bold transition-all shadow-lg active:scale-95">
+                            Enable Live alerts
+                        </button>
+                      )}
+                    </div>
                 </div>
 
                 <div className="space-y-5 overflow-x-auto sm:overflow-x-visible pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
                     <div className="w-full space-y-5">
-                        {isFetchingActivity && activity.length === 0 ? (
+                        {isFetchingActivity ? (
                             /* Skeleton */
                             <div className="space-y-5">
                                 {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="flex items-center gap-4 animate-pulse">
-                                        <div className="w-5 h-5 bg-white/5 rounded-full" />
-                                        <div className="w-6 h-6 bg-white/5 rounded-full" />
-                                        <div className="h-4 bg-white/5 rounded-full flex-1" />
-                                        <div className="w-20 h-4 bg-white/5 rounded-full" />
+                                    <div key={i} className="flex items-center gap-4">
+                                        <SkeletonBox className="w-5 h-5 rounded-full" />
+                                        <SkeletonBox className="w-6 h-6 rounded-full" />
+                                        <SkeletonBox className="h-4 flex-1 rounded-full" />
+                                        <SkeletonBox className="w-20 h-4 rounded-full" />
                                     </div>
                                 ))}
                             </div>
@@ -494,11 +746,131 @@ export default function OnchainAnalysis() {
                     </div>
                 )}
             </div>
+          </div>
+        </>
+      )}
+
+      {/* Alert Manager Full-Screen View */}
+      {isAlertManagerView && (
+        <AlertManagerPage 
+          alertWallets={profile?.alert_wallets || []}
+        />
+      )}
+    </div>
+  </div>
+);
+}
+
+function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
+  const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
+
+  return (
+    <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        
+        <div className="w-full lg:w-[45%] space-y-6">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-white text-lg font-medium">Tracked wallets</h3>
+            <div className="relative">
+              <button 
+                onClick={() => setIsAddWalletOpen(!isAddWalletOpen)}
+                className="bg-[#246AFC] hover:bg-[#1C54CB] text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95"
+              >
+                <Plus size={16} /> Add wallet
+              </button>
+
+              {isAddWalletOpen && (
+                <div className="absolute top-full right-0 mt-3 w-80 bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl z-50 p-6 animate-in zoom-in-95 duration-200 origin-top-right">
+                  <h4 className="text-sm font-medium mb-3 text-center">Enter a wallet to subscribe to live alerts</h4>
+                  <div className="bg-[#141414] rounded-xl p-3 mb-4 border border-white/5">
+                    <input 
+                      type="text" 
+                      placeholder="0x..." 
+                      className="w-full bg-transparent border-none focus:outline-none text-xs text-white"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-600 text-center mb-6">You can subscribe to up to 3 wallets</p>
+                  <div className="flex items-center justify-between gap-4">
+                    <button onClick={() => setIsAddWalletOpen(false)} className="text-rose-500 text-xs font-medium px-2">Cancel</button>
+                    <button className="flex-1 bg-[#246AFC] text-white py-2.5 rounded-full text-xs font-bold transition-all active:scale-95">Subscribe</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 space-y-0 divide-y divide-white/5">
+            {alertWallets.length > 0 ? alertWallets.map((wallet, idx) => (
+              <div key={idx} className="py-6 first:pt-0 last:pb-0 group">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="font-mono text-sm text-white/90 truncate mr-4">{wallet}</span>
+                  <button className="text-rose-500/40 hover:text-rose-500 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-white/40">Last activity: 2 minutes ago</span>
+                  <button className="text-[#246AFC] hover:underline font-bold transition-colors">View</button>
+                </div>
+              </div>
+            )) : (
+              [1, 2, 3].map((_, i) => (
+                <div key={i} className="py-6 first:pt-0 last:pb-0 group">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-mono text-sm text-white/90 truncate mr-4">0x1a2...{i}</span>
+                    <button className="text-rose-500/40 hover:text-rose-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-white/40">Last activity: 2 minutes ago</span>
+                    <button className="text-[#246AFC] hover:underline font-bold transition-colors">View</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+
+        <div className="w-full lg:w-[55%] space-y-6">
+          <h3 className="text-white text-xl font-medium mb-8 ">Recent alerts</h3>
+          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 space-y-6 h-full min-h-[500px]">
+            {[
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
+            ].map((alert, idx) => (
+              <div key={idx} className="flex items-center justify-between group">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <ArrowUpRight className="text-rose-500 shrink-0" size={18} />
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                    <img src="/assets/icons/sui.svg" className="w-5 h-5 opacity-40 grayscale" alt="SUI" />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm min-w-0">
+                    <span className="text-gray-400 capitalize">{alert.type}</span>
+                    <span className="font-bold text-white whitespace-nowrap">{alert.amount}</span>
+                    <span className="text-gray-500">to</span>
+                    <span className="font-mono text-white/70 truncate max-w-[120px]">{alert.to}</span>
+                    <span className="text-gray-500 ml-2 whitespace-nowrap">{alert.time}</span>
+                  </div>
+                </div>
+                <button className="text-[#246AFC] hover:underline text-sm font-bold ml-4 shrink-0 transition-colors">View</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
+
+
 
 function TransactionRow({ tx }: { tx: any }) {
     const absAmount = Math.abs(tx.netSUI || 0);

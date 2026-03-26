@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { sileo } from "sileo";
 
@@ -137,10 +137,15 @@ export function useActivity(address: string | null) {
       setIsFetchingActivity(false);
     }
   }, [address, suiClient]);
-
+  
   const clearActivity = useCallback(() => {
     setActivity([]);
   }, []);
+
+  // Clear data when address changes
+  useEffect(() => {
+    clearActivity();
+  }, [address, clearActivity]);
 
   return {
     activity,
