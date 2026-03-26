@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Check,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
@@ -34,15 +34,10 @@ import { sileo } from "sileo";
 
 import { useActivity } from "@/hooks/useActivity";
 import { useNFTs } from "@/hooks/useNFTs";
+import { useTokens } from "@/hooks/useTokens";
 import { LayoutContextType } from "@/types/LayoutTypes";
 
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+
 
 interface NavItem {
   name: string;
@@ -886,12 +881,10 @@ export default function AppLayout() {
     }
   };
 
-  const [walletBalanceUSD, setWalletBalanceUSD] = useState<string>("0.00");
-  const [lastFetched, setLastFetched] = useState<number | null>(null);
+  const { walletBalanceUSD, tokens, fetchBalance } = useTokens(address);
 
-  const [tokens, setTokens] = useState<any[]>([]);
   const { nfts, isFetching: isFetchingNfts, refetch: fetchNFTs } = useNFTs(address);
-  const { activity, isFetchingActivity, fetchActivity, clearActivity, suiClient } = useActivity(address);
+  const { activity, isFetchingActivity, fetchActivity, clearActivity } = useActivity(address);
   const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
 
   const [sendRecipient, setSendRecipient] = useState("");
@@ -899,6 +892,11 @@ export default function AppLayout() {
   const [selectedSendToken, setSelectedSendToken] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
+  useEffect(() => {
+    if (tokens.length > 0 && !selectedSendToken) {
+      setSelectedSendToken(tokens[0]);
+    }
+  }, [tokens, selectedSendToken]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -928,103 +926,6 @@ export default function AppLayout() {
     setIsWalletCollapsed((prev) => !prev);
   };
 
-  const fetchSuiPriceUSD = useCallback(async (): Promise<{
-    price: number;
-    change: number;
-  }> => {
-    try {
-      const res = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=sui&vs_currencies=usd&include_24hr_change=true",
-      );
-      const data = await res.json();
-      return {
-        price: data.sui?.usd || 1.85,
-        change: data.sui?.usd_24h_change || 0,
-      };
-    } catch {
-      return { price: 1.85, change: 0 };
-    }
-  }, []);
-
-  const fetchBalance = useCallback(async () => {
-    if (!address) {
-      setWalletBalanceUSD("0.00");
-      setLastFetched(null);
-      return;
-    }
-    const now = Date.now();
-    if (lastFetched && now - lastFetched < 30_000) return;
-
-    try {
-      const coins = await suiClient.getAllBalances({ owner: address });
-      const suiData = await fetchSuiPriceUSD();
-      let totalUsd = 0;
-      const KNOWN_TOKENS = {
-        "0x2::sui::SUI": {
-          symbol: "SUI",
-          decimals: 9,
-          price: suiData.price,
-          change24h: suiData.change,
-          icon: "/assets/images/sui-icon.png",
-        },
-        "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-          {
-            symbol: "USDC",
-            decimals: 6,
-            price: 1.0,
-            change24h: 0,
-            icon: "/assets/images/usdc-icon.png",
-          },
-      };
-
-      const displayTokens: Record<string, any> = {
-        "0x2::sui::SUI": {
-          ...KNOWN_TOKENS["0x2::sui::SUI"],
-          balance: 0,
-          value: 0,
-          type: "0x2::sui::SUI",
-        },
-        "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN":
-          {
-            ...KNOWN_TOKENS[
-              "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN"
-            ],
-            balance: 0,
-            value: 0,
-            type: "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
-          },
-      };
-
-      for (const coin of coins) {
-        const type = coin.coinType;
-        const meta = KNOWN_TOKENS[type as keyof typeof KNOWN_TOKENS] || {
-          symbol: type.split("::").pop() || "UNK",
-          decimals: 9,
-          price: 0,
-          change24h: 0,
-          icon: "/assets/images/sui-icon.png",
-        };
-        const balance = Number(coin.totalBalance) / Math.pow(10, meta.decimals);
-        const value = balance * (meta.price || 0);
-
-        if (balance > 0 || displayTokens[type]) {
-          displayTokens[type] = { ...meta, balance, value, type };
-          totalUsd += value;
-        }
-      }
-      setWalletBalanceUSD(totalUsd.toFixed(2));
-      const tokenList = Object.values(displayTokens);
-      setTokens(tokenList);
-      if (tokenList.length > 0) {
-        if (!selectedSendToken) setSelectedSendToken(tokenList[0]);
-      }
-      setLastFetched(now);
-    } catch (err) {
-      console.error(err);
-    }
-  }, [address, lastFetched, suiClient, fetchSuiPriceUSD, selectedSendToken]);
-
-
   const handleTabChange = useCallback(
     (tab: "Tokens" | "Collectibles" | "Activity") => {
       setActiveTab(tab);
@@ -1034,19 +935,6 @@ export default function AppLayout() {
     },
     [fetchActivity],
   );
-
-  const debouncedFetchBalance = useMemo(
-    () => debounce(fetchBalance, 500),
-    [fetchBalance],
-  );
-
-  useEffect(() => {
-    if (address) {
-      debouncedFetchBalance();
-      const interval = setInterval(fetchBalance, 60_000);
-      return () => clearInterval(interval);
-    }
-  }, [address, debouncedFetchBalance, fetchBalance]);
 
   useEffect(() => {
     clearActivity();
