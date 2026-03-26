@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+
+    // "module" and "moduleResolution" must be compatible.
+    // We switch from NodeNext/NodeNext to ESNext/Bundler because:
+    //
+    // The Ika SDK's package.json exports map has no "types" field:
+    //   "exports": { ".": { "import": "...", "require": "..." } }
+    //
+    // TypeScript's "NodeNext" resolver REQUIRES a "types" condition in the
+    // exports map to find .d.ts files. Without it, it returns `any`.
+    //
+    // "Bundler" resolver does NOT require a "types" condition — it falls back
+    // to looking for .d.ts files next to the "import" entry, which is exactly
+    // where the SDK puts them (dist/esm/*.d.ts).
+    //
+    // Since this project uses `tsx` at runtime (not `tsc`), changing module
+    // output format has no effect on how code runs — tsx transpiles on the fly.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "allowSyntheticDefaultImports": true,
+
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+
+    // Keep this true — the SDK and some other deps have minor type issues
+    "skipLibCheck": true,
+
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Removed "./types" from typeRoots — we emptied ika.d.ts so the SDK's
+    // own types take over
+    "typeRoots": ["./node_modules/@types"],
+    "paths": {}
+  },
+  "include": ["src", "scripts", "types"],
+  "exclude": ["node_modules", "dist"]
+}

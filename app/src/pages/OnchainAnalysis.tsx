@@ -254,15 +254,13 @@ export default function OnchainAnalysis() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8">
+    <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8 pt-14 md:pt-8">
       <div className="max-w-[1200px] mx-auto space-y-6">
-        
-        {/* Header Row (Image 1 & 2 Style) */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-              Portfolio Dashboard
-              {isAlertManagerView && <span className="text-gray-300 font-light ml-3">/ Alert Manager</span>}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4 w-full">
+          <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 w-full sm:w-auto">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight flex flex-col sm:flex-row items-center sm:items-baseline">
+              <span>Portfolio Dashboard</span>
+              {isAlertManagerView && <span className="text-gray-400 font-light text-sm sm:text-lg sm:ml-3">/ Alert Manager</span>}
             </h1>
             
             {!isAlertManagerView && (
@@ -272,7 +270,7 @@ export default function OnchainAnalysis() {
                     View only
                   </span>
                 )}
-                <div className="flex items-center gap-2 ml-1">
+                <div className="flex items-center gap-2">
                   <span className="font-mono text-sm text-gray-400">
                     {effectiveAddress ? `${effectiveAddress.slice(0, 10)}...${effectiveAddress.slice(-6)}` : "No wallet connected"}
                   </span>
@@ -288,10 +286,17 @@ export default function OnchainAnalysis() {
               </>
             )}
           </div>
-
-          <div className="flex items-center gap-4 md:pr-15">
-            {!isAlertManagerView ? (
-              <>
+          
+          <div className="w-full sm:w-auto flex flex-col items-center sm:items-end gap-2 sm:gap-4 md:pr-20">
+            {isAlertManagerView ? (
+              <button 
+                onClick={() => setIsAlertManagerView(false)}
+                className="flex items-center gap-2 bg-[#0A0A0A] sm:bg-transparent hover:bg-[#141414] sm:hover:bg-transparent border border-white/10 sm:border-transparent px-5 py-2 sm:px-0 rounded-full sm:rounded-none text-sm font-medium transition-all order-first sm:order-none mb-2 sm:mb-0 hover:text-white"
+              >
+                <ChevronLeft size={16} /> Back to Dashboard
+              </button>
+            ) : (
+                <>
                 {/* Recently Analyzed Dropdown Button */}
                 <div className="relative" ref={recentlyAnalyzedRef}>
                   <button 
@@ -331,13 +336,6 @@ export default function OnchainAnalysis() {
                   </button>
                 )}
               </>
-            ) : (
-              <button 
-                onClick={() => setIsAlertManagerView(false)}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                <ChevronLeft size={16} /> Back to Dashboard
-              </button>
             )}
           </div>
         </div>
@@ -633,16 +631,15 @@ export default function OnchainAnalysis() {
             </div>
 
             {/* Recent transactions */}
-            <div className="lg:col-span-8 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 relative min-h-[500px] h-auto flex flex-col">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 mb-6 w-full">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 w-full sm:w-auto">
-                        <h3 className="text-gray-300 font-medium">Recent transactions</h3>
-                        <span className="text-gray-500 text-sm">Last 10 transactions</span>
+            <div className="lg:col-span-8 bg-[#0A0A0A] border border-white/10 rounded-[20px] p-6 relative min-h-[400px] sm:min-h-[500px] h-auto flex flex-col">
+                <div className="flex items-center justify-between mb-4 sm:mb-6 w-full">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-0.5 sm:gap-3">
+                        <h3 className="text-gray-300 font-medium text-sm sm:text-base">Recent transactions</h3>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
                       <button 
                            onClick={() => setIsAlertManagerView(true)}
-                           className="text-[#246AFC] hover:text-[#1C54CB] text-sm font-medium transition-colors">
+                           className="text-[#246AFC] hover:text-[#1C54CB] text-[12px] sm:text-sm font-medium transition-colors">
                           Manage alerts
                       </button>
                       {viewedWallet && (
@@ -655,13 +652,13 @@ export default function OnchainAnalysis() {
                     </div>
                 </div>
 
-                <div className="space-y-5 overflow-x-auto sm:overflow-x-visible pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
-                    <div className="w-full space-y-5">
+                <div className="space-y-3 sm:space-y-5 overflow-x-auto sm:overflow-x-visible pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
+                    <div className="w-full space-y-3 sm:space-y-5">
                         {isFetchingActivity ? (
                             /* Skeleton */
-                            <div className="space-y-5">
+                            <div className="space-y-3 sm:space-y-5">
                                 {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="flex items-center gap-4">
+                                    <div key={i} className="flex items-center gap-4 py-1">
                                         <SkeletonBox className="w-5 h-5 rounded-full" />
                                         <SkeletonBox className="w-6 h-6 rounded-full" />
                                         <SkeletonBox className="h-4 flex-1 rounded-full" />
@@ -883,7 +880,7 @@ function TransactionRow({ tx }: { tx: any }) {
             href={`https://suiscan.xyz/testnet/tx/${tx.digest}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 sm:gap-4 text-sm group hover:bg-white/5 p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
+            className="flex items-center gap-3 sm:gap-4 text-sm group hover:bg-white/5 p-1.5 sm:p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
         >
             <div className="w-5 flex justify-center flex-shrink-0">
                 {tx.txType === 'received' ? (
