@@ -1,0 +1,23 @@
+{
+  "evmDWallet": {
+    "dWalletId": "0xafb35033c628a9b152a5139b93ff7c52a5126bf867569706d3a54b7ea626654a",
+    "dWalletCapId": "0x30a0e1723357d8619f48685dd69cfab7721565092f2147ce13ac1c7a698bcb8a",
+    "encryptedUserSecretKeyShareId": "",
+    "targetChainAddress": "0x83D00Cc1581E64333811F26626fAE1c0B0b6A52d",
+    "curve": "SECP256K1"
+  },
+  "solanaDWallet": {
+    "dWalletId": "0x430ce93a46788bc138ae57d7c6148a525160c80a735e55f2ce8c436c83b13352",
+    "dWalletCapId": "0x99d62f5942e4f11360be81bfd4b7b9e0a0cc11bf8030fb51434638fd49c0f7d1",
+    "encryptedUserSecretKeyShareId": "",
+    "targetChainAddress": "3fTg9t975rDKEc2t5BuQWt5kG4pe2SjaUuytbxi2U8fC",
+    "curve": "ED25519",
+    "nonceAccountAddress": "EkRnWAE3JmCsnnkyBHedvVWC59s3iyV3fZ5iar8SJ5MY"
+  },
+  "contract": {
+    "packageId": "0x0d096ec87af88d0bd178484a4489266c9be13aa977ffed2e0490218795be1315",
+    "poolObjectId": "0x31391a529d8b954c940fa6e583031c8ded882d5375947c4a234997fe6206cb98",
+    "adminCapObjectId": "0xba2f08f48d04003661ae14e80dd00bd1482a1633ecd2dd506a7cc675d275e639"
+  },
+  "updatedAt": "2026-03-24T14:05:48.878Z"
+}
