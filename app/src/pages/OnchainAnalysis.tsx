@@ -53,6 +53,25 @@ export default function OnchainAnalysis() {
   const recentlyAnalyzedRef = useRef<HTMLDivElement>(null);
   const networkDropdownRef = useRef<HTMLDivElement>(null);
   const addressToSaveRef = useRef<string | null>(null);
+  
+  // Reset scroll to top when switching views
+  useEffect(() => {
+    // We need to target the specific scroll container from Layout.tsx which has h-dvh and overflow-y-auto
+    const resetScroll = () => {
+      window.scrollTo(0, 0);
+      const mainContainer = document.querySelector('.h-dvh.overflow-y-auto');
+      if (mainContainer) {
+        mainContainer.scrollTop = 0;
+      }
+    };
+
+    // Initial jump
+    resetScroll();
+    
+    // Safety check with requestAnimationFrame to ensure the jump happens after the render
+    const frame = requestAnimationFrame(resetScroll);
+    return () => cancelAnimationFrame(frame);
+  }, [isAlertManagerView]);
 
   const recentlyAnalyzedMenuRef = useRef<HTMLDivElement>(null);
   const networkMenuRef = useRef<HTMLDivElement>(null);
@@ -307,17 +326,17 @@ export default function OnchainAnalysis() {
                   </button>
                   
                   {shouldRenderRecentlyAnalyzed && profile?.recently_analyzed && profile.recently_analyzed.length > 0 && (
-                    <div ref={recentlyAnalyzedMenuRef} className="absolute top-full right-0 mt-2 w-64 bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[70] p-1">
+                    <div ref={recentlyAnalyzedMenuRef} className="absolute top-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mt-2 w-[280px] sm:w-64 bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[70] p-1.5">
                       {profile.recently_analyzed.map((addr: string, idx: number) => (
                         <button 
                           key={idx}
                           onClick={() => {
                             handleSearch(addr);
                           }}
-                          className="w-full text-left px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors flex items-center justify-between rounded-xl"
+                          className="w-full text-left px-4 py-4 sm:py-3 text-sm text-white hover:bg-white/5 transition-colors flex items-center justify-between rounded-xl group"
                         >
-                          <span className="font-mono text-xs text-white/80">{addr.slice(0, 12)}...{addr.slice(-4)}</span>
-                          <span className="text-[10px] text-gray-500 italic">Recently analyzed</span>
+                          <span className="font-mono text-xs text-white/80 group-hover:text-white transition-colors">{addr.slice(0, 12)}...{addr.slice(-4)}</span>
+                          <span className="text-[10px] text-gray-500 italic font-light opacity-60">Recently analyzed</span>
                         </button>
                       ))}
                     </div>
