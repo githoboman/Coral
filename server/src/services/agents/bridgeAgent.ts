@@ -9,27 +9,18 @@ export const BRIDGE_CFG = {
   rateSuiToSolLamportsPerMist: BigInt(
     process.env.RATE_SUI_TO_SOL || "10590000",
   ),
-  rateSuiToEthWeiPerMist: BigInt(
-    process.env.RATE_SUI_TO_ETH || "449000000000000",
-  ),
-  feeBps: parseInt(process.env.BRIDGE_FEE_BPS || "30"),
-  minAmountSui: BigInt(process.env.MIN_BRIDGE_AMOUNT_SUI || "10000000"),
-  minAmountSol: BigInt(process.env.MIN_BRIDGE_AMOUNT_SOL || "100000"),
-  minAmountEth: BigInt(process.env.MIN_BRIDGE_AMOUNT_ETH || "1000000000000"),
-  maxAmountSui: BigInt(process.env.MAX_BRIDGE_AMOUNT_SUI || "1000000000"),
-  maxAmountSol: BigInt(process.env.MAX_BRIDGE_AMOUNT_SOL || "2000000"),
-  maxAmountEth: BigInt(process.env.MAX_BRIDGE_AMOUNT_ETH || "100000000000000"),
-  suiPackageId:
-    process.env.SUI_BRIDGE_PACKAGE_ID ||
-    "0x0d096ec87af88d0bd178484a4489266c9be13aa977ffed2e0490218795be1315",
-  suiPoolObjectId:
-    process.env.SUI_BRIDGE_POOL_ID ||
-    "0x31391a529d8b954c940fa6e583031c8ded882d5375947c4a234997fe6206cb98",
-  solanaVaultAddress:
-    process.env.SOLANA_BRIDGE_VAULT ||
-    "3fTg9t975rDKEc2t5BuQWt5kG4pe2SjaUuytbxi2U8fC",
-  ethereumVaultAddress: (process.env.ETH_BRIDGE_VAULT ||
-    "0x83D00Cc1581E64333811F26626fAE1c0B0b6A52d") as `0x${string}`,
+  rateSuiToEthWeiPerMist: BigInt(process.env.RATE_SUI_TO_ETH || ""),
+  feeBps: parseInt(process.env.BRIDGE_FEE_BPS || ""),
+  minAmountSui: BigInt(process.env.MIN_BRIDGE_AMOUNT_SUI || ""),
+  minAmountSol: BigInt(process.env.MIN_BRIDGE_AMOUNT_SOL || ""),
+  minAmountEth: BigInt(process.env.MIN_BRIDGE_AMOUNT_ETH || ""),
+  maxAmountSui: BigInt(process.env.MAX_BRIDGE_AMOUNT_SUI || ""),
+  maxAmountSol: BigInt(process.env.MAX_BRIDGE_AMOUNT_SOL || ""),
+  maxAmountEth: BigInt(process.env.MAX_BRIDGE_AMOUNT_ETH || ""),
+  suiPackageId: process.env.SUI_BRIDGE_PACKAGE_ID || "",
+  suiPoolObjectId: process.env.SUI_BRIDGE_POOL_ID || "",
+  solanaVaultAddress: process.env.SOLANA_BRIDGE_VAULT || "",
+  ethereumVaultAddress: (process.env.ETH_BRIDGE_VAULT || "") as `0x${string}`,
   solanaMemoProgramId: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
   estimatedSuiGasMist: BigInt(10_000_000),
   gasReserveMist: BigInt(20_000_000),
