@@ -56,10 +56,10 @@ export default function OnchainAnalysis() {
   
   // Reset scroll to top when switching views
   useEffect(() => {
-    // We need to target the specific scroll container from Layout.tsx which has h-dvh and overflow-y-auto
+    // Target the specific scroll container from Layout.tsx (reset via ID for reliability)
     const resetScroll = () => {
       window.scrollTo(0, 0);
-      const mainContainer = document.querySelector('.h-dvh.overflow-y-auto');
+      const mainContainer = document.getElementById('main-scroll-container');
       if (mainContainer) {
         mainContainer.scrollTop = 0;
       }
@@ -69,8 +69,12 @@ export default function OnchainAnalysis() {
     resetScroll();
     
     // Safety check with requestAnimationFrame to ensure the jump happens after the render
-    const frame = requestAnimationFrame(resetScroll);
-    return () => cancelAnimationFrame(frame);
+    requestAnimationFrame(resetScroll);
+
+    // Mobile Chrome fallback — bypasses scroll anchoring and hardware acceleration sync issues
+    const timeout = setTimeout(resetScroll, 50);
+    
+    return () => clearTimeout(timeout);
   }, [isAlertManagerView]);
 
   const recentlyAnalyzedMenuRef = useRef<HTMLDivElement>(null);
