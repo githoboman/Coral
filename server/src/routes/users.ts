@@ -124,6 +124,70 @@ router.post(
 );
 
 router.post(
+  "/user/alert-wallet",
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { wallet_address: alert_wallet } = req.body;
+      const user = (req as any).user;
+      const currentUserWallet = user?.wallet_address || user?.id;
+
+      if (!alert_wallet || typeof alert_wallet !== "string") {
+        return res.status(400).json({ error: "wallet_address is required" });
+      }
+
+      if (!currentUserWallet) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const manager = getLocalUserManager();
+      const updatedArray = await manager.addAlertWallet(currentUserWallet, alert_wallet);
+
+      if (!updatedArray) {
+        return res.status(500).json({ error: "Failed to add alert wallet" });
+      }
+
+      return res.json({ alert_wallets: updatedArray });
+    } catch (error) {
+      console.error("Error in add-alert-wallet:", error);
+      next(error);
+    }
+  }
+);
+
+router.delete(
+  "/user/alert-wallet",
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { wallet_address: alert_wallet } = req.body;
+      const user = (req as any).user;
+      const currentUserWallet = user?.wallet_address || user?.id;
+
+      if (!alert_wallet || typeof alert_wallet !== "string") {
+        return res.status(400).json({ error: "wallet_address is required" });
+      }
+
+      if (!currentUserWallet) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const manager = getLocalUserManager();
+      const updatedArray = await manager.removeAlertWallet(currentUserWallet, alert_wallet);
+
+      if (!updatedArray) {
+        return res.status(500).json({ error: "Failed to remove alert wallet" });
+      }
+
+      return res.json({ alert_wallets: updatedArray });
+    } catch (error) {
+      console.error("Error in remove-alert-wallet:", error);
+      next(error);
+    }
+  }
+);
+
+router.post(
   "/user/recently-analyzed",
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {

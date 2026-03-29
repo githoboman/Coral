@@ -774,6 +774,7 @@ export default function OnchainAnalysis() {
       {isAlertManagerView && (
         <AlertManagerPage 
           alertWallets={profile?.alert_wallets || []}
+          refetchProfile={refetchProfile}
         />
       )}
     </div>
@@ -781,8 +782,50 @@ export default function OnchainAnalysis() {
 );
 }
 
-function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
+function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: string[], refetchProfile: () => void }) {
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
+  const [newWallet, setNewWallet] = useState("");
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  const handleSubscribe = async () => {
+    if (!newWallet || !newWallet.startsWith("0x")) return;
+    setIsSubscribing(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+      const res = await fetch(`${baseUrl}/api/user/alert-wallet`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: newWallet })
+      });
+      if (res.ok) {
+        setNewWallet("");
+        setIsAddWalletOpen(false);
+        refetchProfile();
+      }
+    } catch (err) {
+      console.error("Failed to subscribe:", err);
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  const handleRemove = async (wallet: string) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+      const res = await fetch(`${baseUrl}/api/user/alert-wallet`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet_address: wallet })
+      });
+      if (res.ok) {
+        refetchProfile();
+      }
+    } catch (err) {
+      console.error("Failed to remove alert wallet:", err);
+    }
+  };
 
   return (
     <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -791,32 +834,12 @@ function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
         <div className="w-full lg:w-[45%] space-y-6">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-white text-lg font-medium">Tracked wallets</h3>
-            <div className="relative">
-              <button 
-                onClick={() => setIsAddWalletOpen(!isAddWalletOpen)}
-                className="bg-[#246AFC] hover:bg-[#1C54CB] text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95"
-              >
-                <Plus size={16} /> Add wallet
-              </button>
-
-              {isAddWalletOpen && (
-                <div className="absolute top-full right-0 mt-3 w-80 bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl z-50 p-6 animate-in zoom-in-95 duration-200 origin-top-right">
-                  <h4 className="text-sm font-medium mb-3 text-center">Enter a wallet to subscribe to live alerts</h4>
-                  <div className="bg-[#141414] rounded-xl p-3 mb-4 border border-white/5">
-                    <input 
-                      type="text" 
-                      placeholder="0x..." 
-                      className="w-full bg-transparent border-none focus:outline-none text-xs text-white"
-                    />
-                  </div>
-                  <p className="text-[10px] text-gray-600 text-center mb-6">You can subscribe to up to 3 wallets</p>
-                  <div className="flex items-center justify-between gap-4">
-                    <button onClick={() => setIsAddWalletOpen(false)} className="text-rose-500 text-xs font-medium px-2">Cancel</button>
-                    <button className="flex-1 bg-[#246AFC] text-white py-2.5 rounded-full text-xs font-bold transition-all active:scale-95">Subscribe</button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button 
+              onClick={() => setIsAddWalletOpen(true)}
+              className="bg-[#246AFC] hover:bg-[#1C54CB] text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95"
+            >
+              <Plus size={16} /> Add wallet
+            </button>
           </div>
 
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 space-y-0 divide-y divide-white/5">
@@ -824,7 +847,10 @@ function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
               <div key={idx} className="py-6 first:pt-0 last:pb-0 group">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-sm text-white/90 truncate mr-4">{wallet}</span>
-                  <button className="text-rose-500/40 hover:text-rose-500 transition-colors">
+                  <button 
+                    onClick={() => handleRemove(wallet)}
+                    className="text-rose-500/40 hover:text-rose-500 transition-colors"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -834,20 +860,9 @@ function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
                 </div>
               </div>
             )) : (
-              [1, 2, 3].map((_, i) => (
-                <div key={i} className="py-6 first:pt-0 last:pb-0 group">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-mono text-sm text-white/90 truncate mr-4">0x1a2...{i}</span>
-                    <button className="text-rose-500/40 hover:text-rose-500 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="text-white/40">Last activity: 2 minutes ago</span>
-                    <button className="text-[#246AFC] hover:underline font-bold transition-colors">View</button>
-                  </div>
-                </div>
-              ))
+              <div className="py-10 text-center text-gray-500 text-sm">
+                No wallets tracked for live alerts yet.
+              </div>
             )}
           </div>
         </div>
@@ -886,6 +901,49 @@ function AlertManagerPage({ alertWallets }: { alertWallets: string[] }) {
         </div>
 
       </div>
+
+      {/* Centered Modal with Blurred Backdrop */}
+      {isAddWalletOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+            onClick={() => setIsAddWalletOpen(false)}
+          />
+          <div className="relative w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-300">
+            <h4 className="text-lg font-bold mb-2 text-center text-white">Subscribe to Alerts</h4>
+            <p className="text-sm text-gray-400 text-center mb-8">Enter a wallet to subscribe to live alerts</p>
+            
+            <div className="bg-[#141414] rounded-2xl p-4 mb-4 border border-white/5 focus-within:border-[#246AFC]/50 transition-colors">
+              <input 
+                type="text" 
+                value={newWallet}
+                onChange={(e) => setNewWallet(e.target.value)}
+                placeholder="0x..." 
+                className="w-full bg-transparent border-none focus:outline-none text-sm text-white placeholder:text-gray-600 font-mono"
+                autoFocus
+              />
+            </div>
+            
+            <p className="text-[11px] text-gray-500 text-center mb-8">You can subscribe to up to 3 wallets</p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleSubscribe}
+                disabled={isSubscribing || !newWallet.startsWith("0x")}
+                className="w-full bg-[#246AFC] hover:bg-[#1C54CB] disabled:opacity-50 disabled:hover:bg-[#246AFC] text-white py-3.5 rounded-full text-sm font-bold transition-all shadow-lg active:scale-[0.98] flex items-center justify-center"
+              >
+                {isSubscribing ? <RefreshCw className="animate-spin" size={18} /> : "Subscribe"}
+              </button>
+              <button 
+                onClick={() => setIsAddWalletOpen(false)}
+                className="w-full text-gray-400 hover:text-white py-2 text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
