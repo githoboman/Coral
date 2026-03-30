@@ -3,6 +3,7 @@ import { getTaskStorageService } from "./taskStorageService";
 import { getNotificationService } from "./notificationService";
 import { getUserStateService } from "./userStateService";
 import { getSuggestionEngine } from "./suggestionEngine";
+import { getBlockVisionService } from "./blockVisionService";
 import getSupabaseClient from "../config/supabase";
 
 const supabase = getSupabaseClient();
@@ -27,9 +28,10 @@ export class TaskScheduler {
 
     this.isRunning = true;
 
-    // Run every minute -- check for due tasks
+    // Run every minute -- check for due tasks and tracked wallets
     cron.schedule("* * * * *", async () => {
       await this.checkDueTasks();
+      await this.checkTrackedWallets();
     });
 
     // Phase 1: Daily wallet snapshot refresh at midnight UTC
@@ -225,6 +227,107 @@ export class TaskScheduler {
       console.log(`[SCHEDULER] Daily scan complete: ${totalSuggestions} suggestions delivered`);
     } catch (error) {
       console.error("[SCHEDULER] Error running daily proactive scan:", error);
+    }
+  }
+
+  // ── Wallet Alert Monitoring ────────────────────────────────────────
+
+  private async checkTrackedWallets() {
+    try {
+      // 1. Fetch all users who have at least one tracked wallet
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('wallet_address, alert_wallets')
+        .not('alert_wallets', 'eq', '{}')
+        .not('alert_wallets', 'is', null);
+
+      if (error) throw error;
+      if (!profiles || profiles.length === 0) return;
+
+      // 2. Flatten into a list of (ownerAddress, trackedAddress) pairs
+      const pairs: { owner: string; tracked: string }[] = [];
+      for (const profile of profiles) {
+        if (profile.alert_wallets && Array.isArray(profile.alert_wallets)) {
+          for (const trackedAddress of profile.alert_wallets) {
+            pairs.push({ owner: profile.wallet_address, tracked: trackedAddress });
+          }
+        }
+      }
+
+      if (pairs.length === 0) return;
+
+      console.log(`[WALLET ALERTS] Checking ${pairs.length} tracked wallet(s)`);
+
+      // 3. Process in batches of 5 (consistent with existing scheduler pattern)
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < pairs.length; i += BATCH_SIZE) {
+        const batch = pairs.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(
+          batch.map(({ owner, tracked }) => this.processTrackedWallet(owner, tracked))
+        );
+        if (i + BATCH_SIZE < pairs.length) {
+          await new Promise((r) => setTimeout(r, 2000)); // Rate limit courtesy delay
+        }
+      }
+
+    } catch (error) {
+      console.error('[WALLET ALERTS] Error in checkTrackedWallets:', error);
+    }
+  }
+
+  private async processTrackedWallet(ownerAddress: string, trackedAddress: string) {
+    try {
+      const bv = getBlockVisionService();
+
+      // 1. Get or create the state row for this owner + tracked pair
+      const { data: stateRow } = await supabase
+        .from('tracked_wallet_state')
+        .select('last_seen_digest')
+        .eq('owner_user_id', ownerAddress)
+        .eq('tracked_address', trackedAddress)
+        .single();
+
+      const lastSeenDigest = stateRow?.last_seen_digest ?? null;
+
+      // 2. Fetch the most recent transactions for the tracked wallet
+      const transactions = await bv.getRecentTransactions(trackedAddress, 5);
+
+      if (!transactions || transactions.length === 0) return;
+
+      // 3. Find new OUTGOING transactions we haven't seen yet
+      const newOutgoing = transactions.filter(tx =>
+        tx.type === 'send' &&
+        tx.digest !== lastSeenDigest
+      );
+
+      // 4. Update last_seen_digest to the most recent transaction (first in list)
+      // Do this BEFORE dispatching to prevent duplicate notifications if dispatch is slow
+      // Also, if lastSeenDigest was null, we just set the first one without alerting (grace period)
+      await supabase
+        .from('tracked_wallet_state')
+        .upsert({
+          owner_user_id: ownerAddress,
+          tracked_address: trackedAddress,
+          last_seen_digest: transactions[0].digest, // Most recent
+          last_checked_at: new Date().toISOString(),
+        }, { onConflict: 'owner_user_id,tracked_address' });
+
+      if (!lastSeenDigest) {
+        console.log(`[WALLET ALERTS] First-time setup for ${trackedAddress.slice(0, 10)}... (owner ${ownerAddress.slice(0, 10)}...). Digest set.`);
+        return;
+      }
+
+      if (newOutgoing.length === 0) return;
+
+      // 5. Dispatch notification for each new outgoing transaction
+      // If multiple new transactions, only notify for the most recent one to avoid spam
+      const latestNew = newOutgoing[0];
+      await this.notificationService.dispatchWalletAlert(ownerAddress, trackedAddress, latestNew);
+
+      console.log(`[WALLET ALERTS] Dispatched alert for ${trackedAddress.slice(0, 10)}... → owner ${ownerAddress.slice(0, 10)}...`);
+
+    } catch (error) {
+      console.error(`[WALLET ALERTS] Failed to process ${trackedAddress.slice(0, 10)}...:`, error);
     }
   }
 }

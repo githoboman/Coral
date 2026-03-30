@@ -29,6 +29,14 @@ export interface BlockVisionHolder {
   percentage?: number;
 }
 
+export interface WalletTransaction {
+  digest: string;           // Unique transaction ID
+  type: 'send' | 'receive' | 'other';
+  amount: string;           // Human readable e.g. "10 USDC"
+  counterparty: string;     // The other address involved
+  timestamp: number;        // Unix ms
+}
+
 export interface BlockVisionTokenInfo {
   price: number;
   change24h: number;
@@ -351,6 +359,58 @@ export class BlockVisionService {
       change24h: 0,
       decimals: meta.decimals,
     };
+  }
+
+  // ── Transactions ───────────────────────────────────────────────────
+
+  /**
+   * Fetches recent transactions for an account from BlockVision.
+   * On any failure, automatically retries via the Sui RPC fallback indexer.
+   */
+  async getRecentTransactions(
+    address: string,
+    limit = 10
+  ): Promise<WalletTransaction[]> {
+    if (this.shouldBypass()) {
+      return this.indexer.getRecentTransactions(address, limit);
+    }
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/account/transactions`, {
+        params: { account: address, limit },
+        headers: this.headers,
+        timeout: 10000,
+      });
+
+      const data = response.data.result?.data || response.data.result || [];
+      return (Array.isArray(data) ? data : []).map((tx: any) => {
+        const isSender = tx.from === address;
+        const isReceiver = tx.to === address;
+        
+        return {
+          digest: tx.digest,
+          type: isSender ? 'send' : (isReceiver ? 'receive' : 'other'),
+          amount: tx.amount || "0",
+          counterparty: isSender ? tx.to : (isReceiver ? tx.from : "Unknown"),
+          timestamp: tx.timestamp || Date.now(),
+        };
+      });
+    } catch (bvError: any) {
+      const status = bvError?.response?.status;
+      this.markExhausted(status);
+      console.warn(
+        `[BlockVision] Transactions fetch failed (${status ?? bvError?.message}), falling back to RPC indexer...`
+      );
+
+      try {
+        const txs = await this.indexer.getRecentTransactions(address, limit);
+        console.log(`[BlockVision] RPC fallback succeeded for transactions: ${address}`);
+        return txs;
+      } catch (rpcError: any) {
+        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError);
+        return [];
+      }
+    }
   }
 }
 

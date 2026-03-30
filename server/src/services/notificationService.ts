@@ -3,6 +3,7 @@ import { getEmailService } from "./emailService";
 import { getSubscriptionService } from "./subscriptionService";
 import { getUserManager } from "./userManager";
 import { getNotificationCopyService } from "./notificationCopyService";
+import { WalletTransaction } from "./blockVisionService";
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -380,6 +381,70 @@ export class NotificationService {
       buttons,
       'HTML'
     );
+  }
+
+  /**
+   * Dispatches a wallet alert to the owner.
+   * Follows the parallel dispatch pattern (Telegram Track A / Email Track B).
+   */
+  public async dispatchWalletAlert(
+    ownerAddress: string,
+    trackedAddress: string,
+    transaction: WalletTransaction
+  ): Promise<void> {
+    const shortAddress = `${trackedAddress.slice(0, 6)}...${trackedAddress.slice(-4)}`;
+    const counterparty = transaction.counterparty || "Unknown";
+    const shortCounterparty = counterparty.length > 20 
+      ? `${counterparty.slice(0, 6)}...${counterparty.slice(-4)}` 
+      : counterparty;
+
+    // ── Track A: Telegram ─────────────────────────────────────────────
+    const telegramTrack = (async () => {
+      try {
+        const username = await this.getUsername(ownerAddress);
+        const safeUsername = this.escapeHtml(username);
+
+        const message =
+          `Hey <b>${safeUsername}</b>!\n\n` +
+          `A wallet you're tracking just made a move.\n\n` +
+          `<b>Wallet</b>\n${this.escapeHtml(shortAddress)}\n\n` +
+          `<b>Sent</b>\n${this.escapeHtml(transaction.amount)} → ${this.escapeHtml(shortCounterparty)}\n\n` +
+          `Stay on top of it!`;
+
+        await this.sendNotification(ownerAddress, message);
+        console.log(`[NOTIFY] Telegram: ✓ Wallet alert sent for ${shortAddress}`);
+      } catch (err) {
+        console.error(`[NOTIFY] Telegram: ✗ Wallet alert failed for ${shortAddress}`, err);
+      }
+    })();
+
+    // ── Track B: Email (Premium only) ────────────────────────────────
+    const emailTrack = (async () => {
+      try {
+        const email = await this.getPremiumEmail(ownerAddress);
+        if (!email) return;
+
+        const username = await this.getUsername(ownerAddress);
+        const html = `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <p>Hey <b>${this.escapeHtml(username)}</b>!</p>
+            <p>A wallet you're tracking just made a move.</p>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
+              <p><b>Wallet</b><br>${this.escapeHtml(shortAddress)}</p>
+              <p><b>Sent</b><br>${this.escapeHtml(transaction.amount)} → ${this.escapeHtml(shortCounterparty)}</p>
+            </div>
+            <p>Stay on top of it!</p>
+            <p>Thanks,<br>Tovira Team</p>
+          </div>`;
+
+        const ok = await this.emailService.sendEmail(email, `Wallet Alert — ${shortAddress}`, html);
+        if (ok) console.log(`[NOTIFY] Email: ✓ Wallet alert sent to ${email}`);
+      } catch (err) {
+        console.error(`[NOTIFY] Email: ✗ Wallet alert failed`, err);
+      }
+    })();
+
+    await Promise.allSettled([telegramTrack, emailTrack]);
   }
 }
 

@@ -516,6 +516,103 @@ export class UserManager {
       return null;
     }
   }
+
+  /**
+   * Adds an alert wallet to the user's alert_wallets array, capped at 3.
+   */
+  async addAlertWallet(
+    walletAddress: string,
+    alertWallet: string
+  ): Promise<string[] | null> {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('alert_wallets')
+        .eq('wallet_address', walletAddress)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      let currentArray: string[] = data?.alert_wallets || [];
+      
+      // Avoid duplicates
+      if (currentArray.includes(alertWallet)) return currentArray;
+      
+      // Enforce limit of 3
+      if (currentArray.length >= 3) return currentArray;
+      
+      currentArray.push(alertWallet);
+      
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ alert_wallets: currentArray })
+        .eq('wallet_address', walletAddress);
+        
+      if (updateError) throw updateError;
+      
+      return currentArray;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error adding alert wallet:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Removes an alert wallet from the user's alert_wallets array.
+   */
+  async removeAlertWallet(
+    walletAddress: string,
+    alertWallet: string
+  ): Promise<string[] | null> {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('alert_wallets')
+        .eq('wallet_address', walletAddress)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      let currentArray: string[] = data?.alert_wallets || [];
+      
+      currentArray = currentArray.filter(addr => addr !== alertWallet);
+      
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ alert_wallets: currentArray })
+        .eq('wallet_address', walletAddress);
+        
+      if (updateError) throw updateError;
+      
+      return currentArray;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error removing alert wallet:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Cleans up the tracked_wallet_state entry for a specific owner and tracked wallet.
+   * Called when a user unsubscribes from alerts.
+   */
+  async cleanupTrackedWalletState(
+    ownerAddress: string,
+    trackedAddress: string
+  ): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('tracked_wallet_state')
+        .delete()
+        .eq('owner_user_id', ownerAddress)
+        .eq('tracked_address', trackedAddress);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error cleaning up tracked wallet state:", error);
+      return false;
+    }
+  }
 }
 
 export const getUserManager = () => UserManager.getInstance();
