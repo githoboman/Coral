@@ -404,10 +404,14 @@ export class BlockVisionService {
 
       try {
         const txs = await this.indexer.getRecentTransactions(address, limit);
-        console.log(`[BlockVision] RPC fallback succeeded for transactions: ${address}`);
+        if (txs && txs.length > 0) {
+          console.log(`[BlockVision] RPC fallback succeeded with ${txs.length} transactions for: ${address}`);
+        } else {
+          console.log(`[BlockVision] RPC fallback executed but no transactions found for: ${address}`);
+        }
         return txs;
       } catch (rpcError: any) {
-        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError);
+        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError.message);
         return [];
       }
     }

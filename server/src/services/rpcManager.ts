@@ -34,6 +34,9 @@ const RPC_ENDPOINTS: string[] = [
   'https://mainnet.sui.rpcpool.com',
   'https://sui-mainnet.nodeinfra.com',
   'https://mainnet-rpc.sui.chainbase.online',
+  'https://sui-mainnet.public.blastapi.io',
+  'https://sui-mainnet.blockpi.network/v1/rpc/public',
+  'https://sui-rpc.publicnode.com',
   'https://sui-mainnet-ca-1.cosmostation.io',
   'https://sui-mainnet-ca-2.cosmostation.io',
   'https://sui-mainnet-us-1.cosmostation.io',
@@ -47,7 +50,7 @@ const COOLDOWN_MS = 60_000; // 1 minute
 // Per-request timeout
 const REQUEST_TIMEOUT_MS = 8_000;
 // How many endpoints to try before giving up on a request
-const MAX_RETRIES = 4;
+const MAX_RETRIES = 6;
 
 // ══════════════════════════════════════════════════════════════════════
 // MANAGER
