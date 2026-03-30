@@ -65,8 +65,15 @@ export class BlockVisionService {
 
   constructor() {
     this.apiKey = process.env.BLOCKVISION_API_KEY || "";
-    this.baseUrl =
-      process.env.BLOCKVISION_BASE_URL || "https://api.blockvision.org/v2/sui";
+    const network = process.env.SUI_NETWORK || "mainnet";
+    const rawBaseUrl = process.env.BLOCKVISION_BASE_URL || "https://api.blockvision.org/v2/sui";
+    
+    // Auto-adjust for testnet if needed
+    if (network === "testnet" && !rawBaseUrl.includes("testnet")) {
+      this.baseUrl = rawBaseUrl.replace("/sui", "/sui-testnet");
+    } else {
+      this.baseUrl = rawBaseUrl;
+    }
 
     if (!this.apiKey) {
       console.warn("[BlockVision] API Key is missing! Will fall back to RPC indexer.");
@@ -376,21 +383,30 @@ export class BlockVisionService {
     }
 
     try {
-      const response = await axios.get(`${this.baseUrl}/account/transactions`, {
-        params: { account: address, limit },
+      const response = await axios.get(`${this.baseUrl}/account/activities`, {
+        params: { address: address, limit },
         headers: this.headers,
         timeout: 10000,
       });
 
       const data = response.data.result?.data || response.data.result || [];
+      
+      // Log sample for verification on first successful call -- Remove after Testing
+      if (data.length > 0) {
+        console.log('[BlockVision DEBUG] Activities response sample:', JSON.stringify(data[0], null, 2));
+      }
+
       return (Array.isArray(data) ? data : []).map((tx: any) => {
         const isSender = tx.from === address;
         const isReceiver = tx.to === address;
         
+        // BlockVison /activities usually provides 'amount' and 'symbol' or 'tokenSymbol'
+        const amountDisplay = tx.amount && tx.symbol ? `${tx.amount} ${tx.symbol}` : (tx.amount || "0");
+
         return {
           digest: tx.digest,
           type: isSender ? 'send' : (isReceiver ? 'receive' : 'other'),
-          amount: tx.amount || "0",
+          amount: amountDisplay,
           counterparty: isSender ? tx.to : (isReceiver ? tx.from : "Unknown"),
           timestamp: tx.timestamp || Date.now(),
         };
@@ -404,10 +420,14 @@ export class BlockVisionService {
 
       try {
         const txs = await this.indexer.getRecentTransactions(address, limit);
-        console.log(`[BlockVision] RPC fallback succeeded for transactions: ${address}`);
+        if (txs && txs.length > 0) {
+          console.log(`[BlockVision] RPC fallback succeeded with ${txs.length} transactions for: ${address}`);
+        } else {
+          console.log(`[BlockVision] RPC fallback executed but no transactions found for: ${address}`);
+        }
         return txs;
       } catch (rpcError: any) {
-        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError);
+        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError.message);
         return [];
       }
     }

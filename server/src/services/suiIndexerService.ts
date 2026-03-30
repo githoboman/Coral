@@ -280,8 +280,8 @@ export class SuiIndexerService {
         };
       });
     } catch (err) {
-      console.error(`[SuiIndexer] Failed to query transactions for ${address}`, err);
-      return [];
+      // Re-throw so the caller (BlockVisionService) knows the fallback actually failed
+      throw err;
     }
   }
 }
