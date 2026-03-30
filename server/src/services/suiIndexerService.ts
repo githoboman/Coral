@@ -29,6 +29,14 @@ export interface IndexerHolder {
   percentage?: number;
 }
 
+export interface IndexerTransaction {
+  digest: string;
+  type: 'send' | 'receive' | 'other';
+  amount: string;
+  counterparty: string;
+  timestamp: number;
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // PRICE FETCHING (CoinGecko — free, no key required for basic use)
 // ══════════════════════════════════════════════════════════════════════
@@ -232,6 +240,48 @@ export class SuiIndexerService {
       return await this.rpc.call('suix_getCoinMetadata', [coinType]);
     } catch {
       return null;
+    }
+  }
+
+  // ── Transactions ─────────────────────────────────────────────────────
+
+  /**
+   * Fetches recent transactions for an address using suix_queryTransactionBlocks.
+   * Focuses on outgoing transactions (sender = address).
+   */
+  async getRecentTransactions(address: string, limit = 10): Promise<IndexerTransaction[]> {
+    console.log(`[SuiIndexer] Querying transactions for ${address}`);
+    try {
+      const response: any = await this.rpc.call('suix_queryTransactionBlocks', [
+        {
+          filter: { FromAddress: address },
+          options: {
+            showInput: true,
+            showEffects: true,
+            showInternalViewComponents: true,
+          }
+        },
+        null,
+        limit,
+        true // descending
+      ]);
+
+      const data: any[] = response?.data || [];
+      return data.map((tx) => {
+        // Simplified parsing for RPC fallback
+        // In a real scenario, we'd parse balance changes, but for fallback 
+        // we'll just indicate it's an outgoing tx.
+        return {
+          digest: tx.digest,
+          type: 'send',
+          amount: "Check Dashboard", // RPC fallback is less detailed without heavy parsing
+          counterparty: "Multiple/Unknown", 
+          timestamp: tx.timestampMs ? parseInt(tx.timestampMs, 10) : Date.now(),
+        };
+      });
+    } catch (err) {
+      console.error(`[SuiIndexer] Failed to query transactions for ${address}`, err);
+      return [];
     }
   }
 }

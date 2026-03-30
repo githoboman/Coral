@@ -590,6 +590,29 @@ export class UserManager {
       return null;
     }
   }
+
+  /**
+   * Cleans up the tracked_wallet_state entry for a specific owner and tracked wallet.
+   * Called when a user unsubscribes from alerts.
+   */
+  async cleanupTrackedWalletState(
+    ownerAddress: string,
+    trackedAddress: string
+  ): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('tracked_wallet_state')
+        .delete()
+        .eq('owner_user_id', ownerAddress)
+        .eq('tracked_address', trackedAddress);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("[USER_MANAGER] Error cleaning up tracked wallet state:", error);
+      return false;
+    }
+  }
 }
 
 export const getUserManager = () => UserManager.getInstance();

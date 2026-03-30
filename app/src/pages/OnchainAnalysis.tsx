@@ -786,13 +786,15 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [newWallet, setNewWallet] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [walletToDelete, setWalletToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSubscribe = async () => {
     if (!newWallet || !newWallet.startsWith("0x")) return;
     setIsSubscribing(true);
     try {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-      const res = await fetch(`${baseUrl}/api/user/alert-wallet`, {
+      const res = await fetch(`${baseUrl}/api/user/alert-wallets`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -810,20 +812,25 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
     }
   };
 
-  const handleRemove = async (wallet: string) => {
+  const handleRemove = async () => {
+    if (!walletToDelete) return;
+    setIsDeleting(true);
     try {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-      const res = await fetch(`${baseUrl}/api/user/alert-wallet`, {
+      const res = await fetch(`${baseUrl}/api/user/alert-wallets`, {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_address: wallet })
+        body: JSON.stringify({ wallet_address: walletToDelete })
       });
       if (res.ok) {
+        setWalletToDelete(null);
         refetchProfile();
       }
     } catch (err) {
       console.error("Failed to remove alert wallet:", err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -848,7 +855,7 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-mono text-sm text-white/90 truncate mr-4">{wallet}</span>
                   <button 
-                    onClick={() => handleRemove(wallet)}
+                    onClick={() => setWalletToDelete(wallet)}
                     className="text-rose-500/40 hover:text-rose-500 transition-colors"
                   >
                     <Trash2 size={16} />
@@ -936,6 +943,42 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
               </button>
               <button 
                 onClick={() => setIsAddWalletOpen(false)}
+                className="w-full text-gray-400 hover:text-white py-2 text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {walletToDelete && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+            onClick={() => !isDeleting && setWalletToDelete(null)}
+          />
+          <div className="relative w-full max-w-sm bg-[#0A0A0A] border border-white/10 rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-300">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="text-rose-500" size={24} />
+            </div>
+            <h4 className="text-lg font-bold mb-2 text-center text-white">Stop Tracking?</h4>
+            <p className="text-sm text-gray-400 text-center mb-6">
+              Are you sure you want to stop receiving transaction alerts for <span className="text-white font-mono block mt-1 break-all">{walletToDelete}</span>?
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleRemove}
+                disabled={isDeleting}
+                className="w-full bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white py-3.5 rounded-full text-sm font-bold transition-all shadow-lg active:scale-[0.98] flex items-center justify-center"
+              >
+                {isDeleting ? <RefreshCw className="animate-spin" size={18} /> : "Yes, stop tracking"}
+              </button>
+              <button 
+                onClick={() => setWalletToDelete(null)}
+                disabled={isDeleting}
                 className="w-full text-gray-400 hover:text-white py-2 text-xs font-medium transition-colors"
               >
                 Cancel

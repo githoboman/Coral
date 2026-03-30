@@ -124,7 +124,7 @@ router.post(
 );
 
 router.post(
-  "/user/alert-wallet",
+  "/user/alert-wallets",
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -156,7 +156,7 @@ router.post(
 );
 
 router.delete(
-  "/user/alert-wallet",
+  "/user/alert-wallets",
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -178,6 +178,9 @@ router.delete(
       if (!updatedArray) {
         return res.status(500).json({ error: "Failed to remove alert wallet" });
       }
+
+      // Cleanup tracked_wallet_state
+      await manager.cleanupTrackedWalletState(currentUserWallet, alert_wallet);
 
       return res.json({ alert_wallets: updatedArray });
     } catch (error) {
