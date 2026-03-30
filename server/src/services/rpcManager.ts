@@ -27,20 +27,26 @@ interface JsonRpcResponse<T = any> {
 // CONFIG
 // ══════════════════════════════════════════════════════════════════════
 
-const RPC_ENDPOINTS: string[] = [
+const RPC_ENDPOINTS_MAINNET: string[] = [
   'https://fullnode.mainnet.sui.io:443',
   'https://mainnet.suiet.app',
   'https://rpc-mainnet.suiscan.xyz',
   'https://mainnet.sui.rpcpool.com',
   'https://sui-mainnet.nodeinfra.com',
   'https://mainnet-rpc.sui.chainbase.online',
-  'https://sui-mainnet.public.blastapi.io',
-  'https://sui-mainnet.blockpi.network/v1/rpc/public',
   'https://sui-rpc.publicnode.com',
   'https://sui-mainnet-ca-1.cosmostation.io',
   'https://sui-mainnet-ca-2.cosmostation.io',
   'https://sui-mainnet-us-1.cosmostation.io',
   'https://sui-mainnet-us-2.cosmostation.io',
+];
+
+const RPC_ENDPOINTS_TESTNET: string[] = [
+  'https://fullnode.testnet.sui.io:443',
+  'https://testnet.suiet.app',
+  'https://rpc-testnet.suiscan.xyz',
+  'https://sui-testnet-endpoint.blockvision.org',
+  'https://sui-testnet.nodeinfra.com',
 ];
 
 // How many consecutive failures before an endpoint is temporarily blacklisted
@@ -60,9 +66,13 @@ export class RpcManager {
   private endpoints: RpcEndpoint[];
   private currentIndex: number = 0;
   private requestId: number = 1;
+  private network: string = 'mainnet';
 
-  constructor(urls: string[] = RPC_ENDPOINTS) {
-    this.endpoints = urls.map((url) => ({
+  constructor(urls?: string[]) {
+    this.network = process.env.SUI_NETWORK || 'mainnet';
+    const finalUrls = urls || (this.network === 'testnet' ? RPC_ENDPOINTS_TESTNET : RPC_ENDPOINTS_MAINNET);
+    
+    this.endpoints = finalUrls.map((url) => ({
       url,
       failures: 0,
       lastFailure: null,

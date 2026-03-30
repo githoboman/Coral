@@ -25,7 +25,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { SkeletonBox } from "@/components/ui/SkeletonLoader";
-
+const IS_WIP_ENABLED = false;
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
@@ -277,8 +277,8 @@ export default function OnchainAnalysis() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8 pt-14 md:pt-8">
-      <div className="max-w-[1200px] mx-auto space-y-6">
+    <div className="min-h-screen bg-[#000000] text-white p-6 md:p-8 pt-14 md:pt-8 relative overflow-hidden">
+      <div className={`max-w-[1200px] mx-auto space-y-6 transition-all duration-700 ${IS_WIP_ENABLED ? 'pointer-events-none select-none filter blur-[32px] opacity-30' : ''}`}>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4 w-full">
           <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2 sm:gap-4 w-full sm:w-auto">
             <h1 className="text-xl md:text-2xl font-bold tracking-tight flex flex-col sm:flex-row items-center sm:items-baseline">
@@ -778,6 +778,21 @@ export default function OnchainAnalysis() {
         />
       )}
     </div>
+
+    {/* WIP Overlay */}
+    {IS_WIP_ENABLED && (
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/20 backdrop-blur-md">
+        <div className="bg-[#0A0A0A]/90 border border-white/10 p-12 rounded-[40px] shadow-2xl text-center max-w-sm mx-4 animate-in zoom-in-95 duration-500">
+          <div className="w-20 h-20 bg-gradient-to-tr from-[#246AFC] to-[#B7FC0D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-[#246AFC]/20">
+            <RefreshCw className="text-white animate-spin-slow" size={40} />
+          </div>
+          <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">Coming Soon</h2>
+          <p className="text-gray-400 text-sm leading-relaxed mb-8 font-outfit">
+            We're putting the finishing touches on the <span className="text-white font-bold">Portfolio Dashboard & Alert Manager</span>.
+          </p>
+        </div>
+      </div>
+    )}
   </div>
 );
 }
