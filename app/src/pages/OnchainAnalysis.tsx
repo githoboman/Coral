@@ -25,7 +25,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { SkeletonBox } from "@/components/ui/SkeletonLoader";
-const IS_WIP_ENABLED = false;
+const IS_WIP_ENABLED = true;
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
@@ -781,7 +781,7 @@ export default function OnchainAnalysis() {
 
     {/* WIP Overlay */}
     {IS_WIP_ENABLED && (
-      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/20 backdrop-blur-md">
+      <div className="fixed inset-0 z-[10] flex flex-col items-center justify-center bg-black/20 backdrop-blur-md">
         <div className="bg-[#0A0A0A]/90 border border-white/10 p-12 rounded-[40px] shadow-2xl text-center max-w-sm mx-4 animate-in zoom-in-95 duration-500">
           <div className="w-20 h-20 bg-gradient-to-tr from-[#246AFC] to-[#B7FC0D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-[#246AFC]/20">
             <RefreshCw className="text-white animate-spin-slow" size={40} />

@@ -3,7 +3,7 @@ import { getTaskStorageService } from "./taskStorageService";
 import { getNotificationService } from "./notificationService";
 import { getUserStateService } from "./userStateService";
 import { getSuggestionEngine } from "./suggestionEngine";
-import { getBlockVisionService } from "./blockVisionService";
+import { getBlockVisionService, WalletTransaction } from "./blockVisionService";
 import getSupabaseClient from "../config/supabase";
 
 const supabase = getSupabaseClient();
@@ -294,15 +294,30 @@ export class TaskScheduler {
 
       if (!transactions || transactions.length === 0) return;
 
-      // 3. Find new OUTGOING transactions we haven't seen yet
-      const newOutgoing = transactions.filter(tx =>
-        tx.type === 'send' &&
-        tx.digest !== lastSeenDigest
-      );
+      // 3. Find NEW transactions (strictly newer than lastSeenDigest)
+      // Since transactions are descending [newest...oldest], 
+      // new ones are those at the start of the array BEFORE we hit lastSeenDigest.
+      const lastSeenIndex = transactions.findIndex(tx => tx.digest === lastSeenDigest);
+      
+      let newTransactions: WalletTransaction[] = [];
+      if (lastSeenIndex === -1) {
+        // If lastSeenDigest isn't in our list, it's either the first time 
+        // OR the wallet was so active it fell off our radar (limit 5).
+        // We'll treat this as "nothing new" to be safe, or just alert on the very first one if it's new.
+        if (lastSeenDigest) {
+          // It was active, so we alert on the absolute newest to catch up
+          newTransactions = [transactions[0]];
+        }
+      } else {
+        // Everything before lastSeenIndex is newer
+        newTransactions = transactions.slice(0, lastSeenIndex);
+      }
+
+      // Filter for outgoing ONLY
+      const newOutgoing = newTransactions.filter(tx => tx.type === 'send');
 
       // 4. Update last_seen_digest to the most recent transaction (first in list)
       // Do this BEFORE dispatching to prevent duplicate notifications if dispatch is slow
-      // Also, if lastSeenDigest was null, we just set the first one without alerting (grace period)
       await supabase
         .from('tracked_wallet_state')
         .upsert({
@@ -312,6 +327,7 @@ export class TaskScheduler {
           last_checked_at: new Date().toISOString(),
         }, { onConflict: 'owner_user_id,tracked_address' });
 
+      // First-time setup grace period
       if (!lastSeenDigest) {
         console.log(`[WALLET ALERTS] First-time setup for ${trackedAddress.slice(0, 10)}... (owner ${ownerAddress.slice(0, 10)}...). Digest set.`);
         return;
