@@ -250,7 +250,7 @@ export class SuiIndexerService {
    * Focuses on outgoing transactions (sender = address).
    */
   async getRecentTransactions(address: string, limit = 10): Promise<IndexerTransaction[]> {
-    console.log(`[SuiIndexer] Querying transactions for ${address}`);
+    // console.log(`[SuiIndexer] Querying transactions for ${address}`);
     try {
       const response: any = await this.rpc.call('suix_queryTransactionBlocks', [
         {

@@ -123,9 +123,11 @@ export class RpcManager {
     ep.failures += 1;
     ep.lastFailure = Date.now();
     if (ep.failures >= MAX_FAILURES) {
+      /*
       console.warn(
         `[RateLimitSwitch] Endpoint ${ep.url} blacklisted after ${ep.failures} failures`
       );
+      */
     }
   }
 
@@ -172,9 +174,11 @@ export class RpcManager {
       } catch (err: any) {
         lastError = err;
         this.markFailure(ep);
+        /*
         console.warn(
           `[RateLimitSwitch] ${ep.url} failed (attempt ${attempt + 1}/${MAX_RETRIES}): ${err?.message}`
         );
+        */
       }
     }
 
