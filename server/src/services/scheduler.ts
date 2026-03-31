@@ -255,8 +255,7 @@ export class TaskScheduler {
       }
 
       if (pairs.length === 0) return;
-
-      console.log(`[WALLET ALERTS] Checking ${pairs.length} tracked wallet(s)`);
+      // console.log(`[WALLET ALERTS] Checking ${pairs.length} tracked wallet(s)`);
 
       // 3. Process in batches of 5 (consistent with existing scheduler pattern)
       const BATCH_SIZE = 5;

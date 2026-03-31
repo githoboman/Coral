@@ -392,39 +392,49 @@ export class BlockVisionService {
       const data = response.data.result?.data || response.data.result || [];
       
       // Log sample for verification on first successful call -- Remove after Testing
-      if (data.length > 0) {
-        console.log('[BlockVision DEBUG] Activities response sample:', JSON.stringify(data[0], null, 2));
-      }
+      // if (data.length > 0) {
+      //   console.log('[BlockVision DEBUG] Activities response sample:', JSON.stringify(data[0], null, 2));
+      // }
 
       return (Array.isArray(data) ? data : []).map((tx: any) => {
-        const isSender = tx.from === address;
-        const isReceiver = tx.to === address;
+        // activities usually has coinChanges or objectChanges
+        const coinTx = tx.coinChanges?.find((c: any) => c.from === address || c.to === address);
         
-        // BlockVison /activities usually provides 'amount' and 'symbol' or 'tokenSymbol'
-        const amountDisplay = tx.amount && tx.symbol ? `${tx.amount} ${tx.symbol}` : (tx.amount || "0");
+        const isSender = coinTx ? (coinTx.from === address) : (tx.sender === address);
+        
+        // Format amount from coinChanges if available
+        let amountDisplay = "Check Explorer";
+        if (coinTx) {
+          const rawAmount = Math.abs(Number(coinTx.amount || 0));
+          const decimals = coinTx.decimals || 9;
+          const formatted = (rawAmount / Math.pow(10, decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 });
+          amountDisplay = `${formatted} ${coinTx.symbol || 'SUI'}`;
+        }
 
         return {
-          digest: tx.digest,
-          type: isSender ? 'send' : (isReceiver ? 'receive' : 'other'),
+          digest: tx.digest || tx.txDigest,
+          type: isSender ? 'send' : 'receive',
           amount: amountDisplay,
-          counterparty: isSender ? tx.to : (isReceiver ? tx.from : "Unknown"),
-          timestamp: tx.timestamp || Date.now(),
+          counterparty: coinTx ? (isSender ? coinTx.to : coinTx.from) : (tx.sender === address ? "Multiple" : tx.sender),
+          timestamp: tx.timestamp ? Number(tx.timestamp) : Date.now(),
         };
       });
     } catch (bvError: any) {
       const status = bvError?.response?.status;
       this.markExhausted(status);
-      console.warn(
-        `[BlockVision] Transactions fetch failed (${status ?? bvError?.message}), falling back to RPC indexer...`
-      );
+      // console.warn(
+      //   `[BlockVision] Transactions fetch failed (${status ?? bvError?.message}), falling back to RPC indexer...`
+      // );
 
       try {
         const txs = await this.indexer.getRecentTransactions(address, limit);
+        /* 
         if (txs && txs.length > 0) {
           console.log(`[BlockVision] RPC fallback succeeded with ${txs.length} transactions for: ${address}`);
         } else {
           console.log(`[BlockVision] RPC fallback executed but no transactions found for: ${address}`);
         }
+        */
         return txs;
       } catch (rpcError: any) {
         console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError.message);

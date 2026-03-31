@@ -5,6 +5,17 @@ import { getUserManager } from "./userManager";
 import { getNotificationCopyService } from "./notificationCopyService";
 import { WalletTransaction } from "./blockVisionService";
 
+function timeAgo(timestampMs: number): string {
+  const diffMs = Date.now() - timestampMs;
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+}
+
 export class NotificationService {
   private static instance: NotificationService;
   private telegramService = getTelegramService();
@@ -397,6 +408,10 @@ export class NotificationService {
     const shortCounterparty = counterparty.length > 20 
       ? `${counterparty.slice(0, 6)}...${counterparty.slice(-4)}` 
       : counterparty;
+    
+    const timeAgoStr = timeAgo(transaction.timestamp);
+    const digest = transaction.digest;
+    const amount = transaction.amount;
 
     // ── Track A: Telegram ─────────────────────────────────────────────
     const telegramTrack = (async () => {
@@ -405,11 +420,14 @@ export class NotificationService {
         const safeUsername = this.escapeHtml(username);
 
         const message =
-          `Hey <b>${safeUsername}</b>!\n\n` +
-          `A wallet you're tracking just made a move.\n\n` +
-          `<b>Wallet</b>\n${this.escapeHtml(shortAddress)}\n\n` +
-          `<b>Sent</b>\n${this.escapeHtml(transaction.amount)} → ${this.escapeHtml(shortCounterparty)}\n\n` +
-          `Stay on top of it!`;
+          `Hey ${safeUsername}!\n\n` +
+          `🔔 <b>Wallet Activity Detected</b>\n\n` +
+          `<b>${shortAddress}</b> just sent a transaction.\n\n` +
+          `<b>Sent</b>\n` +
+          `${this.escapeHtml(amount)} → ${this.escapeHtml(shortCounterparty)}\n\n` +
+          `<b>Time</b>\n` +
+          `${timeAgoStr}\n\n` +
+          `<a href="https://suivision.xyz/txblock/${digest}">View on SuiVision →</a>`;
 
         await this.sendNotification(ownerAddress, message);
         console.log(`[NOTIFY] Telegram: ✓ Wallet alert sent for ${shortAddress}`);
@@ -428,16 +446,21 @@ export class NotificationService {
         const html = `
           <div style="font-family: sans-serif; padding: 20px; color: #333;">
             <p>Hey <b>${this.escapeHtml(username)}</b>!</p>
-            <p>A wallet you're tracking just made a move.</p>
+            
+            <p>🔔 <b>Wallet Activity Detected</b></p>
+
             <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 10px 0;">
               <p><b>Wallet</b><br>${this.escapeHtml(shortAddress)}</p>
-              <p><b>Sent</b><br>${this.escapeHtml(transaction.amount)} → ${this.escapeHtml(shortCounterparty)}</p>
+              <p><b>Sent</b><br>${this.escapeHtml(amount)} → ${this.escapeHtml(shortCounterparty)}</p>
+              <p><b>Time</b><br>${timeAgoStr}</p>
             </div>
-            <p>Stay on top of it!</p>
-            <p>Thanks,<br>Tovira Team</p>
+
+            <p><a href="https://suivision.xyz/txblock/${digest}">View on SuiVision →</a></p>
+
+            <p>Stay on top of it!<br>Tovira Team</p>
           </div>`;
 
-        const ok = await this.emailService.sendEmail(email, `Wallet Alert — ${shortAddress}`, html);
+        const ok = await this.emailService.sendEmail(email, `🔔 Wallet Activity: Outgoing ${amount}`, html);
         if (ok) console.log(`[NOTIFY] Email: ✓ Wallet alert sent to ${email}`);
       } catch (err) {
         console.error(`[NOTIFY] Email: ✗ Wallet alert failed`, err);
