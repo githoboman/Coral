@@ -8,6 +8,17 @@ import getSupabaseClient from "../config/supabase";
 
 const supabase = getSupabaseClient();
 
+function timeAgo(timestampMs: number): string {
+  const diffMs = Date.now() - timestampMs;
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+}
+
 export class TaskScheduler {
   private static instance: TaskScheduler;
   private taskStorage = getTaskStorageService();
@@ -315,9 +326,30 @@ export class TaskScheduler {
       // Filter for outgoing ONLY
       const newOutgoing = newTransactions.filter(tx => tx.type === 'send');
 
+      // Quick stop-gap: skip stale transactions (>10 mins)
+      if (newOutgoing.length > 0) {
+        const latestNew = newOutgoing[0];
+        const TEN_MINUTES_MS = 10 * 60 * 1000;
+        if (Date.now() - latestNew.timestamp > TEN_MINUTES_MS) {
+          console.log(`[WALLET ALERTS] Skipping stale transaction from ${timeAgo(latestNew.timestamp)} for ${trackedAddress}`);
+          
+          // Still update the digest so we don't keep seeing this stale tx
+          await supabase
+            .from('tracked_wallet_state')
+            .upsert({
+              owner_user_id: ownerAddress,
+              tracked_address: trackedAddress,
+              last_seen_digest: transactions[0].digest,
+              last_checked_at: new Date().toISOString(),
+            }, { onConflict: 'owner_user_id,tracked_address' });
+            
+          return;
+        }
+      }
+
       // 4. Update last_seen_digest to the most recent transaction (first in list)
       // Do this BEFORE dispatching to prevent duplicate notifications if dispatch is slow
-      await supabase
+        const { error: upsertError } = await supabase
         .from('tracked_wallet_state')
         .upsert({
           owner_user_id: ownerAddress,
@@ -325,6 +357,10 @@ export class TaskScheduler {
           last_seen_digest: transactions[0].digest, // Most recent
           last_checked_at: new Date().toISOString(),
         }, { onConflict: 'owner_user_id,tracked_address' });
+
+      if (upsertError) {
+        console.error(`[WALLET ALERTS] Failed to persist state for ${trackedAddress}:`, upsertError.message, upsertError.details);
+      }
 
       // First-time setup grace period
       if (!lastSeenDigest) {
