@@ -258,7 +258,7 @@ export class SuiIndexerService {
           options: {
             showInput: true,
             showEffects: true,
-            showInternalViewComponents: true,
+            showBalanceChanges: true,
           }
         },
         null,
@@ -268,14 +268,33 @@ export class SuiIndexerService {
 
       const data: any[] = response?.data || [];
       return data.map((tx) => {
-        // Simplified parsing for RPC fallback
-        // In a real scenario, we'd parse balance changes, but for fallback 
-        // we'll just indicate it's an outgoing tx.
+        const balanceChanges = tx.balanceChanges || [];
+        
+        // Find the outgoing change for this address
+        const myChange = balanceChanges.find((c: any) => 
+          (c.owner.AddressOwner === address || c.owner === address) && Number(c.amount) < 0
+        );
+
+        // Find the likely recipient (other address receiving the same coin)
+        const recipientChange = balanceChanges.find((c: any) => 
+          (c.owner.AddressOwner !== address && c.owner !== address) && Number(c.amount) > 0 && c.coinType === myChange?.coinType
+        );
+
+        let amountDisplay = "Check Dashboard";
+        if (myChange) {
+          const absAmount = Math.abs(Number(myChange.amount));
+          const coinType = myChange.coinType;
+          const symbol = coinType === '0x2::sui::SUI' ? 'SUI' : (coinType.split('::').pop() || 'TOKEN');
+          const decimals = coinType === '0x2::sui::SUI' ? 9 : 9; // Best-effort without full metadata
+          const formatted = (absAmount / Math.pow(10, decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 });
+          amountDisplay = `${formatted} ${symbol}`;
+        }
+
         return {
           digest: tx.digest,
           type: 'send',
-          amount: "Check Dashboard", // RPC fallback is less detailed without heavy parsing
-          counterparty: "Multiple/Unknown", 
+          amount: amountDisplay,
+          counterparty: recipientChange?.owner?.AddressOwner || recipientChange?.owner || "Multiple/Interaction",
           timestamp: tx.timestampMs ? parseInt(tx.timestampMs, 10) : Date.now(),
         };
       });
