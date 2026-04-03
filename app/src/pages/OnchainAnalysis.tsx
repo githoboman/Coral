@@ -25,7 +25,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { SkeletonBox } from "@/components/ui/SkeletonLoader";
-const IS_WIP_ENABLED = true;
+const IS_WIP_ENABLED = false;
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
   const address = account?.address || null;
