@@ -391,32 +391,41 @@ export class BlockVisionService {
 
       const data = response.data.result?.data || response.data.result || [];
       
-      // Log sample for verification on first successful call -- Remove after Testing
-      // if (data.length > 0) {
-      //   console.log('[BlockVision DEBUG] Activities response sample:', JSON.stringify(data[0], null, 2));
-      // }
+      // Step 1 — Log the Raw Response (Temporary)
+      if (data.length > 0) {
+        console.log('[BlockVision DEBUG] Raw activity item:', JSON.stringify(data[0], null, 2));
+      }
 
       return (Array.isArray(data) ? data : []).map((tx: any) => {
-        // activities usually has coinChanges or objectChanges
-        const coinTx = tx.coinChanges?.find((c: any) => c.from === address || c.to === address);
-        
-        const isSender = coinTx ? (coinTx.from === address) : (tx.sender === address);
-        
-        // Format amount from coinChanges if available
-        let amountDisplay = "Check Explorer";
-        if (coinTx) {
-          const rawAmount = Math.abs(Number(coinTx.amount || 0));
-          const decimals = coinTx.decimals || 9;
-          const formatted = (rawAmount / Math.pow(10, decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 });
-          amountDisplay = `${formatted} ${coinTx.symbol || 'SUI'}`;
-        }
+        // Sender identification — activities endpoint uses 'sender' not 'from'
+        const sender = tx.sender || tx.from || '';
+        const isSender = sender.toLowerCase() === address.toLowerCase();
+
+        // Recipient — may be nested inside 'receiver', 'recipient', or 'to'
+        const recipient = tx.receiver || tx.recipient || tx.to || '';
+        const isReceiver = recipient.toLowerCase() === address.toLowerCase();
+
+        // Amount — may be a string like "10 USDC" or an object with value + symbol
+        const rawAmount = tx.amount || tx.value || '';
+        const symbol = tx.symbol || tx.coinSymbol || tx.tokenSymbol || '';
+        const amount = symbol && rawAmount
+          ? `${rawAmount} ${symbol}`
+          : (rawAmount ? String(rawAmount) : 'Unknown amount');
+
+        // Digest — the transaction hash used for SuiVision URL (base58)
+        const digest = tx.transactionDigest || tx.txDigest || tx.digest || tx.hash || '';
+
+        // Timestamp
+        const timestamp = tx.timestampMs
+          ? parseInt(tx.timestampMs)
+          : (tx.timestamp ? Number(tx.timestamp) : Date.now());
 
         return {
-          digest: tx.digest || tx.txDigest,
-          type: isSender ? 'send' : 'receive',
-          amount: amountDisplay,
-          counterparty: coinTx ? (isSender ? coinTx.to : coinTx.from) : (tx.sender === address ? "Multiple" : tx.sender),
-          timestamp: tx.timestamp ? Number(tx.timestamp) : Date.now(),
+          digest,
+          type: isSender ? 'send' : (isReceiver ? 'receive' : 'other'),
+          amount: amount === 'Unknown amount' ? 'Check Explorer' : amount,
+          counterparty: isSender ? recipient : sender,
+          timestamp,
         };
       });
     } catch (bvError: any) {
