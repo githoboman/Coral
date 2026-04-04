@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Search, Filter, X } from "lucide-react";
+import { ChevronRight, Search, Filter, X, Plus } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchTasks, removeTask, invalidateCache } from "@/store/slices/tasksSlice";
+import { fetchTasks, removeTask, updateTaskStatus, invalidateCache } from "@/store/slices/tasksSlice";
 import { fetchEvents } from "@/store/slices/eventsSlice";
 import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { Toast, ToastType } from "@/components/ui/Toast";
@@ -332,25 +332,12 @@ const Activity = () => {
       setTogglingItems((prev) => new Set(prev).add(id));
       setToast(null);
 
-      // Calculate new status
-      const newStatus = task.completed ? "pending" : "completed";
-
-      // Use PATCH to update status
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${id}`, {
-        method: "PATCH",
-        credentials: 'include',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          status: newStatus
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update task status");
-
-      // Refresh tasks
-      dispatch(invalidateCache());
-      await dispatch(fetchTasks(userId));
+      // Use the thunk for consistency and state management
+      await dispatch(updateTaskStatus({ 
+        taskId: id, 
+        userId, 
+        completed: !task.completed 
+      })).unwrap();
     } catch (err) {
       console.error("Failed to toggle task:", err);
       sileo.error({ title: "Update Failed", description: "Failed to update task. Please try again." });
@@ -368,12 +355,12 @@ const Activity = () => {
       setLoadingStates((prev) => ({ ...prev, deleting: true }));
       setToast(null);
 
-      if (typeof id === 'string') {
+      if (typeof id === 'string' && id.startsWith('optimistic-')) {
         // Optimistic deletion - just remove from state
         setOptimisticTasks(prev => prev.filter(t => t.id !== id));
       } else {
         // Real backend deletion
-        await dispatch(removeTask({ taskId: id, userId }));
+        await dispatch(removeTask({ taskId: id, userId })).unwrap();
       }
 
       closeModal();
@@ -424,12 +411,18 @@ const Activity = () => {
         />
       )}
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-        <div className="mb-8 text-center md:text-left">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
           <h1 className="text-2xl md:text-3xl font-bold">
             Tasks
           </h1>
+          {/* <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#246AFC] hover:bg-[#1a55cc] text-white px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-[#246AFC]/20"
+          >
+            <Plus size={16} />
+            Create Task
+          </button> */}
         </div>
       </div>
 
