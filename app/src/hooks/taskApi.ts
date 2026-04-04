@@ -1,7 +1,7 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export interface Task {
-  id?: number;
+  id?: string | number;
   user_id: string;
   task_name: string;
   description?: string;
@@ -40,7 +40,7 @@ export interface DCAParams {
 }
 
 export interface ActionExecuteResponse {
-  task_id: number;
+  task_id: string | number;
   action_type: string;
   serialized_tx: string;
   message: string;
@@ -159,7 +159,7 @@ class TaskApiClient {
     return response.json();
   }
 
-  async getTask(taskId: number, userId: string): Promise<Task> {
+  async getTask(taskId: string | number, userId: string): Promise<Task> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'GET',
       credentials: 'include',
@@ -176,14 +176,14 @@ class TaskApiClient {
     return response.json();
   }
 
-  async updateTask(taskId: number, userId: string, updates: Partial<Task>): Promise<Task> {
-    const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
+  async updateTask(taskId: string | number, userId: string, updates: Partial<Task>): Promise<Task> {
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ ...updates, user_id: userId }),
     });
 
     if (!response.ok) {
@@ -194,7 +194,7 @@ class TaskApiClient {
     return response.json();
   }
 
-  async deleteTask(taskId: number, userId: string): Promise<{ message: string; task_id: number; task_name: string }> {
+  async deleteTask(taskId: string | number, userId: string): Promise<{ message: string; task_id: string | number; task_name: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
       method: 'DELETE',
       credentials: 'include',
@@ -211,13 +211,14 @@ class TaskApiClient {
     return response.json();
   }
 
-  async completeTask(taskId: number, userId: string): Promise<Task> {
-    const response = await fetch(`${this.baseUrl}/tasks/${taskId}/complete?user_id=${userId}`, {
+  async completeTask(taskId: string | number, userId: string): Promise<Task> {
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}/complete`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ user_id: userId }),
     });
 
     if (!response.ok) {
@@ -268,7 +269,7 @@ class TaskApiClient {
   /**
    * Build an unsigned transaction for a task action
    */
-  async executeTaskAction(taskId: number, userId: string, walletAddress: string): Promise<ActionExecuteResponse> {
+  async executeTaskAction(taskId: string | number, userId: string, walletAddress: string): Promise<ActionExecuteResponse> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/execute`, {
       method: 'POST',
       credentials: 'include',
@@ -292,7 +293,7 @@ class TaskApiClient {
   /**
    * Confirm task action was executed with transaction digest
    */
-  async confirmTaskAction(taskId: number, userId: string, txDigest: string): Promise<ActionConfirmResponse> {
+  async confirmTaskAction(taskId: string | number, userId: string, txDigest: string): Promise<ActionConfirmResponse> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/confirm`, {
       method: 'POST',
       credentials: 'include',

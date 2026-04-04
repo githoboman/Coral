@@ -50,7 +50,7 @@ export const createTask = createAsyncThunk(
 
 export const updateTaskStatus = createAsyncThunk(
   'tasks/updateTaskStatus',
-  async ({ taskId, userId, completed }: { taskId: number; userId: string; completed: boolean }, { rejectWithValue }) => {
+  async ({ taskId, userId, completed }: { taskId: string | number; userId: string; completed: boolean }, { rejectWithValue }) => {
     try {
       let response;
       if (completed) {
@@ -67,7 +67,7 @@ export const updateTaskStatus = createAsyncThunk(
 
 export const removeTask = createAsyncThunk(
   'tasks/removeTask',
-  async ({ taskId, userId }: { taskId: number; userId: string }, { rejectWithValue }) => {
+  async ({ taskId, userId }: { taskId: string | number; userId: string }, { rejectWithValue }) => {
     try {
       await taskApi.deleteTask(taskId, userId);
       return taskId;
@@ -94,7 +94,7 @@ export const fetchActionableTasks = createAsyncThunk(
 export const confirmAction = createAsyncThunk(
   'tasks/confirmAction',
   async (
-    { taskId, userId, txDigest }: { taskId: number; userId: string; txDigest: string },
+    { taskId, userId, txDigest }: { taskId: string | number; userId: string; txDigest: string },
     { rejectWithValue }
   ) => {
     try {
@@ -118,13 +118,13 @@ const tasksSlice = createSlice({
     addTask: (state, action: PayloadAction<Task>) => {
       state.tasks.push(action.payload);
     },
-    updateTask: (state, action: PayloadAction<{ taskId: number; updates: Partial<Task> }>) => {
+    updateTask: (state, action: PayloadAction<{ taskId: string | number; updates: Partial<Task> }>) => {
       const index = state.tasks.findIndex(t => t.id === action.payload.taskId);
       if (index !== -1) {
         state.tasks[index] = { ...state.tasks[index], ...action.payload.updates };
       }
     },
-    deleteTask: (state, action: PayloadAction<number>) => {
+    deleteTask: (state, action: PayloadAction<string | number>) => {
       state.tasks = state.tasks.filter(t => t.id !== action.payload);
     },
     invalidateCache: (state) => {
