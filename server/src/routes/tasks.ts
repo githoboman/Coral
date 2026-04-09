@@ -334,8 +334,11 @@ router.post(
         return;
       }
 
+      const updatedTask = await taskStorage.getTask(user_id, task_id);
+
       res.json({
         success: true,
+        task: updatedTask,
         message: "Task marked as completed",
       });
     } catch (error) {
@@ -376,8 +379,11 @@ router.post(
         action_status: "completed",
       });
 
+      const updatedTask = await taskStorage.getTask(user_id, task_id);
+
       res.json({
         success: true,
+        task: updatedTask,
         message: "Task transaction confirmed",
         task_id,
         tx_digest,

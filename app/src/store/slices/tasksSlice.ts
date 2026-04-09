@@ -160,7 +160,10 @@ const tasksSlice = createSlice({
       .addCase(updateTaskStatus.fulfilled, (state, action) => {
         const index = state.tasks.findIndex(t => t.id === action.payload.taskId);
         if (index !== -1) {
-          state.tasks[index] = { ...state.tasks[index], ...action.payload.task };
+          // The backend returns { success: true, task: updatedTask, message: "..." }
+          const response = action.payload.task as any;
+          const updatedTaskData = response.task || response;
+          state.tasks[index] = { ...state.tasks[index], ...updatedTaskData };
         }
       })
       .addCase(updateTaskStatus.rejected, (state, action) => {
@@ -177,7 +180,10 @@ const tasksSlice = createSlice({
       .addCase(confirmAction.fulfilled, (state, action) => {
         const index = state.tasks.findIndex(t => t.id === action.payload.taskId);
         if (index !== -1) {
-          state.tasks[index] = { ...state.tasks[index], ...action.payload.task };
+          // Standardize unpacking from { success: true, task: updatedTask }
+          const response = action.payload.task as any;
+          const updatedTaskData = response.task || response;
+          state.tasks[index] = { ...state.tasks[index], ...updatedTaskData };
         }
       })
       .addCase(confirmAction.rejected, (state, action) => {

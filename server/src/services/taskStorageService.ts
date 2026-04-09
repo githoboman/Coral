@@ -24,6 +24,19 @@ export class TaskStorageService {
     // No initialization needed for Supabase client
   }
 
+  private normalizeUserId(userId: string): string {
+    if (!userId) return userId;
+    // Standardize Sui addresses to lowercase with 0x prefix
+    // If it's a numeric ID (like Telegram), keep as is
+    if (/^[0-9]+$/.test(userId)) return userId;
+    
+    let normalized = userId.toLowerCase();
+    if (!normalized.startsWith("0x")) {
+      normalized = "0x" + normalized;
+    }
+    return normalized;
+  }
+
   // Create new task
   async createTask(
     userId: string,
@@ -34,7 +47,7 @@ export class TaskStorageService {
       const { data, error } = await this.supabase
         .from("tasks")
         .insert({
-          user_id: userId,
+          user_id: this.normalizeUserId(userId),
           task_name: taskData.task_name,
           description: taskData.description,
           due_date: taskData.due_date,
@@ -71,7 +84,7 @@ export class TaskStorageService {
       const { data, error } = await this.supabase
         .from("tasks")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", this.normalizeUserId(userId))
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -101,7 +114,7 @@ export class TaskStorageService {
         .from("tasks")
         .select("*")
         .eq("id", numericId)
-        .eq("user_id", userId) // Security check
+        .eq("user_id", this.normalizeUserId(userId)) // Security check
         .single();
 
       if (error || !data) {
@@ -141,7 +154,7 @@ export class TaskStorageService {
         .from("tasks")
         .update(cleanUpdates)
         .eq("id", numericId)
-        .eq("user_id", userId);
+        .eq("user_id", this.normalizeUserId(userId));
 
       if (error) {
         console.error("Supabase update task error:", error);
@@ -165,7 +178,7 @@ export class TaskStorageService {
         .from("tasks")
         .delete()
         .eq("id", numericId)
-        .eq("user_id", userId);
+        .eq("user_id", this.normalizeUserId(userId));
 
       if (error) {
         console.error("Supabase delete task error:", error);
