@@ -1,0 +1,3082 @@
+[
+  {
+    "id": 7,
+    "wallet_address": "0x6788ee9589dd75784972b52fd3415336ef8938b5ff92f6fb18fc80d8a7d4fd5c",
+    "telegram_user_id": "6028332045",
+    "telegram_username": "ShihoTL",
+    "telegram_chat_id": "6028332045",
+    "created_at": "2026-02-18T05:59:02.570965+00:00"
+  },
+  {
+    "id": 8,
+    "wallet_address": "0xa99ff689d90e9034a95a771f96a5555d9e0034ca1aefa3060c87545cfce97925",
+    "telegram_user_id": "5061780591",
+    "telegram_username": "henry_tovira",
+    "telegram_chat_id": "5061780591",
+    "created_at": "2026-02-18T08:09:38.130334+00:00"
+  },
+  {
+    "id": 10,
+    "wallet_address": "0x67708de75f9a30a903f6afafec5237ea3ad7f653508b4eb1f45cb2b16328f18e",
+    "telegram_user_id": "7317705516",
+    "telegram_username": "GeorgeTero",
+    "telegram_chat_id": "7317705516",
+    "created_at": "2026-02-18T08:53:45.619674+00:00"
+  },
+  {
+    "id": 11,
+    "wallet_address": "0x88d5267902fe4dbdd42f4eb772d34aecaeb052efcc6f49101e868b58d27feec2",
+    "telegram_user_id": "1065479259",
+    "telegram_username": "Henriie",
+    "telegram_chat_id": "1065479259",
+    "created_at": "2026-02-18T12:49:21.256954+00:00"
+  },
+  {
+    "id": 12,
+    "wallet_address": "0x0bb4fc66a806c9bcbd31675ddbd544189e947a314d59cbbb0ba558ab8cd1aa7a",
+    "telegram_user_id": "6675090938",
+    "telegram_username": "Priz_cilla",
+    "telegram_chat_id": "6675090938",
+    "created_at": "2026-02-18T21:01:50.747303+00:00"
+  },
+  {
+    "id": 13,
+    "wallet_address": "0x04f1ebf0b91eb54e4598f84e32ea71a431a409d6f61a1595f8d3ef681ee511c0",
+    "telegram_user_id": "7387876995",
+    "telegram_username": "oxdeadchain",
+    "telegram_chat_id": "7387876995",
+    "created_at": "2026-02-18T21:10:15.301612+00:00"
+  },
+  {
+    "id": 14,
+    "wallet_address": "0xeb92b53bc0b7c1e633e64ab1f229daf99f6dee9150cb8dbd3a66069a1f4eb566",
+    "telegram_user_id": "5463865407",
+    "telegram_username": "johndiggs93",
+    "telegram_chat_id": "5463865407",
+    "created_at": "2026-02-18T21:10:37.076211+00:00"
+  },
+  {
+    "id": 16,
+    "wallet_address": "0xf4f81709b1f3edab5c75ff531693e2c90510e21f3d1193cb597017b8d237461f",
+    "telegram_user_id": "1481057323",
+    "telegram_username": "Instinct69",
+    "telegram_chat_id": "1481057323",
+    "created_at": "2026-02-18T21:37:18.08369+00:00"
+  },
+  {
+    "id": 17,
+    "wallet_address": "0x646c35afd2f2d0fb29c06ac635d4f7aa774ad3c174397c0f55556f83389538d5",
+    "telegram_user_id": "779525727",
+    "telegram_username": "paprika911",
+    "telegram_chat_id": "779525727",
+    "created_at": "2026-02-18T21:41:51.384498+00:00"
+  },
+  {
+    "id": 18,
+    "wallet_address": "0x8802cc6ee715fd5542fbc42181a109036670eb7e455a363994904a9999e76603",
+    "telegram_user_id": "6740993054",
+    "telegram_username": "basu3185",
+    "telegram_chat_id": "6740993054",
+    "created_at": "2026-02-18T21:45:33.344495+00:00"
+  },
+  {
+    "id": 22,
+    "wallet_address": "0x3d6653986ef0126a48d39ffcb2cc4bd05c66b76340300a409784b7a030f13edd",
+    "telegram_user_id": "1096811102",
+    "telegram_username": "Iamhope01",
+    "telegram_chat_id": "1096811102",
+    "created_at": "2026-02-18T22:08:27.182587+00:00"
+  },
+  {
+    "id": 23,
+    "wallet_address": "0x8144d748a1316b2e3b871bc24f54b1b48905dcfe8451a8391197b3dbd4fbeacf",
+    "telegram_user_id": "8547917244",
+    "telegram_username": "Salfromearth",
+    "telegram_chat_id": "8547917244",
+    "created_at": "2026-02-18T22:16:00.857148+00:00"
+  },
+  {
+    "id": 24,
+    "wallet_address": "0x948336c4f14a1c3404a2af719d6aac02316ad3d0f4686c4b793cf08097aff658",
+    "telegram_user_id": "5079899908",
+    "telegram_username": "johnbaxter1242",
+    "telegram_chat_id": "5079899908",
+    "created_at": "2026-02-18T22:19:07.56692+00:00"
+  },
+  {
+    "id": 25,
+    "wallet_address": "0xb4e0579ebeb4baa60063671cadd8dae4b0b2a823c66b22c2106c3320e0a2926d",
+    "telegram_user_id": "5642779595",
+    "telegram_username": "Adi8325",
+    "telegram_chat_id": "5642779595",
+    "created_at": "2026-02-18T22:26:21.250562+00:00"
+  },
+  {
+    "id": 26,
+    "wallet_address": "0x0f439ace90214a38e358141ad9016cb4396a97ca1e5025f3032b9b89480a2a5d",
+    "telegram_user_id": "1069084719",
+    "telegram_username": "rikiviking",
+    "telegram_chat_id": "1069084719",
+    "created_at": "2026-02-18T22:26:41.082901+00:00"
+  },
+  {
+    "id": 27,
+    "wallet_address": "0xe87f63052dfb5d20eb9bd015b6f932d8bc27649ba27b37db4a94697e4129c9e3",
+    "telegram_user_id": "7110637940",
+    "telegram_username": "Jegurda54",
+    "telegram_chat_id": "7110637940",
+    "created_at": "2026-02-18T22:43:10.387643+00:00"
+  },
+  {
+    "id": 28,
+    "wallet_address": "0xf98c7fda27e45dd5cecc02c92aed6733b8e32e8c8b8032f5068cb99dcf7afc2d",
+    "telegram_user_id": "5947355490",
+    "telegram_username": "GajelLaw",
+    "telegram_chat_id": "5947355490",
+    "created_at": "2026-02-18T22:59:19.470655+00:00"
+  },
+  {
+    "id": 29,
+    "wallet_address": "0x03f79da0a53d5eda9e629d8093cf0b95327425d69c402847a0a0fba36ec5ccde",
+    "telegram_user_id": "1068361822",
+    "telegram_username": "giahuy005",
+    "telegram_chat_id": "1068361822",
+    "created_at": "2026-02-18T23:06:01.057672+00:00"
+  },
+  {
+    "id": 30,
+    "wallet_address": "0x3b5d11c5eead581e194625945da1ab11f1ae6483c071c2e4905a671f1a383174",
+    "telegram_user_id": "7913617766",
+    "telegram_username": "purwa1232",
+    "telegram_chat_id": "7913617766",
+    "created_at": "2026-02-18T23:14:53.637971+00:00"
+  },
+  {
+    "id": 31,
+    "wallet_address": "0xc0398abb423991c867df1ed35b3c677cfaedd01272cb33a162d6bdb19c0dac0f",
+    "telegram_user_id": "6590862539",
+    "telegram_username": "longcongduoi22",
+    "telegram_chat_id": "6590862539",
+    "created_at": "2026-02-19T00:01:07.241093+00:00"
+  },
+  {
+    "id": 32,
+    "wallet_address": "0xb6899b529ab992aac98c62d5ca0be16cbf5df63c4cd75f6922cc2e3b9d01447c",
+    "telegram_user_id": "1644935685",
+    "telegram_username": "ponthiac",
+    "telegram_chat_id": "1644935685",
+    "created_at": "2026-02-19T00:13:13.062431+00:00"
+  },
+  {
+    "id": 33,
+    "wallet_address": "0xfd43f6546421f96c27f5fe0ce3bd394b21e8845766f7acabee2ae8582881d863",
+    "telegram_user_id": "741447984",
+    "telegram_username": "IceSmurf",
+    "telegram_chat_id": "741447984",
+    "created_at": "2026-02-19T00:21:29.658202+00:00"
+  },
+  {
+    "id": 34,
+    "wallet_address": "0x16653e605e339ed951d5f57471147ef481cc15b9dc5958c3274479baf711b8a4",
+    "telegram_user_id": "5460813677",
+    "telegram_username": "Diaa3300",
+    "telegram_chat_id": "5460813677",
+    "created_at": "2026-02-19T00:39:28.124183+00:00"
+  },
+  {
+    "id": 35,
+    "wallet_address": "0x672ee83dde132c4678d69edd4db50007e01fa54a9a415e6e97894f8dd83dfa3d",
+    "telegram_user_id": "5480818127",
+    "telegram_username": "joneyma",
+    "telegram_chat_id": "5480818127",
+    "created_at": "2026-02-19T00:46:30.03227+00:00"
+  },
+  {
+    "id": 36,
+    "wallet_address": "0xb22db2f15bcc473b6d6830e896c6f67417e36012c6c781cd0f6fbd0fabcd3d7d",
+    "telegram_user_id": "1597997916",
+    "telegram_username": "Rif11234",
+    "telegram_chat_id": "1597997916",
+    "created_at": "2026-02-19T00:57:27.664472+00:00"
+  },
+  {
+    "id": 37,
+    "wallet_address": "0xc520904c74264a3765cafcdd0d850a6927d4fc50e3e90e47e63129321d08afa5",
+    "telegram_user_id": "5976773971",
+    "telegram_username": "dhigulXyz",
+    "telegram_chat_id": "5976773971",
+    "created_at": "2026-02-19T01:24:45.638803+00:00"
+  },
+  {
+    "id": 38,
+    "wallet_address": "0x61cf6166dd35f2322f7784a1a6e7d863283c4f7d7f589aa18407b2356f064cde",
+    "telegram_user_id": "6089806602",
+    "telegram_username": "EdakTzy",
+    "telegram_chat_id": "6089806602",
+    "created_at": "2026-02-19T01:44:30.572691+00:00"
+  },
+  {
+    "id": 39,
+    "wallet_address": "0xd61f06a0f8ff2997d4f1dfaa4427aa6fdfb5cdd142637342a2e00a8abbe1f422",
+    "telegram_user_id": "1570518260",
+    "telegram_username": "guoyananenshen",
+    "telegram_chat_id": "1570518260",
+    "created_at": "2026-02-19T01:48:24.115757+00:00"
+  },
+  {
+    "id": 40,
+    "wallet_address": "0x441c6e0c2500bc37d3a2c65d3bf4fdbe88716433b4d41c601fbac4f19ad5f83a",
+    "telegram_user_id": "5647750067",
+    "telegram_username": "Gez369",
+    "telegram_chat_id": "5647750067",
+    "created_at": "2026-02-19T02:14:42.98149+00:00"
+  },
+  {
+    "id": 41,
+    "wallet_address": "0xa766a8d82b3fc391819bd0865cfe3401dc208b8ba54f85b8a1a20c8bc5389ec2",
+    "telegram_user_id": "1179602516",
+    "telegram_username": "Sagne07",
+    "telegram_chat_id": "1179602516",
+    "created_at": "2026-02-19T02:19:31.454869+00:00"
+  },
+  {
+    "id": 42,
+    "wallet_address": "0x65b727254a3c3d10caff69cb0b3f30cff48a6b58ad04df3fc07a4d6c684692ba",
+    "telegram_user_id": "1141190949",
+    "telegram_username": "DiakonFrost5",
+    "telegram_chat_id": "1141190949",
+    "created_at": "2026-02-19T02:38:30.169163+00:00"
+  },
+  {
+    "id": 43,
+    "wallet_address": "0x61b274892a57ccfdf38305940c2dec4b091ff61756ee7175b745fb52484cd102",
+    "telegram_user_id": "980936127",
+    "telegram_username": "andiimawan",
+    "telegram_chat_id": "980936127",
+    "created_at": "2026-02-19T02:52:37.422458+00:00"
+  },
+  {
+    "id": 44,
+    "wallet_address": "0x9b5df89ed8b5edb1c9d72ef551c77d26dc51adf3b3693f730d3405b2a466de59",
+    "telegram_user_id": "311916876",
+    "telegram_username": "denytra",
+    "telegram_chat_id": "311916876",
+    "created_at": "2026-02-19T03:20:55.045213+00:00"
+  },
+  {
+    "id": 45,
+    "wallet_address": "0xf1be79ba0e0b4cd0537f9c751287872a2bbb45eb806d1c06478f71a162ef3ae5",
+    "telegram_user_id": "8039738110",
+    "telegram_username": "Jery233",
+    "telegram_chat_id": "8039738110",
+    "created_at": "2026-02-19T03:21:30.575815+00:00"
+  },
+  {
+    "id": 46,
+    "wallet_address": "0x69f7a3a6a8eb3cbc1064f56253936e538e46648fd1a7973bb625ff17d071986f",
+    "telegram_user_id": "6517553266",
+    "telegram_username": "Biru_langits",
+    "telegram_chat_id": "6517553266",
+    "created_at": "2026-02-19T03:41:41.337099+00:00"
+  },
+  {
+    "id": 47,
+    "wallet_address": "0x6f5b05795abd48d4252302d4237f335bff1d1f2bce7b1326c8bfc0fc1e9c88c2",
+    "telegram_user_id": "7391492106",
+    "telegram_username": "OxJITxyz",
+    "telegram_chat_id": "7391492106",
+    "created_at": "2026-02-19T03:47:03.899702+00:00"
+  },
+  {
+    "id": 48,
+    "wallet_address": "0x1b7403709fa53406c9b1b94391f60cb8726545ff45a510c3f406c1bdcce1b0f6",
+    "telegram_user_id": "6359817881",
+    "telegram_username": "mdnuru85",
+    "telegram_chat_id": "6359817881",
+    "created_at": "2026-02-19T03:56:12.242437+00:00"
+  },
+  {
+    "id": 49,
+    "wallet_address": "0xbf45026129b891898be35c07234c063d66131b49092533616247bf7da4eac7a2",
+    "telegram_user_id": "894712477",
+    "telegram_username": "PramodP_03",
+    "telegram_chat_id": "894712477",
+    "created_at": "2026-02-19T04:21:16.973464+00:00"
+  },
+  {
+    "id": 50,
+    "wallet_address": "0x70b2dc16555fed21630f68c0bd976a710c1faf282c378f76521968edc33ed6f3",
+    "telegram_user_id": "5495087995",
+    "telegram_username": "SafonovVaniy",
+    "telegram_chat_id": "5495087995",
+    "created_at": "2026-02-19T04:44:02.005957+00:00"
+  },
+  {
+    "id": 51,
+    "wallet_address": "0x6147444de87820da3e196a779e6eb937ee0bf21a5abedc52b4daebb861b9cfc3",
+    "telegram_user_id": "1655707521",
+    "telegram_username": "Propille",
+    "telegram_chat_id": "1655707521",
+    "created_at": "2026-02-19T04:51:55.711306+00:00"
+  },
+  {
+    "id": 52,
+    "wallet_address": "0x4d75a4b40e479ad5b0485936175bb3f55b55fb63cf0f9f59ce389c2c96faf50c",
+    "telegram_user_id": "6658478949",
+    "telegram_username": "jasmin_1400",
+    "telegram_chat_id": "6658478949",
+    "created_at": "2026-02-19T05:01:13.690597+00:00"
+  },
+  {
+    "id": 53,
+    "wallet_address": "0xa6acbd5856de0523cef7cf3e726ee4f09b7feb5967b8b55bdf854d4a325b9e4c",
+    "telegram_user_id": "5958221389",
+    "telegram_username": "prasanth7559",
+    "telegram_chat_id": "5958221389",
+    "created_at": "2026-02-19T05:09:08.88786+00:00"
+  },
+  {
+    "id": 54,
+    "wallet_address": "0xe3fb1aa5f3e8361c7d5d427d6bdeee05289588088a2adc99a5ef52d93fae43f8",
+    "telegram_user_id": "6372350521",
+    "telegram_username": "we_ezy16",
+    "telegram_chat_id": "6372350521",
+    "created_at": "2026-02-19T05:21:51.967733+00:00"
+  },
+  {
+    "id": 55,
+    "wallet_address": "0xc41ce9f6c5dd33c1f982a8e5463d47cecd5d104a06c37a31afdf82ff0e919eb4",
+    "telegram_user_id": "5255589717",
+    "telegram_username": "mangohumble",
+    "telegram_chat_id": "5255589717",
+    "created_at": "2026-02-19T05:29:43.363222+00:00"
+  },
+  {
+    "id": 56,
+    "wallet_address": "0x11409b61b5d893fe83977c166624a2c1b9d612c9718790c15ee5687e832bd302",
+    "telegram_user_id": "1850918728",
+    "telegram_username": "htdcryto1",
+    "telegram_chat_id": "1850918728",
+    "created_at": "2026-02-19T05:38:41.340204+00:00"
+  },
+  {
+    "id": 57,
+    "wallet_address": "0x877d6a363628d5100a599fbc6c75c7fe9e2d95b699316442aa5c07f330ed0a0a",
+    "telegram_user_id": "1864719073",
+    "telegram_username": "Azatrum_d",
+    "telegram_chat_id": "1864719073",
+    "created_at": "2026-02-19T05:38:57.08+00:00"
+  },
+  {
+    "id": 58,
+    "wallet_address": "0x244ab7f9d4cf04c8486cb49037625d1e70b398ba751c78853edeef1b6958acb5",
+    "telegram_user_id": "5078088729",
+    "telegram_username": "Surab20",
+    "telegram_chat_id": "5078088729",
+    "created_at": "2026-02-19T05:41:24.703373+00:00"
+  },
+  {
+    "id": 59,
+    "wallet_address": "0xaa55c84deea0b014ecdc9f27425d86e93ae34ef0b71d32f66bced5b97cbb66e5",
+    "telegram_user_id": "5222085534",
+    "telegram_username": "Maxwin12",
+    "telegram_chat_id": "5222085534",
+    "created_at": "2026-02-19T05:43:43.438594+00:00"
+  },
+  {
+    "id": 60,
+    "wallet_address": "0xe1811d0921a1a2aaf6679e8ff9a343eb70460e6a4a9f729b545193b99a6501c3",
+    "telegram_user_id": "5976545339",
+    "telegram_username": "Mannjoei",
+    "telegram_chat_id": "5976545339",
+    "created_at": "2026-02-19T05:44:12.487554+00:00"
+  },
+  {
+    "id": 61,
+    "wallet_address": "0xafc7798fd40f33d1c7e34dcd1605cbca96e5c65d89880dae2965021f0551a002",
+    "telegram_user_id": "6834282328",
+    "telegram_username": "chickenZAH",
+    "telegram_chat_id": "6834282328",
+    "created_at": "2026-02-19T05:51:24.751493+00:00"
+  },
+  {
+    "id": 62,
+    "wallet_address": "0xa664c6069e4725bb2fa4ceede7ad3fc3bd68d45404bb70569a91603b6339f9f8",
+    "telegram_user_id": "5390905767",
+    "telegram_username": "Rabsoncourage",
+    "telegram_chat_id": "5390905767",
+    "created_at": "2026-02-19T05:56:06.74557+00:00"
+  },
+  {
+    "id": 63,
+    "wallet_address": "0x856e07821991db242fd34fe8572f89d943efc61632de118485152abfa5b50a2a",
+    "telegram_user_id": "6848693456",
+    "telegram_username": "PuluhanTon",
+    "telegram_chat_id": "6848693456",
+    "created_at": "2026-02-19T06:01:06.54213+00:00"
+  },
+  {
+    "id": 65,
+    "wallet_address": "0xb797bb27bf2a6ac73a6478425dd9af1932a9eda39ec242112693927acfe54783",
+    "telegram_user_id": "2010436792",
+    "telegram_username": "chernetskatania",
+    "telegram_chat_id": "2010436792",
+    "created_at": "2026-02-19T06:14:49.296418+00:00"
+  },
+  {
+    "id": 66,
+    "wallet_address": "0x1c36fd280f734948f8c1bf728a404afbdff5c501829d3f2a0b7e946ef4f76538",
+    "telegram_user_id": "5452726101",
+    "telegram_username": "Ersyh05",
+    "telegram_chat_id": "5452726101",
+    "created_at": "2026-02-19T06:34:40.247727+00:00"
+  },
+  {
+    "id": 67,
+    "wallet_address": "0xc6a37b1ceb5c669858c79613422074376689578a250ea2d9adf3647358c76332",
+    "telegram_user_id": "398880180",
+    "telegram_username": "AMOOHAMED0",
+    "telegram_chat_id": "398880180",
+    "created_at": "2026-02-19T06:37:18.037152+00:00"
+  },
+  {
+    "id": 68,
+    "wallet_address": "0x34799eb14cd61df2a1ffbd8416da613eb4dfea773006179982caa4b3458258f2",
+    "telegram_user_id": "6389307161",
+    "telegram_username": "Ayubul",
+    "telegram_chat_id": "6389307161",
+    "created_at": "2026-02-19T06:50:15.976178+00:00"
+  },
+  {
+    "id": 69,
+    "wallet_address": "0x34abb771b4f54205f50094d652f33238591128e7eb01d0ca6e27e523c0bcbbee",
+    "telegram_user_id": "6442357386",
+    "telegram_username": "AfsAm3",
+    "telegram_chat_id": "6442357386",
+    "created_at": "2026-02-19T06:53:59.18442+00:00"
+  },
+  {
+    "id": 70,
+    "wallet_address": "0x501bbba9b686f7b74c5b6af5f2ccfc36df3a79448799462eb87c0407dd41cfad",
+    "telegram_user_id": "2106270062",
+    "telegram_username": "Jenskuyy7",
+    "telegram_chat_id": "2106270062",
+    "created_at": "2026-02-19T06:54:45.611604+00:00"
+  },
+  {
+    "id": 71,
+    "wallet_address": "0x841bc8accff87c679c1163b3cba3b2c3baa4476c3f3318b2c04059177b19ef79",
+    "telegram_user_id": "8216070737",
+    "telegram_username": "OrangPinggiran24",
+    "telegram_chat_id": "8216070737",
+    "created_at": "2026-02-19T06:57:21.258716+00:00"
+  },
+  {
+    "id": 72,
+    "wallet_address": "0xa114532b5840edbb618ef0968e5a451bc9a495e45c642fab4cfc1f662496b9ca",
+    "telegram_user_id": "91889566",
+    "telegram_username": "mostafaeditor1",
+    "telegram_chat_id": "91889566",
+    "created_at": "2026-02-19T06:58:04.930955+00:00"
+  },
+  {
+    "id": 73,
+    "wallet_address": "0xe797550d68d988225c7bdc7e4b35dcb2640607de581890afe1dea78eccafbb83",
+    "telegram_user_id": "90104500",
+    "telegram_username": "Sam_gla",
+    "telegram_chat_id": "90104500",
+    "created_at": "2026-02-19T07:19:37.48837+00:00"
+  },
+  {
+    "id": 74,
+    "wallet_address": "0xe708359d86b50d8cdba8877d06a86a13d2f59f42eb9b2cc88ab7f812560f5bb3",
+    "telegram_user_id": "5281583062",
+    "telegram_username": "Slonilo7",
+    "telegram_chat_id": "5281583062",
+    "created_at": "2026-02-19T07:21:56.25721+00:00"
+  },
+  {
+    "id": 75,
+    "wallet_address": "0xe5b15ff5237ac1ae51bd7a675bb39610fdc2502c7f66123069225f53ff6a77ca",
+    "telegram_user_id": "6610847393",
+    "telegram_username": "airdrophub_25",
+    "telegram_chat_id": "6610847393",
+    "created_at": "2026-02-19T07:27:15.56014+00:00"
+  },
+  {
+    "id": 76,
+    "wallet_address": "0xd850b8444fc7eca03fa54e2ed026780d98e06b62544ca9097e0404d8a1f40943",
+    "telegram_user_id": "740321399",
+    "telegram_username": "azrim89",
+    "telegram_chat_id": "740321399",
+    "created_at": "2026-02-19T07:31:24.598537+00:00"
+  },
+  {
+    "id": 77,
+    "wallet_address": "0xcf3165d4c3df8b0e4b56a4e5289c01dc545763318fb93d294cdc5dd8fabed3f7",
+    "telegram_user_id": "7625228377",
+    "telegram_username": "Candragnw",
+    "telegram_chat_id": "7625228377",
+    "created_at": "2026-02-19T07:34:40.409646+00:00"
+  },
+  {
+    "id": 78,
+    "wallet_address": "0xb8775d8c745b8128f3e5cfdf2480a3ba56cbf6dbb856ae4c36eb0caf13187a7d",
+    "telegram_user_id": "6472195405",
+    "telegram_username": "Shamyn2",
+    "telegram_chat_id": "6472195405",
+    "created_at": "2026-02-19T07:52:55.966582+00:00"
+  },
+  {
+    "id": 79,
+    "wallet_address": "0xf5844d6e5fbc2f2363424affd6135b20c42bac1f74a3058d267d04e31526dac5",
+    "telegram_user_id": "5043641870",
+    "telegram_username": "llilllllccc",
+    "telegram_chat_id": "5043641870",
+    "created_at": "2026-02-19T08:04:26.381558+00:00"
+  },
+  {
+    "id": 80,
+    "wallet_address": "0x487c8cc994c6b15ca62c42eb05990238431ee98809d38d4c530df8911b0460aa",
+    "telegram_user_id": "1110890102",
+    "telegram_username": "wasodikun",
+    "telegram_chat_id": "1110890102",
+    "created_at": "2026-02-19T08:15:15.894484+00:00"
+  },
+  {
+    "id": 81,
+    "wallet_address": "0x9488628671981b96c6d256fe8c14858eed7e8c2a3283dbe2afd4a128ccd1d016",
+    "telegram_user_id": "1846651008",
+    "telegram_username": "NextDrop_Admin",
+    "telegram_chat_id": "1846651008",
+    "created_at": "2026-02-19T08:21:04.354954+00:00"
+  },
+  {
+    "id": 82,
+    "wallet_address": "0x74d9ba7fd07a0bc1ab7064c9b148f7b2c2cd72feb7386ea08e598d9025f14c40",
+    "telegram_user_id": "786811157",
+    "telegram_username": "shreder07",
+    "telegram_chat_id": "786811157",
+    "created_at": "2026-02-19T08:37:32.558305+00:00"
+  },
+  {
+    "id": 83,
+    "wallet_address": "0xa26151b742acbfb0f853bb0cb691dca315d7a25d3f50459f8b1b4e92a7ad976c",
+    "telegram_user_id": "1801348408",
+    "telegram_username": "moxs93",
+    "telegram_chat_id": "1801348408",
+    "created_at": "2026-02-19T08:41:39.76031+00:00"
+  },
+  {
+    "id": 84,
+    "wallet_address": "0x13da61f41f544a8257e5da3f0d8da640842d4381f6088622b929737344d34949",
+    "telegram_user_id": "843591245",
+    "telegram_username": "Kynipro",
+    "telegram_chat_id": "843591245",
+    "created_at": "2026-02-19T08:44:06.412765+00:00"
+  },
+  {
+    "id": 85,
+    "wallet_address": "0x53394b2b9e113f5d125298a0d19549c502994001aee2f53be38b6f4182eb2879",
+    "telegram_user_id": "5626176661",
+    "telegram_username": "kucher150115",
+    "telegram_chat_id": "5626176661",
+    "created_at": "2026-02-19T09:30:12.946603+00:00"
+  },
+  {
+    "id": 86,
+    "wallet_address": "0x03512a0e1e89c45134667ceedb42fec29d529a79e3a92f0e536678386c495d00",
+    "telegram_user_id": "444813160",
+    "telegram_username": "HzlNUT6",
+    "telegram_chat_id": "444813160",
+    "created_at": "2026-02-19T09:30:53.776038+00:00"
+  },
+  {
+    "id": 87,
+    "wallet_address": "0x4599eb643da052157306905dddf58d77d23f45b19ef16b2f061486b0cf913054",
+    "telegram_user_id": "341548162",
+    "telegram_username": "Avdos_1778",
+    "telegram_chat_id": "341548162",
+    "created_at": "2026-02-19T09:32:34.568648+00:00"
+  },
+  {
+    "id": 88,
+    "wallet_address": "0xe3716030fe5c2099339c51eb0b9054cf0f269bf55aa95cde07544ffcf1b217ed",
+    "telegram_user_id": "8085212426",
+    "telegram_username": "Mhontis",
+    "telegram_chat_id": "8085212426",
+    "created_at": "2026-02-19T09:47:28.954051+00:00"
+  },
+  {
+    "id": 89,
+    "wallet_address": "0xc41465f5085565dfc0296456d907d57502a055d6c19feebb556622d3995a13f9",
+    "telegram_user_id": "5570217360",
+    "telegram_username": "Ngoclam9299",
+    "telegram_chat_id": "5570217360",
+    "created_at": "2026-02-19T09:48:23.885024+00:00"
+  },
+  {
+    "id": 90,
+    "wallet_address": "0xaddfd18eaa5c5ce656466e6c80cddad94488b65d7ac6dbe957f7af62e2fd2d82",
+    "telegram_user_id": "1062769451",
+    "telegram_username": "Namexsteven",
+    "telegram_chat_id": "1062769451",
+    "created_at": "2026-02-19T09:49:28.622779+00:00"
+  },
+  {
+    "id": 91,
+    "wallet_address": "0xfc61101fce04755c95e7f10ae7fcf5e2636bfc4188ca5f93a967adcb690dde25",
+    "telegram_user_id": "6615868014",
+    "telegram_username": "Kee1525",
+    "telegram_chat_id": "6615868014",
+    "created_at": "2026-02-19T09:59:15.566957+00:00"
+  },
+  {
+    "id": 92,
+    "wallet_address": "0x6fb6c4db19ce22c7b3e6805d3954014324dacbf34e2239205ebc0b306a08924a",
+    "telegram_user_id": "199497797",
+    "telegram_username": "Rasoulrahimi_201",
+    "telegram_chat_id": "199497797",
+    "created_at": "2026-02-19T10:37:56.633566+00:00"
+  },
+  {
+    "id": 93,
+    "wallet_address": "0x723574a4a79a5d3e1007f16ff15451a6ccaccb74a6c17f12aba4f22e2b203053",
+    "telegram_user_id": "7373798475",
+    "telegram_username": "suprihadi259_EARTH",
+    "telegram_chat_id": "7373798475",
+    "created_at": "2026-02-19T10:47:19.204391+00:00"
+  },
+  {
+    "id": 94,
+    "wallet_address": "0xe42f1b76d2667c541fa6f0a87de345685b24ae74611b0f59cfe7af80105115ac",
+    "telegram_user_id": "7932721528",
+    "telegram_username": "Gobresya",
+    "telegram_chat_id": "7932721528",
+    "created_at": "2026-02-19T10:54:13.2747+00:00"
+  },
+  {
+    "id": 95,
+    "wallet_address": "0xee2fe629b8a9a6435ebffabeb0e6112c748e2f74c977488ef7be63550d053f05",
+    "telegram_user_id": "72510293",
+    "telegram_username": "Emaad_Ahmaadi",
+    "telegram_chat_id": "72510293",
+    "created_at": "2026-02-19T11:57:02.373834+00:00"
+  },
+  {
+    "id": 96,
+    "wallet_address": "0xbd19c314ee5243ebd18c855c025040792c69fec2cf7ec0e68a3af81d54319cba",
+    "telegram_user_id": "5029928409",
+    "telegram_username": "cryptomaniac_9999",
+    "telegram_chat_id": "5029928409",
+    "created_at": "2026-02-19T12:10:43.504509+00:00"
+  },
+  {
+    "id": 99,
+    "wallet_address": "0x8ce8e345096a50c4dfffae2362c0e82e0c9198ee94f755e6b987c779188e56f4",
+    "telegram_user_id": "7003342040",
+    "telegram_username": "Apestian69",
+    "telegram_chat_id": "7003342040",
+    "created_at": "2026-02-19T12:23:02.626517+00:00"
+  },
+  {
+    "id": 100,
+    "wallet_address": "0xa409344bae37ee987f27638594ad2f422b27f2dc4cec523dca687cea2b871eed",
+    "telegram_user_id": "71180148",
+    "telegram_username": "MeOw1365",
+    "telegram_chat_id": "71180148",
+    "created_at": "2026-02-19T12:31:47.408355+00:00"
+  },
+  {
+    "id": 101,
+    "wallet_address": "0xb5f62dde320ba0bbc3326d56207dab42a6faa61b15af8179084bf71d7588ce9e",
+    "telegram_user_id": "6986019275",
+    "telegram_username": "Cryptomo95",
+    "telegram_chat_id": "6986019275",
+    "created_at": "2026-02-19T12:47:26.181094+00:00"
+  },
+  {
+    "id": 102,
+    "wallet_address": "0xfa7cffd67c4fcd07062d928f56701dcf53df4fb41c93bca2fde1a81f44a415d2",
+    "telegram_user_id": "806536559",
+    "telegram_username": "LuchinskyIgor",
+    "telegram_chat_id": "806536559",
+    "created_at": "2026-02-19T13:03:02.624477+00:00"
+  },
+  {
+    "id": 103,
+    "wallet_address": "0xac9ed927648e7636751c42617384e6796192e3e64f09b366bf8b052bae48a034",
+    "telegram_user_id": "1956973747",
+    "telegram_username": "devlnation",
+    "telegram_chat_id": "1956973747",
+    "created_at": "2026-02-19T13:39:44.370929+00:00"
+  },
+  {
+    "id": 105,
+    "wallet_address": "0xb0504c5dc5f12cb6ceb49455f44d9b47d7148a0035389b9fc44cc36061a77b5f",
+    "telegram_user_id": "846848996",
+    "telegram_username": "raja_meksik0",
+    "telegram_chat_id": "846848996",
+    "created_at": "2026-02-19T13:43:18.65657+00:00"
+  },
+  {
+    "id": 106,
+    "wallet_address": "0xc1cf33e41c7f655ff07ec233fc9f54f02c99b9061012dc7a6c45d1e83de34527",
+    "telegram_user_id": "5668078132",
+    "telegram_username": "cryptos_diary",
+    "telegram_chat_id": "5668078132",
+    "created_at": "2026-02-19T13:45:34.87308+00:00"
+  },
+  {
+    "id": 107,
+    "wallet_address": "0x679652ab628159c97ed12b15e8eb5f9b31394ff2238863fd0cc2dd47d9186414",
+    "telegram_user_id": "6899554707",
+    "telegram_username": "SarjanaProdeo",
+    "telegram_chat_id": "6899554707",
+    "created_at": "2026-02-19T13:49:33.717003+00:00"
+  },
+  {
+    "id": 108,
+    "wallet_address": "0x184f342e9dbef2b288cdc5342b5bab0ffe1ebce2eb2e5bcc834e3e9e7db13d65",
+    "telegram_user_id": "6338243556",
+    "telegram_username": "z_naghilouu",
+    "telegram_chat_id": "6338243556",
+    "created_at": "2026-02-19T13:51:29.90425+00:00"
+  },
+  {
+    "id": 109,
+    "wallet_address": "0xe17fdf9c2dbaec3b686bb69f99365938b95d87478862183501d6b55d004569fb",
+    "telegram_user_id": "1935971203",
+    "telegram_username": "ptrfais",
+    "telegram_chat_id": "1935971203",
+    "created_at": "2026-02-19T14:13:49.868423+00:00"
+  },
+  {
+    "id": 110,
+    "wallet_address": "0x986d32c76f7410050f11325ef835055af8edbc5c63565a028a0e89dc7c0e4bb8",
+    "telegram_user_id": "1357640030",
+    "telegram_username": "dedefachrurozi22",
+    "telegram_chat_id": "1357640030",
+    "created_at": "2026-02-19T14:19:27.488662+00:00"
+  },
+  {
+    "id": 111,
+    "wallet_address": "0xa397a930989d93ce5808a6794f9bdee01dd65de7dc64846a8891c2e5abc58318",
+    "telegram_user_id": "7069219535",
+    "telegram_username": "bakemono1d",
+    "telegram_chat_id": "7069219535",
+    "created_at": "2026-02-19T14:26:52.171145+00:00"
+  },
+  {
+    "id": 112,
+    "wallet_address": "0x5ef8286ce39bec56d853c774c2541405c6a8e6d506979dbfd971cbc7a0a43569",
+    "telegram_user_id": "2138873605",
+    "telegram_username": "Khantul17",
+    "telegram_chat_id": "2138873605",
+    "created_at": "2026-02-19T14:30:12.050553+00:00"
+  },
+  {
+    "id": 115,
+    "wallet_address": "0xe73decf95c669c6e6b859d6b0bcbf46f399c835ada59fb886d7508e88cc14e32",
+    "telegram_user_id": "1420045985",
+    "telegram_username": "MFikriAbdillah",
+    "telegram_chat_id": "1420045985",
+    "created_at": "2026-02-19T15:14:39.567418+00:00"
+  },
+  {
+    "id": 116,
+    "wallet_address": "0x94481c48663dbe49a4964f703f8da9cf899e5d8071ecd4c39a8de1d547c7bfaf",
+    "telegram_user_id": "7215420425",
+    "telegram_username": "Teampeuli4",
+    "telegram_chat_id": "7215420425",
+    "created_at": "2026-02-19T15:16:46.321023+00:00"
+  },
+  {
+    "id": 117,
+    "wallet_address": "0xd2dd559543de251dc5414e25f7ca69c33f3aa4062be375a8a537b18bfd2271a7",
+    "telegram_user_id": "1290964306",
+    "telegram_username": "Enzo191117",
+    "telegram_chat_id": "1290964306",
+    "created_at": "2026-02-19T15:25:27.584943+00:00"
+  },
+  {
+    "id": 118,
+    "wallet_address": "0xda07992b1b5353e7b1c0fd08896c2a307e4f6e6fe9ff1ce55e6f746effadecc6",
+    "telegram_user_id": "1506536785",
+    "telegram_username": "Dhani_ardiansyah",
+    "telegram_chat_id": "1506536785",
+    "created_at": "2026-02-19T15:37:48.836845+00:00"
+  },
+  {
+    "id": 119,
+    "wallet_address": "0x01ab10bb0404c2b28414117e352dbfac4cdbafe1225a2f5a44fa017861ff49db",
+    "telegram_user_id": "1152980019",
+    "telegram_username": "Obutaste",
+    "telegram_chat_id": "1152980019",
+    "created_at": "2026-02-19T15:38:20.790643+00:00"
+  },
+  {
+    "id": 120,
+    "wallet_address": "0x410bbff888e2d1c242434753a61457170c7af7bd6beb559ad8f217d30f76c4da",
+    "telegram_user_id": "7024738922",
+    "telegram_username": "pokoloko95",
+    "telegram_chat_id": "7024738922",
+    "created_at": "2026-02-19T15:44:50.782037+00:00"
+  },
+  {
+    "id": 121,
+    "wallet_address": "0x7200fa3292693868bad89d4bf921890c863965a569e62ba6108533a21035c286",
+    "telegram_user_id": "1443626765",
+    "telegram_username": "Moreeti",
+    "telegram_chat_id": "1443626765",
+    "created_at": "2026-02-19T15:45:43.698781+00:00"
+  },
+  {
+    "id": 122,
+    "wallet_address": "0x798e02b8ae4f1fabc51105ae0bae3517d676c32405c61067fee7ec107716abed",
+    "telegram_user_id": "5632893786",
+    "telegram_username": "Xaviers111",
+    "telegram_chat_id": "5632893786",
+    "created_at": "2026-02-19T16:01:50.93772+00:00"
+  },
+  {
+    "id": 123,
+    "wallet_address": "0x25ca9a34751bf5a1e17cd6c1566fdf3f541e1cd6c910ad299b60f70d79b1e23e",
+    "telegram_user_id": "5518092797",
+    "telegram_username": "Jenggoetpro",
+    "telegram_chat_id": "5518092797",
+    "created_at": "2026-02-19T16:07:25.505588+00:00"
+  },
+  {
+    "id": 124,
+    "wallet_address": "0xba98c2bce11994e728bb0e24f9a01328481c33e6247fc96ff3df8dcdf650b8d6",
+    "telegram_user_id": "5036620635",
+    "telegram_username": "Rivalsavior",
+    "telegram_chat_id": "5036620635",
+    "created_at": "2026-02-19T16:12:33.33067+00:00"
+  },
+  {
+    "id": 125,
+    "wallet_address": "0x9df8a25d9e26400b6857817101d94c34d2f317fd69002e8617b25621cbe36480",
+    "telegram_user_id": "7649733798",
+    "telegram_username": "MR_N226",
+    "telegram_chat_id": "7649733798",
+    "created_at": "2026-02-19T16:41:33.192641+00:00"
+  },
+  {
+    "id": 126,
+    "wallet_address": "0x168c96bf90476cc9d3ee2acc4e5f9b79f9b4b588f393d36e6c19bedbf824faec",
+    "telegram_user_id": "7737808608",
+    "telegram_username": null,
+    "telegram_chat_id": "7737808608",
+    "created_at": "2026-02-19T16:51:09.249538+00:00"
+  },
+  {
+    "id": 127,
+    "wallet_address": "0x0913955364568a7ef3ac8047fef5050b919c958a674d781b02f960254a6a393f",
+    "telegram_user_id": "1369002528",
+    "telegram_username": "Fosfoorii",
+    "telegram_chat_id": "1369002528",
+    "created_at": "2026-02-19T17:13:34.487877+00:00"
+  },
+  {
+    "id": 128,
+    "wallet_address": "0x2174527b5cb17c4b3390fb6a62de3d64013e11a8225e37760782e4ae0dea9de0",
+    "telegram_user_id": "58565898",
+    "telegram_username": "hajikarimifarzan",
+    "telegram_chat_id": "58565898",
+    "created_at": "2026-02-19T17:23:44.0701+00:00"
+  },
+  {
+    "id": 129,
+    "wallet_address": "0x525cb62ad212bed8c03c0fa092216a13bc5ac3f42a440578c07923ca373c5dbd",
+    "telegram_user_id": "7388774775",
+    "telegram_username": "Icemoney0007",
+    "telegram_chat_id": "7388774775",
+    "created_at": "2026-02-19T17:38:55.04649+00:00"
+  },
+  {
+    "id": 130,
+    "wallet_address": "0xbd8cfad9f90eaa128d574909f8a8669523c01cd9a61009aac941b57196b19545",
+    "telegram_user_id": "1584063954",
+    "telegram_username": "Sedigh_irani",
+    "telegram_chat_id": "1584063954",
+    "created_at": "2026-02-19T17:40:50.453472+00:00"
+  },
+  {
+    "id": 131,
+    "wallet_address": "0xc2c47af993a23a3b9cbf625d69a31b524c43a873ee012eac0588bd013ff74f73",
+    "telegram_user_id": "5080675045",
+    "telegram_username": "mehrad160dd",
+    "telegram_chat_id": "5080675045",
+    "created_at": "2026-02-19T18:02:58.058286+00:00"
+  },
+  {
+    "id": 132,
+    "wallet_address": "0x118f85419f2e980b1365d542895adbcb971cc775099f3084b0e66700a129588a",
+    "telegram_user_id": "6923748856",
+    "telegram_username": "Aylinsot",
+    "telegram_chat_id": "6923748856",
+    "created_at": "2026-02-19T18:10:29.397193+00:00"
+  },
+  {
+    "id": 133,
+    "wallet_address": "0xc4a14d73c5127817e70614c3c270540ac117d4a134c528bb507a7903c76b7609",
+    "telegram_user_id": "1866800722",
+    "telegram_username": "Arvinattaruf",
+    "telegram_chat_id": "1866800722",
+    "created_at": "2026-02-19T18:15:56.683118+00:00"
+  },
+  {
+    "id": 134,
+    "wallet_address": "0x77d7bdead161425244c7ee574f3ec75f33361cf3174717fd146805b7a007321d",
+    "telegram_user_id": "1151744316",
+    "telegram_username": "shateroyal",
+    "telegram_chat_id": "1151744316",
+    "created_at": "2026-02-19T18:18:35.421594+00:00"
+  },
+  {
+    "id": 135,
+    "wallet_address": "0xe613fd678309fbbd5165c6f82e8c27aa70c4060ce1ee07f3eb6b51a1b34c31e4",
+    "telegram_user_id": "7135954509",
+    "telegram_username": "kewelcrypto",
+    "telegram_chat_id": "7135954509",
+    "created_at": "2026-02-19T18:57:45.578967+00:00"
+  },
+  {
+    "id": 136,
+    "wallet_address": "0xc33a9c26a236c525d6a48059e71b806f1eb438fb0faa3378bce7a0e08acb9b36",
+    "telegram_user_id": "345663411",
+    "telegram_username": "MichaelTEE21",
+    "telegram_chat_id": "345663411",
+    "created_at": "2026-02-19T19:08:20.399162+00:00"
+  },
+  {
+    "id": 137,
+    "wallet_address": "0xc2e6edfa3d420d742c38fd8c4171210ca3ca81423bd9f490335567bfe4b69d26",
+    "telegram_user_id": "1196960886",
+    "telegram_username": "Ice_Cube777",
+    "telegram_chat_id": "1196960886",
+    "created_at": "2026-02-19T19:16:36.652009+00:00"
+  },
+  {
+    "id": 138,
+    "wallet_address": "0x752ff4acdf76894dc8419e393d1697a7bff5af6a282a8e8cc445efae0a0c771d",
+    "telegram_user_id": "1814035591",
+    "telegram_username": "Valcio0",
+    "telegram_chat_id": "1814035591",
+    "created_at": "2026-02-19T19:38:00.437587+00:00"
+  },
+  {
+    "id": 139,
+    "wallet_address": "0x93604a969ddeada0164d3d266f228c132f4f55a69fc3ad166bc9a01b90c49a10",
+    "telegram_user_id": "6463290144",
+    "telegram_username": "vik221616",
+    "telegram_chat_id": "6463290144",
+    "created_at": "2026-02-19T20:24:48.56773+00:00"
+  },
+  {
+    "id": 140,
+    "wallet_address": "0x678c347260eab6fab0b6779370fffb9f194fae9562cfb332c8b3e3aed2bdcc74",
+    "telegram_user_id": "5030688851",
+    "telegram_username": "nxtexist",
+    "telegram_chat_id": "5030688851",
+    "created_at": "2026-02-19T20:54:34.656154+00:00"
+  },
+  {
+    "id": 141,
+    "wallet_address": "0xd64846dea2d526046105b3247c6725caecdea768e2ef85608f8ae6680a7a5c39",
+    "telegram_user_id": "6267565688",
+    "telegram_username": "Alexfix37",
+    "telegram_chat_id": "6267565688",
+    "created_at": "2026-02-19T21:33:55.24594+00:00"
+  },
+  {
+    "id": 142,
+    "wallet_address": "0xabdccb2e159e0f1d881c4c0d288e785755388ef8ab99786874656e2068e48ca3",
+    "telegram_user_id": "469805171",
+    "telegram_username": "xdotter",
+    "telegram_chat_id": "469805171",
+    "created_at": "2026-02-19T21:49:54.803738+00:00"
+  },
+  {
+    "id": 143,
+    "wallet_address": "0x8eae0b643777ddf2191875f7eac8875c1b5869943f49e04e842e7c46d6cf3109",
+    "telegram_user_id": "6643139404",
+    "telegram_username": "denidenz08",
+    "telegram_chat_id": "6643139404",
+    "created_at": "2026-02-19T21:50:36.290891+00:00"
+  },
+  {
+    "id": 144,
+    "wallet_address": "0x10b102d8d4226061af327e3c62ae2aab77d8c8ee8fdbe8f68b189c9fbb005c89",
+    "telegram_user_id": "6092235147",
+    "telegram_username": "dpt779",
+    "telegram_chat_id": "6092235147",
+    "created_at": "2026-02-19T22:24:30.568392+00:00"
+  },
+  {
+    "id": 145,
+    "wallet_address": "0x38ae38a17abc516f31c2eccc655d555952301b4d290f85cd7df40155df97f5e1",
+    "telegram_user_id": "6755921760",
+    "telegram_username": "Valdir_oficial",
+    "telegram_chat_id": "6755921760",
+    "created_at": "2026-02-19T23:09:12.383494+00:00"
+  },
+  {
+    "id": 147,
+    "wallet_address": "0xda268e9793e9257d2e274416247e8942ae8ee9184eed09a6d3679483e9896966",
+    "telegram_user_id": "5488760170",
+    "telegram_username": "Nextuno1",
+    "telegram_chat_id": "5488760170",
+    "created_at": "2026-02-20T01:50:50.892796+00:00"
+  },
+  {
+    "id": 148,
+    "wallet_address": "0x01c542de9538c36b97e8fa59935be219c8aee0e029f71e54da047f6c54c21ccb",
+    "telegram_user_id": "2041425259",
+    "telegram_username": "Amatboy08",
+    "telegram_chat_id": "2041425259",
+    "created_at": "2026-02-20T02:33:21.086963+00:00"
+  },
+  {
+    "id": 149,
+    "wallet_address": "0x63e511e50e0424a051af69997433ee9c0ea44d88a2ae6ca2e70b1ff1db51d623",
+    "telegram_user_id": "762001425",
+    "telegram_username": "Melpus_id",
+    "telegram_chat_id": "762001425",
+    "created_at": "2026-02-20T03:00:21.41135+00:00"
+  },
+  {
+    "id": 150,
+    "wallet_address": "0x43a5256307d6cdf330eb6d762673bd3e952e84bb19b630f153530867b40cdec6",
+    "telegram_user_id": "2078677846",
+    "telegram_username": "kahfihazard",
+    "telegram_chat_id": "2078677846",
+    "created_at": "2026-02-20T03:07:07.85354+00:00"
+  },
+  {
+    "id": 151,
+    "wallet_address": "0xbc33d3167c1a510912fac371a9a3ee72ce68bfa99985f2fc26e44cfbd7a13428",
+    "telegram_user_id": "7908587080",
+    "telegram_username": "MrTit28",
+    "telegram_chat_id": "7908587080",
+    "created_at": "2026-02-20T04:38:12.351829+00:00"
+  },
+  {
+    "id": 152,
+    "wallet_address": "0x240e62ab81df2c500d497a997273f393e301538c37debc9004c80ec176784582",
+    "telegram_user_id": "1807697529",
+    "telegram_username": "radaweb9",
+    "telegram_chat_id": "1807697529",
+    "created_at": "2026-02-20T07:30:24.555456+00:00"
+  },
+  {
+    "id": 153,
+    "wallet_address": "0xf17d7f8ad8be1e8195e6127bed8a8a68e38844292f466dc4e3217b72725b9e5e",
+    "telegram_user_id": "1426505490",
+    "telegram_username": "onurborasahin",
+    "telegram_chat_id": "1426505490",
+    "created_at": "2026-02-20T07:38:20.112585+00:00"
+  },
+  {
+    "id": 154,
+    "wallet_address": "0x4f9dda0b1362e51a2524f59f0683725df19ff0d35cab96a16212d83e3a425f0f",
+    "telegram_user_id": "1663466567",
+    "telegram_username": "Valllzl",
+    "telegram_chat_id": "1663466567",
+    "created_at": "2026-02-20T07:45:53.552719+00:00"
+  },
+  {
+    "id": 156,
+    "wallet_address": "0x03fae5dee13cc4e62dccec21b512eb1b9aa124897bc801746791f04ab380cc75",
+    "telegram_user_id": "6961982509",
+    "telegram_username": "EdropQueen",
+    "telegram_chat_id": "6961982509",
+    "created_at": "2026-02-20T09:01:12.57858+00:00"
+  },
+  {
+    "id": 157,
+    "wallet_address": "0x1d93a37d546cf9fce4f5a14afe6d318095d1488d05303fd2e1adf9b8d2e20f8c",
+    "telegram_user_id": "6486172707",
+    "telegram_username": "Korykoko",
+    "telegram_chat_id": "6486172707",
+    "created_at": "2026-02-20T09:08:00.117361+00:00"
+  },
+  {
+    "id": 158,
+    "wallet_address": "0x5438bd698b41f61767f51d5080629b0db3e592609b1d556134fe11ba6383e2ea",
+    "telegram_user_id": "7456690012",
+    "telegram_username": "smartfrancis",
+    "telegram_chat_id": "7456690012",
+    "created_at": "2026-02-20T09:08:32.30104+00:00"
+  },
+  {
+    "id": 159,
+    "wallet_address": "0xa132286a435434a64ded09578498439a0596b97710b76c44e98bcd02b4eb391a",
+    "telegram_user_id": "1137523945",
+    "telegram_username": "Hahahah6666",
+    "telegram_chat_id": "1137523945",
+    "created_at": "2026-02-20T10:26:07.268129+00:00"
+  },
+  {
+    "id": 160,
+    "wallet_address": "0x211fa1b1407027846f532a0a3641b10d21803eb3e8e96b3a650a9e215e7112cc",
+    "telegram_user_id": "6847538017",
+    "telegram_username": "mempoolghost",
+    "telegram_chat_id": "6847538017",
+    "created_at": "2026-02-20T10:31:54.015576+00:00"
+  },
+  {
+    "id": 161,
+    "wallet_address": "0xe18e4c833d00b3e5535e4cd15ada4c85faa0280028a26ca3174366221aa787b3",
+    "telegram_user_id": "679368632",
+    "telegram_username": "Chinacomplex",
+    "telegram_chat_id": "679368632",
+    "created_at": "2026-02-20T12:09:54.815436+00:00"
+  },
+  {
+    "id": 162,
+    "wallet_address": "0xe1039acec0f77089a594931c113358a0e4ca467138c31fd8eed298fe1dd3d6b1",
+    "telegram_user_id": "7896915891",
+    "telegram_username": "moelahoemar12",
+    "telegram_chat_id": "7896915891",
+    "created_at": "2026-02-20T13:58:19.713211+00:00"
+  },
+  {
+    "id": 163,
+    "wallet_address": "0x8270c72a4b29d35844a5bbc9befb6bac3fc732de56f8141398226c35eacf3af0",
+    "telegram_user_id": "6167711233",
+    "telegram_username": "Jarmiu9",
+    "telegram_chat_id": "6167711233",
+    "created_at": "2026-02-20T13:59:09.34705+00:00"
+  },
+  {
+    "id": 164,
+    "wallet_address": "0x822040006e1006d74c53a3071e91473a2475fc35226233fdefe51d3be304bf9b",
+    "telegram_user_id": "7039543821",
+    "telegram_username": "Aidil2660",
+    "telegram_chat_id": "7039543821",
+    "created_at": "2026-02-20T14:16:14.763546+00:00"
+  },
+  {
+    "id": 165,
+    "wallet_address": "0x27c1c1292710944703f3f9ddc9d29bff596b878e169847c7d4c90679ec1d6bcc",
+    "telegram_user_id": "6847323901",
+    "telegram_username": "Nishaontel",
+    "telegram_chat_id": "6847323901",
+    "created_at": "2026-02-20T14:16:59.256704+00:00"
+  },
+  {
+    "id": 166,
+    "wallet_address": "0xe73630e2c2967d4bef34672f29b1c8d364616b4691027a7cab395f4bc06fe6db",
+    "telegram_user_id": "8085942957",
+    "telegram_username": "Ardisyaputra8",
+    "telegram_chat_id": "8085942957",
+    "created_at": "2026-02-20T14:31:35.093654+00:00"
+  },
+  {
+    "id": 167,
+    "wallet_address": "0x21b1081880d243271f97aae95390f8516db29d8910163f938394d89e5e74c486",
+    "telegram_user_id": "6663105173",
+    "telegram_username": "emikamiyako",
+    "telegram_chat_id": "6663105173",
+    "created_at": "2026-02-20T14:32:52.792904+00:00"
+  },
+  {
+    "id": 168,
+    "wallet_address": "0x3e2a19ef912b81d13d392a18e375622f874a732cb5c04096d978d74f567f524a",
+    "telegram_user_id": "6626644130",
+    "telegram_username": "sakiohana",
+    "telegram_chat_id": "6626644130",
+    "created_at": "2026-02-20T14:38:31.791753+00:00"
+  },
+  {
+    "id": 169,
+    "wallet_address": "0x59e3c74b4807f4897520e69315afba09a5769410b404961070e9d99ca785232c",
+    "telegram_user_id": "6485144438",
+    "telegram_username": "merysinoka",
+    "telegram_chat_id": "6485144438",
+    "created_at": "2026-02-20T14:42:41.542562+00:00"
+  },
+  {
+    "id": 170,
+    "wallet_address": "0x792857e4b8ab8d820699cad8edde2c0870e192fa95bdc14959ea8713274a5649",
+    "telegram_user_id": "1154231972",
+    "telegram_username": "Big_Simonnn",
+    "telegram_chat_id": "1154231972",
+    "created_at": "2026-02-20T14:50:34.821855+00:00"
+  },
+  {
+    "id": 171,
+    "wallet_address": "0x548b62599c60c7a6cdb015f16e7c3ac0c845f0d83e76af40851d18103df3fb34",
+    "telegram_user_id": "6933271267",
+    "telegram_username": "Maulmal98",
+    "telegram_chat_id": "6933271267",
+    "created_at": "2026-02-20T14:54:52.19936+00:00"
+  },
+  {
+    "id": 172,
+    "wallet_address": "0xb5fed89f7ede14eda4e6b7bdfa7ea186e85fcf7f58b09689b15afc863c734960",
+    "telegram_user_id": "310298243",
+    "telegram_username": "samira190000",
+    "telegram_chat_id": "310298243",
+    "created_at": "2026-02-20T14:56:20.33266+00:00"
+  },
+  {
+    "id": 173,
+    "wallet_address": "0x9db152a99181e410a81a05ceafdd0fc186457d4cf5fc1cb0c0d4cc031de2fef2",
+    "telegram_user_id": "234914795",
+    "telegram_username": "saeidtaghaviii",
+    "telegram_chat_id": "234914795",
+    "created_at": "2026-02-20T15:02:03.47539+00:00"
+  },
+  {
+    "id": 175,
+    "wallet_address": "0xec31b458263c28ed48e0f404e396ba13fea22189ea2dce92a4f265d70f6f34f5",
+    "telegram_user_id": "8192006154",
+    "telegram_username": "davinjr13",
+    "telegram_chat_id": "8192006154",
+    "created_at": "2026-02-20T15:52:37.86558+00:00"
+  },
+  {
+    "id": 176,
+    "wallet_address": "0xd8c7b30f0297f8122aeb5d999b035413174df6df2c7f7a5f5ffc3d039896e342",
+    "telegram_user_id": "1569582810",
+    "telegram_username": "Agussbud17",
+    "telegram_chat_id": "1569582810",
+    "created_at": "2026-02-20T16:16:02.704288+00:00"
+  },
+  {
+    "id": 177,
+    "wallet_address": "0x7348c58e7ccd3c7634a2ee8b231eb989a3537f46cb7d035090fca58a5ff751a5",
+    "telegram_user_id": "524031910",
+    "telegram_username": "zicusa",
+    "telegram_chat_id": "524031910",
+    "created_at": "2026-02-20T16:25:04.570352+00:00"
+  },
+  {
+    "id": 178,
+    "wallet_address": "0x301514d59db3805222c940cef3d4e0371a041f09ef28aae8181ecc5a863e8095",
+    "telegram_user_id": "1131004136",
+    "telegram_username": "vietduong93",
+    "telegram_chat_id": "1131004136",
+    "created_at": "2026-02-20T16:33:45.029774+00:00"
+  },
+  {
+    "id": 179,
+    "wallet_address": "0x795e17f88c1a2212f6d5675f95464f8e6805a687b76027714eef4368f6587191",
+    "telegram_user_id": "6671296632",
+    "telegram_username": "wahyudi6696",
+    "telegram_chat_id": "6671296632",
+    "created_at": "2026-02-20T16:46:27.577593+00:00"
+  },
+  {
+    "id": 180,
+    "wallet_address": "0x20b7daf4a3ab7d2162672ec996cf516fd17c64d477e61fda3b471fae37d7c8a9",
+    "telegram_user_id": "940787234",
+    "telegram_username": "suetovvod",
+    "telegram_chat_id": "940787234",
+    "created_at": "2026-02-20T16:46:45.202642+00:00"
+  },
+  {
+    "id": 181,
+    "wallet_address": "0xd8627354649ea643c8fd4d6513e58a8428ea404e1381c2ac476cd0bf5510c0b9",
+    "telegram_user_id": "71846767",
+    "telegram_username": "Pakniat66",
+    "telegram_chat_id": "71846767",
+    "created_at": "2026-02-20T19:46:16.035797+00:00"
+  },
+  {
+    "id": 182,
+    "wallet_address": "0xb3d42ad57ef7e91c34ee43128500fb928a38ffbdd0d836701375c4120d8c2866",
+    "telegram_user_id": "1277663699",
+    "telegram_username": "kayla_vic",
+    "telegram_chat_id": "1277663699",
+    "created_at": "2026-02-20T19:54:01.112985+00:00"
+  },
+  {
+    "id": 183,
+    "wallet_address": "0x0e6614aab0c5886a725dc9d0f496efc4ba773106ee02baac80d8ad88d754313a",
+    "telegram_user_id": "5546843847",
+    "telegram_username": "Gunadi_septian",
+    "telegram_chat_id": "5546843847",
+    "created_at": "2026-02-20T20:00:28.595981+00:00"
+  },
+  {
+    "id": 184,
+    "wallet_address": "0x3b6bf9ad873187c1dd320fa3fc38b29f90389ef5512704af26c2d72f40b8400f",
+    "telegram_user_id": "6919854287",
+    "telegram_username": "honurg",
+    "telegram_chat_id": "6919854287",
+    "created_at": "2026-02-20T20:51:37.388222+00:00"
+  },
+  {
+    "id": 186,
+    "wallet_address": "0xb9f7294624f1c282f8badb0f6f893343fdb33e01ea9864a85d18f93a19d05928",
+    "telegram_user_id": "8376239093",
+    "telegram_username": null,
+    "telegram_chat_id": "8376239093",
+    "created_at": "2026-02-20T21:06:28.497147+00:00"
+  },
+  {
+    "id": 187,
+    "wallet_address": "0x82ec45dceceaf4d081aa3d6ef9e7ad9b3628a88a15e08c406bc31ec90a134ece",
+    "telegram_user_id": "6962958857",
+    "telegram_username": "Chikkkkkkkkkkk5",
+    "telegram_chat_id": "6962958857",
+    "created_at": "2026-02-20T21:07:53.839975+00:00"
+  },
+  {
+    "id": 188,
+    "wallet_address": "0xdea64fc7c891978aa20840321ad921c5c1f9767df7877c81dc7bac77f63c67e2",
+    "telegram_user_id": "6268726961",
+    "telegram_username": "hemylee",
+    "telegram_chat_id": "6268726961",
+    "created_at": "2026-02-20T22:28:21.835249+00:00"
+  },
+  {
+    "id": 189,
+    "wallet_address": "0x99493e4c5cb5fe0bdee04eec57d12befe5ea76dcbc49315550e938d09e5ed5bc",
+    "telegram_user_id": "1552634097",
+    "telegram_username": "LookYegbe",
+    "telegram_chat_id": "1552634097",
+    "created_at": "2026-02-21T01:27:50.284256+00:00"
+  },
+  {
+    "id": 190,
+    "wallet_address": "0x845ec44745d5dc4f85be2397aa11e89d4edc9b7708e579aa7d97ea7c544c8a32",
+    "telegram_user_id": "1976746416",
+    "telegram_username": "arjuna_saktii",
+    "telegram_chat_id": "1976746416",
+    "created_at": "2026-02-21T02:18:28.360678+00:00"
+  },
+  {
+    "id": 191,
+    "wallet_address": "0xc801041aeea9fc9fe18e3c382919daf90a3c4617de7f1c614b95a8a777c20f8c",
+    "telegram_user_id": "7519637804",
+    "telegram_username": "Astrittifani",
+    "telegram_chat_id": "7519637804",
+    "created_at": "2026-02-21T03:02:31.275397+00:00"
+  },
+  {
+    "id": 192,
+    "wallet_address": "0xb8e76cd4adfb8fc3ba412a52ba65340bb7037b8d28b0146ea4f444e5b466b8b1",
+    "telegram_user_id": "7945024077",
+    "telegram_username": "Newgetdropsxx",
+    "telegram_chat_id": "7945024077",
+    "created_at": "2026-02-21T05:13:41.082588+00:00"
+  },
+  {
+    "id": 193,
+    "wallet_address": "0xd8531eb1792fd4973294d4bd7386a0a4943cc028a9de78c80618bb305418e636",
+    "telegram_user_id": "5661380409",
+    "telegram_username": "TRZ01BNB",
+    "telegram_chat_id": "5661380409",
+    "created_at": "2026-02-21T05:23:33.457748+00:00"
+  },
+  {
+    "id": 194,
+    "wallet_address": "0x0c204b40157d9ffbe3fd3b58d5d74cc72137a97835cb689a87590d9af6a46efd",
+    "telegram_user_id": "299659979",
+    "telegram_username": "hopedavid",
+    "telegram_chat_id": "299659979",
+    "created_at": "2026-02-21T05:59:38.176915+00:00"
+  },
+  {
+    "id": 195,
+    "wallet_address": "0x051b9d53d4a5c2444a9d483195708665c5a66e88de92c330f9d365741344dee1",
+    "telegram_user_id": "2010805037",
+    "telegram_username": "HAdmin859",
+    "telegram_chat_id": "2010805037",
+    "created_at": "2026-02-21T06:01:29.36064+00:00"
+  },
+  {
+    "id": 196,
+    "wallet_address": "0xe6f899292ad0f20ecc7dc6acc8c81442e8d7b6a554e2f8c2a07aff8ac520aa78",
+    "telegram_user_id": "5554528748",
+    "telegram_username": "long_phan999",
+    "telegram_chat_id": "5554528748",
+    "created_at": "2026-02-21T06:17:31.312028+00:00"
+  },
+  {
+    "id": 197,
+    "wallet_address": "0x60727e8742289d95b7d0a28b5f2212fa6a4226f69b54e303ad94cae769414d80",
+    "telegram_user_id": "1242584672",
+    "telegram_username": "Nay210601",
+    "telegram_chat_id": "1242584672",
+    "created_at": "2026-02-21T07:20:50.754592+00:00"
+  },
+  {
+    "id": 198,
+    "wallet_address": "0xdd5b72c27484e2878831a4545fc7ca7ce5b0821ded1463cd0354284982c082fe",
+    "telegram_user_id": "969874463",
+    "telegram_username": "web3facenft",
+    "telegram_chat_id": "969874463",
+    "created_at": "2026-02-21T07:47:10.969879+00:00"
+  },
+  {
+    "id": 199,
+    "wallet_address": "0x995967e4eccc38a29970ba6e11449363f4355f0e3d8e5e416dc6c3fb2b6ddd9e",
+    "telegram_user_id": "93952771",
+    "telegram_username": "ana_golpa",
+    "telegram_chat_id": "93952771",
+    "created_at": "2026-02-21T08:13:15.288623+00:00"
+  },
+  {
+    "id": 200,
+    "wallet_address": "0x31ecff7e9135ebdffab56a82349c8a3261dae1233e170ccad13af379dde8b365",
+    "telegram_user_id": "7020301498",
+    "telegram_username": "Winnyy9",
+    "telegram_chat_id": "7020301498",
+    "created_at": "2026-02-21T08:40:59.445648+00:00"
+  },
+  {
+    "id": 201,
+    "wallet_address": "0xe4d031c65dc743286c6883a498bfe0e7cd2e146cf4f6b32a16221fb244b07034",
+    "telegram_user_id": "799635411",
+    "telegram_username": "Am_bara27",
+    "telegram_chat_id": "799635411",
+    "created_at": "2026-02-21T08:41:55.055436+00:00"
+  },
+  {
+    "id": 202,
+    "wallet_address": "0xe353790f07f786501343042b2f5c6919facaef8967f071a655a1834072df6fc7",
+    "telegram_user_id": "6542223792",
+    "telegram_username": "DaniMurofiqSalim",
+    "telegram_chat_id": "6542223792",
+    "created_at": "2026-02-21T08:46:11.238358+00:00"
+  },
+  {
+    "id": 203,
+    "wallet_address": "0x1e4583b6a785df7cccea458ab600d97d206c7286974ff2ebf8ae6e51378483d8",
+    "telegram_user_id": "5460066358",
+    "telegram_username": "Hhd0909",
+    "telegram_chat_id": "5460066358",
+    "created_at": "2026-02-21T08:47:23.539589+00:00"
+  },
+  {
+    "id": 204,
+    "wallet_address": "0xba2be9c03d01e871f935c3ab7616d5f6669b054f264785d8dfd59399b9304a94",
+    "telegram_user_id": "5982031006",
+    "telegram_username": "Mr_khan_2003",
+    "telegram_chat_id": "5982031006",
+    "created_at": "2026-02-21T08:53:23.281288+00:00"
+  },
+  {
+    "id": 205,
+    "wallet_address": "0xf7a2c283961253c0ddfa3a142131194ac3fa68727e577444bd2b455218ec3273",
+    "telegram_user_id": "6333265844",
+    "telegram_username": "vlsg777",
+    "telegram_chat_id": "6333265844",
+    "created_at": "2026-02-21T09:03:41.931526+00:00"
+  },
+  {
+    "id": 206,
+    "wallet_address": "0x3e87277ba1a1fca674f4355ee11a0f56724f02284d56a72b2a2f17a673131592",
+    "telegram_user_id": "1771908435",
+    "telegram_username": "Sativa_D_Weed",
+    "telegram_chat_id": "1771908435",
+    "created_at": "2026-02-21T09:18:31.679689+00:00"
+  },
+  {
+    "id": 207,
+    "wallet_address": "0xaa30427003f1dc9df4c9204c69e26d9faf9823ec614e3213b179f3b6e2d103be",
+    "telegram_user_id": "5635115730",
+    "telegram_username": "shariful793",
+    "telegram_chat_id": "5635115730",
+    "created_at": "2026-02-21T10:01:08.617934+00:00"
+  },
+  {
+    "id": 208,
+    "wallet_address": "0x76cb96a559032166fff2cb07a5f13f04d8099da6fa46ea2d153d6f64117ed06b",
+    "telegram_user_id": "6504670203",
+    "telegram_username": "zbemz1102",
+    "telegram_chat_id": "6504670203",
+    "created_at": "2026-02-21T15:39:05.727608+00:00"
+  },
+  {
+    "id": 209,
+    "wallet_address": "0x7b22ac4e18918e0734ae0f45d7108ce4ce4ad86495f78b7cb4a331cb59b0a759",
+    "telegram_user_id": "6128238667",
+    "telegram_username": "behzadsh4495",
+    "telegram_chat_id": "6128238667",
+    "created_at": "2026-02-21T15:39:43.212647+00:00"
+  },
+  {
+    "id": 210,
+    "wallet_address": "0xb7687d8bcf301fc34fed2f70a456471dd10d4042292e8faad74b7ef012289043",
+    "telegram_user_id": "651043146",
+    "telegram_username": "Adde1501",
+    "telegram_chat_id": "651043146",
+    "created_at": "2026-02-21T15:39:59.330058+00:00"
+  },
+  {
+    "id": 211,
+    "wallet_address": "0x9a2306747ba72cfef7e62fc8baabceca4fa0e679a7f352d7a2e789097361c066",
+    "telegram_user_id": "8388662614",
+    "telegram_username": "Koliist",
+    "telegram_chat_id": "8388662614",
+    "created_at": "2026-02-21T15:44:40.813178+00:00"
+  },
+  {
+    "id": 212,
+    "wallet_address": "0x246d6262480456f222e90a58cc3f785f8d52d8a4b88f2a0fb1ca78488f78f82e",
+    "telegram_user_id": "6879113653",
+    "telegram_username": "tham_hen_uoc",
+    "telegram_chat_id": "6879113653",
+    "created_at": "2026-02-21T16:04:19.128896+00:00"
+  },
+  {
+    "id": 213,
+    "wallet_address": "0x6924bb6ebd83d70e76a6675971457adf032158cdf891faf41b1ccd38412e917a",
+    "telegram_user_id": "7475566509",
+    "telegram_username": "pacatbi1993",
+    "telegram_chat_id": "7475566509",
+    "created_at": "2026-02-21T17:12:02.253666+00:00"
+  },
+  {
+    "id": 214,
+    "wallet_address": "0x9b7d6ff747a20387f51d88c30533bd956b3b57cbc7162ba4fa8efe22db4d6f90",
+    "telegram_user_id": "7425479295",
+    "telegram_username": "BomBomBem",
+    "telegram_chat_id": "7425479295",
+    "created_at": "2026-02-21T17:12:03.546619+00:00"
+  },
+  {
+    "id": 215,
+    "wallet_address": "0x43e68fb82750a5aad43e34e76d1f1f7289f3c51aafdc43efb749ee98d9a3c543",
+    "telegram_user_id": "7541367208",
+    "telegram_username": "buomdem368",
+    "telegram_chat_id": "7541367208",
+    "created_at": "2026-02-21T17:12:03.552401+00:00"
+  },
+  {
+    "id": 216,
+    "wallet_address": "0xb02c7bbb24916b7ab1138b9ba94ebbfa8adbafd1d71dc6e7d9c25bb045775591",
+    "telegram_user_id": "8036377593",
+    "telegram_username": "chimtodan040",
+    "telegram_chat_id": "8036377593",
+    "created_at": "2026-02-21T17:12:04.752965+00:00"
+  },
+  {
+    "id": 217,
+    "wallet_address": "0x93cc2e11c4e52a59840c130c03106e6dc61a32ab8475c615664cecf8b79c05c4",
+    "telegram_user_id": "7795023319",
+    "telegram_username": "bembumbim",
+    "telegram_chat_id": "7795023319",
+    "created_at": "2026-02-21T17:22:23.188706+00:00"
+  },
+  {
+    "id": 218,
+    "wallet_address": "0xb49dfbaa992ed40db58ae878b9b8c55b0bce39230aa6bd624a502d8b5ba6a2ca",
+    "telegram_user_id": "7075699516",
+    "telegram_username": "Ngdinhhuy1989",
+    "telegram_chat_id": "7075699516",
+    "created_at": "2026-02-21T17:22:24.432803+00:00"
+  },
+  {
+    "id": 219,
+    "wallet_address": "0x9e4aac08737d4dfb20d2ec19de8597258244b5f5bbe6b66f33950a1ae9a1268d",
+    "telegram_user_id": "7527198265",
+    "telegram_username": "pqcpqcpqc",
+    "telegram_chat_id": "7527198265",
+    "created_at": "2026-02-21T17:22:24.434908+00:00"
+  },
+  {
+    "id": 220,
+    "wallet_address": "0xd7bb5e0105a605e5db14e4d3fae92610168554338ffc601b58209ce322ae949a",
+    "telegram_user_id": "7003908007",
+    "telegram_username": "havuhong",
+    "telegram_chat_id": "7003908007",
+    "created_at": "2026-02-21T17:22:24.492287+00:00"
+  },
+  {
+    "id": 221,
+    "wallet_address": "0x84074f0909f82b32ec99af473acad1c7abe740f7c36137a124958735ecc5eac9",
+    "telegram_user_id": "7946751154",
+    "telegram_username": "bumbubom",
+    "telegram_chat_id": "7946751154",
+    "created_at": "2026-02-21T17:48:04.680396+00:00"
+  },
+  {
+    "id": 222,
+    "wallet_address": "0x161a77d0186df7052f5664da61acbe6e5e3fda55680425f363cfa8de0130f901",
+    "telegram_user_id": "7330331226",
+    "telegram_username": "pacatbi123",
+    "telegram_chat_id": "7330331226",
+    "created_at": "2026-02-21T17:48:05.906288+00:00"
+  },
+  {
+    "id": 223,
+    "wallet_address": "0x9dea6ac684b268a24bdec4c0a97ef6e1c7c6b82b15e22c126ced3ca61a7fe2fc",
+    "telegram_user_id": "7828657581",
+    "telegram_username": "haichem736",
+    "telegram_chat_id": "7828657581",
+    "created_at": "2026-02-21T17:55:29.557795+00:00"
+  },
+  {
+    "id": 224,
+    "wallet_address": "0x9b5b7cf96f4918024ff8db5cba39ee0a9cc2464f3c6fee5304cd42a8189451a0",
+    "telegram_user_id": "5616686682",
+    "telegram_username": "Mendem78",
+    "telegram_chat_id": "5616686682",
+    "created_at": "2026-02-21T18:17:40.87621+00:00"
+  },
+  {
+    "id": 225,
+    "wallet_address": "0xd6f8a31ba8cc5adc9a776e878fee52ee47c9f834694d22229c70aba350e49c34",
+    "telegram_user_id": "6366718962",
+    "telegram_username": "romyyleo",
+    "telegram_chat_id": "6366718962",
+    "created_at": "2026-02-21T18:19:58.773041+00:00"
+  },
+  {
+    "id": 226,
+    "wallet_address": "0x33801243a25b08039bbaebb14b1336828a65f93e865866225053fd9f9c47a04a",
+    "telegram_user_id": "6538026875",
+    "telegram_username": "ade_nismo",
+    "telegram_chat_id": "6538026875",
+    "created_at": "2026-02-21T18:22:36.471035+00:00"
+  },
+  {
+    "id": 227,
+    "wallet_address": "0x7679fa7d4d7139cab5e8ff36025560113fa2c04550ca8feec586cf0755edb392",
+    "telegram_user_id": "5515550910",
+    "telegram_username": "taufikleo",
+    "telegram_chat_id": "5515550910",
+    "created_at": "2026-02-21T18:36:36.939059+00:00"
+  },
+  {
+    "id": 228,
+    "wallet_address": "0x957e528be15c6019647d9511a3ee5878e85faa6c907c9c1e4597b5c15e6b2ef5",
+    "telegram_user_id": "5821234853",
+    "telegram_username": "Oscarrose99",
+    "telegram_chat_id": "5821234853",
+    "created_at": "2026-02-21T19:49:38.682523+00:00"
+  },
+  {
+    "id": 229,
+    "wallet_address": "0x8b7f994c973ad2c80090c6b31da49995ef7a90528723aec7e1bcf9e6b786653c",
+    "telegram_user_id": "6451406011",
+    "telegram_username": "BlockHight",
+    "telegram_chat_id": "6451406011",
+    "created_at": "2026-02-21T20:14:20.283886+00:00"
+  },
+  {
+    "id": 230,
+    "wallet_address": "0x172ffd3491444b4321f712f16f54b42d01b4e0c1cb6fecfb806b74466ecaaefa",
+    "telegram_user_id": "5684181753",
+    "telegram_username": "awmau",
+    "telegram_chat_id": "5684181753",
+    "created_at": "2026-02-21T21:03:19.068726+00:00"
+  },
+  {
+    "id": 231,
+    "wallet_address": "0x39c6efcd9442fd6692ad0c5a34a6976b052da5346d14884cd7413075a9ef8120",
+    "telegram_user_id": "6689116027",
+    "telegram_username": "tanoji90",
+    "telegram_chat_id": "6689116027",
+    "created_at": "2026-02-21T22:49:51.650103+00:00"
+  },
+  {
+    "id": 232,
+    "wallet_address": "0xf258232e9806e5d2f8ebdcb55c90e3c78a17518701ff006952f6d705ed0a4885",
+    "telegram_user_id": "6408561098",
+    "telegram_username": "abdol_85",
+    "telegram_chat_id": "6408561098",
+    "created_at": "2026-02-21T23:55:44.593816+00:00"
+  },
+  {
+    "id": 233,
+    "wallet_address": "0x2a2ceefce6ae2a835027c52331bd37b26ea65a46b939db493ae67cc001549eb2",
+    "telegram_user_id": "6589869249",
+    "telegram_username": "v1oletbun",
+    "telegram_chat_id": "6589869249",
+    "created_at": "2026-02-22T00:05:37.634046+00:00"
+  },
+  {
+    "id": 234,
+    "wallet_address": "0xd3d59d5fb7d4389097610d7512185c01d414486dd59c19bb681149de3dbc7e29",
+    "telegram_user_id": "6657967376",
+    "telegram_username": "borakasll",
+    "telegram_chat_id": "6657967376",
+    "created_at": "2026-02-22T00:20:47.515553+00:00"
+  },
+  {
+    "id": 235,
+    "wallet_address": "0x4d62df84e530ac9d11b25d4ca78efcc2e65ed4c45f50c5ccb273c2c78e46b25b",
+    "telegram_user_id": "156775158",
+    "telegram_username": "seannn019",
+    "telegram_chat_id": "156775158",
+    "created_at": "2026-02-22T00:53:07.055614+00:00"
+  },
+  {
+    "id": 236,
+    "wallet_address": "0xf04fafeb005103ae7c4095ff36fe1312a263b76d5649822a5268e892b480f2b0",
+    "telegram_user_id": "6113628634",
+    "telegram_username": "OxLabsTheMask",
+    "telegram_chat_id": "6113628634",
+    "created_at": "2026-02-22T00:56:28.312893+00:00"
+  },
+  {
+    "id": 237,
+    "wallet_address": "0x3b910a4512d3f166765b7f54b8f3d2af0f2ecf8d9ffec07bc6458fa8525f0cf6",
+    "telegram_user_id": "6670735313",
+    "telegram_username": "j2182185",
+    "telegram_chat_id": "6670735313",
+    "created_at": "2026-02-22T02:56:34.947734+00:00"
+  },
+  {
+    "id": 238,
+    "wallet_address": "0xcd7dce155ea2d3e86c0e1f2aed4568becd7457cd9b70eca77749f736ca2a80e5",
+    "telegram_user_id": "1456162799",
+    "telegram_username": "aris18o2",
+    "telegram_chat_id": "1456162799",
+    "created_at": "2026-02-22T04:08:32.277369+00:00"
+  },
+  {
+    "id": 239,
+    "wallet_address": "0x439ab1f933b2790d1682547d32b009c90049e634f4ad958cc60bce5ee7eba122",
+    "telegram_user_id": "7376305478",
+    "telegram_username": "tomsmith9039",
+    "telegram_chat_id": "7376305478",
+    "created_at": "2026-02-22T05:35:55.023385+00:00"
+  },
+  {
+    "id": 240,
+    "wallet_address": "0x92b4ad0fe1525a7a29c5e1f2421f1e54b2f1d30a22126439a54623b262049b4f",
+    "telegram_user_id": "273475065",
+    "telegram_username": "luna124200",
+    "telegram_chat_id": "273475065",
+    "created_at": "2026-02-22T05:50:41.111449+00:00"
+  },
+  {
+    "id": 241,
+    "wallet_address": "0xbae7bad55112d61c99bff60db2f99e77b25880b1c8cd8916661d45f30bd46115",
+    "telegram_user_id": "450606008",
+    "telegram_username": "hnuriany",
+    "telegram_chat_id": "450606008",
+    "created_at": "2026-02-22T06:07:48.992888+00:00"
+  },
+  {
+    "id": 242,
+    "wallet_address": "0x307064b50873a081867dad04c6990dc2343a433f67d50f82764b3ef23f2f1ba9",
+    "telegram_user_id": "6591624911",
+    "telegram_username": "Doodo_27",
+    "telegram_chat_id": "6591624911",
+    "created_at": "2026-02-22T06:15:16.907558+00:00"
+  },
+  {
+    "id": 243,
+    "wallet_address": "0x5bbabea8f1588bee5c02f97922fcc5e376e94d01c7dd7dc4312a05c662fae6df",
+    "telegram_user_id": "1246577862",
+    "telegram_username": "netman1361",
+    "telegram_chat_id": "1246577862",
+    "created_at": "2026-02-22T06:22:57.598287+00:00"
+  },
+  {
+    "id": 244,
+    "wallet_address": "0x1d62e7cddc4af34ef3678c6bd2b0fa7e9e9aae8eacb85ac379685d7ea6e9d152",
+    "telegram_user_id": "7139958675",
+    "telegram_username": "tonyul87",
+    "telegram_chat_id": "7139958675",
+    "created_at": "2026-02-22T06:36:49.806688+00:00"
+  },
+  {
+    "id": 245,
+    "wallet_address": "0xf9df265af5d9661f4749503f618df8566b40a954f9fd009334949aada17b4812",
+    "telegram_user_id": "7559160027",
+    "telegram_username": "grass9057",
+    "telegram_chat_id": "7559160027",
+    "created_at": "2026-02-22T06:56:19.062211+00:00"
+  },
+  {
+    "id": 246,
+    "wallet_address": "0xb2a7922672d84daa877eaef695a7521bdb2ee43860a8254989e4e3c5dedaccf4",
+    "telegram_user_id": "5853257256",
+    "telegram_username": "Ishaka7310",
+    "telegram_chat_id": "5853257256",
+    "created_at": "2026-02-22T07:10:34.085214+00:00"
+  },
+  {
+    "id": 247,
+    "wallet_address": "0x90b7bad3297a641b647908c37db9019a537bd0b99bbdfedfac373639e157db7c",
+    "telegram_user_id": "1702014831",
+    "telegram_username": "emmykaay",
+    "telegram_chat_id": "1702014831",
+    "created_at": "2026-02-22T07:52:36.573197+00:00"
+  },
+  {
+    "id": 248,
+    "wallet_address": "0xa832fd787888ef48fd91fa706b8bd017d323249af9ee45a616edd97fdb02eb0b",
+    "telegram_user_id": "5185061575",
+    "telegram_username": "Swayam256",
+    "telegram_chat_id": "5185061575",
+    "created_at": "2026-02-22T07:55:35.058029+00:00"
+  },
+  {
+    "id": 249,
+    "wallet_address": "0xdd7859918120626aca270fd67e3ae285c2bd10dccc58c644bf7fb95ae9418938",
+    "telegram_user_id": "274666430",
+    "telegram_username": "imansh0710",
+    "telegram_chat_id": "274666430",
+    "created_at": "2026-02-22T08:05:20.194803+00:00"
+  },
+  {
+    "id": 250,
+    "wallet_address": "0x8138c6926af1903799e165a60a94e9e1cda75f5b87e5e3f04677a7a5d93644f7",
+    "telegram_user_id": "7482199273",
+    "telegram_username": "KeChuyenTuoiHoa",
+    "telegram_chat_id": "7482199273",
+    "created_at": "2026-02-22T08:13:22.660983+00:00"
+  },
+  {
+    "id": 251,
+    "wallet_address": "0xa9641f1c1e3338a9558638934bbf47ef1a1c8f24215803848dc40407e5a2369b",
+    "telegram_user_id": "741530790",
+    "telegram_username": "rizwan74178",
+    "telegram_chat_id": "741530790",
+    "created_at": "2026-02-22T08:52:31.166975+00:00"
+  },
+  {
+    "id": 252,
+    "wallet_address": "0x43017f494894c907d0e19773aea53dbb02d658a4521e6bb269dcd7342f503a34",
+    "telegram_user_id": "1420854219",
+    "telegram_username": "BIGKOP",
+    "telegram_chat_id": "1420854219",
+    "created_at": "2026-02-22T09:04:01.331697+00:00"
+  },
+  {
+    "id": 253,
+    "wallet_address": "0xec968a10d6ab0e363e20d62dd185d1c299409bb57eea4b0d5ed2e41cca3f4923",
+    "telegram_user_id": "914986875",
+    "telegram_username": "SankarG369",
+    "telegram_chat_id": "914986875",
+    "created_at": "2026-02-22T09:42:02.137355+00:00"
+  },
+  {
+    "id": 254,
+    "wallet_address": "0xf8c47b2b1039d5f957b2fbe1ff25f71400eb7fe08bacbc255f8e9b691fafbec8",
+    "telegram_user_id": "6187068096",
+    "telegram_username": "Vinnnsqt",
+    "telegram_chat_id": "6187068096",
+    "created_at": "2026-02-22T10:47:01.249445+00:00"
+  },
+  {
+    "id": 255,
+    "wallet_address": "0x6beaba2546273654dc1bbea383979818ed204e4e88708e70d8254778ac8b1e4e",
+    "telegram_user_id": "7086422200",
+    "telegram_username": "myhustle_place",
+    "telegram_chat_id": "7086422200",
+    "created_at": "2026-02-22T10:55:55.144947+00:00"
+  },
+  {
+    "id": 256,
+    "wallet_address": "0x9eacd631d9a9031655b4ffbd78666b4fe273495e222e180c7f00d2ad42b80064",
+    "telegram_user_id": "6316356923",
+    "telegram_username": "incsxL",
+    "telegram_chat_id": "6316356923",
+    "created_at": "2026-02-22T11:24:37.985002+00:00"
+  },
+  {
+    "id": 257,
+    "wallet_address": "0x64729c845b569ac5474d43848342dd7684f215da6ab6de5cb541297fcede9bcc",
+    "telegram_user_id": "783228269",
+    "telegram_username": "dmitrik_7",
+    "telegram_chat_id": "783228269",
+    "created_at": "2026-02-22T11:25:11.54899+00:00"
+  },
+  {
+    "id": 258,
+    "wallet_address": "0xce13a51ba1b58ba945aca00ee706cc2046f83b79ba65f2185cc3e9a93a5ee2e5",
+    "telegram_user_id": "5647357811",
+    "telegram_username": "chibigee",
+    "telegram_chat_id": "5647357811",
+    "created_at": "2026-02-22T11:51:37.440335+00:00"
+  },
+  {
+    "id": 259,
+    "wallet_address": "0x40904ad7a9710428f13bfb64f73c25e7e70780131db2b8df725603b543ab0959",
+    "telegram_user_id": "6974628347",
+    "telegram_username": "Ibnugalih9",
+    "telegram_chat_id": "6974628347",
+    "created_at": "2026-02-22T11:52:06.447528+00:00"
+  },
+  {
+    "id": 260,
+    "wallet_address": "0x93124a6b5c19cd0aeacaa72d0df28839cfc5e96005384efa193ff97a7fce14bc",
+    "telegram_user_id": "1863570708",
+    "telegram_username": "kooceer",
+    "telegram_chat_id": "1863570708",
+    "created_at": "2026-02-22T11:54:04.651167+00:00"
+  },
+  {
+    "id": 261,
+    "wallet_address": "0x845c4461a01ad402c59e3228a2c20ca8da866b8257d2b571ffd7de051bb1bdf1",
+    "telegram_user_id": "7357200893",
+    "telegram_username": "Vhonzkie13",
+    "telegram_chat_id": "7357200893",
+    "created_at": "2026-02-22T12:46:02.822823+00:00"
+  },
+  {
+    "id": 262,
+    "wallet_address": "0xddbfcc6c5e5df18348229b04be81cd3f2f8bc078c9e64c37cb1d57158c424329",
+    "telegram_user_id": "5955715857",
+    "telegram_username": "zkgvn",
+    "telegram_chat_id": "5955715857",
+    "created_at": "2026-02-22T12:46:13.838888+00:00"
+  },
+  {
+    "id": 263,
+    "wallet_address": "0x431990af911b730b4117380739ddf7d3be0bf94216337e60bce6c040454523eb",
+    "telegram_user_id": "1748277952",
+    "telegram_username": "Yondai97",
+    "telegram_chat_id": "1748277952",
+    "created_at": "2026-02-22T12:54:07.86693+00:00"
+  },
+  {
+    "id": 264,
+    "wallet_address": "0xbfa1f8c809f2f306021c80a80be9a0c19075a1f739f1a5800987e57f345cf5e7",
+    "telegram_user_id": "6872565412",
+    "telegram_username": "CForhigh",
+    "telegram_chat_id": "6872565412",
+    "created_at": "2026-02-22T13:02:07.090343+00:00"
+  },
+  {
+    "id": 265,
+    "wallet_address": "0xa412db6a6a5b25bb4904d734514f4a1f0aa47b51200c2103ac64ce431db05459",
+    "telegram_user_id": "1454405190",
+    "telegram_username": "PANJINC",
+    "telegram_chat_id": "1454405190",
+    "created_at": "2026-02-22T13:03:12.618151+00:00"
+  },
+  {
+    "id": 266,
+    "wallet_address": "0x6f8862b2263640b6d750f5c99ea13dbb543962b4e8bee09f8f9342c485cc337b",
+    "telegram_user_id": "6081178109",
+    "telegram_username": "Unbroken_champ",
+    "telegram_chat_id": "6081178109",
+    "created_at": "2026-02-22T13:35:58.299411+00:00"
+  },
+  {
+    "id": 267,
+    "wallet_address": "0xb324d017251714e0e0bf75c727884925c1db093ea8b3b681ed0a0b95e58cc517",
+    "telegram_user_id": "254199469",
+    "telegram_username": "NFAgho",
+    "telegram_chat_id": "254199469",
+    "created_at": "2026-02-22T14:29:43.332327+00:00"
+  },
+  {
+    "id": 268,
+    "wallet_address": "0x5f1b6056fbffff3160e1dc196080cea0eade7fb418e9669a439d0007ffd43c16",
+    "telegram_user_id": "1773693772",
+    "telegram_username": "Julho123",
+    "telegram_chat_id": "1773693772",
+    "created_at": "2026-02-22T14:36:52.818525+00:00"
+  },
+  {
+    "id": 269,
+    "wallet_address": "0xe50eb0ef0358dbb1a2029062688c892df14f89c488a2222b4797faad6b5506f3",
+    "telegram_user_id": "7114272561",
+    "telegram_username": "gausal786",
+    "telegram_chat_id": "7114272561",
+    "created_at": "2026-02-22T14:37:26.095095+00:00"
+  },
+  {
+    "id": 270,
+    "wallet_address": "0xcf5ab6b80eac47232a24b0ea714055dae84fca29e395d5e2e4ad6f3453a65585",
+    "telegram_user_id": "1183124755",
+    "telegram_username": "Joey007",
+    "telegram_chat_id": "1183124755",
+    "created_at": "2026-02-22T14:42:29.191377+00:00"
+  },
+  {
+    "id": 271,
+    "wallet_address": "0x5728bdbd0dcd553d7e627b16602bf0320fdc535a0a9d2607e325d35a2a8a26cb",
+    "telegram_user_id": "5140192626",
+    "telegram_username": "sandywahyu24",
+    "telegram_chat_id": "5140192626",
+    "created_at": "2026-02-22T14:45:00.817804+00:00"
+  },
+  {
+    "id": 272,
+    "wallet_address": "0x42b7e26c14fdd1fd7bc73b7cdf5c28afa44bcf9477abfd5aa20c6d9bb70d0c74",
+    "telegram_user_id": "5349377798",
+    "telegram_username": "Nathan5321",
+    "telegram_chat_id": "5349377798",
+    "created_at": "2026-02-22T15:38:25.119815+00:00"
+  },
+  {
+    "id": 273,
+    "wallet_address": "0x86a385658933060ca43c32ac179281b3fae4205872895ade562c972bed22e04d",
+    "telegram_user_id": "525245506",
+    "telegram_username": "oleksiichumachenko",
+    "telegram_chat_id": "525245506",
+    "created_at": "2026-02-22T15:39:25.584539+00:00"
+  },
+  {
+    "id": 274,
+    "wallet_address": "0x230af4720bcc576c59df6e6b96c40773138a30f339b0b1878f6145aea0c0421f",
+    "telegram_user_id": "7405921326",
+    "telegram_username": "wannaberashford",
+    "telegram_chat_id": "7405921326",
+    "created_at": "2026-02-22T15:44:44.446969+00:00"
+  },
+  {
+    "id": 275,
+    "wallet_address": "0xbb2a7147eecc90289b09bd86c98fc56c2d6c4748c6eb7a059eb53733d1dce3e8",
+    "telegram_user_id": "1082660703",
+    "telegram_username": "JPinairdrop0x",
+    "telegram_chat_id": "1082660703",
+    "created_at": "2026-02-22T15:49:21.094455+00:00"
+  },
+  {
+    "id": 276,
+    "wallet_address": "0x68c3ebcdcddaeccef6cf47ee720081ccbc7358b4c4fa60fbe7443a293f5a4fc3",
+    "telegram_user_id": "7430923665",
+    "telegram_username": "zorokunh",
+    "telegram_chat_id": "7430923665",
+    "created_at": "2026-02-22T15:59:22.482654+00:00"
+  },
+  {
+    "id": 277,
+    "wallet_address": "0xe996f73b8876daa7729015e1a454948523917ef9cfd1547181c34ecff6fc1bb5",
+    "telegram_user_id": "1270467087",
+    "telegram_username": "Banishahr6636",
+    "telegram_chat_id": "1270467087",
+    "created_at": "2026-02-22T16:19:51.793801+00:00"
+  },
+  {
+    "id": 278,
+    "wallet_address": "0xa7e1271c7add2895a402af1890e849e144ffa7398a0fb503429af38f6e858f97",
+    "telegram_user_id": "6673039938",
+    "telegram_username": "abcdefault",
+    "telegram_chat_id": "6673039938",
+    "created_at": "2026-02-22T16:31:13.886508+00:00"
+  },
+  {
+    "id": 279,
+    "wallet_address": "0x07ae5caa39a505f155b458c115bf42e9923bc9cd64d55efed7be5c90f1b011e7",
+    "telegram_user_id": "1735405293",
+    "telegram_username": "Brkcinar",
+    "telegram_chat_id": "1735405293",
+    "created_at": "2026-02-22T16:50:43.414746+00:00"
+  },
+  {
+    "id": 280,
+    "wallet_address": "0x2fd5f2c168547d3f2730e84e77a67f54fae940e94f49aff000b17e1388c72219",
+    "telegram_user_id": "7894079290",
+    "telegram_username": "mishasakura1",
+    "telegram_chat_id": "7894079290",
+    "created_at": "2026-02-22T17:09:37.99932+00:00"
+  },
+  {
+    "id": 281,
+    "wallet_address": "0x7efcf01c38508a176534d1151aea2736d004b362f3a2f3bed674d26994de852e",
+    "telegram_user_id": "6942564934",
+    "telegram_username": "Nabila_a_rohman",
+    "telegram_chat_id": "6942564934",
+    "created_at": "2026-02-22T19:11:46.903606+00:00"
+  },
+  {
+    "id": 282,
+    "wallet_address": "0x84e2912958cafa3d79b6f8df37d45380ea4d47a7896040864ab19eb7138c9a28",
+    "telegram_user_id": "7085012668",
+    "telegram_username": "amar08080",
+    "telegram_chat_id": "7085012668",
+    "created_at": "2026-02-22T19:25:05.112281+00:00"
+  },
+  {
+    "id": 283,
+    "wallet_address": "0x82b40be5e755fe18452e307cbcd70f77a9cd5644f16ac4e7e068c01f2aad242d",
+    "telegram_user_id": "7725261615",
+    "telegram_username": "oxpunk2",
+    "telegram_chat_id": "7725261615",
+    "created_at": "2026-02-22T20:35:06.567357+00:00"
+  },
+  {
+    "id": 284,
+    "wallet_address": "0x3a9e6ca264e30b0ef2edd56f2327b56d5893d43c9abaae59b9d36d33a9ade931",
+    "telegram_user_id": "6010064298",
+    "telegram_username": "Minhaj827919",
+    "telegram_chat_id": "6010064298",
+    "created_at": "2026-02-22T21:41:30.825431+00:00"
+  },
+  {
+    "id": 285,
+    "wallet_address": "0x0df0c8f9258f165f402b0f38916edae3e30c06a8e155664d1f3a6d7e273137b6",
+    "telegram_user_id": "7409696476",
+    "telegram_username": "Indra200003",
+    "telegram_chat_id": "7409696476",
+    "created_at": "2026-02-23T00:53:29.365468+00:00"
+  },
+  {
+    "id": 286,
+    "wallet_address": "0xa7756d996f34853812ffead4e68e300595eeacfdf2ff01687ba6f031dabd5de5",
+    "telegram_user_id": "2115281447",
+    "telegram_username": "salendii",
+    "telegram_chat_id": "2115281447",
+    "created_at": "2026-02-23T02:12:46.320271+00:00"
+  },
+  {
+    "id": 287,
+    "wallet_address": "0x45b586ec4ab3944e6a1411b0dc7aa6f03b0c9d378cb4f3f11bbfc8ba9b1ffd11",
+    "telegram_user_id": "6281228002",
+    "telegram_username": "Sanzkimii",
+    "telegram_chat_id": "6281228002",
+    "created_at": "2026-02-23T05:36:51.693907+00:00"
+  },
+  {
+    "id": 288,
+    "wallet_address": "0xbe648fb18d56d23a8593906a621bc744b52095d9d51f17d21ddafc1a2e936d18",
+    "telegram_user_id": "5279672030",
+    "telegram_username": "Blakutakk",
+    "telegram_chat_id": "5279672030",
+    "created_at": "2026-02-23T06:57:01.454212+00:00"
+  },
+  {
+    "id": 289,
+    "wallet_address": "0x9dfdc3e379ca2bbe990d85dc7a6b53910efc2583cabfb911a7edeba6c482659f",
+    "telegram_user_id": "8067363778",
+    "telegram_username": "jerrychow2000",
+    "telegram_chat_id": "8067363778",
+    "created_at": "2026-02-23T07:34:28.44561+00:00"
+  },
+  {
+    "id": 290,
+    "wallet_address": "0x53a5bed4fc29c17025248312b6fc514603a1152f27310f633d5e944c339aa524",
+    "telegram_user_id": "6794303682",
+    "telegram_username": "hendr1010",
+    "telegram_chat_id": "6794303682",
+    "created_at": "2026-02-23T08:31:18.371607+00:00"
+  },
+  {
+    "id": 291,
+    "wallet_address": "0x8784a3155e666adbe887e97bb0ed9d5a16bb0511b37e349a76b53ee4f0e77026",
+    "telegram_user_id": "6565646645",
+    "telegram_username": "olinvey",
+    "telegram_chat_id": "6565646645",
+    "created_at": "2026-02-23T09:28:26.642216+00:00"
+  },
+  {
+    "id": 292,
+    "wallet_address": "0x3c38086832e1890c382c36f2e84476cfff803ae35844ee01fc138d72174e4f1c",
+    "telegram_user_id": "6060326683",
+    "telegram_username": "Tuyulbr",
+    "telegram_chat_id": "6060326683",
+    "created_at": "2026-02-23T09:46:59.947105+00:00"
+  },
+  {
+    "id": 293,
+    "wallet_address": "0x4e1da99d2fa7918ed4c92ea9239e91c3dc8984d5dde6ee3d31b11368d6f43730",
+    "telegram_user_id": "8210306185",
+    "telegram_username": "rezafahluvi",
+    "telegram_chat_id": "8210306185",
+    "created_at": "2026-02-23T09:51:05.35136+00:00"
+  },
+  {
+    "id": 294,
+    "wallet_address": "0x9c7f74d01900c935e2fbcd5b9d53154a9022725a0812daa2ce9f062fcf2f7c4c",
+    "telegram_user_id": "8032879761",
+    "telegram_username": "Nazar_0125",
+    "telegram_chat_id": "8032879761",
+    "created_at": "2026-02-23T10:12:27.926533+00:00"
+  },
+  {
+    "id": 295,
+    "wallet_address": "0x0698e5625a9adb940e6f3e92a06ac01585f0b4ce18f48ba6c804af0c4f9c26aa",
+    "telegram_user_id": "1040841133",
+    "telegram_username": "bliinasikin",
+    "telegram_chat_id": "1040841133",
+    "created_at": "2026-02-23T11:42:18.863161+00:00"
+  },
+  {
+    "id": 296,
+    "wallet_address": "0xc7ab114d8a57581aae4d5f51b6b4793607069ca57d6634ce4a37976538bcedd0",
+    "telegram_user_id": "5194619658",
+    "telegram_username": "Ibrow10",
+    "telegram_chat_id": "5194619658",
+    "created_at": "2026-02-23T12:12:37.640481+00:00"
+  },
+  {
+    "id": 297,
+    "wallet_address": "0xb703ed914391ee6a1256dac33dbfd7d9c661b3f130685db2abb380f79b595e81",
+    "telegram_user_id": "6633953889",
+    "telegram_username": "xtrahot8",
+    "telegram_chat_id": "6633953889",
+    "created_at": "2026-02-23T12:40:33.723403+00:00"
+  },
+  {
+    "id": 298,
+    "wallet_address": "0xb36ccb9297413a95e12f1d5c02416f6bd32c295169e9d0cb0481ca439173da20",
+    "telegram_user_id": "7534113965",
+    "telegram_username": "asrulsony9",
+    "telegram_chat_id": "7534113965",
+    "created_at": "2026-02-23T12:55:31.205841+00:00"
+  },
+  {
+    "id": 299,
+    "wallet_address": "0x9bb4eee4a6b970e26ecebf9c9926ea68bb81802a5059ebdeaff46d52feec37e5",
+    "telegram_user_id": "1411248950",
+    "telegram_username": "Mtantawyy",
+    "telegram_chat_id": "1411248950",
+    "created_at": "2026-02-23T12:59:15.795301+00:00"
+  },
+  {
+    "id": 300,
+    "wallet_address": "0xad6d6913091fbecb4d6e9cc61f20db5e286c9df5ed06283753a11437ffdec712",
+    "telegram_user_id": "1709383527",
+    "telegram_username": "agensport",
+    "telegram_chat_id": "1709383527",
+    "created_at": "2026-02-23T13:36:47.028809+00:00"
+  },
+  {
+    "id": 301,
+    "wallet_address": "0x04d394b28618f04d84d9c72fddad0acf5038cbe0b85a37edf01b63f1d24b72ad",
+    "telegram_user_id": "1954328310",
+    "telegram_username": "Dosuiemmy",
+    "telegram_chat_id": "1954328310",
+    "created_at": "2026-02-23T14:07:53.277446+00:00"
+  },
+  {
+    "id": 302,
+    "wallet_address": "0xe54e37fd619d75c855698092135286e6861d9f8d2c7f92cd597dafad2f25cef6",
+    "telegram_user_id": "5666699798",
+    "telegram_username": "LeTuanKhai",
+    "telegram_chat_id": "5666699798",
+    "created_at": "2026-02-23T14:50:56.316629+00:00"
+  },
+  {
+    "id": 303,
+    "wallet_address": "0xf3d4c1f76f45e217b1967bff008ecda4eca3b5ad890c7f7b6fe5e276d7a6f9cd",
+    "telegram_user_id": "5709574553",
+    "telegram_username": "Minhdv02",
+    "telegram_chat_id": "5709574553",
+    "created_at": "2026-02-23T16:11:11.554701+00:00"
+  },
+  {
+    "id": 304,
+    "wallet_address": "0xdcd9faf90205186ece9ae4ff9e300f5a8b283451646f6433b48a6a4d40b0ad77",
+    "telegram_user_id": "1680476915",
+    "telegram_username": "tamtinh999",
+    "telegram_chat_id": "1680476915",
+    "created_at": "2026-02-23T16:23:34.166205+00:00"
+  },
+  {
+    "id": 306,
+    "wallet_address": "0xa02e4a81ff5e12085a20c840cb125a2c6be1d6316b541e52323a996af17c8ace",
+    "telegram_user_id": "1052864552",
+    "telegram_username": "erguneyemrh",
+    "telegram_chat_id": "1052864552",
+    "created_at": "2026-02-23T17:04:29.766062+00:00"
+  },
+  {
+    "id": 307,
+    "wallet_address": "0x246478b20b1a30666a7a55c348591f242c65281707d2b3452760f8ea81f25fb5",
+    "telegram_user_id": "6441240088",
+    "telegram_username": "ReveramessOG",
+    "telegram_chat_id": "6441240088",
+    "created_at": "2026-02-23T17:45:38.780018+00:00"
+  },
+  {
+    "id": 308,
+    "wallet_address": "0xd67e6994f815f3995a301b6f153e8f60faef9058b95d5eaa982a24e6ddeafdad",
+    "telegram_user_id": "1496940872",
+    "telegram_username": "whoism1",
+    "telegram_chat_id": "1496940872",
+    "created_at": "2026-02-23T17:58:57.649717+00:00"
+  },
+  {
+    "id": 309,
+    "wallet_address": "0xc95e421893535055f936b7d01c5751b6505d3f8680f754e2142f01ac5d381118",
+    "telegram_user_id": "1779796003",
+    "telegram_username": "Marsmelowwwe",
+    "telegram_chat_id": "1779796003",
+    "created_at": "2026-02-23T19:29:13.2156+00:00"
+  },
+  {
+    "id": 310,
+    "wallet_address": "0x44825e6417746731dd751a1d6261460133f0b4d67a97388a98304c781d0dae62",
+    "telegram_user_id": "6261042337",
+    "telegram_username": "whoaaaaaaaaaaaaaaaaaaaa",
+    "telegram_chat_id": "6261042337",
+    "created_at": "2026-02-23T20:21:59.918973+00:00"
+  },
+  {
+    "id": 311,
+    "wallet_address": "0x02e2658a4ab937183fed239111824bf040428edeb93398ab3b4cbd12312fed89",
+    "telegram_user_id": "6486460115",
+    "telegram_username": "Uuiiijmb",
+    "telegram_chat_id": "6486460115",
+    "created_at": "2026-02-23T21:21:30.050892+00:00"
+  },
+  {
+    "id": 312,
+    "wallet_address": "0xfb8eef79fa0480f19cbf83f8d534df6c82a73b3ed95fdaae3e02911ccbf3351b",
+    "telegram_user_id": "7283296329",
+    "telegram_username": "Vallerymic",
+    "telegram_chat_id": "7283296329",
+    "created_at": "2026-02-23T21:36:20.931294+00:00"
+  },
+  {
+    "id": 313,
+    "wallet_address": "0xf19cdb51a81c1b9ba7b811d1183a67f41ce85e192b56ed64267c174b9eaebef8",
+    "telegram_user_id": "1339653960",
+    "telegram_username": "okoye_patrick",
+    "telegram_chat_id": "1339653960",
+    "created_at": "2026-02-23T21:41:22.375726+00:00"
+  },
+  {
+    "id": 314,
+    "wallet_address": "0x2d0c24afa6afeffea5eb04b9267fb6b9274f60ea73b5682b87a9a41ee6d975a4",
+    "telegram_user_id": "1738167067",
+    "telegram_username": "IErtaInDuEHTrading",
+    "telegram_chat_id": "1738167067",
+    "created_at": "2026-02-23T22:15:50.966063+00:00"
+  },
+  {
+    "id": 315,
+    "wallet_address": "0x874c1fe3b11b2a5ec0db6a8ef6188e87bc771e30b030856a317f70e86bdb8ff1",
+    "telegram_user_id": "1455715087",
+    "telegram_username": "ahmtseb",
+    "telegram_chat_id": "1455715087",
+    "created_at": "2026-02-23T22:47:53.069415+00:00"
+  },
+  {
+    "id": 316,
+    "wallet_address": "0x49edc85dc0e9fbf99a91371b8b2c93cdce340b031cc35c23a5904961729f060e",
+    "telegram_user_id": "8163283032",
+    "telegram_username": "grass8242",
+    "telegram_chat_id": "8163283032",
+    "created_at": "2026-02-23T23:44:58.835725+00:00"
+  },
+  {
+    "id": 317,
+    "wallet_address": "0x283c7e2d6654181c26667741460e87f7f0e3d73d389d4a6cee1121af13869069",
+    "telegram_user_id": "7491858481",
+    "telegram_username": "Grass3934",
+    "telegram_chat_id": "7491858481",
+    "created_at": "2026-02-23T23:50:12.327351+00:00"
+  },
+  {
+    "id": 318,
+    "wallet_address": "0x34f3c6399ce2f015494c40b4f0f569baa589063c3c42bdb1d4a1b8c24600105c",
+    "telegram_user_id": "1874490612",
+    "telegram_username": "maxred2",
+    "telegram_chat_id": "1874490612",
+    "created_at": "2026-02-24T00:12:38.200618+00:00"
+  },
+  {
+    "id": 319,
+    "wallet_address": "0xbebbffb5e23a4a0f237026e55b4880991025ea9d13eeb8433e36ddbaccc3f176",
+    "telegram_user_id": "6717509699",
+    "telegram_username": null,
+    "telegram_chat_id": "6717509699",
+    "created_at": "2026-02-24T01:45:17.171222+00:00"
+  },
+  {
+    "id": 320,
+    "wallet_address": "0x9a91d35abac51a6cc931a386d1e1bd88bb8f6fd6275b1209e1f86ce7d0786790",
+    "telegram_user_id": "1407606173",
+    "telegram_username": "alperen08",
+    "telegram_chat_id": "1407606173",
+    "created_at": "2026-02-24T02:33:35.92502+00:00"
+  },
+  {
+    "id": 321,
+    "wallet_address": "0xbcbce0729f3ba6b8bf897e748fd8f291457314a4a953d87017f8825471f4f2a8",
+    "telegram_user_id": "5712923878",
+    "telegram_username": "qiwzzz",
+    "telegram_chat_id": "5712923878",
+    "created_at": "2026-02-24T02:42:15.710924+00:00"
+  },
+  {
+    "id": 322,
+    "wallet_address": "0x2ebdfe4b710c593c1d209e9052f48bacc7fadfae9a50a13b8b8e637cd2e95ae1",
+    "telegram_user_id": "5113409044",
+    "telegram_username": "Fdsyhgv",
+    "telegram_chat_id": "5113409044",
+    "created_at": "2026-02-24T02:58:05.972+00:00"
+  },
+  {
+    "id": 323,
+    "wallet_address": "0x42d20c941fedb80264538421732b25476ce2733a0fe164a70c2ba68e514970ff",
+    "telegram_user_id": "414264359",
+    "telegram_username": "Raphaelo2005",
+    "telegram_chat_id": "414264359",
+    "created_at": "2026-02-24T05:50:26.724992+00:00"
+  },
+  {
+    "id": 324,
+    "wallet_address": "0x15bcde74362b04f80d64a7c07511abba48a15f252d3ad621fef6cd916106251a",
+    "telegram_user_id": "5664164006",
+    "telegram_username": "kamurio",
+    "telegram_chat_id": "5664164006",
+    "created_at": "2026-02-24T06:05:01.766464+00:00"
+  },
+  {
+    "id": 325,
+    "wallet_address": "0xddcd742336797954fd37de6b06bf64d1f6dffe29cc1e7a11df492075131198c1",
+    "telegram_user_id": "5822949341",
+    "telegram_username": "Mrelive23",
+    "telegram_chat_id": "5822949341",
+    "created_at": "2026-02-24T06:58:48.80036+00:00"
+  },
+  {
+    "id": 326,
+    "wallet_address": "0x33cf7315c0df5ce5ecfcdabbf68fe579bfebdf9bbf505670dce69588d2a5c715",
+    "telegram_user_id": "1851073338",
+    "telegram_username": "Thehunterzzz",
+    "telegram_chat_id": "1851073338",
+    "created_at": "2026-02-24T07:08:55.251879+00:00"
+  },
+  {
+    "id": 327,
+    "wallet_address": "0xd0b2790d94b856bf94de29b740bad9780504248292f0221861d7792a18714139",
+    "telegram_user_id": "5047612479",
+    "telegram_username": "imansh000",
+    "telegram_chat_id": "5047612479",
+    "created_at": "2026-02-24T07:13:24.948762+00:00"
+  },
+  {
+    "id": 328,
+    "wallet_address": "0xd347c3c8ee84e6ac9b32624fa2db75be905363695a1165274b97f371357fe73a",
+    "telegram_user_id": "1676470271",
+    "telegram_username": "wira007",
+    "telegram_chat_id": "1676470271",
+    "created_at": "2026-02-24T07:41:21.687315+00:00"
+  },
+  {
+    "id": 329,
+    "wallet_address": "0x8109d103296a3c382af5fb80826d512c65783aeebb679ae8f65ac00378dc6efe",
+    "telegram_user_id": "1258917133",
+    "telegram_username": "ArumiCrypto1",
+    "telegram_chat_id": "1258917133",
+    "created_at": "2026-02-24T07:49:09.963879+00:00"
+  },
+  {
+    "id": 330,
+    "wallet_address": "0x5ef456538c146a73342f774675d8f724e6d12486802c9d704b2a5fa43da3b81d",
+    "telegram_user_id": "437537974",
+    "telegram_username": "M_7129",
+    "telegram_chat_id": "437537974",
+    "created_at": "2026-02-24T08:30:12.273949+00:00"
+  },
+  {
+    "id": 331,
+    "wallet_address": "0xe2021eca22ab4b0678d7455e871acef4bc204d16b33a0cc394db012c2d44206f",
+    "telegram_user_id": "6342270365",
+    "telegram_username": "JCI19M",
+    "telegram_chat_id": "6342270365",
+    "created_at": "2026-02-24T09:09:21.161465+00:00"
+  },
+  {
+    "id": 332,
+    "wallet_address": "0xb82961260acac45f652df4dd1970ef7b528f202aca6a27ded926f3a20b3006fc",
+    "telegram_user_id": "6744843167",
+    "telegram_username": "trinhcechung",
+    "telegram_chat_id": "6744843167",
+    "created_at": "2026-02-24T09:09:24.483286+00:00"
+  },
+  {
+    "id": 333,
+    "wallet_address": "0x2f7f8427ea5d34c93ddfc6b51dd52e4a5766cc4cc70aaaa115eebe8a3fa9e4c7",
+    "telegram_user_id": "467147435",
+    "telegram_username": "doctor53MOM",
+    "telegram_chat_id": "467147435",
+    "created_at": "2026-02-24T09:33:08.935709+00:00"
+  },
+  {
+    "id": 334,
+    "wallet_address": "0xb4ff82d5cd5c4e17ae13b22e76a007a86925b5e978aec1e05ada58ad87629c94",
+    "telegram_user_id": "1033073829",
+    "telegram_username": "Rino_illahi",
+    "telegram_chat_id": "1033073829",
+    "created_at": "2026-02-24T10:13:47.995568+00:00"
+  },
+  {
+    "id": 335,
+    "wallet_address": "0x774fa01a40271910c4cf834b8ff740271ecf6916611454af55f98f374f9435c0",
+    "telegram_user_id": "6151835444",
+    "telegram_username": "Moyin_holuwa",
+    "telegram_chat_id": "6151835444",
+    "created_at": "2026-02-24T12:15:50.001653+00:00"
+  },
+  {
+    "id": 336,
+    "wallet_address": "0xdcf18cffafa90eed56dcdead8faccf27661c707f25737266191779fad8fac5b3",
+    "telegram_user_id": "6124963262",
+    "telegram_username": "Richannnnw",
+    "telegram_chat_id": "6124963262",
+    "created_at": "2026-02-24T15:11:06.20178+00:00"
+  },
+  {
+    "id": 337,
+    "wallet_address": "0x2f603e8e841331b038dd52599505ab6a3854f48de5299f6fc30d66da3e3eda13",
+    "telegram_user_id": "6626499432",
+    "telegram_username": "Xcunt69",
+    "telegram_chat_id": "6626499432",
+    "created_at": "2026-02-24T16:13:55.004732+00:00"
+  },
+  {
+    "id": 338,
+    "wallet_address": "0xebf79bc47ba97b86bc49ca153ffd5e8a415a9428338ee1d3c5611bd50d5992fd",
+    "telegram_user_id": "6668304409",
+    "telegram_username": "KaabirMansoor10",
+    "telegram_chat_id": "6668304409",
+    "created_at": "2026-02-24T16:52:53.878025+00:00"
+  },
+  {
+    "id": 339,
+    "wallet_address": "0x076a5758c2fbe5db1c4a787fd97403a5e7f8a1ead513c704a0c9d2cffa7b1bb6",
+    "telegram_user_id": "5864517145",
+    "telegram_username": "ismailoxox",
+    "telegram_chat_id": "5864517145",
+    "created_at": "2026-02-24T17:28:59.109362+00:00"
+  },
+  {
+    "id": 340,
+    "wallet_address": "0xfef582da102788403f01de739286ab85dabf57fd84ad799c098dba97e0d78b93",
+    "telegram_user_id": "1499811830",
+    "telegram_username": "dricks20",
+    "telegram_chat_id": "1499811830",
+    "created_at": "2026-02-24T18:03:19.181634+00:00"
+  },
+  {
+    "id": 341,
+    "wallet_address": "0xe38e9fc4f867deb94ca0e21c08b9dcea6c3f748ba8b1e6f4714a7ea025d5df8e",
+    "telegram_user_id": "7440732386",
+    "telegram_username": "as_zaenmu",
+    "telegram_chat_id": "7440732386",
+    "created_at": "2026-02-24T19:45:39.745406+00:00"
+  },
+  {
+    "id": 342,
+    "wallet_address": "0x7d0f008000f653446a3dceba92b27c35b78d48684e6c03fa87a1738f22c0403c",
+    "telegram_user_id": "845324364",
+    "telegram_username": "Danynadel",
+    "telegram_chat_id": "845324364",
+    "created_at": "2026-02-24T20:15:48.089654+00:00"
+  },
+  {
+    "id": 343,
+    "wallet_address": "0xd90e7e64e6c9cb2944968788831e1dc06488c0e4566c0457e6c7a2ea701657bb",
+    "telegram_user_id": "8231782883",
+    "telegram_username": "sharifs26",
+    "telegram_chat_id": "8231782883",
+    "created_at": "2026-02-24T21:50:24.287108+00:00"
+  },
+  {
+    "id": 344,
+    "wallet_address": "0x35e45fc11245a0c2d1c2acb439244dc8328cc2634cc7841f3c964b892f0e0828",
+    "telegram_user_id": "7107780926",
+    "telegram_username": "rumahHiha",
+    "telegram_chat_id": "7107780926",
+    "created_at": "2026-02-24T22:49:26.214933+00:00"
+  },
+  {
+    "id": 345,
+    "wallet_address": "0x46294b29bd1d832d86929101fca3117af64f3d55426b295bacb00f9d60b3c7f7",
+    "telegram_user_id": "5886179544",
+    "telegram_username": "xuncoro",
+    "telegram_chat_id": "5886179544",
+    "created_at": "2026-02-25T03:24:14.146539+00:00"
+  },
+  {
+    "id": 346,
+    "wallet_address": "0xced22d2258ae0a0c30ef0ed757e06254305f5cb6920a2374ace8494879b49ff2",
+    "telegram_user_id": "551755813",
+    "telegram_username": "goldfox999",
+    "telegram_chat_id": "551755813",
+    "created_at": "2026-02-25T04:25:40.456748+00:00"
+  },
+  {
+    "id": 347,
+    "wallet_address": "0xaa5743e89e8bcbb4523a3c26bf92b89fe444294187292de0dfbe1b5f3fefa14e",
+    "telegram_user_id": "7221761240",
+    "telegram_username": "GaDongTao2020",
+    "telegram_chat_id": "7221761240",
+    "created_at": "2026-02-25T05:22:22.7013+00:00"
+  },
+  {
+    "id": 348,
+    "wallet_address": "0x7abf79c2e5ae6fbb263df881f329603617f4c2d6a0c241a37381559d29db2aa7",
+    "telegram_user_id": "6471373633",
+    "telegram_username": "Tugiyo85",
+    "telegram_chat_id": "6471373633",
+    "created_at": "2026-02-25T06:34:42.504899+00:00"
+  },
+  {
+    "id": 349,
+    "wallet_address": "0x12ebc8d4702e2cab014e00757a806a47989f142bbcdb2c39dfcfc0684c7bae73",
+    "telegram_user_id": "6088683701",
+    "telegram_username": "Hommies11",
+    "telegram_chat_id": "6088683701",
+    "created_at": "2026-02-25T07:17:12.374524+00:00"
+  },
+  {
+    "id": 350,
+    "wallet_address": "0xedfaccf015a4ee58ce4c72add0d15bf9425b86ee169f28036d14aec1b065b486",
+    "telegram_user_id": "998000903",
+    "telegram_username": "bulloxy",
+    "telegram_chat_id": "998000903",
+    "created_at": "2026-02-25T08:01:45.2884+00:00"
+  },
+  {
+    "id": 351,
+    "wallet_address": "0xe4388b24fcb2f7ac90706d89de486e92eb8990cf367b2a2c703ebb3bee5f0468",
+    "telegram_user_id": "1023306982",
+    "telegram_username": "nk062",
+    "telegram_chat_id": "1023306982",
+    "created_at": "2026-02-25T12:46:48.115499+00:00"
+  },
+  {
+    "id": 352,
+    "wallet_address": "0x9807233ce0215eb808cfe859577bd026f863ffe30e5201af641d303f14609222",
+    "telegram_user_id": "6014779648",
+    "telegram_username": "XohanETH",
+    "telegram_chat_id": "6014779648",
+    "created_at": "2026-02-25T13:08:16.634122+00:00"
+  },
+  {
+    "id": 353,
+    "wallet_address": "0xb541105a5da13b5cccc35a755624afd6d65f5689a6e771fcb191d2fdf9b4a8da",
+    "telegram_user_id": "5943540201",
+    "telegram_username": "ux_trades",
+    "telegram_chat_id": "5943540201",
+    "created_at": "2026-02-25T13:26:46.71705+00:00"
+  },
+  {
+    "id": 354,
+    "wallet_address": "0x88ed771b89461ab37b1265e21eac87c50b3386c183c95c270a7f289d33f318f7",
+    "telegram_user_id": "1049613253",
+    "telegram_username": "rizeiki",
+    "telegram_chat_id": "1049613253",
+    "created_at": "2026-02-25T13:29:15.917668+00:00"
+  },
+  {
+    "id": 355,
+    "wallet_address": "0x98d446bcf551807a5df1452da7c4998f12449e5e9b8ff1fafb757e553819bc9d",
+    "telegram_user_id": "6990568276",
+    "telegram_username": "Nishimiyammiya",
+    "telegram_chat_id": "6990568276",
+    "created_at": "2026-02-25T15:07:58.586557+00:00"
+  },
+  {
+    "id": 356,
+    "wallet_address": "0x03f143758c6dbfcd06de657236e9e83b2955aeeefd3c3d1664f893a7890dfbca",
+    "telegram_user_id": "5425216602",
+    "telegram_username": "Moxley_25",
+    "telegram_chat_id": "5425216602",
+    "created_at": "2026-02-25T16:00:20.925366+00:00"
+  },
+  {
+    "id": 357,
+    "wallet_address": "0xe1a0ab215bbaed0879e5e97cbde004d414104c042d44a259deea75dbaa32f755",
+    "telegram_user_id": "5533314115",
+    "telegram_username": "theclerkyone",
+    "telegram_chat_id": "5533314115",
+    "created_at": "2026-02-25T18:03:30.163315+00:00"
+  },
+  {
+    "id": 358,
+    "wallet_address": "0xfe1f5c165554148a27d1c049de900a7853ccf228f12fb48eb9d03cd653bbfb12",
+    "telegram_user_id": "7426368265",
+    "telegram_username": "ayadanie",
+    "telegram_chat_id": "7426368265",
+    "created_at": "2026-02-25T18:30:21.816332+00:00"
+  },
+  {
+    "id": 359,
+    "wallet_address": "0x966141f7813dc2cc7184a4950956b75278037d4d596a24ac06339f88346905a1",
+    "telegram_user_id": "6870389984",
+    "telegram_username": "UmieJP",
+    "telegram_chat_id": "6870389984",
+    "created_at": "2026-02-25T18:45:22.279071+00:00"
+  },
+  {
+    "id": 360,
+    "wallet_address": "0x50baf68446ec342beab146e348c92e407087f86b075b1ba8ce6926bddae95dbe",
+    "telegram_user_id": "5911075729",
+    "telegram_username": "yLiquan",
+    "telegram_chat_id": "5911075729",
+    "created_at": "2026-02-25T20:25:57.096118+00:00"
+  },
+  {
+    "id": 361,
+    "wallet_address": "0x5af576dee9bed2ab7af4238a4624e7fc3d9a48ffe2b2ebe78d6203e10808f0ab",
+    "telegram_user_id": "7158649363",
+    "telegram_username": "reallDogsHouse",
+    "telegram_chat_id": "7158649363",
+    "created_at": "2026-02-26T00:59:57.517555+00:00"
+  },
+  {
+    "id": 362,
+    "wallet_address": "0x8be8a2bf6805545fd896140efafac93f1be62e742f2bde7a98f239ff3a4cea4d",
+    "telegram_user_id": "5544553228",
+    "telegram_username": "Hakypd",
+    "telegram_chat_id": "5544553228",
+    "created_at": "2026-02-26T02:55:57.225694+00:00"
+  },
+  {
+    "id": 363,
+    "wallet_address": "0xc044cf8b4357febba5c72f7e1d4c0db9f0fe51a123bc27db7bd26266bf193361",
+    "telegram_user_id": "706227257",
+    "telegram_username": "Petrovich121",
+    "telegram_chat_id": "706227257",
+    "created_at": "2026-02-26T07:35:49.624369+00:00"
+  },
+  {
+    "id": 364,
+    "wallet_address": "0x29eca68eb7f4ca00ad61742972274b2edf9f347c75b95287779684ff9f67427f",
+    "telegram_user_id": "1108763395",
+    "telegram_username": "King_Fahdd",
+    "telegram_chat_id": "1108763395",
+    "created_at": "2026-02-26T08:38:49.864511+00:00"
+  },
+  {
+    "id": 365,
+    "wallet_address": "0x77c84e3e3fd02589b3d5ab2ce828982df002fd5e4eb1bc6bb379ad3615cbe4f9",
+    "telegram_user_id": "7428823870",
+    "telegram_username": "Maryvhee",
+    "telegram_chat_id": "7428823870",
+    "created_at": "2026-02-26T08:39:26.392538+00:00"
+  },
+  {
+    "id": 366,
+    "wallet_address": "0x901b8b12339f9e65b0df78e24305ac4fc0dec062f8f8c2f421a41b4c3f1a1961",
+    "telegram_user_id": "7650295632",
+    "telegram_username": "mhizmay1",
+    "telegram_chat_id": "7650295632",
+    "created_at": "2026-02-26T10:13:12.079232+00:00"
+  },
+  {
+    "id": 367,
+    "wallet_address": "0x7a623d7be4d123d5b32767ffa2baae1e86e730c9cb54eb8c113e8bcaab7a3169",
+    "telegram_user_id": "175984854",
+    "telegram_username": "Vahid1368sh",
+    "telegram_chat_id": "175984854",
+    "created_at": "2026-02-26T10:40:21.219778+00:00"
+  },
+  {
+    "id": 368,
+    "wallet_address": "0x6cdde0af1fc9b0d1259e8a066c8a35041ab385635b4974bd6694543499b04844",
+    "telegram_user_id": "6034502113",
+    "telegram_username": "senatorrrrr765",
+    "telegram_chat_id": "6034502113",
+    "created_at": "2026-02-26T11:17:02.51623+00:00"
+  },
+  {
+    "id": 369,
+    "wallet_address": "0x2aa2fa579c883506e34b7ec7943627cd88fc019940f741baa9b3fa9bdf719576",
+    "telegram_user_id": "582528199",
+    "telegram_username": "Sokooot1357",
+    "telegram_chat_id": "582528199",
+    "created_at": "2026-02-26T12:10:08.393227+00:00"
+  },
+  {
+    "id": 370,
+    "wallet_address": "0x02fd54185f2d485388425dada2ccb62672728bf37f6ad96457fa10b06384bdaf",
+    "telegram_user_id": "1570304883",
+    "telegram_username": "isheozturk",
+    "telegram_chat_id": "1570304883",
+    "created_at": "2026-02-26T13:26:57.061424+00:00"
+  },
+  {
+    "id": 371,
+    "wallet_address": "0x923022878770694ac134c20044f2196f928edd33652cefde1af8850bc3716dd8",
+    "telegram_user_id": "7471957998",
+    "telegram_username": "Starboy13622",
+    "telegram_chat_id": "7471957998",
+    "created_at": "2026-02-26T13:48:14.619174+00:00"
+  },
+  {
+    "id": 372,
+    "wallet_address": "0xdc77969e389e9c6c5169177be8f2b2ba5be82447c2d2d6633120895ba2866e7a",
+    "telegram_user_id": "5847114968",
+    "telegram_username": "diamond865",
+    "telegram_chat_id": "5847114968",
+    "created_at": "2026-02-26T15:08:53.134193+00:00"
+  },
+  {
+    "id": 373,
+    "wallet_address": "0xb07daabe7b7ae09510f2f3b205b31f8bcdb7a47806a6131a01fc6aed461f719d",
+    "telegram_user_id": "1779888619",
+    "telegram_username": "atanay",
+    "telegram_chat_id": "1779888619",
+    "created_at": "2026-02-26T16:19:02.384589+00:00"
+  },
+  {
+    "id": 374,
+    "wallet_address": "0xf7bd877213b65a1e1728295574cc47aa932503320525c3b38aee32d4455b6c54",
+    "telegram_user_id": "6683201769",
+    "telegram_username": "fairyyvvin",
+    "telegram_chat_id": "6683201769",
+    "created_at": "2026-02-26T16:37:52.800219+00:00"
+  },
+  {
+    "id": 375,
+    "wallet_address": "0xdfe5fa4c05346d5f79a472d233ca189265d7a0dee5d179e23672a88004ec124a",
+    "telegram_user_id": "5592464769",
+    "telegram_username": "David702070",
+    "telegram_chat_id": "5592464769",
+    "created_at": "2026-02-26T17:19:42.940873+00:00"
+  },
+  {
+    "id": 376,
+    "wallet_address": "0x622d69d102e7edae0007e9a9bf989147eca6c63833edbc35d9c80d55612df4ba",
+    "telegram_user_id": "318424274",
+    "telegram_username": "esi_bad_68",
+    "telegram_chat_id": "318424274",
+    "created_at": "2026-02-26T19:10:47.287759+00:00"
+  },
+  {
+    "id": 377,
+    "wallet_address": "0x083d77ed16a320dea3a258c5a278da08df0e912f4394142f68c3e588d11461a3",
+    "telegram_user_id": "6247095212",
+    "telegram_username": "AdeOxBAB",
+    "telegram_chat_id": "6247095212",
+    "created_at": "2026-02-26T20:27:24.081054+00:00"
+  },
+  {
+    "id": 378,
+    "wallet_address": "0x89ccc16517e871e97721ac35c665f7bf884755dae6b410b48abd855d20c26c64",
+    "telegram_user_id": "1656318682",
+    "telegram_username": "Rieiluvjr",
+    "telegram_chat_id": "1656318682",
+    "created_at": "2026-02-26T21:17:07.599977+00:00"
+  },
+  {
+    "id": 379,
+    "wallet_address": "0x8108353debe95a2be26b2b2b2a45e7d818368504c5dd1ead1022870551450339",
+    "telegram_user_id": "545287445",
+    "telegram_username": "frans13s",
+    "telegram_chat_id": "545287445",
+    "created_at": "2026-02-27T03:45:53.383877+00:00"
+  },
+  {
+    "id": 380,
+    "wallet_address": "0x8070eb1badde0c74200f91bf08f75f1b04d0f0702485eda7fb3784905bf19d76",
+    "telegram_user_id": "7712099988",
+    "telegram_username": "MrTestnetDT",
+    "telegram_chat_id": "7712099988",
+    "created_at": "2026-02-27T06:13:07.746771+00:00"
+  },
+  {
+    "id": 381,
+    "wallet_address": "0xc90ef91350cd8e7ec78e658be4872863c5fa64f14b3d891043160f78f92ce9f3",
+    "telegram_user_id": "6626549987",
+    "telegram_username": "IslandGreedster",
+    "telegram_chat_id": "6626549987",
+    "created_at": "2026-02-27T06:34:43.82631+00:00"
+  },
+  {
+    "id": 382,
+    "wallet_address": "0xf7756f34a43f65643123e80c61d97206e2c017117727ff34f0efaf88b7810968",
+    "telegram_user_id": "589254125",
+    "telegram_username": "yurazaitsev",
+    "telegram_chat_id": "589254125",
+    "created_at": "2026-02-27T07:44:34.923443+00:00"
+  },
+  {
+    "id": 383,
+    "wallet_address": "0xf400667cea426ae25f16dc1bab52786bdd6cd5c30528050ebdecfd3630f73184",
+    "telegram_user_id": "7071332735",
+    "telegram_username": "Konstantinov4418",
+    "telegram_chat_id": "7071332735",
+    "created_at": "2026-02-27T08:09:50.648809+00:00"
+  },
+  {
+    "id": 384,
+    "wallet_address": "0xd3010cc143d729ab5e3600ccf334a5c823ddedf78a68b491c010965fa1dc5030",
+    "telegram_user_id": "8584211831",
+    "telegram_username": null,
+    "telegram_chat_id": "8584211831",
+    "created_at": "2026-02-27T08:21:24.179787+00:00"
+  },
+  {
+    "id": 385,
+    "wallet_address": "0x9d6baf4f1dea82d0e6c9bdbead24dffb75e8a25ea01e6d46b6c729a008f76206",
+    "telegram_user_id": "1708908447",
+    "telegram_username": "Moussiz",
+    "telegram_chat_id": "1708908447",
+    "created_at": "2026-02-27T10:16:13.713295+00:00"
+  },
+  {
+    "id": 386,
+    "wallet_address": "0x36144bcf71306f151b96d4c8c1d07f30ad573811fee989d34cbfadc47ab49b43",
+    "telegram_user_id": "5775847647",
+    "telegram_username": "kujengcom",
+    "telegram_chat_id": "5775847647",
+    "created_at": "2026-02-27T10:54:10.786491+00:00"
+  },
+  {
+    "id": 387,
+    "wallet_address": "0x6e8ad361feddcc20fd27a60eeaf40c3a2425d43aaafa1e4390d8e41f5641eed5",
+    "telegram_user_id": "7892588658",
+    "telegram_username": null,
+    "telegram_chat_id": "7892588658",
+    "created_at": "2026-02-27T11:04:24.736317+00:00"
+  },
+  {
+    "id": 388,
+    "wallet_address": "0x07ae8b0aee0a8a046ce330f76f6eaf21fedfa570952233dcff1c9ec0ff6ebefb",
+    "telegram_user_id": "5321358715",
+    "telegram_username": "sunflowermr",
+    "telegram_chat_id": "5321358715",
+    "created_at": "2026-02-27T13:54:43.66056+00:00"
+  },
+  {
+    "id": 389,
+    "wallet_address": "0x45591cb0d0fa10e8d29424db60d84a4a0905f0dae3ba888b97e2441e0e5556a6",
+    "telegram_user_id": "6296958020",
+    "telegram_username": "Quyen_Anh24",
+    "telegram_chat_id": "6296958020",
+    "created_at": "2026-02-27T16:40:51.296269+00:00"
+  },
+  {
+    "id": 390,
+    "wallet_address": "0x4710b8d7c2983ec73216805f7865c22d7192d80372939cd5a03e20d08a30a503",
+    "telegram_user_id": "7203132504",
+    "telegram_username": "quyenanh5",
+    "telegram_chat_id": "7203132504",
+    "created_at": "2026-02-27T16:53:41.338709+00:00"
+  },
+  {
+    "id": 391,
+    "wallet_address": "0x34d1c5be4f035d482f214bdf143bc6b64d99707c41e2257eded981e4be3f57aa",
+    "telegram_user_id": "6544641893",
+    "telegram_username": "QuyenAnh24",
+    "telegram_chat_id": "6544641893",
+    "created_at": "2026-02-27T16:54:03.224213+00:00"
+  },
+  {
+    "id": 392,
+    "wallet_address": "0x3cee344d00c495df95426f77b6423045bd701289b2a163dd8d86af2d456874c8",
+    "telegram_user_id": "6913145967",
+    "telegram_username": "koybadboy",
+    "telegram_chat_id": "6913145967",
+    "created_at": "2026-02-27T16:54:04.442153+00:00"
+  },
+  {
+    "id": 393,
+    "wallet_address": "0xa60a34366a108d8e49483bb1f1559b7f13c7c58233bc44c3c1ddc2d680c0d6ab",
+    "telegram_user_id": "8313545051",
+    "telegram_username": "quyenanh006",
+    "telegram_chat_id": "8313545051",
+    "created_at": "2026-02-27T16:54:12.16497+00:00"
+  },
+  {
+    "id": 394,
+    "wallet_address": "0xd6c419c0fad0104ece2539799778b1ba0e254a8a6888be8b1385e0d1ab7ae211",
+    "telegram_user_id": "5847224899",
+    "telegram_username": "quyenanh44",
+    "telegram_chat_id": "5847224899",
+    "created_at": "2026-02-27T16:54:15.435517+00:00"
+  },
+  {
+    "id": 395,
+    "wallet_address": "0x0c6298a0f2706fea71e39d281ff73cd0c948625c2c82171f79c85140d1092ee8",
+    "telegram_user_id": "6196093943",
+    "telegram_username": "NodeSphereGL",
+    "telegram_chat_id": "6196093943",
+    "created_at": "2026-02-27T17:08:54.618606+00:00"
+  },
+  {
+    "id": 396,
+    "wallet_address": "0xd28ce4fcf6cead9e44a15797e1c63c4358f202df0ff6c7f3df6ec7e6b2fbc652",
+    "telegram_user_id": "1153334964",
+    "telegram_username": "cheseeXz",
+    "telegram_chat_id": "1153334964",
+    "created_at": "2026-02-28T04:10:30.221591+00:00"
+  },
+  {
+    "id": 397,
+    "wallet_address": "0x352711c53971a0bd8025d165c32e55481d0750212d02ba773bc610571e3ef68b",
+    "telegram_user_id": "956277299",
+    "telegram_username": "Noel_fx",
+    "telegram_chat_id": "956277299",
+    "created_at": "2026-02-28T10:31:38.900827+00:00"
+  },
+  {
+    "id": 398,
+    "wallet_address": "0xa4f4ffcab09e72dd5fe82fa0564554c2372b9bfe6393384e7ccfd9f992ecca58",
+    "telegram_user_id": "1364532565",
+    "telegram_username": "Davabezzet",
+    "telegram_chat_id": "1364532565",
+    "created_at": "2026-02-28T16:49:40.004911+00:00"
+  },
+  {
+    "id": 399,
+    "wallet_address": "0xdf137c671ac7e80a9209ec9f8e934cf819784cd83e47621a2f1008116e2e7a34",
+    "telegram_user_id": "6057309296",
+    "telegram_username": "Mkhjkcwk",
+    "telegram_chat_id": "6057309296",
+    "created_at": "2026-03-01T02:43:59.317104+00:00"
+  },
+  {
+    "id": 400,
+    "wallet_address": "0xd7b17ee0589459c64856bdce749765302e97bccc1d98affb53cd36b1a91e433b",
+    "telegram_user_id": "7243435694",
+    "telegram_username": "just4g",
+    "telegram_chat_id": "7243435694",
+    "created_at": "2026-03-01T10:19:16.528377+00:00"
+  },
+  {
+    "id": 401,
+    "wallet_address": "0x05867d40125ec140798c237275acfa7d78f4cd882058ac6e1f76b87a9d2f8130",
+    "telegram_user_id": "1804168226",
+    "telegram_username": "Arismasss",
+    "telegram_chat_id": "1804168226",
+    "created_at": "2026-03-01T13:06:37.769128+00:00"
+  },
+  {
+    "id": 403,
+    "wallet_address": "0x2b3cc5ae94afc803dc73d4c67a5d7e019e207b50b4d543fe302d54f5bd3e1627",
+    "telegram_user_id": "6457487414",
+    "telegram_username": "Mrnhan91",
+    "telegram_chat_id": "6457487414",
+    "created_at": "2026-03-01T15:18:31.123951+00:00"
+  },
+  {
+    "id": 404,
+    "wallet_address": "0xc857676ff63c6c1dcea752b42ad208a364b2127c51ddbe686d59c84b7878fd8d",
+    "telegram_user_id": "2021737803",
+    "telegram_username": "bugan9289",
+    "telegram_chat_id": "2021737803",
+    "created_at": "2026-03-03T08:39:07.177335+00:00"
+  },
+  {
+    "id": 405,
+    "wallet_address": "0x39c47625c98539d4b78003c480727b797c58860a55ab5ab6b452c8712a3fe861",
+    "telegram_user_id": "5160184030",
+    "telegram_username": "stecivura",
+    "telegram_chat_id": "5160184030",
+    "created_at": "2026-03-03T09:13:50.052099+00:00"
+  },
+  {
+    "id": 185,
+    "wallet_address": "0x0ac858dd314150d7012d2c6072183df7479c17208042ed1edc1f738f927a8bc1",
+    "telegram_user_id": "7125819734",
+    "telegram_username": "Dashbast",
+    "telegram_chat_id": "7125819734",
+    "created_at": "2026-02-20T20:55:17.497675+00:00"
+  },
+  {
+    "id": 407,
+    "wallet_address": "0x8d5e464b97daa37bbfea7575a80c4543a6a0094fc4be26fa3d3e10fcd969c5b9",
+    "telegram_user_id": "5448107079",
+    "telegram_username": "gnaht12",
+    "telegram_chat_id": "5448107079",
+    "created_at": "2026-03-03T17:00:35.077965+00:00"
+  },
+  {
+    "id": 408,
+    "wallet_address": "0xa1ec615303682f3708c77ca334a04bc99b64071c1e94c8a43dea89c3a70e08de",
+    "telegram_user_id": "6209311220",
+    "telegram_username": "Sabbir00899",
+    "telegram_chat_id": "6209311220",
+    "created_at": "2026-03-03T19:26:42.647899+00:00"
+  }
+]

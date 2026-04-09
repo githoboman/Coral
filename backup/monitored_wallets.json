@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "user_id": 7317705516,
+    "wallet_address": "0x351d0cdbb530e36ffd36be492b67acbe328587d578f8a7499f2521f77e27cca5",
+    "wallet_name": "Wallet_27cca5",
+    "is_active": true,
+    "created_at": "2025-11-03T01:19:04.916681+00:00",
+    "updated_at": "2025-11-03T01:19:04.916681+00:00"
+  },
+  {
+    "id": 4,
+    "user_id": 6306300483,
+    "wallet_address": "0x8681c86e9e7cdd8a4d87f53179787135348ffb6a5a848c021f2596c066c96013",
+    "wallet_name": "Trading wallet",
+    "is_active": true,
+    "created_at": "2025-11-03T07:03:14.050026+00:00",
+    "updated_at": "2025-11-03T07:03:14.050026+00:00"
+  },
+  {
+    "id": 5,
+    "user_id": 7317705516,
+    "wallet_address": "0xc0252ebd2bcbdceda2d0d64aa74e88dd5f80b63fddd37990203ae9e9a76f7877",
+    "wallet_name": "Trading wallet",
+    "is_active": true,
+    "created_at": "2025-11-03T17:16:07.988165+00:00",
+    "updated_at": "2025-11-03T17:16:07.988165+00:00"
+  }
+]

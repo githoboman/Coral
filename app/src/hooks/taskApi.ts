@@ -176,7 +176,7 @@ class TaskApiClient {
     return response.json();
   }
 
-  async updateTask(taskId: string | number, userId: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(taskId: string | number, userId: string, updates: Partial<Task>): Promise<{ success: boolean; task: Task; message?: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}`, {
       method: 'PATCH',
       credentials: 'include',
@@ -211,7 +211,7 @@ class TaskApiClient {
     return response.json();
   }
 
-  async completeTask(taskId: string | number, userId: string): Promise<Task> {
+  async completeTask(taskId: string | number, userId: string): Promise<{ success: boolean; task: Task; message?: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/complete`, {
       method: 'POST',
       credentials: 'include',
@@ -293,7 +293,7 @@ class TaskApiClient {
   /**
    * Confirm task action was executed with transaction digest
    */
-  async confirmTaskAction(taskId: string | number, userId: string, txDigest: string): Promise<ActionConfirmResponse> {
+  async confirmTaskAction(taskId: string | number, userId: string, txDigest: string): Promise<{ success: boolean; task: Task; message?: string }> {
     const response = await fetch(`${this.baseUrl}/tasks/${taskId}/confirm`, {
       method: 'POST',
       credentials: 'include',
