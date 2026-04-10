@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Search, Filter, X } from "lucide-react";
+import { ChevronRight, Search, Filter, X, ChevronDown } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTasks, removeTask, updateTaskStatus, invalidateCache } from "@/store/slices/tasksSlice";
@@ -55,6 +55,86 @@ const defaultFilterState: FilterState = {
   priority: "all",
   date: "all",
 };
+
+/**
+ * Utility to calculate the time-state label for tasks based on due date.
+ * Rules:
+ * 1. No due date -> show nothing
+ * 2. Due > 7 days away -> "Due Jan 12" or "Due Jan 12, 4:00 PM" (if time exists)
+ * 3. Due in 2–7 days -> "Due in 4d · Jan 12"
+ * 4. Due tomorrow -> "Due tomorrow" or "Due tomorrow · 9:00 AM" (if time exists)
+ * 5. Due today, > 12 hours away -> "Due today · 11:00 PM"
+ * 6. Due today, within 12 hours -> "Due in 11h · 11:00 PM"
+ * 7. Due within 1 hour -> "Due in 45m · 4:00 PM"
+ * 8. Overdue < 24 hours -> "Overdue by 2h · due 7:00 PM"
+ * 9. Overdue >= 1 day -> "Overdue · Jan 5"
+ */
+function getTaskTimeState(dueDate: string | null | undefined): string {
+  if (!dueDate) return '';
+
+  const now = new Date();
+  const due = new Date(dueDate);
+  const diffMs = due.getTime() - now.getTime();
+  const diffMins = Math.round(diffMs / 60_000);
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  const hasTime = due.getHours() !== 0 || due.getMinutes() !== 0;
+
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/ (AM|PM)/, ' $1');
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  // Rule 8 & 9 — Overdue
+  if (diffMs < 0) {
+    const overdueMs = Math.abs(diffMs);
+    const overdueMins = Math.round(overdueMs / 60_000);
+    const overdueHours = overdueMs / (1000 * 60 * 60);
+    const overdueDays = overdueMs / (1000 * 60 * 60 * 24);
+
+    if (overdueDays >= 1) {
+      return `Overdue · ${formatDate(due)}`; // Rule 9
+    }
+    if (overdueHours >= 1) {
+      return `Overdue by ${Math.floor(overdueHours)}h · due ${formatTime(due)}`; // Rule 8
+    }
+    return `Overdue by ${overdueMins}m · due ${formatTime(due)}`; // Rule 8
+  }
+
+  // Rule 7 — Within 1 hour
+  if (diffMins <= 60) {
+    return `Due in ${diffMins}m · ${formatTime(due)}`;
+  }
+
+  // Rule 6 — Today within 12 hours
+  const isToday = due.toDateString() === now.toDateString();
+  if (isToday && diffHours <= 12) {
+    return `Due in ${Math.floor(diffHours)}h · ${formatTime(due)}`;
+  }
+
+  // Rule 5 — Today more than 12 hours away
+  if (isToday) {
+    return `Due today · ${formatTime(due)}`;
+  }
+
+  // Rule 4 — Tomorrow
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = due.toDateString() === tomorrow.toDateString();
+  if (isTomorrow) {
+    return hasTime ? `Due tomorrow · ${formatTime(due)}` : 'Due tomorrow';
+  }
+
+  // Rule 3 — 2 to 7 days away
+  if (diffDays <= 7) {
+    return `Due in ${Math.floor(diffDays)}d · ${formatDate(due)}`;
+  }
+
+  // Rule 2 — More than 7 days away
+  return hasTime ? `Due ${formatDate(due)}, ${formatTime(due)}` : `Due ${formatDate(due)}`;
+}
 
 const Activity = () => {
   const currentAccount = useCurrentAccount();
@@ -534,10 +614,10 @@ const Activity = () => {
             >
               <span>
                 {Object.values(activeFilter).every(v => v === "all")
-                  ? "Filter"
+                  ? "Filter by"
                   : `${Object.values(activeFilter).filter(v => v !== "all").length} Active`}
               </span>
-              <Filter size={14} className={`opacity-50 ${Object.values(activeFilter).some(v => v !== "all") ? "text-[#B7FC0D] opacity-100" : ""}`} />
+              <ChevronDown size={14} className={`opacity-50 ${Object.values(activeFilter).some(v => v !== "all") ? "text-[#B7FC0D] opacity-100" : ""}`} />
             </button>
           </div>
 
@@ -564,7 +644,7 @@ const Activity = () => {
             {filteredItems.map((item, index) => (
               <div
                 key={item.id}
-                className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 rounded-xl relative`} // Added relative
+                className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 relative`}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <button
@@ -580,7 +660,7 @@ const Activity = () => {
                   </button>
 
                   <span
-                    className={`text-[16px] font-medium truncate max-w-[180px] sm:max-w-xs md:max-w-md ${item.completed ? "text-white/30 line-through" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
+                    className={`text-[16px] font-medium truncate max-w-[180px] sm:max-w-xs md:max-w-md ${item.completed ? "text-white/30" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
                   >
                     {item.title}
                   </span>
@@ -593,19 +673,22 @@ const Activity = () => {
                 </div>
 
                 <div className="flex items-center gap-8 md:gap-12 flex-shrink-0 ml-4">
+                  {/* Time-State Label */}
+                  {!item.completed && item.dueDate && (
+                    <span className={`text-sm ${getTaskTimeState(item.dueDate).startsWith('Overdue') ? 'text-red-500' : 'text-white/40'}`}>
+                      {getTaskTimeState(item.dueDate)}
+                    </span>
+                  )}
+
                   <span
                     className={`px-3 py-1 rounded-full text-[11px] font-bold border capitalize min-w-[80px] text-center ${getPriorityColor(item.priority)}`}
                   >
                     {getPriorityLabel(item.priority)}
                   </span>
 
-                  <div className="hidden md:flex items-center gap-2 text-white/80 font-mono text-sm">
-                    <span></span>
-                  </div>
-
                   <button
                     onClick={() => openViewModal(item)}
-                    className="flex items-center gap-1 text-[11px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-wider group-hover/btn:translate-x-1"
+                    className="flex items-center gap-1 text-[11px] font-bold text-white/40 hover:text-white transition-colors capitalize group-hover/btn:translate-x-1"
                   >
                     View details <ChevronRight size={12} />
                   </button>
