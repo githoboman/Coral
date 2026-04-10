@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Search, Filter, X, ChevronDown } from "lucide-react";
+import { ChevronRight, Search, X, ChevronDown } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTasks, removeTask, updateTaskStatus, invalidateCache } from "@/store/slices/tasksSlice";
