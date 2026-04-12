@@ -136,6 +136,33 @@ function getTaskTimeState(dueDate: string | null | undefined): string {
   return hasTime ? `Due ${formatDate(due)}, ${formatTime(due)}` : `Due ${formatDate(due)}`;
 }
 
+function getTimeStateStyles(timeState: string): string {
+  if (timeState.startsWith('Overdue')) {
+    return 'text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-0.5 rounded-lg';
+  }
+  if (timeState.startsWith('Due in') && timeState.includes('m ·')) return 'text-orange-400'; // within 1 hour
+  if (timeState.startsWith('Due in') && timeState.includes('h ·')) return 'text-yellow-400'; // within 12 hours
+  return 'text-white/50'; // default muted for all other states
+}
+
+const PriorityTag = ({ priority }: { priority?: string }) => {
+  const getPriorityColor = (p?: string) => {
+    switch (p) {
+      case "high": return "bg-[#3E1A1A] text-[#FF4444] border-[#FF4444]/20";
+      case "medium": return "bg-[#3A2E14] text-[#FFAA00] border-[#FFAA00]/20";
+      case "low": return "bg-[#143A22] text-[#00FF88] border-[#00FF88]/20";
+      default: return "bg-white/5 text-white/60 border-white/5";
+    }
+  };
+  const getPriorityLabel = (p?: string) => p ? p.charAt(0).toUpperCase() + p.slice(1) : "Normal";
+
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize text-center shrink-0 ${getPriorityColor(priority)}`}>
+      {getPriorityLabel(priority)}
+    </span>
+  );
+};
+
 const Activity = () => {
   const currentAccount = useCurrentAccount();
   const userId = currentAccount?.address || "";
@@ -458,22 +485,6 @@ const Activity = () => {
   // Moved to separate component file or defined outside
   // See TaskPointsClaimSection definition below
 
-  const getPriorityColor = (p?: string) => {
-    switch (p) {
-      case "high":
-        return "bg-[#3E1A1A] text-[#FF4444] border-[#FF4444]/20";
-      case "medium":
-        return "bg-[#3A2E14] text-[#FFAA00] border-[#FFAA00]/20";
-      case "low":
-        return "bg-[#143A22] text-[#00FF88] border-[#00FF88]/20";
-      default:
-        return "bg-white/5 text-white/60 border-white/5";
-    }
-  };
-
-  const getPriorityLabel = (p?: string) => {
-    return p ? p.charAt(0).toUpperCase() + p.slice(1) : "Normal";
-  };
 
   // Show skeleton while loading
   if (!userId || loadingStates.initialLoad) {
@@ -492,7 +503,7 @@ const Activity = () => {
       )}
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-center md:justify-start gap-4">
           <h1 className="text-2xl md:text-3xl font-bold">
             Tasks
           </h1>
@@ -644,9 +655,11 @@ const Activity = () => {
             {filteredItems.map((item, index) => (
               <div
                 key={item.id}
-                className={`group flex items-center justify-between py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 relative`}
+                className={`group flex items-start md:items-center gap-4 py-6 ${index !== filteredItems.length - 1 ? "border-b border-white/5" : ""} transition-all duration-300 hover:bg-white/[0.02] -mx-4 px-4 lg:-mx-6 lg:px-6 relative cursor-pointer`}
+                onClick={() => openViewModal(item)}
               >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
+                {/* Checkbox */}
+                <div className="flex-shrink-0 pt-0.5 md:pt-0" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => toggleTaskComplete(item.id)}
                     disabled={togglingItems.has(item.id)}
@@ -658,40 +671,59 @@ const Activity = () => {
                       <div className="w-1.5 h-3 border-r-2 border-b-2 border-white rotate-45 mb-1" />
                     )}
                   </button>
-
-                  <span
-                    className={`text-[16px] font-medium truncate max-w-[180px] sm:max-w-xs md:max-w-md ${item.completed ? "text-white/30" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
-                  >
-                    {item.title}
-                  </span>
-                  {item.isOptimistic && !item.desc?.startsWith("Failed") && (
-                    <div className="ml-3 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                  )}
-                  {item.isOptimistic && item.desc?.startsWith("Failed") && (
-                    <div className="ml-3 text-red-500 text-xs font-bold">!</div>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-8 md:gap-12 flex-shrink-0 ml-4">
-                  {/* Time-State Label */}
-                  {!item.completed && item.dueDate && (
-                    <span className={`text-sm ${getTaskTimeState(item.dueDate).startsWith('Overdue') ? 'text-red-500' : 'text-white/40'}`}>
-                      {getTaskTimeState(item.dueDate)}
-                    </span>
-                  )}
+                {/* Content — switches to two-line layout on mobile */}
+                <div className="flex-1 min-w-0">
+                  {/* Row 1: Title (Desktop: Title + Actions | Mobile: Title only) */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span
+                        className={`text-[16px] font-medium truncate ${item.completed ? "text-white/30" : "text-white/80"} ${item.isOptimistic ? "text-white/50 italic" : ""} ${item.desc?.startsWith("Failed") ? "text-red-400" : ""}`}
+                      >
+                        {item.title}
+                      </span>
+                      {item.isOptimistic && !item.desc?.startsWith("Failed") && (
+                        <div className="flex-shrink-0 w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                      )}
+                      {item.isOptimistic && item.desc?.startsWith("Failed") && (
+                        <div className="flex-shrink-0 text-red-500 text-xs font-bold">!</div>
+                      )}
+                    </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold border capitalize min-w-[80px] text-center ${getPriorityColor(item.priority)}`}
-                  >
-                    {getPriorityLabel(item.priority)}
-                  </span>
+                    {/* Desktop Actions Row */}
+                    <div className="hidden md:flex items-center gap-8 md:gap-12 flex-shrink-0">
+                      {/* Time-State Label */}
+                      {!item.completed && item.dueDate && (
+                        <span className={`text-[11px] font-bold transition-all whitespace-nowrap ${getTimeStateStyles(getTaskTimeState(item.dueDate))}`}>
+                          {getTaskTimeState(item.dueDate)}
+                        </span>
+                      )}
 
-                  <button
-                    onClick={() => openViewModal(item)}
-                    className="flex items-center gap-1 text-[11px] font-bold text-white/40 hover:text-white transition-colors capitalize group-hover/btn:translate-x-1"
-                  >
-                    View details <ChevronRight size={12} />
-                  </button>
+                      <PriorityTag priority={item.priority} />
+
+                      <button
+                        className="flex items-center gap-1 text-[11px] font-bold text-white/40 hover:text-white transition-colors capitalize group-hover/btn:translate-x-1"
+                      >
+                        View details <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Actions Row (Row 2) */}
+                  <div className="flex md:hidden items-center gap-3 mt-1.5">
+                    {!item.completed && item.dueDate && (
+                      <span className={`text-[10px] font-bold transition-all truncate ${getTimeStateStyles(getTaskTimeState(item.dueDate))}`}>
+                        {getTaskTimeState(item.dueDate)}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-3 ml-auto">
+                      <PriorityTag priority={item.priority} />
+                      <div className="text-white/40">
+                        <ChevronRight size={14} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -717,9 +749,9 @@ const Activity = () => {
                     </h3>
                     <button
                       onClick={closeModal}
-                      className="text-white/40 hover:text-white"
+                      className="text-white/40 hover:text-white transition-colors"
                     >
-                      <ChevronRight className="rotate-90" />
+                      <X size={20} />
                     </button>
                   </div>
                   <div className="space-y-4 mb-8 text-white/70 text-sm">
@@ -729,11 +761,7 @@ const Activity = () => {
                       </p>
                     )}
                     <div className="flex gap-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${getPriorityColor(selectedItem.priority)}`}
-                      >
-                        {getPriorityLabel(selectedItem.priority)}
-                      </span>
+                      <PriorityTag priority={selectedItem.priority} />
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/5 text-white/60 border border-white/5">
                         {selectedItem.dueDate
                           ? new Date(selectedItem.dueDate).toLocaleDateString()
