@@ -293,48 +293,32 @@ const ExternalWalletConnect = () => {
     ethConnect({ connector: injected() });
   }
 
-  const anyConnected = solConnected || ethConnected;
 
   return (
     <div className="relative">
       {/* Collapsed trigger row */}
       <button
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between gap-3 group"
+        className="w-full flex items-center justify-between gap-3 group py-1"
       >
-        <div className="flex items-center gap-3">
-          <div className="relative w-8 h-8 shrink-0">
-            {solConnected ? (
-              <WalletPhantom size={28} />
-            ) : ethConnected ? (
-              <WalletMetamask size={28} />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
-                <Wallet size={16} className="text-white/40" />
-              </div>
-            )}
-            {anyConnected && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#1A1A1A]" />
-            )}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-[#1A1A1A] border border-white/10 flex items-center justify-center overflow-hidden -mr-3 relative z-0">
+              <WalletMetamask size={22} />
+            </div>
+            <div className="w-8 h-8 rounded-full bg-[#9a8be6] border border-white/10 flex items-center justify-center overflow-hidden relative z-10">
+              <WalletPhantom size={22} variant="mono" className="text-white" />
+            </div>
           </div>
           <div className="flex flex-col text-left">
-            <span className="text-white/80 text-sm sm:text-base">
-              {anyConnected ? "External Wallets" : "Connect an external wallet"}
+            <span className="text-white font-medium text-base">
+              Set up bridge wallets
             </span>
-            {solConnected && shortSolAddress && (
-              <span className="text-white/40 text-xs">Phantom · {shortSolAddress}</span>
-            )}
-            {ethConnected && shortEthAddress && (
-              <span className="text-white/40 text-xs">MetaMask · {shortEthAddress}</span>
-            )}
-            {!anyConnected && (
-              <span className="text-white/30 text-xs">Phantom, MetaMask</span>
-            )}
           </div>
         </div>
         <ChevronRight
-          size={16}
-          className={`text-white/30 group-hover:text-white/60 transition-all duration-200 ${
+          size={18}
+          className={`text-white/40 group-hover:text-white/80 transition-all duration-200 ${
             open ? "rotate-90" : ""
           }`}
         />
@@ -655,11 +639,9 @@ const Account = () => {
             </div>
 
             {/* Bridge hint */}
-            <div className="mt-6 bg-[#B7FC0D]/5 border border-[#B7FC0D]/10 rounded-2xl p-3">
-              <p className="text-white/40 text-xs leading-relaxed">
-                <span className="text-[#B7FC0D] font-bold">Bridge Agent</span> —
-                Connect Phantom and MetaMask above to enable cross-chain
-                bridging from the Chat page.
+            <div className="mt-8">
+              <p className="text-white/80 text-sm leading-relaxed ">
+                The Bridge Agent uses your connected wallets for cross-chain transfers in chat.
               </p>
             </div>
           </div>
