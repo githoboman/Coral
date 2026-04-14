@@ -120,7 +120,7 @@ const Subscription = () => {
           </div>
 
           <Link
-            to="/dashboard"
+            to="/chat"
             className="w-full py-3.5 bg-[#1A1A1A] hover:bg-[#222] text-white/80 font-bold rounded-full text-center transition-all text-sm"
           >
             Continue with free

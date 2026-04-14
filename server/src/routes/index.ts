@@ -16,6 +16,8 @@ import telegramRouter from "./telegram";
 import priceRouter from "./price";
 import proactiveRouter from "./proactive";
 import bridgeTransactionsRouter from "./bridgeTransactions";
+import walletRouter from "./wallet";
+
 
 const router = Router();
 
@@ -36,6 +38,8 @@ router.use("/telegram", telegramRouter);
 router.use("/price", priceRouter);
 router.use("/proactive", proactiveRouter);
 router.use("/bridge", bridgeTransactionsRouter);
+router.use(walletRouter);
+
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
@@ -88,6 +92,10 @@ router.get("/info", (_req: Request, res: Response) => {
         "POST /api/proactive/simulate",
         "GET /api/proactive/simulations",
         "POST /api/proactive/simulations/:id/execute",
+      ],
+      wallet: [
+        "GET /api/wallet/balance",
+        "POST /api/wallet/charge"
       ],
     },
     storage: "Supabase",

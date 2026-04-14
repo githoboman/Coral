@@ -1040,7 +1040,7 @@ export default function AppLayout() {
     {
       name: "Subscription",
       to: "/subscription",
-      iconUrl: "/assets/icons/wallet.svg",
+      iconUrl: "/assets/icons/crown.svg",
       active: location.pathname === "/subscription",
     },
     {
