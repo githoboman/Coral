@@ -1074,9 +1074,11 @@ function BridgeActionCard({
   const [destTxHash, setDestTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaMessageIndex, setEvaMessageIndex] = useState(0);
+  const [displayElapsedMs, setDisplayElapsedMs] = useState(0);
 
   const publicClient = usePublicClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
   const initialEthBalanceRef = useRef<bigint | null>(null);
 
@@ -1090,6 +1092,7 @@ function BridgeActionCard({
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
     };
   }, []);
 
@@ -1158,7 +1161,13 @@ function BridgeActionCard({
   async function startDeliveryPolling(_sourceTx: string, savedDbId: number | null) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
+    setDisplayElapsedMs(0);
     initialEthBalanceRef.current = null;
+
+    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    elapsedTimerRef.current = setInterval(() => {
+      setDisplayElapsedMs((prev) => prev + 1000);
+    }, 1000);
 
     if (payload.direction === "SUI_TO_ETH") {
       const recipient = resolveRecipient();
@@ -1183,6 +1192,7 @@ function BridgeActionCard({
 
       if (elapsedRef.current >= TIMEOUT_MS) {
         clearInterval(pollRef.current!);
+        if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
         setDeliveryPhase("timed_out");
         return;
       }
@@ -1201,6 +1211,7 @@ function BridgeActionCard({
             const latestTs = (sigs[0].blockTime || 0) * 1000;
             if (Date.now() - latestTs < POLL_INTERVAL * 4) {
               clearInterval(pollRef.current!);
+              if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
               setDeliveryPhase("delivered");
               setDestTxHash(sigs[0].signature);
               if (savedDbId) await markDelivered(savedDbId, sigs[0].signature);
@@ -1227,6 +1238,7 @@ function BridgeActionCard({
           if (txs.data.length > 0) {
             const recentDigest = txs.data[0].digest;
             clearInterval(pollRef.current!);
+            if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
             setDeliveryPhase("delivered");
             setDestTxHash(recentDigest);
             if (savedDbId) await markDelivered(savedDbId, recentDigest);
@@ -1246,6 +1258,7 @@ function BridgeActionCard({
               currentBalance > initialEthBalanceRef.current
             ) {
               clearInterval(pollRef.current!);
+              if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
               setDeliveryPhase("delivered");
               let ethDestTx: string | undefined;
               try {
@@ -1506,7 +1519,7 @@ function BridgeActionCard({
                   />
                 )}
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-widest ${
+                  className={`text-[10px] font-bold uppercase tracking-widest flex-1 ${
                     isComplete
                       ? "text-emerald-400/70"
                       : isTimedOut
@@ -1516,6 +1529,13 @@ function BridgeActionCard({
                 >
                   {DELIVERY_PHASES[deliveryPhase].label}
                 </span>
+                {!isComplete && !isTimedOut && displayElapsedMs > 0 && (
+                  <span className="text-[10px] text-white/20 tabular-nums">
+                    {Math.floor(displayElapsedMs / 60000) > 0
+                      ? `${Math.floor(displayElapsedMs / 60000)}m ${Math.floor((displayElapsedMs % 60000) / 1000)}s`
+                      : `${Math.floor(displayElapsedMs / 1000)}s`}
+                  </span>
+                )}
               </div>
 
               {!isTimedOut && (
@@ -1527,7 +1547,9 @@ function BridgeActionCard({
                         : "bg-gradient-to-r from-[#B7FC0D]/50 to-[#B7FC0D]"
                     }`}
                     style={{
-                      width: `${DELIVERY_PHASES[deliveryPhase].progress}%`,
+                      width: isComplete
+                        ? "100%"
+                        : `${Math.min(Math.max((displayElapsedMs / 150_000) * 100, DELIVERY_PHASES[deliveryPhase].progress), 95)}%`,
                     }}
                   />
                 </div>
