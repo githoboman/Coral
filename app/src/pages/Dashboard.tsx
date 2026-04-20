@@ -7,7 +7,7 @@ import {
 } from "@mysten/dapp-kit";
 import { sileo } from "sileo";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { useAccount, useSendTransaction } from "wagmi";
+import { useAccount, useSendTransaction, usePublicClient } from "wagmi";
 import { Connection as SolanaConnection } from "@solana/web3.js";
 
 import {
@@ -1075,8 +1075,10 @@ function BridgeActionCard({
   const [error, setError] = useState<string | null>(null);
   const [evaMessageIndex, setEvaMessageIndex] = useState(0);
 
+  const publicClient = usePublicClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0);
+  const initialEthBalanceRef = useRef<bigint | null>(null);
 
   const POLL_INTERVAL = 5_000;
   const TIMEOUT_MS = 3 * 60 * 1000;
@@ -1153,9 +1155,21 @@ function BridgeActionCard({
     }
   }
 
-  function startDeliveryPolling(_sourceTx: string, savedDbId: number | null) {
+  async function startDeliveryPolling(_sourceTx: string, savedDbId: number | null) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
+    initialEthBalanceRef.current = null;
+
+    if (payload.direction === "SUI_TO_ETH") {
+      const recipient = resolveRecipient();
+      if (recipient && publicClient) {
+        try {
+          initialEthBalanceRef.current = await publicClient.getBalance({
+            address: recipient as `0x${string}`,
+          });
+        } catch {}
+      }
+    }
 
     pollRef.current = setInterval(async () => {
       elapsedRef.current += POLL_INTERVAL;
@@ -1222,6 +1236,46 @@ function BridgeActionCard({
             });
             return;
           }
+        } else if (payload.direction === "SUI_TO_ETH" && recipient) {
+          if (publicClient) {
+            const currentBalance = await publicClient.getBalance({
+              address: recipient as `0x${string}`,
+            });
+            if (
+              initialEthBalanceRef.current !== null &&
+              currentBalance > initialEthBalanceRef.current
+            ) {
+              clearInterval(pollRef.current!);
+              setDeliveryPhase("delivered");
+              let ethDestTx: string | undefined;
+              try {
+                const latestBlock = await publicClient.getBlockNumber();
+                for (let i = 0n; i < 5n; i++) {
+                  const block = await publicClient.getBlock({
+                    blockNumber: latestBlock - i,
+                    includeTransactions: true,
+                  });
+                  const match = block.transactions.find(
+                    (t) =>
+                      typeof t === "object" &&
+                      t.to?.toLowerCase() === recipient.toLowerCase() &&
+                      (t as any).value > 0n,
+                  );
+                  if (match && typeof match === "object") {
+                    ethDestTx = (match as any).hash;
+                    break;
+                  }
+                }
+              } catch {}
+              if (ethDestTx) setDestTxHash(ethDestTx);
+              if (savedDbId) await markDelivered(savedDbId, ethDestTx);
+              sileo.success({
+                title: "Bridge Complete!",
+                description: "Your ETH has arrived.",
+              });
+              return;
+            }
+          }
         }
       } catch {}
     }, POLL_INTERVAL);
@@ -1267,7 +1321,7 @@ function BridgeActionCard({
               const digest = result.digest;
               setSourceTxHash(digest);
               const dbId = await saveBridgeTx(digest);
-              startDeliveryPolling(digest, dbId);
+              await startDeliveryPolling(digest, dbId);
             },
             onError: (err: any) => {
               setError(err.message || "Transaction rejected");
@@ -1312,7 +1366,7 @@ function BridgeActionCard({
         setSourceTxHash(sig);
         setSignStatus("submitted");
         const dbId = await saveBridgeTx(sig);
-        startDeliveryPolling(sig, dbId);
+        await startDeliveryPolling(sig, dbId);
       } else if (chain === "ethereum") {
         if (!sendEthTx) throw new Error("Ethereum wallet not connected");
         const amountWei = BigInt(payload.txPayload.amountWei!);
@@ -1328,7 +1382,7 @@ function BridgeActionCard({
         setSourceTxHash(hash);
         setSignStatus("submitted");
         const dbId = await saveBridgeTx(hash);
-        startDeliveryPolling(hash, dbId);
+        await startDeliveryPolling(hash, dbId);
       }
     } catch (err: any) {
       console.error("[BridgeActionCard] Sign error:", err);
