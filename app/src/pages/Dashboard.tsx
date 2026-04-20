@@ -178,7 +178,7 @@ const AGENTS: Agent[] = [
   {
     id: "bridge",
     name: "Eva",
-    icon: "/assets/images/agents/EVA.png",
+    icon: "/assets/images/agents/eva.svg",
     cost: "Free",
   },
 ];
