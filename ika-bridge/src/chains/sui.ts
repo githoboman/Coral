@@ -1,3 +1,18 @@
+// ============================================================
+// chains/sui.ts
+//
+// Sui chain adapter for the bridge.
+//
+// After deploying the Move contract (pnpm deploy:move), lockSui()
+// calls bridge::lock_sui() which emits a BridgeLockEvent that the
+// relayer can detect. releaseSui() calls bridge::release_sui() with
+// the BridgeAdminCap.
+//
+// Before deployment (contract === undefined in bridge-state.json),
+// both functions fall back to plain coin transfers so existing tests
+// continue to work.
+// ============================================================
+
 import { SuiClient, SuiEvent } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
@@ -15,6 +30,8 @@ import { loadBridgeState } from "../ika/dwalletManager";
 import { logger } from "../utils/logger";
 import crypto from "crypto";
 
+// ---- Bridge pool address (fallback when no Move contract) ----
+
 let BRIDGE_POOL_ADDRESS: string | null = null;
 
 export function getBridgePoolAddress(): string {
@@ -25,9 +42,19 @@ export function getBridgePoolAddress(): string {
   return BRIDGE_POOL_ADDRESS;
 }
 
+// ---- Lock SUI ----
+
 /**
+ * Lock SUI in the bridge.
  *
- * @param amountMist - Amount of SUI to lock, in MIST
+ * If the Move contract is deployed (bridge-state.json has a `contract` field),
+ * this calls bridge::lock_sui() which emits a BridgeLockEvent that the relayer
+ * will detect automatically.
+ *
+ * If not yet deployed, falls back to a plain SUI transfer (the test flow used
+ * before the contract was available).
+ *
+ * @param amountMist - Amount of SUI to lock, in MIST (1 SUI = 1_000_000_000 MIST)
  * @param destChain - 'evm' or 'solana'
  * @param recipientAddress - Recipient address on the destination chain
  * @param userKeypair - The user's Sui keypair
@@ -62,8 +89,11 @@ export async function lockSui(
   let bridgeRequestId: string;
 
   if (contract?.packageId && contract?.poolObjectId) {
+    // ── Move contract path (production) ──────────────────────────────────
+    // dest_chain: 0 = EVM, 1 = Solana
     const destChainId = destChain === "evm" ? 0 : 1;
 
+    // Encode recipient address as UTF-8 bytes for vector<u8> parameter
     const recipientBytes = Array.from(
       new TextEncoder().encode(recipientAddress),
     );
@@ -78,6 +108,10 @@ export async function lockSui(
       ],
     });
 
+    // The on-chain bridge_request_id is the pool's request_count after increment.
+    // We can't know the exact value without reading the pool, but the tx hash is
+    // a sufficient idempotency key for the relayer. We generate a local UUID to
+    // satisfy the return type; the relayer uses the on-chain event ID instead.
     bridgeRequestId = crypto.randomUUID();
 
     logger.debug("Calling Move bridge::lock_sui", {
@@ -87,6 +121,9 @@ export async function lockSui(
       recipientAddress,
     });
   } else {
+    // ── Fallback path (before Move contract is deployed) ─────────────────
+    // Plain coin transfer to the bridge operator's address.
+    // The relayer will NOT detect this via events — this is for manual testing only.
     logger.warn(
       "Move contract not deployed — using plain transfer fallback. " +
         "The relayer will not detect this automatically. Run `pnpm deploy:move` " +
@@ -118,13 +155,17 @@ export async function lockSui(
   return { bridgeRequestId, txHash: result.digest };
 }
 
+// ---- Release SUI ----
+
 /**
  * Release SUI from the bridge pool to a user.
  *
+ * If the Move contract is deployed, calls bridge::release_sui() with
+ * the BridgeAdminCap. Otherwise falls back to a plain coin transfer.
  *
- * @param recipientAddress
- * @param amountMist
- * @param sourceTxHash
+ * @param recipientAddress - Sui address of the recipient
+ * @param amountMist - Amount to release in MIST
+ * @param sourceTxHash - Source chain tx hash (for auditing)
  */
 export async function releaseSui(
   recipientAddress: string,
@@ -150,6 +191,7 @@ export async function releaseSui(
     contract?.poolObjectId &&
     contract?.adminCapObjectId
   ) {
+    // ── Move contract path (production) ──────────────────────────────────
     const sourceTxHashBytes = Array.from(
       new TextEncoder().encode(sourceTxHash),
     );
@@ -171,6 +213,7 @@ export async function releaseSui(
       amountMist: amountMist.toString(),
     });
   } else {
+    // ── Fallback path ─────────────────────────────────────────────────────
     logger.warn(
       "Move contract not deployed — using plain transfer fallback for release.",
     );
@@ -206,6 +249,51 @@ export async function releaseSui(
   return result.digest;
 }
 
+// ---- Contract Pause ----
+
+/**
+ * Call bridge::set_paused() on the Move contract.
+ * No-op (with a warning) when the contract is not deployed.
+ */
+export async function setContractPaused(paused: boolean): Promise<void> {
+  const bridgeState = loadBridgeState();
+  const contract = bridgeState?.contract;
+
+  if (!contract?.packageId || !contract?.poolObjectId || !contract?.adminCapObjectId) {
+    logger.warn("set_paused skipped — Move contract not deployed");
+    return;
+  }
+
+  const suiClient = getSuiClient();
+  const bridgeKeypair = loadSuiKeypair(config.ika.suiPrivateKey);
+
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${contract.packageId}::bridge::set_paused`,
+    arguments: [
+      tx.object(contract.poolObjectId),
+      tx.object(contract.adminCapObjectId),
+      tx.pure.bool(paused),
+    ],
+  });
+
+  await executeTransaction(suiClient, tx, bridgeKeypair);
+  logger.info(`Move contract ${paused ? "PAUSED" : "RESUMED"} on-chain`);
+}
+
+// ---- Event Parsing ----
+
+/**
+ * Parse a raw Sui event into our SuiBridgeLockEvent type.
+ *
+ * Expects the fields emitted by bridge::bridge::BridgeLockEvent:
+ *   bridge_request_id: u64
+ *   sender: address
+ *   dest_chain: u8
+ *   recipient_address: String
+ *   amount_mist: u64
+ */
+// parseSuiLockEvent — updated for new fee fields
 export function parseSuiLockEvent(event: SuiEvent): SuiBridgeLockEvent | null {
   try {
     if (!event.type.includes("::bridge::BridgeLockEvent")) return null;
@@ -247,14 +335,18 @@ export function parseSuiLockEvent(event: SuiEvent): SuiBridgeLockEvent | null {
   }
 }
 
+// lockEventToBridgeRequest — use net amount, no JS fee calc needed
 export function lockEventToBridgeRequest(
   event: SuiBridgeLockEvent,
   txHash: string,
 ): BridgeRequest | null {
   const destChain: ChainId = event.destChain === 0 ? "evm" : "solana";
 
+  // amountIn = gross SUI the user locked (for display/auditing)
   const amountIn = BigInt(event.grossAmountMist);
 
+  // netAmountMist = after contract took fee in SUI
+  // amountOut = convert net SUI to destination chain units — NO further fee deduction
   const netAmountMist = BigInt(event.netAmountMist);
   const rate =
     destChain === "evm"
@@ -282,6 +374,8 @@ export function lockEventToBridgeRequest(
     createdAt: Date.now(),
   };
 }
+
+// ---- Balance helpers ----
 
 export async function getSuiBalance(address: string): Promise<bigint> {
   const suiClient = getSuiClient();

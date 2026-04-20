@@ -1,6 +1,14 @@
+// ============================================================
+// relayer/solanaListener.ts
+//
 // Watches the Solana bridge address for incoming SOL deposits.
+//
 // Uses connection.onLogs() WebSocket subscription via Helius —
 // fires instantly when any transaction touches the bridge address.
+// No polling, no rate-limit hammering.
+//
+// Reconnect logic handles dropped WS connections automatically.
+// ============================================================
 
 import { BridgeRequest } from "../types";
 import {
@@ -15,10 +23,35 @@ import {
   isSolanaTxProcessed,
   markSolanaTxProcessed,
 } from "../utils/processedTxStore";
+import { redis } from "../server/index";
 
 const RECONNECT_DELAY_MS = 5_000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
 const KEEPALIVE_INTERVAL_MS = 30_000;
+
+// ── Cursor persistence (Redis) ────────────────────────────────────────────────
+
+const CURSOR_KEY = "bridge:solana:cursor";
+
+async function loadSolanaCursor(): Promise<string | undefined> {
+  try {
+    const raw = await redis.get(CURSOR_KEY);
+    return raw ?? undefined;
+  } catch (err) {
+    logger.warn("Could not load Solana listener cursor from Redis, starting from latest", { err });
+    return undefined;
+  }
+}
+
+async function saveSolanaCursor(signature: string): Promise<void> {
+  try {
+    await redis.set(CURSOR_KEY, signature);
+  } catch (err) {
+    logger.warn("Could not save Solana listener cursor to Redis", { err });
+  }
+}
+
+// ── Listener ──────────────────────────────────────────────────────────────────
 
 export async function startSolanaListener(
   bridgeSolanaAddress: string,
@@ -31,24 +64,40 @@ export async function startSolanaListener(
   const connection = getSolanaConnection();
   const bridgePubkey = new PublicKey(bridgeSolanaAddress);
 
-  const existing = await connection.getSignaturesForAddress(bridgePubkey, {
-    limit: 1,
-  });
-  let lastSignature: string | undefined =
-    existing.length > 0 ? existing[0].signature : undefined;
+  // Load persisted cursor from Redis; fall back to current chain tip on first run.
+  let lastSignature: string | undefined = await loadSolanaCursor();
+
+  if (lastSignature) {
+    logger.info("Resuming Solana listener from Redis cursor", { lastSignature });
+  } else {
+    const existing = await connection.getSignaturesForAddress(bridgePubkey, { limit: 1 });
+    lastSignature = existing.length > 0 ? existing[0].signature : undefined;
+    if (lastSignature) {
+      await saveSolanaCursor(lastSignature);
+      logger.info("Solana cursor initialized to current tip", { lastSignature });
+    } else {
+      logger.info("No existing Solana transactions — will process all future deposits.");
+    }
+  }
 
   let isRunning = true;
   let subscriptionId: number | null = null;
   let reconnectDelay = RECONNECT_DELAY_MS;
 
+  // ── Core handler: called by onLogs when a tx hits our address ──────────
   async function handleLogEvent(logs: Logs) {
+    // Skip failed transactions — they can't be valid deposits
     if (logs.err) return;
 
     logger.debug("Solana log event received", { signature: logs.signature });
 
+    // Reset backoff on successful event
     reconnectDelay = RECONNECT_DELAY_MS;
 
     try {
+      // detectSolanaDeposits fetches all new txs since lastSignature.
+      // Usually this is just the one that triggered onLogs, but handles
+      // the edge case where multiple txs arrive between event callbacks.
       const deposits = await detectSolanaDeposits(
         bridgeSolanaAddress,
         lastSignature,
@@ -56,7 +105,7 @@ export async function startSolanaListener(
 
       for (const deposit of deposits) {
         if (await isSolanaTxProcessed(deposit.signature)) continue;
-        markSolanaTxProcessed(deposit.signature);
+        await markSolanaTxProcessed(deposit.signature);
 
         const bridgeRequest = solanaDepositToBridgeRequest(
           deposit,
@@ -73,15 +122,17 @@ export async function startSolanaListener(
         onBridgeRequest(bridgeRequest);
       }
 
-      // Advance cursor
+      // Advance cursor and persist to Redis
       if (deposits.length > 0) {
         lastSignature = deposits[0].signature;
+        await saveSolanaCursor(lastSignature);
       }
     } catch (err) {
       logger.error("Error processing Solana deposit event", err);
     }
   }
 
+  // ── Subscribe ───────────────────────────────────────────────────────────
   function subscribe() {
     if (!isRunning) return;
 
@@ -102,6 +153,7 @@ export async function startSolanaListener(
     }
   }
 
+  // ── Reconnect with exponential backoff ──────────────────────────────────
   function scheduleReconnect() {
     if (!isRunning) return;
 
@@ -117,11 +169,15 @@ export async function startSolanaListener(
         subscriptionId = null;
       }
 
+      // Exponential backoff, capped at MAX_RECONNECT_DELAY_MS
       reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
       subscribe();
     }, reconnectDelay);
   }
 
+  // ── Keepalive: detect silently dropped connections ───────────────────────
+  // Helius WS is reliable but connections can drop without an error event.
+  // Every 30s, verify the connection is alive with a lightweight RPC call.
   const keepalive = setInterval(async () => {
     if (!isRunning) return;
     try {

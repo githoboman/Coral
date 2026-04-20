@@ -1,3 +1,7 @@
+// ============================================================
+// utils/logger.ts — Colored, timestamped console logger
+// ============================================================
+
 import chalk from "chalk";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
@@ -19,6 +23,7 @@ function timestamp(): string {
   return new Date().toISOString();
 }
 
+// Replacer that converts BigInt to string so JSON.stringify never throws
 function bigintReplacer(_key: string, value: unknown): unknown {
   return typeof value === "bigint" ? value.toString() : value;
 }

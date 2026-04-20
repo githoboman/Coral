@@ -1,4 +1,20 @@
+// ============================================================
+// ika/dwalletManager.ts
+//
 // Creates and manages the bridge's Shared dWallets.
+//
+// Two dWallets are created:
+//   1. dWallet_EVM  — secp256k1, signs Ethereum transactions
+//   2. dWallet_SOL  — ed25519,   signs Solana transactions
+//
+// Shared dWallet vs Zero-Trust:
+//   The user share is stored publicly on-chain, so the Ika network
+//   can sign on behalf of the bridge without the server needing to
+//   decrypt anything. This is the correct model for an automated
+//   relayer that signs without human interaction.
+//
+// Run setup-dwallets.ts ONCE, then save the resulting bridge-state.json.
+// ============================================================
 
 import fs from "fs";
 import {
@@ -25,15 +41,19 @@ import {
 } from "../utils/executeTransaction";
 import { logger } from "../utils/logger";
 
+// ---- IKA coin type on testnet ----
 // This is the IKA token used to pay for Ika protocol fees.
+// Verify this matches the current testnet deployment if you get coin errors.
 const IKA_COIN_TYPE =
   "0x1f26bb2f711ff82dcda4d02c77d5123089cb7f8418751474b9fb744ce031526a::ika::IKA";
+
+// ---- Load/Save bridge state ----
 
 export function loadBridgeState(): BridgeState | null {
   const stateFile = config.ika.stateFile;
   if (!fs.existsSync(stateFile)) {
     logger.warn(`Bridge state file not found: ${stateFile}`);
-    logger.warn("Run `pnpm setup` first to create your dWallets.");
+    logger.warn("Run `pnpm setup` first.");
     return null;
   }
   const raw = fs.readFileSync(stateFile, "utf-8");
@@ -53,6 +73,12 @@ export function saveBridgeState(state: BridgeState): void {
   logger.success(`Bridge state saved to ${stateFile}`);
 }
 
+// ---- Coin helpers ----
+
+/**
+ * Fetch the first available IKA coin for the signer address.
+ * Throws a helpful error if none are found.
+ */
 async function getIkaCoin(
   suiClient: SuiClient,
   signerAddress: string,
@@ -71,6 +97,17 @@ async function getIkaCoin(
   return data[0].coinObjectId;
 }
 
+// ---- Core dWallet creation (Shared) ----
+
+/**
+ * Create a Shared dWallet for the given curve.
+ *
+ * Key difference from Zero-Trust:
+ *   - Uses requestDWalletDKGWithPublicUserShare instead of requestDWalletDKG
+ *   - No acceptEncryptedUserShare step needed — dWallet becomes Active immediately
+ *   - The user secret key share is stored publicly on-chain
+ *   - Signing never requires decrypting a user share
+ */
 async function createSharedDWalletForChain(
   ikaClient: IkaClient,
   suiClient: SuiClient,
@@ -83,7 +120,9 @@ async function createSharedDWalletForChain(
   const signerAddress = getAddress(keypair);
 
   // Step 1: Create UserShareEncryptionKeys.
-
+  // Even for Shared dWallets, UserShareEncryptionKeys is required for the DKG
+  // protocol itself. The seed is namespaced per chain so EVM and Solana keys
+  // are independent.
   logger.debug(`[${chainLabel}] Generating user share encryption keys...`);
   const userShareEncryptionKeys = await UserShareEncryptionKeys.fromRootSeedKey(
     new TextEncoder().encode(config.ika.bridgeSeed + ":" + chainLabel),
@@ -140,7 +179,8 @@ async function createSharedDWalletForChain(
   );
 
   // Step 6: Build and submit the Shared DKG transaction.
-
+  // requestDWalletDKGWithPublicUserShare makes the user share public on-chain,
+  // enabling the network to sign without server participation.
   logger.info(
     `[${chainLabel}] Submitting Shared DKG request to Ika network...`,
   );
@@ -159,8 +199,9 @@ async function createSharedDWalletForChain(
 
   const [dWalletCapResult] =
     await dkgIkaTx.requestDWalletDKGWithPublicUserShare({
+      // These three fields come from dkgRequestInput
       publicKeyShareAndProof: dkgRequestInput.userDKGMessage,
-      publicUserSecretKeyShare: dkgRequestInput.userSecretKeyShare,
+      publicUserSecretKeyShare: dkgRequestInput.userSecretKeyShare, // public, not encrypted
       userPublicOutput: dkgRequestInput.userPublicOutput,
       curve,
       dwalletNetworkEncryptionKeyId: dWalletEncryptionKey.id,
@@ -200,6 +241,7 @@ async function createSharedDWalletForChain(
   }
 
   // Step 9: Wait for the dWallet to become Active.
+  // Shared dWallets go directly to Active — no AwaitingKeyHolderSignature step.
   logger.info(`[${chainLabel}] Waiting for dWallet to become Active...`);
   const activeDWallet = await ikaClient.getDWalletInParticularState(
     dWalletId,
@@ -241,12 +283,19 @@ async function createSharedDWalletForChain(
   return {
     dWalletId: activeDWallet.id.id,
     dWalletCapId: resolvedCapId,
+    // Shared dWallets have no encrypted share — this field is unused at signing time
+    // but kept in the type for compatibility. Set to empty string.
     encryptedUserSecretKeyShareId: "",
     targetChainAddress,
     curve: curve === Curve.SECP256K1 ? "SECP256K1" : "ED25519",
   };
 }
 
+/**
+ * Derive the on-chain address from a dWallet public key.
+ *   EVM   (secp256k1): Ethereum address derivation via ethers.js
+ *   Solana (ed25519):  base58 of the 32-byte public key
+ */
 function deriveChainAddress(
   curve: typeof Curve.SECP256K1 | typeof Curve.ED25519,
   publicKeyBytes: number[],
@@ -254,11 +303,14 @@ function deriveChainAddress(
   const pubKeyBuffer = Buffer.from(publicKeyBytes);
 
   if (curve === Curve.SECP256K1) {
+    // ethers.computeAddress handles compressed → uncompressed → keccak → last 20 bytes
     return ethers.computeAddress("0x" + pubKeyBuffer.toString("hex"));
   } else {
     return new PublicKey(pubKeyBuffer).toBase58();
   }
 }
+
+// ---- Main setup function ----
 
 export async function setupDWallets(): Promise<BridgeState> {
   logger.info("🏗️  Setting up Shared bridge dWallets...");

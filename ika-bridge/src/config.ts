@@ -1,3 +1,7 @@
+// ============================================================
+// config.ts — Load and validate all bridge configuration
+// ============================================================
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -17,7 +21,10 @@ function optionalEnv(key: string, fallback: string): string {
 }
 
 export const config = {
+  // ---- Ika / Sui ----
   ika: {
+    // The SDK's Network type accepts "localnet" | "testnet" | "mainnet".
+    // We type it the same way here so the cast in client.ts is safe.
     network: optionalEnv("IKA_NETWORK", "localnet") as
       | "localnet"
       | "testnet"
@@ -36,6 +43,7 @@ export const config = {
     stateFile: optionalEnv("BRIDGE_STATE_FILE", "./bridge-state.json"),
   },
 
+  // ---- EVM / Ethereum ----
   evm: {
     rpcUrl: requireEnv("EVM_RPC_URL"),
     wsUrl: requireEnv("EVM_WS_URL"),
@@ -45,17 +53,22 @@ export const config = {
     confirmations: parseInt(optionalEnv("EVM_CONFIRMATIONS", "1")),
   },
 
+  // ---- Solana ----
   solana: {
     rpcUrl: requireEnv("SOLANA_RPC_URL"),
     wsUrl: requireEnv("SOLANA_WS_URL"),
     confirmations: parseInt(optionalEnv("SOLANA_CONFIRMATIONS", "1")),
   },
 
+  // ---- Bridge Parameters ----
+  // ---- Bridge Parameters ----
   bridge: {
-    minAmountSui: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_SUI", "10000000")),
-    minAmountEth: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_ETH", "1000000000000")),
-    minAmountSol: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_SOL", "100000")),
+    // ── Minimums ──────────────────────────────────────────────────────────
+    minAmountSui: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_SUI", "10000000")), // 0.01 SUI
+    minAmountEth: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_ETH", "1000000000000")), // 0.000001 ETH
+    minAmountSol: BigInt(optionalEnv("MIN_BRIDGE_AMOUNT_SOL", "100000")), // 0.0001 SOL
 
+    // ── Maximums ✅ NEW ────────────────────────────────────────────────────
     maxAmountSui: BigInt(optionalEnv("MAX_BRIDGE_AMOUNT_SUI", "1000000000")), // 1 SUI
     maxAmountEth: BigInt(
       optionalEnv("MAX_BRIDGE_AMOUNT_ETH", "100000000000000"),
@@ -67,6 +80,8 @@ export const config = {
     feeBps: parseInt(optionalEnv("BRIDGE_FEE_BPS", "30")),
   },
 
+  // config.ts — add these two sections
+
   server: {
     port: parseInt(optionalEnv("SERVER_PORT", "3001")),
     adminKey: requireEnv("ADMIN_API_KEY"),
@@ -76,6 +91,7 @@ export const config = {
     url: optionalEnv("REDIS_URL", "redis://localhost:6379"),
   },
 
+  // ---- Relayer ----
   relayer: {
     suiPollIntervalMs: parseInt(optionalEnv("SUI_POLL_INTERVAL_MS", "3000")),
     solanaPollIntervalMs: parseInt(

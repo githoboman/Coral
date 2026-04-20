@@ -1,3 +1,23 @@
+// ============================================================
+// chains/solana.ts
+//
+// Solana chain adapter for the bridge.
+//
+// KEY FIX: Use durable transaction nonces instead of recent blockhashes.
+//
+// WHY: The Ika MPC signing round takes ~60–90 seconds. Solana blockhashes
+// expire after ~150 slots (~60–90s). By the time the signature comes back,
+// the blockhash is stale → "Blockhash not found" error.
+//
+// Durable nonces solve this: the transaction uses a nonce account value
+// as its "blockhash". The nonce stays valid until it is advanced, which
+// only happens as part of the transaction itself. This makes the transaction
+// valid indefinitely — perfect for slow signers.
+//
+// SETUP: Call `createSolanaNonceAccount` once during bridge setup and store
+// the resulting nonce account address in `DWalletInfo.nonceAccountAddress`.
+// ============================================================
+
 import {
   Connection,
   PublicKey,
@@ -17,9 +37,12 @@ import { signSolanaTransaction } from "../ika/signer";
 import { DWalletInfo } from "../types";
 import { logger } from "../utils/logger";
 
+// ---- Solana Memo Program ----
 const MEMO_PROGRAM_ID = new PublicKey(
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
 );
+
+// ---- Connection ----
 
 let _connection: Connection | null = null;
 
@@ -36,10 +59,16 @@ export function getSolanaConnection(): Connection {
 // ---- Durable Nonce Helpers ----
 
 /**
+ * Create a durable nonce account owned by the bridge dWallet.
  *
- * @param funderKeypair
- * @param nonceAuthority
- * @returns
+ * This is called ONCE during bridge setup. The nonce account is funded from
+ * a temporary funder keypair, but its authority is set to the bridge's dWallet
+ * pubkey. Only the dWallet can advance (consume) the nonce, which it does as
+ * part of every signed transaction.
+ *
+ * @param funderKeypair - A funded Solana keypair to pay for nonce account creation
+ * @param nonceAuthority - The bridge dWallet's public key (will own the nonce)
+ * @returns The nonce account public key (save this to bridge-state.json)
  */
 export async function createSolanaNonceAccount(
   funderKeypair: Keypair,
@@ -47,14 +76,21 @@ export async function createSolanaNonceAccount(
 ): Promise<PublicKey> {
   const connection = getSolanaConnection();
 
+  // Generate a new keypair for the nonce account itself
   const nonceKeypair = Keypair.generate();
 
   const rentExemptBalance =
-    await connection.getMinimumBalanceForRentExemption(80);
+    await connection.getMinimumBalanceForRentExemption(80); // nonce accounts are 80 bytes
 
+  // Use getLatestBlockhash for this setup tx — it's fast (no MPC round),
+  // so the blockhash won't expire before we broadcast.
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
 
+  // Build the legacy transaction manually and sign it ourselves.
+  // We deliberately avoid sendAndConfirmTransaction() here because in Node 18+
+  // web3.js detects globalThis.fetch (undici) and switches to ClientBrowser,
+  // which fails with "fetch failed". Using sendRawTransaction bypasses that path.
   const createNonceTx = new LegacyTransaction({
     feePayer: funderKeypair.publicKey,
     blockhash,
@@ -73,6 +109,7 @@ export async function createSolanaNonceAccount(
     }),
   );
 
+  // Both the funder and the new nonce account keypair must sign
   createNonceTx.sign(funderKeypair, nonceKeypair);
 
   const rawTx = createNonceTx.serialize();
@@ -81,6 +118,7 @@ export async function createSolanaNonceAccount(
     preflightCommitment: "confirmed",
   });
 
+  // Confirm using blockhash strategy (fine here — this tx is fast)
   const confirmation = await connection.confirmTransaction(
     { signature: sig, blockhash, lastValidBlockHeight },
     "confirmed",
@@ -101,6 +139,9 @@ export async function createSolanaNonceAccount(
   return nonceKeypair.publicKey;
 }
 
+/**
+ * Read the current nonce value from a nonce account.
+ */
 async function getNonceValue(
   connection: Connection,
   nonceAccountPubkey: PublicKey,
@@ -120,13 +161,22 @@ async function getNonceValue(
 // ---- Send SOL via dWallet (with Durable Nonce) ----
 
 /**
+ * Send SOL from the bridge's dWallet to a recipient.
+ *
+ * Uses a durable nonce so the transaction remains valid during the full
+ * MPC signing round (~60–90s). Without this, Solana's rolling blockhash
+ * expires before the signature is returned.
+ *
+ * Transaction structure:
+ *   1. AdvanceNonceAccount  ← consumes the nonce, signed by dWallet
+ *   2. SystemProgram.transfer ← the actual SOL transfer, signed by dWallet
  *
  * Both instructions are covered by the single ed25519 signature from Ika.
  *
- * @param to
- * @param amountLamports
- * @param dWalletInfo
- * @returns
+ * @param to - Recipient Solana address (base58)
+ * @param amountLamports - Amount in lamports
+ * @param dWalletInfo - The Solana dWallet (must have nonceAccountAddress set)
+ * @returns Transaction signature (base58)
  */
 export async function sendSolViaDWallet(
   to: string,
@@ -143,6 +193,7 @@ export async function sendSolViaDWallet(
     solAmount: (Number(amountLamports) / LAMPORTS_PER_SOL).toFixed(6),
   });
 
+  // Validate recipient address
   if (!PublicKey.isOnCurve(recipientPubkey.toBytes())) {
     throw new Error(`Invalid Solana recipient address: ${to}`);
   }
@@ -158,6 +209,7 @@ export async function sendSolViaDWallet(
 
   const nonceAccountPubkey = new PublicKey(dWalletInfo.nonceAccountAddress);
 
+  // Check vault balance
   const balance = await connection.getBalance(bridgePubkey);
   const rentExemptMin = await connection.getMinimumBalanceForRentExemption(0);
   if (BigInt(balance) < amountLamports + BigInt(rentExemptMin) + 5000n) {
@@ -168,15 +220,20 @@ export async function sendSolViaDWallet(
     );
   }
 
+  // ── Read the current nonce value BEFORE signing ──────────────────────────
+  // This is the value we embed in the transaction as the "recentBlockhash".
+  // It stays valid until THIS transaction (or another) advances the nonce.
   const nonceValue = await getNonceValue(connection, nonceAccountPubkey);
   logger.debug("Using durable nonce for transaction", {
     nonceAccount: dWalletInfo.nonceAccountAddress,
     nonce: nonceValue,
   });
 
+  // ── Build the transaction message ────────────────────────────────────────
+  // Rule: AdvanceNonceAccount MUST be the first instruction when using durable nonces.
   const advanceNonceInstruction = SystemProgram.nonceAdvance({
     noncePubkey: nonceAccountPubkey,
-    authorizedPubkey: bridgePubkey,
+    authorizedPubkey: bridgePubkey, // dWallet is the nonce authority
   });
 
   const transferInstruction = SystemProgram.transfer({
@@ -187,24 +244,25 @@ export async function sendSolViaDWallet(
 
   const message = new TransactionMessage({
     payerKey: bridgePubkey,
-    recentBlockhash: nonceValue,
+    recentBlockhash: nonceValue, // ← nonce value, not a recent blockhash
     instructions: [advanceNonceInstruction, transferInstruction],
   }).compileToV0Message();
 
   const messageBytes = message.serialize();
 
-  logger.info("Signing Solana transaction via Shared dWallet...");
   logger.debug("Durable nonce tx details", {
     messageLength: messageBytes.length,
     nonce: nonceValue,
     nonceAccount: dWalletInfo.nonceAccountAddress,
   });
 
+  // ── Sign via Ika MPC (takes ~60–90s — nonce keeps the tx valid) ──────────
   const { signature } = await signSolanaTransaction({
     txMessageBytes: messageBytes,
     dWalletInfo,
   });
 
+  // ── Assemble and broadcast ───────────────────────────────────────────────
   const versionedTx = new VersionedTransaction(message);
   versionedTx.addSignature(bridgePubkey, signature);
 
@@ -222,6 +280,9 @@ export async function sendSolViaDWallet(
     solAmount: (Number(amountLamports) / LAMPORTS_PER_SOL).toFixed(6),
   });
 
+  // ── Confirm ──────────────────────────────────────────────────────────────
+  // For durable nonce transactions, confirmTransaction requires the
+  // 'nonceAccountPubkey + nonceValue' form instead of blockhash + lastValidBlockHeight.
   const confirmation = await connection.confirmTransaction(
     {
       nonceAccountPubkey,
@@ -267,6 +328,9 @@ export async function detectSolanaDeposits(
     return [];
   }
 
+  // ── Fetch transactions individually instead of as a batch ────────────────
+  // getParsedTransactions() sends a batch RPC request, which Helius free tier
+  // blocks with 403. Individual getParsedTransaction() calls avoid this entirely.
   for (const sig of signatures) {
     let tx;
     try {
@@ -291,6 +355,9 @@ export async function detectSolanaDeposits(
 
     if (bridgeIndex === -1) continue;
 
+    // Ignore transactions where the vault is the fee payer — these are the
+    // relayer's own outbound transfers (nonce advance + SOL send). The fee
+    // payer is always accountKeys[0] in a compiled Solana message.
     const feePayer = accountKeys[0]?.pubkey.toString();
     if (feePayer === bridgeAddress) continue;
 
@@ -304,7 +371,7 @@ export async function detectSolanaDeposits(
       logger.warn("SOL deposit below minimum", {
         signature: sig.signature,
         lamports: receivedLamports.toString(),
-        minLamports: config.bridge.minAmountSol.toString(),
+        minLamports: config.bridge.minAmountSol.toString(), // now visible in logs
       });
       continue;
     }
@@ -372,10 +439,13 @@ export async function detectSolanaDeposits(
   return deposits;
 }
 
+// solanaDepositToBridgeRequest — pass GROSS mist, contract takes fee
 export function solanaDepositToBridgeRequest(
   event: SolanaDepositEvent,
   suiRate: bigint,
 ): BridgeRequest {
+  // Gross MIST equivalent of the deposited SOL.
+  // Fee is NOT deducted here — release_sui() on the contract takes it.
   const grossAmountMist = (event.amountLamports * 1_000_000_000n) / suiRate;
 
   return {
@@ -385,7 +455,7 @@ export function solanaDepositToBridgeRequest(
     senderAddress: event.from,
     recipientAddress: event.suiRecipient,
     amountIn: event.amountLamports,
-    amountOut: grossAmountMist,
+    amountOut: grossAmountMist, // gross — contract takes fee on release
     sourceTxHash: event.signature,
     status: "pending",
     createdAt: Date.now(),

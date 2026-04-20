@@ -1,21 +1,41 @@
-// run: npx tsx src/server/index.ts
+// ============================================================
+// server/index.ts
+//
+// Changes from previous version:
+//
+//   1. AUTH — requireRelayerAuth middleware applied to all routes
+//      except GET /health. Pass x-api-key header or ?api_key= query param.
+//      Same adminKey already in config.server.adminKey.
+//
+//   2. IKA HEALTH — /health now checks Ika connectivity via
+//      ikaClient.getEpoch(). Returns status "degraded" if disconnected
+//      so your monitoring can catch signing failures before users do.
+//
+//   3. BIGINT SERIALIZATION — replaced manual serializeRequest /
+//      deserializeRequest with a single bigintReplacer / bigintReviver
+//      JSON pair. Any BigInt field in BridgeRequest is handled
+//      automatically — no more manual updates when fields change.
+// ============================================================
 
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { Queue, Worker, Job } from "bullmq";
 import IORedis from "ioredis";
+import rateLimit from "express-rate-limit";
 import { BridgeRequest } from "../types";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { loadBridgeState } from "../ika/dwalletManager";
 import { getIkaClient } from "../ika/client";
-import { releaseSui } from "../chains/sui";
+import { releaseSui, setContractPaused } from "../chains/sui";
 import { sendEthViaDWallet } from "../chains/evm";
 import { sendSolViaDWallet } from "../chains/solana";
 import { startSuiListener } from "../relayer/suiListener";
 import { startEvmListener } from "../relayer/evmListener";
 import { startSolanaListener } from "../relayer/solanaListener";
+
+// ── Redis URL parser (unchanged) ──────────────────────────────────────────────
 
 function parseRedisUrl(url: string): {
   host: string;
@@ -62,12 +82,27 @@ redis.on("error", (err) => {
   logger.error("Redis connection error", err);
 });
 
+// ── Bridge state ──────────────────────────────────────────────────────────────
+
 const bridgeState = loadBridgeState();
 if (!bridgeState) {
   logger.error("No bridge state found — run pnpm setup first");
   process.exit(1);
 }
 const state = bridgeState!;
+
+// ── BigInt-safe JSON replacer / reviver ───────────────────────────────────────
+//
+// Replaces the old manual serializeRequest / deserializeRequest pair.
+// Any BigInt value is stored as the string "__bigint__<value>" in the queue.
+// On dequeue, reviver restores it automatically.
+//
+// Usage:
+//   Serialize: JSON.parse(JSON.stringify(obj, bigintReplacer))
+//   Deserialize: JSON.parse(jsonString, bigintReviver)
+//
+// This handles any future BigInt fields added to BridgeRequest without
+// requiring manual updates to serialize/deserialize functions.
 
 function bigintReplacer(_key: string, value: unknown): unknown {
   return typeof value === "bigint" ? `__bigint__${value.toString()}` : value;
@@ -80,6 +115,8 @@ function bigintReviver(_key: string, value: unknown): unknown {
   return value;
 }
 
+// BullMQ stores job data as JSON internally. We round-trip through our
+// replacer/reviver to produce a plain object with no BigInt fields.
 type SerializedBridgeRequest = Record<string, unknown>;
 
 function serializeRequest(request: BridgeRequest): SerializedBridgeRequest {
@@ -89,6 +126,8 @@ function serializeRequest(request: BridgeRequest): SerializedBridgeRequest {
 function deserializeRequest(data: SerializedBridgeRequest): BridgeRequest {
   return JSON.parse(JSON.stringify(data), bigintReviver) as BridgeRequest;
 }
+
+// ── Bridge request queue ──────────────────────────────────────────────────────
 
 const QUEUE_NAME = "bridge-requests";
 
@@ -105,6 +144,8 @@ const bridgeQueue = new Queue<SerializedBridgeRequest, void, string>(
   },
 );
 
+// ── In-memory status map + WebSocket broadcast ────────────────────────────────
+
 const requestStatuses = new Map<
   string,
   SerializedBridgeRequest & { jobId: string }
@@ -117,6 +158,15 @@ function broadcast(event: object) {
     if (client.readyState === WebSocket.OPEN) client.send(msg);
   }
 }
+
+// ── Auth middleware ───────────────────────────────────────────────────────────
+//
+// Applied to all routes except GET /health (monitoring must be unauthenticated).
+// Accepts key via:
+//   - Header:  x-api-key: <key>
+//   - Query:   ?api_key=<key>
+//
+// Set RELAYER_ADMIN_KEY in your .env — same value as config.server.adminKey.
 
 function requireRelayerAuth(req: Request, res: Response, next: NextFunction) {
   const key =
@@ -135,8 +185,27 @@ function requireRelayerAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// ── Express app ───────────────────────────────────────────────────────────────
+
 const app = express();
 app.use(express.json());
+
+// 100 requests per minute per IP — prevents abuse while allowing normal use
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, please slow down." },
+  }),
+);
+
+// ── Health — no auth, must be reachable by uptime monitors ───────────────────
+//
+// Now includes Ika connectivity check.
+// Returns status "ok" | "degraded" so monitoring tools can alert
+// on Ika disconnects before they cause silent signing failures.
 
 app.get("/health", async (_req, res) => {
   const queueCounts = await bridgeQueue.getJobCounts(
@@ -151,6 +220,7 @@ app.get("/health", async (_req, res) => {
 
   try {
     const ikaClient = await getIkaClient();
+    // getEpoch() is a lightweight connectivity probe — no state changes
     const epoch = await ikaClient.getEpoch();
     ikaStatus = `connected (epoch ${epoch})`;
     ikaConnected = true;
@@ -169,6 +239,8 @@ app.get("/health", async (_req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ── All routes below require auth ─────────────────────────────────────────────
 
 app.get("/bridge/:id", requireRelayerAuth, (req, res) => {
   const request = requestStatuses.get(req.params.id as string);
@@ -197,6 +269,9 @@ app.post("/bridge/retry/:jobId", requireRelayerAuth, async (req, res) => {
   res.json({ ok: true, message: `Job ${req.params.jobId} queued for retry` });
 });
 
+// /admin/pause — auth is now handled by requireRelayerAuth middleware
+// instead of the manual adminKey check in the body. The body check is
+// removed to be consistent with all other routes.
 app.post("/admin/pause", requireRelayerAuth, async (req, res) => {
   const { paused } = req.body as { paused: boolean };
 
@@ -208,9 +283,24 @@ app.post("/admin/pause", requireRelayerAuth, async (req, res) => {
     logger.info("Bridge queue RESUMED by admin");
   }
 
+  // Also pause/unpause the Move contract so lock_sui() reverts on-chain.
+  // Runs after the queue change — a contract call failure won't leave the
+  // queue in a wrong state.
+  try {
+    await setContractPaused(paused);
+  } catch (err: any) {
+    logger.error("Failed to set Move contract pause state", { err: err.message, paused });
+    return res.status(500).json({
+      ok: false,
+      error: `Queue ${paused ? "paused" : "resumed"} but contract call failed: ${err.message}`,
+    });
+  }
+
   broadcast({ type: "bridge_paused", paused });
   res.json({ ok: true, paused });
 });
+
+// ── Worker ────────────────────────────────────────────────────────────────────
 
 const worker = new Worker<SerializedBridgeRequest, void, string>(
   QUEUE_NAME,
@@ -284,10 +374,18 @@ worker.on("failed", (job, err) => {
   logger.error(`Bridge job [${job.id}] failed`, err);
 });
 
+// ── Chain listeners ───────────────────────────────────────────────────────────
+
 async function onBridgeRequest(request: BridgeRequest) {
   const waiting = await bridgeQueue.getWaitingCount();
   if (waiting >= config.relayer.maxQueueSize) {
-    logger.warn("Queue full — dropping bridge request", { id: request.id });
+    logger.error("Queue full — dropping bridge request", {
+      id: request.id,
+      route: `${request.sourceChain} → ${request.destChain}`,
+      waiting,
+      maxQueueSize: config.relayer.maxQueueSize,
+    });
+    broadcast({ type: "bridge_dropped", id: request.id, reason: "queue_full" });
     return;
   }
 
@@ -303,6 +401,8 @@ async function onBridgeRequest(request: BridgeRequest) {
     route: `${request.sourceChain} → ${request.destChain}`,
   });
 }
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 
 async function start() {
   await redis.connect();

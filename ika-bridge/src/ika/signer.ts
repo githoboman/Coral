@@ -9,6 +9,7 @@ import {
   type SharedDWallet,
 } from "@ika.xyz/sdk";
 import { Transaction } from "@mysten/sui/transactions";
+import type { TransactionObjectArgument } from "@mysten/sui/transactions";
 
 import { DWalletInfo } from "../types";
 import { config } from "../config";
@@ -37,45 +38,71 @@ export interface SignResult {
   signature: Uint8Array;
 }
 
-const MIN_IKA_FOR_OPERATION = 10_000_000n;
+// Actual on-chain fees (IKA MIST) sourced from coordinator pricing_and_fee_manager.
+// protocol=5 (PRESIGN), protocol=6 (SIGN).
+// Solana/EdDSA: presign=120M, sign=40M.
+// EVM/ECDSA:    presign=250M, sign=100M.
+// Using EVM ceiling so one constant covers both chains safely.
+const PRESIGN_FEE_IKA = 300_000_000n; // > 250M EVM presign
+const SIGN_FEE_IKA = 120_000_000n; // > 100M EVM sign
+const MIN_IKA_FOR_ONE_SIGNING = PRESIGN_FEE_IKA + SIGN_FEE_IKA; // 420M total
 
-async function fetchFirstCoin(
+/**
+ * Fetch all IKA coins, merge any extras into the primary coin within the given
+ * transaction (so Move sees the combined balance at dry-run), and return a
+ * transaction argument pointing to the primary coin.
+ *
+ * Root cause of "sessions_manager::initiate_user_session, 1":
+ *   abort code 1 = EInsufficientIKAPayment.
+ *   After each successful signing the coin is split by the protocol fee, leaving
+ *   the next attempt with a single coin whose balance is below the presign fee.
+ *   Merging all coins before each tx ensures the Move check always passes.
+ */
+async function prepareIkaCoin(
   suiClient: ReturnType<typeof getSuiClient>,
+  tx: Transaction,
   owner: string,
-  coinType: string,
-  label: string,
-): Promise<string> {
-  const { data } = await suiClient.getCoins({ owner, coinType });
+  minRequired: bigint,
+): Promise<TransactionObjectArgument> {
+  const { data } = await suiClient.getCoins({ owner, coinType: IKA_COIN_TYPE });
 
   if (!data.length) {
     throw new Error(
-      `Signer wallet has no ${label} coins at ${owner}.\n` +
-        `Fund the wallet before signing.`,
+      `Signer wallet has no IKA coins at ${owner}.\n` +
+        `Get testnet IKA from the Ika faucet before signing.`,
     );
   }
 
+  const total = data.reduce((sum, c) => sum + BigInt(c.balance), 0n);
+  if (total < minRequired) {
+    throw new Error(
+      `Insufficient IKA for protocol fees.\n` +
+        `Total IKA available: ${total}\n` +
+        `Required: ${minRequired}\n` +
+        `Owner: ${owner}\n` +
+        `Get more IKA from the testnet faucet then retry.`,
+    );
+  }
+
+  // Highest-balance first so primary coin starts with the largest share.
   const sorted = [...data].sort((a, b) =>
     Number(BigInt(b.balance) - BigInt(a.balance)),
   );
 
-  const best = sorted[0];
+  const primaryArg = tx.object(sorted[0].coinObjectId);
 
-  if (BigInt(best.balance) < MIN_IKA_FOR_OPERATION) {
-    throw new Error(
-      `Signer wallet ${label} balance is too low to pay protocol fees.\n` +
-        `Best coin balance: ${best.balance}\n` +
-        `Required minimum: ${MIN_IKA_FOR_OPERATION}\n` +
-        `Owner: ${owner}\n` +
-        `Fund the wallet with more ${label} before signing.`,
-    );
+  // Merge all remaining coins into the primary within this tx.
+  // The Move dry-run sees the full combined balance.
+  if (sorted.length > 1) {
+    const extras = sorted.slice(1).map((c) => tx.object(c.coinObjectId));
+    tx.mergeCoins(primaryArg, extras);
+    logger.debug("Merging IKA coins for protocol fee", {
+      count: sorted.length,
+      total: total.toString(),
+    });
   }
 
-  logger.debug(`Using ${label} coin for fee`, {
-    coinObjectId: best.coinObjectId,
-    balance: best.balance,
-  });
-
-  return best.coinObjectId;
+  return primaryArg;
 }
 
 type BridgeSignatureAlgorithm =
@@ -101,9 +128,7 @@ async function signWithSharedDWallet(
   );
 
   // ── LAYER 1: PREFLIGHT CHECK ─────────────────────────────────────────────
-  // Check BOTH SUI gas and IKA fees before touching anything on-chain.
-  // If this throws, NO session is opened. BullMQ retries safely.
-  // We check for enough to cover BOTH the presign tx AND the sign tx.
+  // Check balances before touching anything on-chain so BullMQ retries are safe.
   logger.debug("Running preflight balance checks...", { signerAddress });
 
   const [suiBalance, ikaCoins] = await Promise.all([
@@ -117,10 +142,8 @@ async function signWithSharedDWallet(
     0n,
   );
 
-  // 0.3 SUI covers presign tx + sign tx gas with margin
+  // 0.3 SUI covers presign tx + sign tx gas with margin.
   const MIN_SUI_FOR_SIGNING = 300_000_000n;
-  // Need enough IKA for presign fee AND sign fee
-  const MIN_IKA_FOR_SIGNING = MIN_IKA_FOR_OPERATION * 2n;
 
   if (suiAvailable < MIN_SUI_FOR_SIGNING) {
     throw new Error(
@@ -131,12 +154,12 @@ async function signWithSharedDWallet(
     );
   }
 
-  if (ikaAvailable < MIN_IKA_FOR_SIGNING) {
+  if (ikaAvailable < MIN_IKA_FOR_ONE_SIGNING) {
     throw new Error(
       `PREFLIGHT FAILED: Insufficient IKA for protocol fees.\n` +
-        `Available: ${ikaAvailable}\n` +
-        `Required:  ${MIN_IKA_FOR_SIGNING}\n` +
-        `Fund ${signerAddress} with IKA then retry. No session was opened.`,
+        `Total IKA available: ${ikaAvailable}\n` +
+        `Required (presign + sign): ${MIN_IKA_FOR_ONE_SIGNING}\n` +
+        `Fund ${signerAddress} with IKA from the testnet faucet. No session was opened.`,
     );
   }
 
@@ -145,6 +168,7 @@ async function signWithSharedDWallet(
     ikaAvailable: ikaAvailable.toString(),
   });
 
+  // ── Fetch dWallet ────────────────────────────────────────────────────────
   logger.debug("Fetching Shared dWallet from Ika...");
   const dWallet = (await ikaClient.getDWalletInParticularState(
     dWalletInfo.dWalletId,
@@ -159,10 +183,11 @@ async function signWithSharedDWallet(
     );
   }
 
-  const dWalletEncryptionKey = await ikaClient.getDWalletNetworkEncryptionKey(
-    dWalletInfo.dWalletId,
-  );
+  const dWalletEncryptionKey = await ikaClient.getLatestNetworkEncryptionKey();
 
+  // ── LAYER 2: PRESIGN IDEMPOTENCY CHECK ───────────────────────────────────
+  // Recover an already-completed presign if the server crashed between presign
+  // and sign (avoids opening a second session after a partial failure).
   let presign: Awaited<
     ReturnType<typeof ikaClient.getPresignInParticularState>
   > | null = null;
@@ -173,7 +198,7 @@ async function signWithSharedDWallet(
 
   try {
     presign = await ikaClient.getPresignInParticularState(
-      dWalletInfo.dWalletId, // querying by dWalletId, not presignId
+      dWalletInfo.dWalletId,
       "Completed",
       { timeout: 5_000, interval: 1_000 },
     );
@@ -186,15 +211,9 @@ async function signWithSharedDWallet(
     logger.debug("No existing presign found — will create a new one");
   }
 
+  // ── Request presign ───────────────────────────────────────────────────────
   if (!presign) {
     logger.debug("Requesting global presign from Ika network...");
-
-    const ikaCoinIdForPresign = await fetchFirstCoin(
-      suiClient,
-      signerAddress,
-      IKA_COIN_TYPE,
-      "IKA",
-    );
 
     const presignTx = new Transaction();
     const presignIkaTx = new IkaTransaction({
@@ -203,10 +222,19 @@ async function signWithSharedDWallet(
       userShareEncryptionKeys,
     });
 
+    // Merge all IKA coins into one within this tx so the Move fee check passes
+    // even when prior signings have split the coin below the presign threshold.
+    const presignIkaCoin = await prepareIkaCoin(
+      suiClient,
+      presignTx,
+      signerAddress,
+      PRESIGN_FEE_IKA,
+    );
+
     const unverifiedPresignCap = presignIkaTx.requestGlobalPresign({
       curve,
       signatureAlgorithm,
-      ikaCoin: presignTx.object(ikaCoinIdForPresign),
+      ikaCoin: presignIkaCoin,
       suiCoin: presignTx.gas,
       dwalletNetworkEncryptionKeyId: dWalletEncryptionKey.id,
     });
@@ -242,30 +270,18 @@ async function signWithSharedDWallet(
     }
 
     logger.debug("Waiting for presign to complete...", { presignId });
-    presign = await ikaClient.getPresignInParticularState(
-      presignId,
-      "Completed",
-      {
-        timeout: 90_000, // increased from 60s — more margin for epoch transitions
-        interval: 2_000,
-      },
-    );
+    presign = await ikaClient.getPresignInParticularState(presignId, "Completed", {
+      timeout: 90_000,
+      interval: 2_000,
+    });
   }
 
+  // ── LAYER 3: SIGN WITH RETRY ─────────────────────────────────────────────
   const MAX_SIGN_RETRIES = 3;
 
   for (let attempt = 1; attempt <= MAX_SIGN_RETRIES; attempt++) {
     try {
-      logger.debug(
-        `Requesting signature from Ika network (attempt ${attempt})...`,
-      );
-
-      const ikaCoinIdForSign = await fetchFirstCoin(
-        suiClient,
-        signerAddress,
-        IKA_COIN_TYPE,
-        "IKA",
-      );
+      logger.debug(`Requesting signature from Ika network (attempt ${attempt})...`);
 
       const signTx = new Transaction();
       const signIkaTx = new IkaTransaction({
@@ -273,6 +289,14 @@ async function signWithSharedDWallet(
         transaction: signTx,
         userShareEncryptionKeys,
       });
+
+      // Merge coins again for the sign tx — the presign already split some IKA off.
+      const signIkaCoin = await prepareIkaCoin(
+        suiClient,
+        signTx,
+        signerAddress,
+        SIGN_FEE_IKA,
+      );
 
       const messageApproval = signIkaTx.approveMessage({
         message: messageBytes,
@@ -292,7 +316,7 @@ async function signWithSharedDWallet(
         presign,
         message: messageBytes,
         signatureScheme: signatureAlgorithm,
-        ikaCoin: signTx.object(ikaCoinIdForSign),
+        ikaCoin: signIkaCoin,
         suiCoin: signTx.gas,
       });
 
@@ -333,7 +357,7 @@ async function signWithSharedDWallet(
         curve,
         signatureAlgorithm,
         "Completed",
-        { timeout: 90_000, interval: 2_000 }, // increased from 60s
+        { timeout: 90_000, interval: 2_000 },
       );
 
       const signature = completedSign.state?.Completed?.signature;
@@ -351,18 +375,14 @@ async function signWithSharedDWallet(
 
       return new Uint8Array(signature);
     } catch (err: any) {
-      const isSessionConflict =
-        err?.message?.includes("sessions_manager") ||
-        err?.message?.includes("initiate_user_session");
-
       const isTimeout =
         err?.message?.toLowerCase().includes("timeout") ||
         err?.message?.includes("not found");
 
-      if ((isSessionConflict || isTimeout) && attempt < MAX_SIGN_RETRIES) {
+      if (isTimeout && attempt < MAX_SIGN_RETRIES) {
         const waitMs = 30_000 * attempt;
         logger.warn(
-          `Sign attempt ${attempt} failed (session conflict or timeout) — waiting ${waitMs / 1000}s before retry`,
+          `Sign attempt ${attempt} timed out — waiting ${waitMs / 1000}s before retry`,
           { error: err.message, attempt },
         );
         await new Promise((r) => setTimeout(r, waitMs));

@@ -1,3 +1,11 @@
+// ============================================================
+// relayer/suiListener.ts
+//
+// Changes from previous version:
+//   - Cursor persistence moved from sui-listener-cursor.json (file)
+//     to Redis key "bridge:sui:cursor". Same behaviour, cloud-safe.
+// ============================================================
+
 import { SuiEventFilter } from "@mysten/sui/client";
 import { BridgeRequest } from "../types";
 import { parseSuiLockEvent, lockEventToBridgeRequest } from "../chains/sui";
@@ -7,6 +15,8 @@ import { config } from "../config";
 import { logger } from "../utils/logger";
 import { loadSuiKeypair, getAddress } from "../utils/executeTransaction";
 import { redis } from "../server/index";
+
+// ── Cursor persistence (Redis) ────────────────────────────────────────────────
 
 const CURSOR_KEY = "bridge:sui:cursor";
 
@@ -27,11 +37,14 @@ async function loadCursor(): Promise<EventCursor | null> {
 
 async function saveCursor(cursor: EventCursor): Promise<void> {
   try {
+    // No TTL — cursor must survive indefinitely across restarts
     await redis.set(CURSOR_KEY, JSON.stringify(cursor));
   } catch (err) {
     logger.warn("Could not save Sui listener cursor to Redis", { err });
   }
 }
+
+// ── Listener ──────────────────────────────────────────────────────────────────
 
 export async function startSuiListener(
   onBridgeRequest: (request: BridgeRequest) => void,
@@ -59,6 +72,9 @@ export async function startSuiListener(
     );
   }
 
+  // Load persisted cursor from Redis so we don't replay already-processed
+  // events on restart. If no cursor exists (first ever run), fast-forward
+  // to the current tip so we don't process historical events.
   let lastCursor: EventCursor | null = await loadCursor();
 
   if (!lastCursor) {
