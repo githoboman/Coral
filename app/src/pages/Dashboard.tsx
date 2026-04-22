@@ -1053,6 +1053,7 @@ function BridgeActionCard({
   ethAddress,
   sendEthTx,
   onDismiss,
+  onSuggest,
 }: {
   payload: BridgeActionPayload;
   suiAddress?: string;
@@ -1063,7 +1064,9 @@ function BridgeActionCard({
   ethAddress?: `0x${string}`;
   sendEthTx?: (params: any) => Promise<`0x${string}`>;
   onDismiss: () => void;
+  onSuggest?: (text: string) => void;
 }) {
+  const cardNavigate = useNavigate();
   const [signStatus, setSignStatus] = useState<
     "idle" | "signing" | "submitted" | "failed"
   >("idle");
@@ -1158,7 +1161,10 @@ function BridgeActionCard({
     }
   }
 
-  async function startDeliveryPolling(_sourceTx: string, savedDbId: number | null) {
+  async function startDeliveryPolling(
+    _sourceTx: string,
+    savedDbId: number | null,
+  ) {
     setDeliveryPhase("submitted");
     elapsedRef.current = 0;
     setDisplayElapsedMs(0);
@@ -1211,7 +1217,8 @@ function BridgeActionCard({
             const latestTs = (sigs[0].blockTime || 0) * 1000;
             if (Date.now() - latestTs < POLL_INTERVAL * 4) {
               clearInterval(pollRef.current!);
-              if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+              if (elapsedTimerRef.current)
+                clearInterval(elapsedTimerRef.current);
               setDeliveryPhase("delivered");
               setDestTxHash(sigs[0].signature);
               if (savedDbId) await markDelivered(savedDbId, sigs[0].signature);
@@ -1258,7 +1265,8 @@ function BridgeActionCard({
               currentBalance > initialEthBalanceRef.current
             ) {
               clearInterval(pollRef.current!);
-              if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+              if (elapsedTimerRef.current)
+                clearInterval(elapsedTimerRef.current);
               setDeliveryPhase("delivered");
               let ethDestTx: string | undefined;
               try {
@@ -1425,6 +1433,7 @@ function BridgeActionCard({
   }
 
   const isLoading = signStatus === "signing" || signStatus === "submitted";
+  const walletMissing = payload.recipientMissing && !resolveRecipient();
   const showSignButton = !deliveryPhase && !isComplete;
 
   return (
@@ -1476,9 +1485,18 @@ function BridgeActionCard({
       </div>
 
       {payload.recipientMissing && !resolveRecipient() && !deliveryPhase && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3 text-xs text-amber-400">
-          ⚠ Connect your {payload.destChain} wallet to receive funds, then click
-          Confirm.
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-3">
+          <p className="text-xs text-amber-400 mb-2">
+            ⚠ Your {payload.destChain} wallet isn't connected — you need it to
+            receive funds.
+          </p>
+          <button
+            onClick={() => cardNavigate("/account")}
+            className="flex items-center gap-1 text-xs font-semibold text-[#B7FC0D] hover:text-[#B7FC0D]/70 transition-colors cursor-pointer"
+          >
+            <ArrowRight size={11} />
+            Connect in Account Settings
+          </button>
         </div>
       )}
 
@@ -1640,21 +1658,39 @@ function BridgeActionCard({
                   </a>
                 </div>
               )}
+
+              {isComplete && onSuggest && (
+                <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/5">
+                  {["Bridge again", "Check my balance", "Show rates"].map(
+                    (s) => (
+                      <button
+                        key={s}
+                        onClick={() => onSuggest(s)}
+                        className="px-2.5 py-1 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/40 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all active:scale-95 cursor-pointer"
+                      >
+                        {s}
+                      </button>
+                    ),
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
 
       {showSignButton && (
         <button
-          onClick={handleSign}
+          onClick={walletMissing ? () => cardNavigate("/account") : handleSign}
           disabled={isLoading}
           className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
             ${
               isLoading
                 ? "bg-white/5 text-white/30 cursor-not-allowed"
-                : signStatus === "failed"
-                  ? "bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/20"
-                  : "bg-gradient-to-r from-[#246AFC] to-[#326AFD] text-white hover:brightness-110 active:scale-[0.98]"
+                : walletMissing
+                  ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/20"
+                  : signStatus === "failed"
+                    ? "bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/20"
+                    : "bg-gradient-to-r from-[#246AFC] to-[#326AFD] text-white hover:brightness-110 active:scale-[0.98]"
             }`}
         >
           {isLoading ? (
@@ -1663,6 +1699,10 @@ function BridgeActionCard({
               {signStatus === "signing"
                 ? "Waiting for approval..."
                 : "Submitting..."}
+            </>
+          ) : walletMissing ? (
+            <>
+              Connect {payload.destChain} Wallet <ArrowRight size={16} />
             </>
           ) : signStatus === "failed" ? (
             "Try Again"
@@ -1696,6 +1736,7 @@ function MessageBubble({
   sendSolTx,
   ethAddress,
   sendEthTx,
+  onSuggest,
 }: {
   message: Message;
   copiedId: string | null;
@@ -1711,6 +1752,7 @@ function MessageBubble({
   sendSolTx?: (tx: any, connection: any) => Promise<string>;
   ethAddress?: `0x${string}`;
   sendEthTx?: (params: any) => Promise<`0x${string}`>;
+  onSuggest?: (text: string) => void;
 }) {
   const [bridgeDismissed, setBridgeDismissed] = useState(false);
 
@@ -1760,6 +1802,7 @@ function MessageBubble({
             ethAddress={ethAddress}
             sendEthTx={sendEthTx}
             onDismiss={() => setBridgeDismissed(true)}
+            onSuggest={onSuggest}
           />
         )}
 
@@ -1855,6 +1898,7 @@ const Dashboard = () => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const pendingBridgePayloadRef = useRef<BridgeActionPayload | null>(null);
+  const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
 
   const [taskPromptStatus, setTaskPromptStatus] = useState<{
     used: number;
@@ -1886,7 +1930,6 @@ const Dashboard = () => {
     (c) => c.id === activeConvId || c.tempId === activeConvId,
   );
   const activeAgent = getAgent(selectedAgentId);
-
 
   useEffect(() => {
     if (!currentAccount?.address) return;
@@ -2063,6 +2106,7 @@ const Dashboard = () => {
       setIsThinking(true);
       setThinkingStatus(null);
       pendingBridgePayloadRef.current = null;
+      setSuggestedReplies([]);
       let fullText = "",
         aborted = false,
         currentConvId = convId;
@@ -2089,6 +2133,12 @@ const Dashboard = () => {
                   conversationHistory: activeConv?.messages
                     .slice(-6)
                     .map((m) => ({ role: m.role, content: m.content })),
+                }
+              : {}),
+            ...(agentId === "bridge"
+              ? {
+                  solanaAddress: solanaPublicKey?.toBase58() || undefined,
+                  ethAddress: ethAddress || undefined,
                 }
               : {}),
           }),
@@ -2217,7 +2267,9 @@ const Dashboard = () => {
                   }
                   break;
                 case "action":
-                  if (parsed?.type === "bridge_transaction_ready") {
+                  if (parsed?.type === "suggested_replies") {
+                    setSuggestedReplies((parsed.replies as string[]) || []);
+                  } else if (parsed?.type === "bridge_transaction_ready") {
                     pendingBridgePayloadRef.current =
                       parsed as BridgeActionPayload;
                   } else if (
@@ -2806,12 +2858,58 @@ const Dashboard = () => {
                       </div>
                       <div>
                         <h2 className="text-2xl font-semibold text-white/90 tracking-tight">
-                          {activeAgent.name}
+                          {selectedAgentId === "bridge"
+                            ? "Hey, I'm Eva"
+                            : activeAgent.name}
                         </h2>
                         <p className="text-sm text-white/40 mt-2 font-medium">
-                          Select a prompt below or type your own
+                          {selectedAgentId === "bridge"
+                            ? "I move assets between Sui, Solana, and Ethereum — powered by Ika MPC"
+                            : "Select a prompt below or type your own"}
                         </p>
                       </div>
+
+                      {selectedAgentId === "bridge" && (
+                        <div className="flex items-center gap-3 flex-wrap justify-center">
+                          <div
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${currentAccount?.address ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-white/5 border-white/10 text-white/30"}`}
+                          >
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${currentAccount?.address ? "bg-emerald-400" : "bg-white/20"}`}
+                            />
+                            Sui{" "}
+                            {currentAccount?.address
+                              ? "Connected"
+                              : "Not connected"}
+                          </div>
+                          <div
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${solanaPublicKey ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400/70"}`}
+                          >
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${solanaPublicKey ? "bg-emerald-400" : "bg-amber-400/50"}`}
+                            />
+                            Solana{" "}
+                            {solanaPublicKey ? "Connected" : "Not connected"}
+                          </div>
+                          <div
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${ethAddress ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400/70"}`}
+                          >
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${ethAddress ? "bg-emerald-400" : "bg-amber-400/50"}`}
+                            />
+                            Ethereum{" "}
+                            {ethAddress ? "Connected" : "Not connected"}
+                          </div>
+                          {(!solanaPublicKey || !ethAddress) && (
+                            <button
+                              onClick={() => navigate("/account")}
+                              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#B7FC0D] hover:text-[#B7FC0D]/70 transition-colors cursor-pointer"
+                            >
+                              <ArrowRight size={11} /> Connect wallets
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full px-4">
                       {(CATEGORIES[selectedAgentId] || CATEGORIES.research).map(
@@ -2889,6 +2987,9 @@ const Dashboard = () => {
                     sendSolTx={sendSolTx}
                     ethAddress={ethAddress}
                     sendEthTx={sendEthTx}
+                    onSuggest={
+                      selectedAgentId === "bridge" ? handleSend : undefined
+                    }
                   />
                 ))}
 
@@ -2923,6 +3024,28 @@ const Dashboard = () => {
                   statusOverride={thinkingStatus}
                 />
               )}
+
+              {selectedAgentId === "bridge" &&
+                suggestedReplies.length > 0 &&
+                !isStreaming &&
+                !isThinking && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-wrap gap-2 pl-10"
+                  >
+                    {suggestedReplies.map((reply, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSend(reply)}
+                        className="px-3 py-1.5 text-xs font-medium bg-white/5 border border-white/10 rounded-full text-white/50 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all active:scale-95 cursor-pointer"
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+
               <div ref={messagesEndRef} />
             </div>
           </div>
