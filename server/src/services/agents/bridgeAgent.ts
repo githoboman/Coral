@@ -5,6 +5,13 @@ import type { ChatRequest, createSSEWriter } from "./agentTypes";
 import { getBlockVisionService } from "../blockVisionService";
 import { getSupabaseClient } from "../../config/supabase";
 
+const SOL_RPC = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
+const ETH_RPC =
+  process.env.ETH_RPC_URL ||
+  (process.env.INFURA_PROJECT_ID
+    ? `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
+    : "");
+
 export const BRIDGE_CFG = {
   rateSuiToSolLamportsPerMist: BigInt(
     process.env.RATE_SUI_TO_SOL || "10590000",
@@ -98,6 +105,10 @@ interface WalletContext {
   suiBalanceMist: bigint;
   bridgeableMaxSui: string;
   bridgeableMaxMist: bigint;
+  solBalance?: string;
+  solBalanceLamports?: bigint;
+  ethBalance?: string;
+  ethBalanceWei?: bigint;
 }
 
 interface RecentBridgeTx {
@@ -145,7 +156,10 @@ const BridgeAgentState = Annotation.Root({
   validationError: Annotation<string | null>,
   responseText: Annotation<string>,
   actionEvent: Annotation<Record<string, unknown> | null>,
+  suggestedReplies: Annotation<string[]>,
   clientTime: Annotation<string>,
+  solanaAddress: Annotation<string | null>,
+  ethAddress: Annotation<string | null>,
 });
 
 const llm = new ChatGoogleGenerativeAI({
@@ -165,10 +179,57 @@ const conversationalLlm = new ChatGoogleGenerativeAI({
   maxOutputTokens: 600,
 });
 
+async function fetchSolBalance(address: string): Promise<bigint | null> {
+  if (!address || !SOL_RPC) return null;
+  try {
+    const resp = await fetch(SOL_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getBalance",
+        params: [address],
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const data = await resp.json();
+    return BigInt(data?.result?.value ?? 0);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchEthBalance(address: string): Promise<bigint | null> {
+  if (!address || !ETH_RPC) return null;
+  try {
+    const resp = await fetch(ETH_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_getBalance",
+        params: [address, "latest"],
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const data = await resp.json();
+    return data?.result ? BigInt(data.result) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchWalletContextNode(state: typeof BridgeAgentState.State) {
-  const { userId } = state;
+  const { userId, solanaAddress, ethAddress } = state;
   let walletContext: WalletContext | null = null;
   let recentTxs: RecentBridgeTx[] = [];
+
+  const [solLamports, ethWei] = await Promise.all([
+    solanaAddress ? fetchSolBalance(solanaAddress) : Promise.resolve(null),
+    ethAddress ? fetchEthBalance(ethAddress) : Promise.resolve(null),
+  ]);
 
   if (userId) {
     try {
@@ -193,6 +254,14 @@ async function fetchWalletContextNode(state: typeof BridgeAgentState.State) {
           suiBalanceMist: balanceMist,
           bridgeableMaxSui: formatSui(bridgeableMist),
           bridgeableMaxMist: bridgeableMist,
+          ...(solLamports !== null && {
+            solBalance: formatSol(solLamports),
+            solBalanceLamports: solLamports,
+          }),
+          ...(ethWei !== null && {
+            ethBalance: formatEth(ethWei),
+            ethBalanceWei: ethWei,
+          }),
         };
       }
     } catch (err: any) {
@@ -237,10 +306,14 @@ async function parseIntentNode(state: typeof BridgeAgentState.State) {
   if (walletContext) {
     const half = (parseFloat(walletContext.suiBalance) / 2).toFixed(4);
     const quarter = (parseFloat(walletContext.suiBalance) / 4).toFixed(4);
+    const solLine = walletContext.solBalance !== undefined
+      ? `\n- Solana balance: ${walletContext.solBalance} SOL` : "";
+    const ethLine = walletContext.ethBalance !== undefined
+      ? `\n- Ethereum balance: ${walletContext.ethBalance} ETH` : "";
     walletBlock = `
-USER WALLET (Sui):
-- Balance: ${walletContext.suiBalance} SUI
-- Max bridgeable (after gas reserve): ${walletContext.bridgeableMaxSui} SUI
+USER WALLET:
+- SUI balance: ${walletContext.suiBalance} SUI
+- Max SUI bridgeable (after gas reserve): ${walletContext.bridgeableMaxSui} SUI${solLine}${ethLine}
 
 RELATIVE AMOUNT RESOLUTION — resolve these before extracting amount:
 - "half" / "50%" → ${half} SUI
@@ -439,6 +512,26 @@ async function validateNode(state: typeof BridgeAgentState.State) {
     }
   }
 
+  if (dir === "SOL_TO_SUI" && walletContext?.solBalanceLamports !== undefined) {
+    const solGasReserve = 10_000n;
+    const totalNeeded = amountBase + solGasReserve;
+    if (walletContext.solBalanceLamports < totalNeeded) {
+      return {
+        validationError: `You don't have enough SOL for this. Need **${formatSol(totalNeeded)} SOL** (including gas), but I see **${walletContext.solBalance} SOL** in your wallet.`,
+      };
+    }
+  }
+
+  if (dir === "ETH_TO_SUI" && walletContext?.ethBalanceWei !== undefined) {
+    const ethGasReserve = 500_000_000_000_000n;
+    const totalNeeded = amountBase + ethGasReserve;
+    if (walletContext.ethBalanceWei < totalNeeded) {
+      return {
+        validationError: `You don't have enough ETH. Need **${formatEth(totalNeeded)} ETH** (including gas), but I see **${walletContext.ethBalance} ETH** in your wallet.`,
+      };
+    }
+  }
+
   return { validationError: null };
 }
 
@@ -459,21 +552,53 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
     };
   }
 
+  // Proactive pending tx notice on first message in session
+  let pendingTxPrefix = "";
+  if (
+    conversationHistory.length === 0 &&
+    intent.intent !== "status" &&
+    intent.intent !== "history"
+  ) {
+    const recentPending = recentTxs.find((tx) => {
+      if (tx.status !== "submitted") return false;
+      const ageMin = (Date.now() - new Date(tx.created_at).getTime()) / 60000;
+      return ageMin < 30;
+    });
+    if (recentPending) {
+      const ago = Math.round(
+        (Date.now() - new Date(recentPending.created_at).getTime()) / 60000,
+      );
+      pendingTxPrefix = `> ⏳ You have a bridge in progress (${recentPending.source_chain}→${recentPending.dest_chain}, ${recentPending.amount_in}) started ${ago}m ago — delivery usually takes 1–3 min. Check the **Transactions** button to track it.\n\n`;
+    }
+  }
+
   if (intent.intent === "balance") {
     if (walletContext) {
       const half = (parseFloat(walletContext.suiBalance) / 2).toFixed(4);
+      const solLine = walletContext.solBalance !== undefined
+        ? `\n**SOL:** ${walletContext.solBalance} SOL` : "";
+      const ethLine = walletContext.ethBalance !== undefined
+        ? `\n**ETH:** ${walletContext.ethBalance} ETH` : "";
       return {
         responseText:
-          `You've got **${walletContext.suiBalance} SUI** in your wallet.\n\n` +
-          `Max you can bridge right now is **${walletContext.bridgeableMaxSui} SUI** (reserving a little for gas).\n\n` +
-          `Want to move some? Try *"Bridge ${half} SUI to Solana"* or tell me the amount.`,
+          pendingTxPrefix +
+          `**Your connected wallets:**\n\n` +
+          `**SUI:** ${walletContext.suiBalance} SUI (${walletContext.bridgeableMaxSui} bridgeable)` +
+          solLine + ethLine +
+          `\n\nWant to move some? Try *"Bridge ${half} SUI to Solana"* or tell me the amount.`,
         actionEvent: null,
+        suggestedReplies: [
+          `Bridge ${half} SUI → SOL`,
+          `Bridge ${half} SUI → ETH`,
+          "Show rates",
+        ],
       };
     }
     return {
       responseText:
         "I couldn't reach your wallet right now — BlockVision may be slow. Try again in a moment.",
       actionEvent: null,
+      suggestedReplies: ["Try again", "Show rates", "What can you do?"],
     };
   }
 
@@ -484,6 +609,7 @@ async function buildTxNode(state: typeof BridgeAgentState.State) {
         responseText:
           "You haven't bridged anything yet — or at least nothing I can see. Start one and I'll track it for you.",
         actionEvent: null,
+        suggestedReplies: ["Bridge SUI → SOL", "Bridge SUI → ETH", "Show rates"],
       };
     }
 
@@ -513,11 +639,13 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
       return {
         responseText: (response as any).content as string,
         actionEvent: null,
+        suggestedReplies: ["Bridge again", "Check my balance", "Show rates"],
       };
     } catch {
       return {
         responseText: `Here's what I see from your recent bridges:\n\n${txSummary}\n\nYou can also check the **Transactions** button at the top for full details and explorer links.`,
         actionEvent: null,
+        suggestedReplies: ["Bridge again", "Check my balance", "Show rates"],
       };
     }
   }
@@ -533,17 +661,23 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
       return {
         responseText: `Your most recent bridge (${pending.source_chain}→${pending.dest_chain}, ${pending.amount_in}) is still **pending** — started ${ago} minutes ago. Delivery usually takes 1–3 minutes. Check the **Transactions** button for the full status.`,
         actionEvent: null,
+        suggestedReplies: ["Bridge again", "Check my balance"],
       };
     }
     return {
       responseText:
         "Hit the **Transactions** button up top — all your bridges are tracked there with status and explorer links.",
       actionEvent: null,
+      suggestedReplies: ["Bridge SUI → SOL", "Bridge SUI → ETH", "Check my balance"],
     };
   }
 
   if (intent.intent === "help")
-    return { responseText: buildHelpMessage(walletContext), actionEvent: null };
+    return {
+      responseText: buildHelpMessage(walletContext),
+      actionEvent: null,
+      suggestedReplies: ["Bridge SUI → ETH", "Bridge SUI → SOL", "Check my balance"],
+    };
   if (intent.intent === "quote")
     return {
       responseText: buildQuoteMessage(
@@ -551,23 +685,32 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
         walletContext,
       ),
       actionEvent: null,
+      suggestedReplies: ["Bridge SUI → SOL", "Bridge SUI → ETH", "Check my balance"],
     };
   if (intent.intent === "cancel")
     return {
       responseText:
         "Cancelled. Whenever you're ready, just tell me where you want to move your assets.",
       actionEvent: null,
+      suggestedReplies: ["Bridge SUI → ETH", "Bridge SUI → SOL", "Show rates"],
     };
   if (intent.intent === "unrelated") {
     return {
       responseText:
         "I'm Eva — I move assets between Sui, Solana, and Ethereum. That's my thing.\n\nTry *\"Bridge 0.5 SUI to Solana\"* and I'll set it up.",
       actionEvent: null,
+      suggestedReplies: ["Bridge SUI → SOL", "Bridge SUI → ETH", "What can you do?"],
     };
   }
 
   if (validationError)
-    return { responseText: validationError, actionEvent: null };
+    return {
+      responseText: validationError,
+      actionEvent: null,
+      suggestedReplies: validationError.includes("short")
+        ? ["Check my balance", "Try smaller amount"]
+        : ["Bridge SUI → SOL", "Bridge SUI → ETH", "Check my balance"],
+    };
 
   if (intent.intent !== "bridge" || !intent.direction || !intent.amount) {
     return {
@@ -575,6 +718,7 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
         ? `Tell me the amount and direction. You have **${walletContext.suiBalance} SUI** available — want to bridge some of it?`
         : 'Tell me the amount and which direction — something like *"Bridge 0.5 SUI to Solana"*.',
       actionEvent: null,
+      suggestedReplies: ["Bridge SUI → SOL", "Bridge SUI → ETH", "Check my balance"],
     };
   }
 
@@ -627,12 +771,14 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
   const feePercent = (BRIDGE_CFG.feeBps / 100).toFixed(2);
   const txPayload = buildTxPayload(dir, amountIn, intent.recipientAddress);
 
-  const balanceNote =
-    walletContext && (dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH")
-      ? `\n*Remaining after bridge: ~${formatSui(walletContext.suiBalanceMist - amountIn - BRIDGE_CFG.estimatedSuiGasMist)} SUI*`
-      : "";
+  let balanceNote = "";
+  if (walletContext && (dir === "SUI_TO_SOL" || dir === "SUI_TO_ETH")) {
+    const remaining = walletContext.suiBalanceMist - amountIn - BRIDGE_CFG.estimatedSuiGasMist;
+    if (remaining > 0n) balanceNote = `\n*Remaining after bridge: ~${formatSui(remaining)} SUI*`;
+  }
 
   const responseText =
+    pendingTxPrefix +
     `Here's what this bridge looks like:\n\n` +
     `**Sending:** ${amountInDisplay}\n` +
     `**Arriving:** ~${amountOutDisplay}\n` +
@@ -659,13 +805,19 @@ Keep it brief (3–5 sentences max). End with a helpful offer.`,
     recipientMissing: intent.recipientMissing || false,
   };
 
-  return { responseText, actionEvent };
+  return {
+    responseText,
+    actionEvent,
+    suggestedReplies: ["Bridge again", "Check my balance", "Show rates"],
+  };
 }
 
 async function respondNode(state: typeof BridgeAgentState.State) {
   state.sse.chunk(state.responseText);
   if (state.actionEvent)
     state.sse.action(state.actionEvent as Record<string, unknown>);
+  if (state.suggestedReplies?.length > 0)
+    state.sse.action({ type: "suggested_replies", replies: state.suggestedReplies });
   state.sse.done();
   return {};
 }
@@ -726,22 +878,34 @@ function destChainOf(dir: BridgeDirection) {
 }
 
 function buildHelpMessage(walletContext: WalletContext | null): string {
-  const balanceLine = walletContext
-    ? `\n**Your SUI balance:** ${walletContext.suiBalance} SUI (${walletContext.bridgeableMaxSui} SUI bridgeable)\n`
-    : "";
+  let walletSection = "";
+  if (walletContext) {
+    const lines = [`- **SUI:** ${walletContext.suiBalance} SUI (${walletContext.bridgeableMaxSui} bridgeable)`];
+    if (walletContext.solBalance !== undefined) lines.push(`- **SOL:** ${walletContext.solBalance} SOL`);
+    if (walletContext.ethBalance !== undefined) lines.push(`- **ETH:** ${walletContext.ethBalance} ETH`);
+
+    const missing: string[] = [];
+    if (walletContext.solBalance === undefined) missing.push("Solana");
+    if (walletContext.ethBalance === undefined) missing.push("Ethereum");
+
+    walletSection = `\n**Your wallets:**\n${lines.join("\n")}\n` +
+      (missing.length > 0
+        ? `*To bridge to/from ${missing.join(" or ")}, connect that wallet in **Account Settings** first.*\n`
+        : `*All wallets connected — you can bridge in any direction.*\n`);
+  }
+
   return (
-    `Hey, I'm **Eva** — I move your assets between chains so you don't have to think about the plumbing.\n\n` +
+    `Hey, I'm **Eva** — I move your assets between chains, powered by Ika's MPC network on Sui.\n\n` +
     `**What I can do:**\n` +
     `- SUI → SOL  ·  SOL → SUI\n` +
     `- SUI → ETH  ·  ETH → SUI\n` +
-    balanceLine +
-    `\n` +
-    `**How it goes:**\n` +
-    `Tell me what you want to move — including relative amounts like "half my SUI" or "bridge everything to Solana". ` +
-    `I'll check your balance, calculate what arrives on the other side, and set up the transaction. ` +
-    `You approve it in your wallet — I never touch your keys — and I'll track delivery until it lands.\n\n` +
-    `**Current fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% · Delivery is usually 1–2 minutes.\n\n` +
-    `*Try: "How much SUI do I have?", "Bridge half my SUI to Solana", or "What's the rate for ETH to SUI?"*`
+    walletSection +
+    `\n**How it works:**\n` +
+    `Tell me what to move — even *"half my SUI"* or *"bridge everything to Solana"* works. ` +
+    `I'll check your balance, calculate the output, and set up the transaction. ` +
+    `You approve in your wallet — I never touch your keys — and I watch delivery until it lands.\n\n` +
+    `**Fee:** ${(BRIDGE_CFG.feeBps / 100).toFixed(2)}% · **Delivery:** ~1–3 minutes\n\n` +
+    `*Try: "Bridge half my SUI to Solana", "What's my balance?", or "What rate do I get for SUI → ETH?"*`
   );
 }
 
@@ -831,7 +995,10 @@ export class BridgeAgent {
         validationError: null,
         responseText: "",
         actionEvent: null,
+        suggestedReplies: [],
         clientTime: req.clientTime || new Date().toISOString(),
+        solanaAddress: req.solanaAddress || null,
+        ethAddress: req.ethAddress || null,
       });
       return fullResponse;
     } catch (err) {

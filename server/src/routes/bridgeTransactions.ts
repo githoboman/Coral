@@ -95,6 +95,32 @@ router.patch(
 );
 
 router.get(
+  "/transactions/:id",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.wallet_address;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from("bridge_transactions")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", userId)
+        .single();
+
+      if (error || !data) return res.status(404).json({ error: "Not found" });
+      return res.json(data);
+    } catch (err) {
+      console.error("[BRIDGE TX] GET/:id error:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  },
+);
+
+router.get(
   "/transactions",
   requireAuth,
   async (req: AuthRequest, res: Response) => {

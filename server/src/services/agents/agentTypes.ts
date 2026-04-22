@@ -9,6 +9,8 @@ export interface ChatRequest {
   conversationId?: string;
   clientTime?: string;
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
+  solanaAddress?: string;
+  ethAddress?: string;
 }
 
 /**

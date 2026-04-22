@@ -195,6 +195,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
               conversationId: finalConversationId,
               clientTime,
               conversationHistory: req.body.conversationHistory || [],
+              solanaAddress: req.body.solanaAddress || undefined,
+              ethAddress: req.body.ethAddress || undefined,
             },
             sse,
           );
