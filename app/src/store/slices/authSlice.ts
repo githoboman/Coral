@@ -7,6 +7,9 @@ interface AuthState {
   loading: boolean;
   message: string | null;
   isSupported: boolean;
+  profile: any | null;
+  profileLoading: boolean;
+  profileFetched: boolean;
 }
 
 const initialState: AuthState = {
@@ -16,6 +19,9 @@ const initialState: AuthState = {
   loading: false,
   message: null,
   isSupported: false,
+  profile: null,
+  profileLoading: false,
+  profileFetched: false,
 };
 
 const authSlice = createSlice({
@@ -45,8 +51,16 @@ const authSlice = createSlice({
     updateAuthState: (state, action: PayloadAction<Partial<AuthState>>) => {
       return { ...state, ...action.payload };
     },
+    setProfile: (state, action: PayloadAction<any | null>) => {
+      state.profile = action.payload;
+      state.profileLoading = false;
+      state.profileFetched = true;
+    },
+    setProfileLoading: (state, action: PayloadAction<boolean>) => {
+      state.profileLoading = action.payload;
+    },
   },
 });
 
-export const { setAuth, clearAuth, setLoading, setMessage, setSupported, updateAuthState } = authSlice.actions;
+export const { setAuth, clearAuth, setLoading, setMessage, setSupported, updateAuthState, setProfile, setProfileLoading } = authSlice.actions;
 export default authSlice.reducer;

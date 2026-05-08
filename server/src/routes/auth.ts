@@ -35,10 +35,10 @@ function getLocalTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-function normalizeAddr(addr: string): string {
-  return (
-    "0x" + (addr.startsWith("0x") ? addr.slice(2) : addr).padStart(64, "0")
-  );
+export function normalizeAddr(addr: string): string {
+  if (!addr) return "";
+  const cleaned = addr.startsWith("0x") ? addr.slice(2) : addr;
+  return "0x" + cleaned.toLowerCase().padStart(64, "0");
 }
 
 async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
@@ -171,6 +171,7 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
+      const normalizedWallet = normalizeAddr(wallet_address);
       const um = getLocalUserManager();
 
       // Conflict check using Supabase
@@ -185,7 +186,7 @@ router.post(
 
       const profile = um.createUserProfile(
         normalizedEmail,
-        wallet_address,
+        normalizedWallet,
         false,
         0,
         {
@@ -210,7 +211,7 @@ router.post(
         success: true,
         user: {
           email: normalizedEmail,
-          wallet_address,
+          wallet_address: normalizedWallet,
           username: username || null,
         },
         message: "Profile saved successfully.",
@@ -341,8 +342,11 @@ router.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { wallet_address } = req.query;
+      const normalizedWallet = wallet_address && typeof wallet_address === "string" 
+        ? normalizeAddr(wallet_address) 
+        : null;
 
-      if (!wallet_address || typeof wallet_address !== "string") {
+      if (!normalizedWallet) {
         res
           .status(400)
           .json({ error: "Bad Request", detail: "Wallet address is required" });
@@ -350,14 +354,14 @@ router.get(
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... checking Supabase`,
+        `[CHECK-USER] ${normalizedWallet.slice(0, 10)}... checking Supabase`,
       );
 
       let profile = null;
 
       try {
         const um = getLocalUserManager();
-        profile = await um.getUserProfile(wallet_address);
+        profile = await um.getUserProfile(normalizedWallet);
       } catch (dbErr) {
         console.warn(
           "[CHECK-USER] Database lookup failed:",
@@ -368,21 +372,21 @@ router.get(
       if (profile) {
         const isOnboarded = !!profile.email;
         console.log(
-          `[CHECK-USER] ${wallet_address.slice(0, 10)}... found in Supabase`,
+          `[CHECK-USER] ${normalizedWallet.slice(0, 10)}... found in Supabase`,
         );
         res.json({ exists: true, is_onboarded: isOnboarded, user: profile });
         return;
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not in Supabase, checking on-chain (legacy fallback)`,
+        `[CHECK-USER] ${normalizedWallet.slice(0, 10)}... not in Supabase, checking on-chain (legacy fallback)`,
       );
 
       try {
-        const onChain = await hasClaimedOnChain(wallet_address);
+        const onChain = await hasClaimedOnChain(normalizedWallet);
         if (onChain) {
           console.log(
-            `[CHECK-USER] ${wallet_address.slice(0, 10)}... found on-chain (legacy user)`,
+            `[CHECK-USER] ${normalizedWallet.slice(0, 10)}... found on-chain (legacy user)`,
           );
 
           res.json({
@@ -398,7 +402,7 @@ router.get(
       }
 
       console.log(
-        `[CHECK-USER] ${wallet_address.slice(0, 10)}... not found anywhere`,
+        `[CHECK-USER] ${normalizedWallet.slice(0, 10)}... not found anywhere`,
       );
       res.json({ exists: false, is_onboarded: false, user: null });
     } catch (error) {
@@ -474,10 +478,10 @@ router.get(
  */
 router.get("/verify", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const wallet_address = req.user!.wallet_address;
+    const normalizedAddr = normalizeAddr(req.user!.wallet_address);
     const um = getLocalUserManager();
-    const profile = await um.getUserProfile(wallet_address);
-    res.json({ exists: true, is_onboarded: !!profile?.email, user: profile || { wallet_address } });
+    const profile = await um.getUserProfile(normalizedAddr);
+    res.json({ exists: true, is_onboarded: !!profile?.email, user: profile || { wallet_address: normalizedAddr } });
   } catch (error) {
     console.error("Error in /verify:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -490,8 +494,10 @@ router.get("/nonce", (req: Request, res: Response) => {
     res.status(400).json({ error: "Missing wallet_address" });
     return;
   }
+  const normalizedAddr = normalizeAddr(wallet_address);
   const nonce = crypto.randomBytes(32).toString("hex");
-  nonceStore.set(wallet_address, { nonce, expires: Date.now() + 1000 * 60 * 5 }); // 5 mins
+  nonceStore.set(normalizedAddr, { nonce, expires: Date.now() + 1000 * 60 * 5 }); // 5 mins
+  console.log(`[AUTH] Nonce generated for ${normalizedAddr}: ${nonce}`);
   res.json({ nonce });
 });
 
@@ -503,26 +509,68 @@ router.post("/login", async (req: Request, res: Response) => {
       return;
     }
 
-    const storedData = nonceStore.get(wallet_address);
-    if (!storedData || storedData.expires < Date.now()) {
+    const normalizedWallet = normalizeAddr(wallet_address);
+    const storedData = nonceStore.get(normalizedWallet);
+    
+    if (!storedData) {
+      console.warn(`[AUTH] Login failed: No nonce found for ${normalizedWallet}`);
       res.status(401).json({ error: "Nonce expired or not requested" });
+      return;
+    }
+    
+    if (storedData.expires < Date.now()) {
+      console.warn(`[AUTH] Login failed: Nonce expired for ${normalizedWallet}`);
+      nonceStore.delete(normalizedWallet);
+      res.status(401).json({ error: "Nonce expired" });
       return;
     }
 
     const expectedMessage = `Welcome to Tovira!\n\nClick to sign in and accept the Tovira Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${storedData.nonce}`;
     const message = new TextEncoder().encode(expectedMessage);
 
+    console.log(`[AUTH] Verifying signature for ${normalizedWallet}...`);
+    
     // Verify signature
     const pubKey = await verifyPersonalMessageSignature(message, signature, {
       client: suiClient,
     });
 
-    if (pubKey.toSuiAddress() !== wallet_address) {
-      res.status(401).json({ error: "Signature mapped to different address" });
+    const derivedAddress = normalizeAddr(pubKey.toSuiAddress());
+    
+    if (derivedAddress !== normalizedWallet) {
+      console.warn(`[AUTH] Address mismatch: Derived ${derivedAddress} vs Provided ${normalizedWallet}`);
+      res.status(401).json({ error: "Signature mapped to different address", detail: `Expected ${normalizedWallet}, got ${derivedAddress}` });
       return;
     }
 
-    nonceStore.delete(wallet_address);
+    console.log(`[AUTH] Signature verified successfully for ${normalizedWallet}`);
+    nonceStore.delete(normalizedWallet);
+
+    // Ensure user profile exists in DB before creating a token (satisfies foreign key constraint)
+    let dbWallet = normalizedWallet;
+    try {
+      const { data: existing } = await supabase
+        .from('user_profiles')
+        .select('wallet_address')
+        .ilike('wallet_address', normalizedWallet)
+        .maybeSingle();
+
+      if (!existing) {
+        console.log(`[AUTH] New user detected, creating profile for ${normalizedWallet}`);
+        const um = getLocalUserManager();
+        const profile = um.createUserProfile("", normalizedWallet, false, 0);
+        await um.addOrUpdateUser(profile);
+      } else {
+        // Use the casing already present in the database to satisfy FK constraints
+        dbWallet = existing.wallet_address;
+        if (dbWallet !== normalizedWallet) {
+          console.log(`[AUTH] Using legacy casing from DB: ${dbWallet}`);
+        }
+      }
+    } catch (err) {
+      console.error("[AUTH] Error ensuring user profile exists:", err);
+      // Proceed anyway, createToken will fail if it's really missing
+    }
 
     // Issue a secure server-side token (HMAC-SHA256 stored in DB)
     const name = typeof device_name === "string" && device_name.trim()
@@ -535,7 +583,8 @@ router.post("/login", async (req: Request, res: Response) => {
     
     if (existingRawToken) {
       const existingUserId = await validateToken(existingRawToken);
-      if (existingUserId === wallet_address) {
+      // Compare case-insensitively for the guard
+      if (existingUserId && normalizeAddr(existingUserId) === normalizedWallet) {
         reused = true;
         // Re-set the cookie to extend expiry
         const expiresInDays = parseInt(process.env.TOKEN_EXPIRES_DAYS || '7', 10);
@@ -548,17 +597,17 @@ router.post("/login", async (req: Request, res: Response) => {
           expires: expiresAt,
         });
         
-        res.json({ success: true, wallet_address, reused: true });
+        res.json({ success: true, wallet_address: dbWallet, reused: true });
         return;
       }
     }
 
     if (!reused) {
       // No valid cookie found. Delete old tokens for this device to prevent bloat.
-      await revokeDeviceTokens(wallet_address, name);
+      await revokeDeviceTokens(dbWallet, name);
 
       // Generate new token
-      const { rawToken, expiresAt } = await createToken(wallet_address, name);
+      const { rawToken, expiresAt } = await createToken(dbWallet, name);
 
       // Send raw token exclusively via httpOnly cookie — never in the response body
       res.cookie("auth_token", rawToken, {
@@ -568,7 +617,7 @@ router.post("/login", async (req: Request, res: Response) => {
         expires: expiresAt,
       });
 
-      res.json({ success: true, wallet_address, reused: false });
+      res.json({ success: true, wallet_address: dbWallet, reused: false });
     }
   } catch (err: any) {
     console.error("Login error:", err);

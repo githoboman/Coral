@@ -5,6 +5,7 @@ import {
 } from "../services/userManager";
 import { getLeaderboardService } from "../services/leaderboardService";
 import { requireAuth } from "../middleware/auth";
+import { normalizeAddr } from "./auth";
 
 
 const router = Router();
@@ -30,15 +31,18 @@ router.get(
           .status(400)
           .json({ error: "Bad Request", detail: "User ID cannot be empty" });
       }
-      if (!user_id.startsWith("0x") || user_id.length !== 66) {
+      
+      const normalizedAddr = normalizeAddr(user_id);
+      
+      if (normalizedAddr.length !== 66) {
         return res.status(400).json({
           error: "Bad Request",
-          detail: "Invalid wallet address format",
+          detail: "Invalid wallet address format. Expected 64-character hex with 0x prefix.",
         });
       }
 
       const um = getLocalUserManager();
-      const userProfile = await um.getUserProfile(user_id);
+      const userProfile = await um.getUserProfile(normalizedAddr);
 
       if (!userProfile) {
         return res
@@ -85,7 +89,8 @@ router.get(
       let total_participants = 0;
       
       if (wallet_address && typeof wallet_address === "string") {
-        user_rank = await leaderboardService.getUserRank(wallet_address);
+        const normalizedWallet = normalizeAddr(wallet_address);
+        user_rank = await leaderboardService.getUserRank(normalizedWallet);
         total_participants = user_rank.total_participants;
       } else {
         total_participants = await leaderboardService.getTotalParticipants();
