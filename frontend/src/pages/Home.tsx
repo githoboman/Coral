@@ -11,6 +11,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
 
 gsap.registerPlugin(ScrollTrigger);
+ScrollTrigger.normalizeScroll(true);
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 
 const agentData = [
@@ -81,6 +83,7 @@ const Home: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
+    const isMobileDevice = window.innerWidth < 768;
     let mm = gsap.matchMedia();
 
     mm.add("(max-width: 767px)", () => {
@@ -189,7 +192,8 @@ const Home: React.FC = () => {
         trigger: ".portfolio-reveal-up",
         start: "top 95%",
         end: "top 40%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -200,7 +204,8 @@ const Home: React.FC = () => {
         trigger: ".portfolio-reveal-left",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -211,7 +216,8 @@ const Home: React.FC = () => {
         trigger: ".portfolio-reveal-right",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
     // Alert Section Animation (Scrubbed)
@@ -222,7 +228,8 @@ const Home: React.FC = () => {
         trigger: ".alert-reveal-left",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -233,7 +240,8 @@ const Home: React.FC = () => {
         trigger: ".alert-reveal-right",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -245,7 +253,8 @@ const Home: React.FC = () => {
         trigger: ".task-reveal-left",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -256,7 +265,8 @@ const Home: React.FC = () => {
         trigger: ".task-reveal-right",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
     // Notifications Section Animation (Scrubbed)
@@ -267,7 +277,8 @@ const Home: React.FC = () => {
         trigger: ".notif-reveal-up",
         start: "top 95%",
         end: "top 40%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -278,7 +289,8 @@ const Home: React.FC = () => {
         trigger: ".notif-reveal-left",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -289,7 +301,8 @@ const Home: React.FC = () => {
         trigger: ".notif-reveal-right",
         start: "top 85%",
         end: "top 35%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -301,7 +314,8 @@ const Home: React.FC = () => {
         trigger: ".start-reveal-up",
         start: "top 95%",
         end: "top 40%",
-        scrub: 1,
+        scrub: isMobileDevice ? false : 1,
+        toggleActions: isMobileDevice ? "play none none none" : undefined,
       }
     });
 
@@ -314,7 +328,8 @@ const Home: React.FC = () => {
           trigger: el,
           start: "top 90%",
           end: "top 50%",
-          scrub: 1,
+          scrub: isMobileDevice ? false : 1,
+          toggleActions: isMobileDevice ? "play none none none" : undefined,
         }
       });
     });
@@ -562,7 +577,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* portfolio Section */}
-      <section className="portfolio-section relative bg-[#010103] py-24 overflow-hidden">
+      <section className="portfolio-section relative bg-[#010103] pt-12 pb-8 md:py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-10 portfolio-reveal-up">
             <h2 className="text-xl md:text-5xl font-medium mb-6 tracking-tight text-white">
@@ -604,7 +619,7 @@ const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:w-1/2 relative portfolio-reveal-right mt-10 lg:mt-0">
+            <div className="lg:w-1/2 relative portfolio-reveal-right">
               <div className="relative z-10 flex justify-center">
                 <img
                   src="/assets/images/v2/port_mockup.png"
@@ -619,11 +634,11 @@ const Home: React.FC = () => {
 
 
       {/* Alert Section */}
-      <section className="alert-section relative bg-[#010103] overflow-hidden py-16">
+      <section className="alert-section relative bg-[#010103] overflow-hidden pt-8 pb-12 md:py-16">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col-reverse lg:flex-row items-center gap-12 lg:gap-20">
 
-            <div className="lg:w-1/2 relative alert-reveal-left mt-10 lg:mt-0">
+            <div className="lg:w-1/2 relative alert-reveal-left">
               <div className="relative z-10 flex justify-center">
                 <img
                   src="/assets/images/v2/alert_mockup.png"
@@ -667,7 +682,7 @@ const Home: React.FC = () => {
 
               
       {/* Task Section */}
-       <section className="task-section relative bg-[#010103] overflow-hidden pt-16 pb-8 md:pb-16">
+       <section className="task-section relative bg-[#010103] overflow-hidden pt-8 pb-8 md:pt-16 md:pb-16">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
             <div className="lg:w-1/2 task-reveal-left text-center lg:text-left">
@@ -692,7 +707,7 @@ const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:w-1/2 relative task-reveal-right mt-10 lg:mt-0">
+            <div className="lg:w-1/2 relative task-reveal-right">
               {/* Task Mascot peeking from behind */}
               <img
                 src="/assets/images/v2/task.png"
@@ -712,7 +727,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Notifications Section */}
-      <section className="notif-section relative bg-[#010103] pt-16 pb-32 md:py-32 overflow-hidden">
+      <section className="notif-section relative bg-[#010103] pt-6 pb-32 md:py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-xl md:text-5xl font-medium mb-20 text-center tracking-tight text-white leading-tight notif-reveal-up">
             Stay <span className="text-[#326AFD]">ahead</span> of the curve. Get notified when it <span className="text-[#B7FC0D]">matters</span>
@@ -755,18 +770,18 @@ const Home: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-6 text-center relative z-10 start-reveal-up">
-          <h2 className="text-2xl md:text-5xl lg:text-6xl font-medium mb-10 md:mb-16 tracking-tight text-white leading-tight">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-medium mb-10 md:mb-16 tracking-tight text-white leading-tight">
             Start in <span className="text-[#326AFD]">under a minute</span>
           </h2>
 
           <div className="flex flex-row items-center justify-center gap-2 md:gap-4 mb-10 md:mb-16">
-            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[8px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-white/5 whitespace-nowrap">
-              <FcGoogle className="w-3 h-3 md:w-6 md:h-6 shrink-0" />
+            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-white/5 whitespace-nowrap">
+              <FcGoogle className="w-4 h-4 md:w-6 md:h-6 shrink-0" />
               Sign up with Google
             </button>
-            <span className="text-white text-[10px] md:text-sm font-medium">or</span>
-            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[8px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-[#326AFD]/5 whitespace-nowrap">
-              <SiSui className="w-3 h-3 md:w-6 md:h-6 text-[#326AFD] shrink-0" />
+            <span className="text-white text-[14px] md:text-sm font-medium">or</span>
+            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-[#326AFD]/5 whitespace-nowrap">
+              <SiSui className="w-4 h-4 md:w-6 md:h-6 text-[#326AFD] shrink-0" />
               Continue with Sui
             </button>
           </div>
