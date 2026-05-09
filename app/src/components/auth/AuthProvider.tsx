@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { sileo } from "sileo";
 import { OnboardingModal } from "./Onboarding";
+import { useProfile } from "@/hooks/useProfile";
 import {
   useCurrentAccount,
   useCurrentWallet,
@@ -65,6 +66,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // New hook for signing messages
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
+  const [hasCheckedInit, setHasCheckedInit] = useState(false);
+
+  useEffect(() => {
+    // Small delay to allow wallet kit to settle
+    const timer = setTimeout(() => setHasCheckedInit(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const apiBaseUrl =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -75,6 +83,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Background profile fetcher
+  useProfile();
 
   useEffect(() => {
     if (isInitializing) return;
@@ -98,7 +109,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     if (!isAuthenticated) {
-      if (!isSigninPage) navigate("/signin", { replace: true });
+      if (hasCheckedInit && !isSigninPage && !isMaintenancePage) {
+        // Store intended path to redirect back after signin
+        if (location.pathname !== "/" && location.pathname !== "/chat") {
+          sessionStorage.setItem("tovira_intended_path", location.pathname + location.search);
+        }
+        navigate("/signin", { replace: true });
+      }
       setIsOnboardingOpen(false);
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
       checkedWalletRef.current = null;
@@ -107,7 +124,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     if (isSigninPage) {
-      navigate("/", { replace: true });
+      const intendedPath = sessionStorage.getItem("tovira_intended_path");
+      if (intendedPath) {
+        sessionStorage.removeItem("tovira_intended_path");
+        navigate(intendedPath, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     }
 
     const activeAddress = currentAccount.address;
@@ -127,7 +150,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       checkedWalletRef.current = activeAddress;
       handleAuthentication(activeAddress);
     }
-  }, [isInitializing, currentAccount, location.pathname, navigate]);
+  }, [isInitializing, hasCheckedInit, currentAccount, location.pathname, navigate]);
 
   const handleAuthentication = async (walletAddress: string) => {
     try {
@@ -173,14 +196,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }),
       });
 
-      if (!loginRes.ok) throw new Error("Login failed");
+      if (!loginRes.ok) {
+        const errorData = await loginRes.json().catch(() => ({}));
+        console.error("[AUTH] Login API failed:", errorData);
+        throw new Error(errorData.error || "Login failed");
+      }
+
+      console.log("[AUTH] Login successful");
 
       // 4. Check onboarding status (cookie is sent automatically)
       await checkUserOnboardingStatus(walletAddress);
-    } catch (error) {
-      console.error("Authentication failed:", error);
-      sileo.error({ title: "Authentication Failed", description: "Please sign the message to verify your wallet." });
-      signOut();
+    } catch (error: any) {
+      console.error("[AUTH] Authentication failed:", error);
+      
+      // If it's a "User rejected" error from the wallet, don't show a scary message or sign out
+      const isUserRejection = error.message?.toLowerCase().includes("rejected") || 
+                              error.message?.toLowerCase().includes("cancel");
+      
+      if (!isUserRejection) {
+        sileo.error({ 
+          title: "Authentication Failed", 
+          description: error.message || "Please sign the message to verify your wallet." 
+        });
+      }
+      
+      // Only sign out (disconnect wallet) if we are sure the current connection is invalid
+      // or if we were already in a "partially connected" state that needs reset.
+      // But for now, let's just reset the checking ref so the user can try again by refreshing
+      // or by clicking something that triggers a re-check.
+      if (!isUserRejection) {
+         signOut();
+      } else {
+         // If they just rejected the signature, we might want to disconnect anyway to let them try a different wallet
+         // but it's better to stay connected to the wallet and just stop the auth flow.
+         checkingRef.current = false;
+         checkedWalletRef.current = null; // Allow re-triggering
+      }
     } finally {
       checkingRef.current = false;
     }

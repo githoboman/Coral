@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { sileo } from 'sileo';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setProfile, setProfileLoading } from '@/store/slices/authSlice';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -25,17 +27,19 @@ export interface UserProfile {
 
 export function useProfile() {
   const currentAccount = useCurrentAccount();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const profile = useAppSelector((state) => state.auth.profile);
+  const loading = useAppSelector((state) => state.auth.profileLoading);
+  const fetched = useAppSelector((state) => state.auth.profileFetched);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!currentAccount?.address) {
-      setProfile(null);
+      dispatch(setProfile(null));
       return;
     }
 
-    setLoading(true);
+    dispatch(setProfileLoading(true));
     try {
       const res = await fetch(`${API_BASE}/api/fetch-user?user_id=${currentAccount.address}`, {
         credentials: 'include',
@@ -43,32 +47,34 @@ export function useProfile() {
       if (res.ok) {
         const data = await res.json();
         if (data.exists && data.user) {
-          setProfile(data.user);
+          dispatch(setProfile(data.user));
         } else {
-          // If user doesn't exist, we might want to handle it or just leave profile null
-          // For Account page, usually implies we might want to create one or just show minimal info
-          setProfile(null);
+          dispatch(setProfile(null));
         }
       } else {
         setError("Failed to fetch profile");
+        dispatch(setProfileLoading(false));
       }
     } catch (err: any) {
       setError(err.message || "Error fetching profile");
-    } finally {
-      setLoading(false);
+      dispatch(setProfileLoading(false));
     }
-  }, [currentAccount?.address]);
+  }, [currentAccount?.address, dispatch]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    if (currentAccount?.address && !fetched && !loading) {
+      fetchProfile();
+    }
+  }, [currentAccount?.address, fetched, loading, fetchProfile]);
 
   const updatePreferences = async (newPrefs: UserPreferences) => {
     if (!currentAccount?.address) return;
 
     // Optimistic update
     const previousProfile = profile;
-    setProfile(prev => prev ? { ...prev, preferences: { ...prev.preferences, ...newPrefs } } : null);
+    if (profile) {
+      dispatch(setProfile({ ...profile, preferences: { ...profile.preferences, ...newPrefs } }));
+    }
 
     try {
       const res = await fetch(`${API_BASE}/api/update-user`, {
@@ -78,20 +84,18 @@ export function useProfile() {
         body: JSON.stringify({
           user_id: currentAccount.address,
           preferences: newPrefs,
-          // maintain other fields if necessary, but backend should handle partial updates via merging
-          // in users.ts it seems to merge with existing profile.
         })
       });
 
       if (!res.ok) {
         // Revert on failure
-        setProfile(previousProfile);
+        dispatch(setProfile(previousProfile));
         sileo.error({ title: "Update Failed", description: "Failed to update preferences" });
       } else {
         sileo.success({ title: "Success", description: "Preferences updated" });
       }
     } catch (err) {
-      setProfile(previousProfile);
+      dispatch(setProfile(previousProfile));
       sileo.error({ title: "Error", description: "Error updating preferences" });
       console.error(err);
     }

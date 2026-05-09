@@ -105,10 +105,11 @@ export class UserManager {
     additionalData?: Partial<DecryptedUserProfile>,
   ): UserProfile {
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedWallet = walletAddress.toLowerCase();
 
     const profile: UserProfile = {
       email: this.encryption.encrypt(normalizedEmail),
-      wallet_address: walletAddress,
+      wallet_address: normalizedWallet,
       is_waitlisted: isWaitlisted,
       points_awarded: pointsAwarded,
       joined_at: new Date().toISOString(),
@@ -249,7 +250,7 @@ export class UserManager {
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .eq('wallet_address', walletAddress)
+        .ilike('wallet_address', walletAddress)
         .single();
 
       if (error) {
@@ -317,7 +318,7 @@ export class UserManager {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('wallet_address')
-        .eq('wallet_address', walletAddress)
+        .ilike('wallet_address', walletAddress)
         .maybeSingle();
 
       if (error) throw error;

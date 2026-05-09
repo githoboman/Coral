@@ -1,32 +1,45 @@
 // import { useState, useEffect } from "react";
 import { Hammer } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Maintenance() {
-  // const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  // useEffect(() => {
-  //   const calculateTimeLeft = () => {
-  //     const now = new Date();
-  //     const target = new Date();
-  //     target.setHours(22, 0, 0, 0); // 10 PM today
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      
+      // Target: Monday at 8 PM (20:00)
+      const target = new Date();
+      const dayOfWeek = target.getDay(); // 0 is Sunday, 1 is Monday...
+      const daysUntilMonday = (1 - dayOfWeek + 7) % 7;
+      
+      target.setDate(target.getDate() + daysUntilMonday);
+      target.setHours(20, 0, 0, 0);
 
-  //     const difference = target.getTime() - now.getTime();
+      // If target is already past today, move to next week's Monday
+      if (target.getTime() <= now.getTime()) {
+        target.setDate(target.getDate() + 7);
+      }
 
-  //     if (difference > 0) {
-  //       setTimeLeft({
-  //         hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-  //         minutes: Math.floor((difference / 1000 / 60) % 60),
-  //         seconds: Math.floor((difference / 1000) % 60),
-  //       });
-  //     } else {
-  //       setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-  //     }
-  //   };
+      const difference = target.getTime() - now.getTime();
 
-  //   calculateTimeLeft();
-  //   const timer = setInterval(calculateTimeLeft, 1000);
-  //   return () => clearInterval(timer);
-  // }, []);
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
@@ -60,10 +73,14 @@ export default function Maintenance() {
             Thank you for your patience!
           </p>
 
-          {/* Countdown Timer
+          Countdown Timer
           <div className="flex items-center justify-center gap-3 md:gap-4 mb-10">
-            {['Hours', 'Minutes', 'Seconds'].map((label, i) => {
-              const value = i === 0 ? timeLeft.hours : i === 1 ? timeLeft.minutes : timeLeft.seconds;
+            {['Days', 'Hours', 'Minutes', 'Seconds'].map((label, i) => {
+              const value = 
+                i === 0 ? timeLeft.days : 
+                i === 1 ? timeLeft.hours : 
+                i === 2 ? timeLeft.minutes : 
+                timeLeft.seconds;
               return (
                 <div key={label} className="flex flex-col items-center gap-2">
                   <div className="w-16 h-16 md:w-20 md:h-20 bg-[#0A0A0A] border border-white/10 rounded-2xl flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] relative overflow-hidden group">
@@ -76,7 +93,7 @@ export default function Maintenance() {
                 </div>
               );
             })}
-          </div> */}
+          </div>
 
           <div className="space-y-6">
             <p className="text-white/40 text-sm font-medium uppercase tracking-widest">

@@ -58,7 +58,7 @@ export function useTelegramLinking() {
     } finally {
       setInitialLoading(false);
     }
-  }, [account, updateStatus]);
+  }, [account?.address, updateStatus]);
 
   useEffect(() => {
     fetchStatus();
