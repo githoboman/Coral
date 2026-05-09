@@ -12,7 +12,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const LandingPageLayout = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAnnouncement] = useState(true); // Set to true to show the "V2 is live" banner
+  const [showAnnouncement] = useState(false); // Set to true to show the "V2 is live" banner
   const location = useLocation();
 
   // Set to false to show Coming Soon screen; change to true when ready to launch
