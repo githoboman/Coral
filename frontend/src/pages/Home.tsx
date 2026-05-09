@@ -449,7 +449,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Agents Section */}
-      <section className="agents-section relative bg-transparent py-24 overflow-hidden">
+      <section id="agents" className="agents-section relative bg-transparent py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16 relative flex flex-col items-center">
             <h2 className="text-2xl md:text-5xl mb-6 tracking-tight">
@@ -577,7 +577,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* portfolio Section */}
-      <section className="portfolio-section relative bg-transparent pt-12 pb-8 md:py-24 overflow-hidden">
+      <section id="control" className="portfolio-section relative bg-transparent pt-12 pb-8 md:py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-10 portfolio-reveal-up">
             <h2 className="text-xl md:text-5xl font-medium mb-6 tracking-tight text-white">
