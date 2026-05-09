@@ -163,8 +163,6 @@ const PointsGate = ({
 
 const BadgeMint = () => {
   const currentAccount = useCurrentAccount();
-  const { mintState, mint } = useBadgeMint();
-
   const {
     status,
     hasMinted,
@@ -175,7 +173,8 @@ const BadgeMint = () => {
     userPoints,
     pointsLoading,
     hasEnoughPoints,
-  } = mintState;
+    mint,
+  } = useBadgeMint();
 
   const isLoading =
     status === "checking" || status === "signing" || status === "confirming";

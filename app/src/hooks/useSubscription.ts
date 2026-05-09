@@ -30,22 +30,30 @@ export interface SubscriptionState {
   error: string | null;
 }
 
+// Module-level cache: fetch once per wallet per app session
+const subscriptionCache = new Map<string, SubscriptionState>();
+
 export function useSubscription() {
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
 
-  const [state, setState] = useState<SubscriptionState>({
-    status: "idle",
-    isPremium: false,
-    tier: 0,
-    startedAt: null,
-    expiresAt: null,
-    daysRemaining: null,
-    dailyPromptsUsed: 0,
-    dailyPromptsLimit: 2,
-    error: null,
-  });
+  const walletAddr = currentAccount?.address || "";
+  const cached = walletAddr ? subscriptionCache.get(walletAddr) : undefined;
+
+  const [state, setState] = useState<SubscriptionState>(
+    cached || {
+      status: "idle",
+      isPremium: false,
+      tier: 0,
+      startedAt: null,
+      expiresAt: null,
+      daysRemaining: null,
+      dailyPromptsUsed: 0,
+      dailyPromptsLimit: 2,
+      error: null,
+    },
+  );
 
   const fetchSubscriptionStatus = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -78,7 +86,7 @@ export function useSubscription() {
         ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24))
         : null;
 
-      setState({
+      const newState: SubscriptionState = {
         status: "idle",
         isPremium,
         tier: data.tier || 0,
@@ -88,7 +96,10 @@ export function useSubscription() {
         dailyPromptsUsed: data.daily_prompts_used || 0,
         dailyPromptsLimit: isPremium ? 5 : 2,
         error: null,
-      });
+      };
+
+      subscriptionCache.set(currentAccount.address, newState);
+      setState(newState);
     } catch (error: any) {
       console.error("Error fetching subscription:", error);
       setState((prev) => ({
@@ -100,12 +111,11 @@ export function useSubscription() {
   }, [currentAccount?.address]);
 
   useEffect(() => {
-    fetchSubscriptionStatus();
-
-    const interval = setInterval(fetchSubscriptionStatus, 30000);
-
-    return () => clearInterval(interval);
-  }, [fetchSubscriptionStatus]);
+    // Only fetch if we don't already have cached data for this wallet
+    if (currentAccount?.address && !subscriptionCache.has(currentAccount.address)) {
+      fetchSubscriptionStatus();
+    }
+  }, [currentAccount?.address, fetchSubscriptionStatus]);
 
   const subscribeToPremium = useCallback(async () => {
     if (!currentAccount?.address) {

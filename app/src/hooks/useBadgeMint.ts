@@ -5,10 +5,12 @@ import {
   useSuiClient,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
+import { fetchBadgeStatus } from "@/store/slices/badgeMintSlice";
 
 const PACKAGE_ID = import.meta.env.VITE_SUI_BADGE_PACKAGE_ID || "";
 const BADGE_REGISTRY_ID = import.meta.env.VITE_BADGE_REGISTRY_ID || "";
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 export const POINTS_REQUIRED = 200;
 
@@ -34,19 +36,17 @@ export interface BadgeMintState {
   hasEnoughPoints: boolean;
 }
 
-async function fetchUserPoints(address: string): Promise<number> {
-  const url = `${API_BASE}/api/leaderboard?wallet_address=${encodeURIComponent(address)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Points fetch failed: ${res.status}`);
-  const data = await res.json();
-  return data.user_rank?.points ?? 0;
-}
-
 export function useBadgeMint() {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
+  const dispatch = useAppDispatch();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
+
+  // Redux state
+  const userRank = useAppSelector(state => state.leaderboard.userRank);
+  const leaderboardLoading = useAppSelector(state => state.leaderboard.loading);
+  const badgeInfo = useAppSelector(state => state.badgeMint.info);
 
   const [state, setState] = useState<BadgeMintState>({
     status: "idle",
@@ -60,22 +60,34 @@ export function useBadgeMint() {
     hasEnoughPoints: false,
   });
 
+  // Sync with Redux
+  useEffect(() => {
+    if (badgeInfo) {
+      setState(prev => ({
+        ...prev,
+        hasMinted: badgeInfo.hasMinted,
+        badgeId: badgeInfo.badgeId,
+        serial: badgeInfo.serial,
+        totalMinted: badgeInfo.totalMinted,
+        status: badgeInfo.hasMinted ? "already_minted" : (prev.status === "already_minted" ? "idle" : prev.status)
+      }));
+    }
+  }, [badgeInfo]);
+
+  useEffect(() => {
+    const points = userRank?.points ?? 0;
+    setState(prev => ({
+      ...prev,
+      userPoints: points,
+      hasEnoughPoints: points >= POINTS_REQUIRED,
+      pointsLoading: leaderboardLoading
+    }));
+  }, [userRank, leaderboardLoading]);
+
   const checkPoints = useCallback(async () => {
     if (!currentAccount?.address) return;
-    setState((prev) => ({ ...prev, pointsLoading: true }));
-    try {
-      const points = await fetchUserPoints(currentAccount.address);
-      setState((prev) => ({
-        ...prev,
-        userPoints: points,
-        hasEnoughPoints: points >= POINTS_REQUIRED,
-        pointsLoading: false,
-      }));
-    } catch (err) {
-      console.error("[useBadgeMint] Failed to fetch points:", err);
-      setState((prev) => ({ ...prev, pointsLoading: false }));
-    }
-  }, [currentAccount?.address]);
+    dispatch(fetchLeaderboard({ walletAddress: currentAccount.address }));
+  }, [currentAccount?.address, dispatch]);
 
   const checkMintStatus = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -83,49 +95,20 @@ export function useBadgeMint() {
       return;
     }
 
-    setState((prev) => ({ ...prev, status: "checking" }));
-
-    try {
-      const registryObj = await suiClient.getObject({
-        id: BADGE_REGISTRY_ID,
-        options: { showContent: true },
-      });
-      const content = registryObj.data?.content as any;
-      const totalMinted = Number(content?.fields?.total_minted ?? 0);
-
-      const ownedBadges = await suiClient.getOwnedObjects({
-        owner: currentAccount.address,
-        filter: {
-          StructType: `${PACKAGE_ID}::testnet_badge::TestnetBadge`,
-        },
-        options: { showContent: true },
-      });
-
-      const hasMinted = ownedBadges.data.length > 0;
-      const badge = ownedBadges.data[0];
-      const badgeContent = badge?.data?.content as any;
-
-      setState((prev) => ({
-        ...prev,
-        status: hasMinted ? "already_minted" : "idle",
-        hasMinted,
-        badgeId: badge?.data?.objectId ?? null,
-        serial: badgeContent?.fields?.serial
-          ? Number(badgeContent.fields.serial)
-          : null,
-        totalMinted,
-        error: null,
-      }));
-    } catch (err: any) {
-      console.error("[useBadgeMint] Failed to check mint status:", err);
-      setState((prev) => ({ ...prev, status: "idle", error: null }));
-    }
-  }, [currentAccount?.address, suiClient]);
+    dispatch(fetchBadgeStatus({
+      address: currentAccount.address,
+      suiClient,
+      packageId: PACKAGE_ID,
+      registryId: BADGE_REGISTRY_ID
+    }));
+  }, [currentAccount?.address, suiClient, dispatch]);
 
   useEffect(() => {
-    checkMintStatus();
-    checkPoints();
-  }, [checkMintStatus, checkPoints]);
+    if (currentAccount?.address) {
+      checkMintStatus();
+      checkPoints();
+    }
+  }, [currentAccount?.address, checkMintStatus, checkPoints]);
 
   const mint = useCallback(async () => {
     if (!currentAccount?.address) {
@@ -137,22 +120,14 @@ export function useBadgeMint() {
       return;
     }
 
-    setState((prev) => ({ ...prev, pointsLoading: true }));
-    let latestPoints = 0;
-    try {
-      latestPoints = await fetchUserPoints(currentAccount.address);
-    } catch {
-      latestPoints = state.userPoints;
-    }
+    // Ensure points are up to date before minting
+    await dispatch(fetchLeaderboard({ forceRefresh: true, walletAddress: currentAccount.address })).unwrap();
+    
+    // We get latest points from the updated state via the selector, but for logic here:
+    // (Note: we could also use the value from unwrap())
+    const points = userRank?.points ?? 0;
 
-    setState((prev) => ({
-      ...prev,
-      pointsLoading: false,
-      userPoints: latestPoints,
-      hasEnoughPoints: latestPoints >= POINTS_REQUIRED,
-    }));
-
-    if (latestPoints < POINTS_REQUIRED) {
+    if (points < POINTS_REQUIRED) {
       setState((prev) => ({
         ...prev,
         status: "insufficient_points",
@@ -277,5 +252,10 @@ export function useBadgeMint() {
     state.userPoints,
   ]);
 
-  return { mintState: state, mint, checkMintStatus, checkPoints };
+  return {
+    ...state,
+    mint,
+    checkMintStatus,
+    checkPoints,
+  };
 }

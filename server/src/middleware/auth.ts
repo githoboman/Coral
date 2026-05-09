@@ -38,12 +38,18 @@ export const requireAuth = async (
   const requestedUserId =
     (req.query.user_id as string) || req.body?.user_id || req.params?.user_id;
 
-  if (requestedUserId && requestedUserId !== userId) {
-    res.status(403).json({
-      error: 'Forbidden',
-      detail: "Cannot access or modify another user's data.",
-    });
-    return;
+  if (requestedUserId) {
+    const requestedLower = requestedUserId.toLowerCase();
+    const tokenLower = userId.toLowerCase();
+    
+    if (requestedLower !== tokenLower) {
+      console.warn(`[AUTH] 403: requested=${requestedLower.slice(0,10)}… token=${tokenLower.slice(0,10)}…`);
+      res.status(403).json({
+        error: 'Forbidden',
+        detail: "Cannot access or modify another user's data.",
+      });
+      return;
+    }
   }
 
   next();

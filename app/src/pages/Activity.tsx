@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Search, X, ChevronDown } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchTasks, removeTask, updateTaskStatus, invalidateCache } from "@/store/slices/tasksSlice";
+import { fetchTasks, removeTask, updateTaskStatus, invalidateCache as invalidateTasksCache } from "@/store/slices/tasksSlice";
 import { fetchEvents } from "@/store/slices/eventsSlice";
+import { fetchClaimablePoints, invalidateCache as invalidatePointsCache } from "@/store/slices/pointsSlice";
 import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { Toast, ToastType } from "@/components/ui/Toast";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -170,6 +171,7 @@ const Activity = () => {
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.tasks.tasks);
   const events = useAppSelector((state) => state.events.events);
+  const claimable = useAppSelector((state) => state.points.claimable);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -178,7 +180,7 @@ const Activity = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
-    initialLoad: true,
+    initialLoad: false,
     tasksLoading: false,
     eventsLoading: false,
     creating: false,
@@ -310,25 +312,24 @@ const Activity = () => {
 
   // Load data from Redux - OPTIMIZED
   useEffect(() => {
-    if (!userId) {
-      setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
-      return;
+    if (!userId) return;
+
+    const hasTasks = tasks.length > 0;
+    const hasEvents = events.length > 0;
+    
+    // Only show full skeleton if we have NO data at all
+    if (!hasTasks && !hasEvents) {
+      setLoadingStates((prev) => ({ ...prev, initialLoad: true }));
     }
 
-    // Start loading immediately
-    setLoadingStates((prev) => ({ ...prev, initialLoad: true }));
-
-    // Load tasks and events in parallel
+    // fetchTasks and fetchEvents internally check cache validity
     Promise.all([
       dispatch(fetchTasks(userId)),
       dispatch(fetchEvents(userId)),
     ]).finally(() => {
-      // Quick transition out of loading state
-      setTimeout(() => {
-        setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
-      }, 100);
+      setLoadingStates((prev) => ({ ...prev, initialLoad: false }));
     });
-  }, [userId, dispatch]);
+  }, [userId, dispatch]); // Removed 'tasks' and 'events' from deps to avoid re-triggering on data change
 
   const openViewModal = (item: Item) => {
     setSelectedItem(item);
@@ -377,27 +378,23 @@ const Activity = () => {
       const data = await response.json();
 
       if (data.success) {
-        dispatch(invalidateCache());
+        dispatch(invalidateTasksCache());
+        dispatch(invalidatePointsCache());
         await dispatch(fetchTasks(userId));
+        await dispatch(fetchClaimablePoints(userId));
         // Success! Remove optimistic task
         setOptimisticTasks(prev => prev.filter(t => t.id !== tempId));
         sileo.success({ title: "Task Created", description: "Your task was created successfully." });
 
-        // Check for claimable activity points and notify
-        try {
-          const claimRes = await fetch(`${API_BASE_URL}/api/task-points/claimable?user_id=${userId}`, {
-            credentials: 'include'
-          });
-          const claimData = await claimRes.json();
-          if (claimData.total_activities > 0) {
+        // Points handled via Redux now
+        if (claimable && claimable.total_activities > 0) {
             setTimeout(() => {
               sileo.info({
                 title: "Activity Points Available",
-                description: `You have ${claimData.total_claimable_points} points from ${claimData.total_activities} activit${claimData.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
+                description: `You have ${claimable.total_claimable_points} points from ${claimable.total_activities} activit${claimable.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
               });
             }, 1500);
-          }
-        } catch { /* ignore */ }
+        }
       } else {
         throw new Error(data.detail || "Failed to create task");
       }
@@ -445,6 +442,10 @@ const Activity = () => {
         userId, 
         completed: !task.completed 
       })).unwrap();
+      
+      // Invalidate points cache because task completion might award points
+      dispatch(invalidatePointsCache());
+      dispatch(fetchClaimablePoints(userId));
     } catch (err) {
       console.error("Failed to toggle task:", err);
       sileo.error({ title: "Update Failed", description: "Failed to update task. Please try again." });
@@ -967,25 +968,15 @@ const Activity = () => {
 
 const TaskPointsClaimSection = () => {
   const currentAccount = useCurrentAccount();
-  const [claimable, setClaimable] = useState<{
-    claimable_tasks: number;
-    claimable_research: number;
-    total_activities: number;
-    total_claimable_points: number;
-  } | null>(null);
+  const dispatch = useAppDispatch();
+  const claimable = useAppSelector((state) => state.points.claimable);
   const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
-    if (!currentAccount?.address) return;
-
-    fetch(
-      `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
-      { credentials: 'include' }
-    )
-      .then((res) => res.json())
-      .then((data) => setClaimable(data))
-      .catch(console.error);
-  }, [currentAccount]);
+    if (currentAccount?.address) {
+      dispatch(fetchClaimablePoints(currentAccount.address));
+    }
+  }, [currentAccount?.address, dispatch]);
 
   const handleClaim = async () => {
     if (
@@ -1016,12 +1007,9 @@ const TaskPointsClaimSection = () => {
 
       window.dispatchEvent(new Event("pointsUpdated"));
 
-      const refreshResponse = await fetch(
-        `${API_BASE_URL}/api/task-points/claimable?user_id=${currentAccount.address}`,
-        { credentials: 'include' }
-      );
-      const refreshData = await refreshResponse.json();
-      setClaimable(refreshData);
+      // Refresh claimable status in Redux
+      dispatch(invalidatePointsCache());
+      dispatch(fetchClaimablePoints(currentAccount.address));
 
       sileo.success({
         title: "Points Claimed!",

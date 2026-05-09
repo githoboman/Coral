@@ -14,8 +14,12 @@ export interface EnrichedTransaction {
   balanceChanges?: any[] | null;
 }
 
+// Module-level cache: keyed by wallet address
+const activityCache = new Map<string, EnrichedTransaction[]>();
+
 export function useActivity(address: string | null) {
-  const [activity, setActivity] = useState<EnrichedTransaction[]>([]);
+  const cached = address ? activityCache.get(address) : undefined;
+  const [activity, setActivity] = useState<EnrichedTransaction[]>(cached || []);
   const [isFetchingActivity, setIsFetchingActivity] = useState(false);
   const isFetchingActivityRef = useRef(false);
 
@@ -125,6 +129,7 @@ export function useActivity(address: string | null) {
         return { ...tx, txType, netSUI };
       });
 
+      activityCache.set(address, enriched);
       setActivity(enriched);
     } catch (err) {
       console.error("[Activity] Failed to fetch transactions:", err);
@@ -137,20 +142,33 @@ export function useActivity(address: string | null) {
       setIsFetchingActivity(false);
     }
   }, [address, suiClient]);
+
+  /** Only fetches if no cached data exists for the current address */
+  const fetchActivityIfNeeded = useCallback(() => {
+    if (address && !activityCache.has(address)) {
+      fetchActivity();
+    }
+  }, [address, fetchActivity]);
   
   const clearActivity = useCallback(() => {
     setActivity([]);
-  }, []);
+    if (address) activityCache.delete(address);
+  }, [address]);
 
-  // Clear data when address changes
+  // Restore cached data when address changes
   useEffect(() => {
-    clearActivity();
-  }, [address, clearActivity]);
+    if (address && activityCache.has(address)) {
+      setActivity(activityCache.get(address)!);
+    } else {
+      setActivity([]);
+    }
+  }, [address]);
 
   return {
     activity,
     isFetchingActivity,
     fetchActivity,
+    fetchActivityIfNeeded,
     clearActivity,
     suiClient
   };

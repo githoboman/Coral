@@ -89,7 +89,7 @@ class TaskApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(task),
+      body: JSON.stringify({ ...task, user_id: task.user_id.toLowerCase() }),
     });
 
     if (!response.ok) {
@@ -108,7 +108,7 @@ class TaskApiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        user_id: userId.toLowerCase(),
         tasks: tasks,
       }),
     });
@@ -133,7 +133,7 @@ class TaskApiClient {
       offset?: number;
     }
   ): Promise<TaskListResponse> {
-    const params = new URLSearchParams({ user_id: userId });
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
 
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -160,7 +160,8 @@ class TaskApiClient {
   }
 
   async getTask(taskId: string | number, userId: string): Promise<Task> {
-    const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}?${params.toString()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -183,7 +184,7 @@ class TaskApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...updates, user_id: userId }),
+      body: JSON.stringify({ ...updates, user_id: userId.toLowerCase() }),
     });
 
     if (!response.ok) {
@@ -195,7 +196,8 @@ class TaskApiClient {
   }
 
   async deleteTask(taskId: string | number, userId: string): Promise<{ message: string; task_id: string | number; task_name: string }> {
-    const response = await fetch(`${this.baseUrl}/tasks/${taskId}?user_id=${userId}`, {
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
+    const response = await fetch(`${this.baseUrl}/tasks/${taskId}?${params.toString()}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -218,7 +220,7 @@ class TaskApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ user_id: userId }),
+      body: JSON.stringify({ user_id: userId.toLowerCase() }),
     });
 
     if (!response.ok) {
@@ -230,7 +232,7 @@ class TaskApiClient {
   }
 
   async getTaskStats(userId: string): Promise<TaskStats> {
-    const response = await fetch(`${this.baseUrl}/tasks/stats/${userId}`, {
+    const response = await fetch(`${this.baseUrl}/tasks/stats/${userId.toLowerCase()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -250,7 +252,7 @@ class TaskApiClient {
    * Get all tasks with pending Web3 actions
    */
   async getActionableTasks(userId: string): Promise<ActionableTasksResponse> {
-    const response = await fetch(`${this.baseUrl}/tasks/actionable?user_id=${userId}`, {
+    const response = await fetch(`${this.baseUrl}/tasks/actionable?user_id=${userId.toLowerCase()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -277,8 +279,8 @@ class TaskApiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
-        wallet_address: walletAddress,
+        user_id: userId.toLowerCase(),
+        wallet_address: walletAddress.toLowerCase(),
       }),
     });
 
@@ -301,7 +303,7 @@ class TaskApiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        user_id: userId.toLowerCase(),
         tx_digest: txDigest,
       }),
     });
@@ -363,7 +365,7 @@ class EventApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(event),
+      body: JSON.stringify({ ...event, user_id: event.user_id.toLowerCase() }),
     });
 
     if (!response.ok) {
@@ -382,7 +384,7 @@ class EventApiClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        user_id: userId.toLowerCase(),
         events: events,
       }),
     });
@@ -406,7 +408,7 @@ class EventApiClient {
       offset?: number;
     }
   ): Promise<EventListResponse> {
-    const params = new URLSearchParams({ user_id: userId });
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
 
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -433,7 +435,8 @@ class EventApiClient {
   }
 
   async getEvent(eventId: number, userId: string): Promise<Event> {
-    const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
+    const response = await fetch(`${this.baseUrl}/events/${eventId}?${params.toString()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -450,7 +453,8 @@ class EventApiClient {
   }
 
   async updateEvent(eventId: number, userId: string, updates: Partial<Event>): Promise<Event> {
-    const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
+    const response = await fetch(`${this.baseUrl}/events/${eventId}?${params.toString()}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -468,7 +472,8 @@ class EventApiClient {
   }
 
   async deleteEvent(eventId: number, userId: string): Promise<{ message: string; event_id: number; event_name: string }> {
-    const response = await fetch(`${this.baseUrl}/events/${eventId}?user_id=${userId}`, {
+    const params = new URLSearchParams({ user_id: userId.toLowerCase() });
+    const response = await fetch(`${this.baseUrl}/events/${eventId}?${params.toString()}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -485,7 +490,7 @@ class EventApiClient {
   }
 
   async getEventStats(userId: string): Promise<EventStats> {
-    const response = await fetch(`${this.baseUrl}/events/stats/${userId}`, {
+    const response = await fetch(`${this.baseUrl}/events/stats/${userId.toLowerCase()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
