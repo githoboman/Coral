@@ -80,9 +80,27 @@ const LandingPageLayout = () => {
     };
   }, []);
   const navigationItems = [
-    { name: 'About', to: '#about' },
-    { name: 'Product', to: '#Product' },
+    { name: 'About', to: '#control' },
+    { name: 'Product', to: '#agents' },
   ];
+
+  const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (target.startsWith('#')) {
+      e.preventDefault();
+      
+      // If we're not on the home page, redirect to home with hash
+      if (location.pathname !== '/') {
+        window.location.href = '/' + target;
+        return;
+      }
+      
+      const el = document.querySelector(target);
+      if (el) {
+        // Smooth scroll to the element
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
 
 
 
@@ -114,6 +132,7 @@ const LandingPageLayout = () => {
                     <li key={item.name}>
                       <a
                         href={item.to}
+                        onClick={(e) => handleScrollTo(e, item.to)}
                         className={`text-[13px] font-medium transition-colors duration-200 hover:text-white ${location.pathname === item.to
                           ? 'text-white'
                           : 'text-white/60'
@@ -198,7 +217,10 @@ const LandingPageLayout = () => {
                         ? 'text-white'
                         : 'text-white/70'
                         }`}
-                      onClick={closeMenu}
+                      onClick={(e) => {
+                        closeMenu();
+                        handleScrollTo(e, item.to);
+                      }}
                     >
                       {item.name}
                     </a>
@@ -241,8 +263,8 @@ const LandingPageLayout = () => {
                 <div className="text-left">
                   <h4 className="text-xl font-medium mb-3 lg:mb-8 text-white">Company</h4>
                   <ul className="space-y-4 text-white/80 text-xs text-left">
-                    <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Product</a></li>
+                    <li><a href="#control" onClick={(e) => handleScrollTo(e, '#control')} className="hover:text-white transition-colors">About</a></li>
+                    <li><a href="#agents" onClick={(e) => handleScrollTo(e, '#agents')} className="hover:text-white transition-colors">Product</a></li>
                     <li><a href="#" className="hover:text-white transition-colors">Brand kit</a></li>
                   </ul>
                 </div>
