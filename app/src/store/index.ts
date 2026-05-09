@@ -3,17 +3,20 @@ import authReducer from './slices/authSlice';
 
 import tasksReducer from './slices/tasksSlice';
 import eventsReducer from './slices/eventsSlice';
+import pointsReducer from './slices/pointsSlice';
 import uiReducer from './slices/uiSlice';
 import leaderboardReducer from './slices/leaderboardSlice';
+import badgeMintReducer from './slices/badgeMintSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-
     tasks: tasksReducer,
     events: eventsReducer,
+    points: pointsReducer,
     ui: uiReducer,
     leaderboard: leaderboardReducer,
+    badgeMint: badgeMintReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -30,6 +30,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileDashboardSidebar } from "@/components/app/MobileDashboardSidebar";
 import { MobileTopBar } from "@/components/app/MobileTopBar";
 import { SuiWalletSelector } from "@/components/wallet/SuiWalletSelector";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchClaimablePoints } from "@/store/slices/pointsSlice";
 import { sileo } from "sileo";
 
 import { useActivity } from "@/hooks/useActivity";
@@ -884,8 +886,17 @@ export default function AppLayout() {
   const { walletBalanceUSD, tokens, fetchBalance } = useTokens(address);
 
   const { nfts, isFetching: isFetchingNfts, refetch: fetchNFTs } = useNFTs(address);
-  const { activity, isFetchingActivity, fetchActivity, clearActivity } = useActivity(address);
-  const [hasUnclaimedPoints, setHasUnclaimedPoints] = useState(false);
+  const { activity, isFetchingActivity, fetchActivity, fetchActivityIfNeeded, clearActivity } = useActivity(address);
+  
+  const dispatch = useAppDispatch();
+  const claimable = useAppSelector((state) => state.points.claimable);
+  const hasUnclaimedPoints = (claimable?.total_activities ?? 0) > 0;
+
+  useEffect(() => {
+    if (address) {
+      dispatch(fetchClaimablePoints(address));
+    }
+  }, [address, dispatch]);
 
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
@@ -930,10 +941,10 @@ export default function AppLayout() {
     (tab: "Tokens" | "Collectibles" | "Activity") => {
       setActiveTab(tab);
       if (tab === "Activity") {
-        fetchActivity();
+        fetchActivityIfNeeded();
       }
     },
-    [fetchActivity],
+    [fetchActivityIfNeeded],
   );
 
   useEffect(() => {
@@ -985,34 +996,6 @@ export default function AppLayout() {
       setIsSending(false);
     }
   };
-
-  useEffect(() => {
-    if (!address) {
-      setHasUnclaimedPoints(false);
-      return;
-    }
-
-    const checkClaimable = async () => {
-      try {
-        const baseUrl =
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        const res = await fetch(
-          `${baseUrl}/api/task-points/claimable?user_id=${address}`,
-          { credentials: 'include' }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setHasUnclaimedPoints(data.total_activities > 0);
-        }
-      } catch (err) {
-        console.warn("[Layout] Failed to fetch claimable points:", err);
-      }
-    };
-
-    checkClaimable();
-    const interval = setInterval(checkClaimable, 60000);
-    return () => clearInterval(interval);
-  }, [address]);
 
 
   const navItems: NavItem[] = [

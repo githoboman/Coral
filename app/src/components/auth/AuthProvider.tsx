@@ -163,9 +163,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
 
         if (verifyRes.ok) {
-          // Session alive, skip signature and proceed to check onboarding
-          await checkUserOnboardingStatus(walletAddress);
-          return;
+          const verifyData = await verifyRes.json();
+          // Check the session actually belongs to the CURRENT wallet.
+          // If we switched wallets, the old cookie is stale — fall through to re-auth.
+          const sessionWallet = (verifyData.user?.wallet_address || "").toLowerCase();
+          const currentWallet = walletAddress.toLowerCase();
+
+          if (sessionWallet && sessionWallet === currentWallet) {
+            // Session alive AND matches current wallet — skip signature
+            await checkUserOnboardingStatus(walletAddress);
+            return;
+          } else {
+            console.warn(
+              `[AUTH] Session belongs to ${sessionWallet}, but current wallet is ${currentWallet}. Re-authenticating...`
+            );
+            // Revoke the stale session before re-authenticating
+            try {
+              await fetch(`${apiBaseUrl}/api/auth/logout`, {
+                method: "POST",
+                credentials: "include",
+              });
+            } catch (_) { /* non-blocking */ }
+          }
         }
       } catch (err) {
         console.warn("Session verification failed, falling back to signature", err);

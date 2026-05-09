@@ -31,7 +31,7 @@ export default function OnchainAnalysis() {
   const address = account?.address || null;
   const [viewedWallet, setViewedWallet] = useState<string | null>(null);
   const effectiveAddress = viewedWallet || address;
-  const { activity, isFetchingActivity, fetchActivity } = useActivity(effectiveAddress);
+  const { activity, isFetchingActivity, fetchActivity, fetchActivityIfNeeded } = useActivity(effectiveAddress);
 
   const { walletBalanceUSD, tokens, isFetchingTokens } = useTokens(effectiveAddress);
   const { profile, refetch: refetchProfile } = useProfile();
@@ -117,9 +117,9 @@ export default function OnchainAnalysis() {
 
   useEffect(() => {
     if (effectiveAddress) {
-      fetchActivity();
+      fetchActivityIfNeeded();
     }
-  }, [effectiveAddress, fetchActivity]);
+  }, [effectiveAddress, fetchActivityIfNeeded]);
 
   // Save recently analyzed address after successful fetch
   useEffect(() => {

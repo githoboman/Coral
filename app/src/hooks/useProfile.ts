@@ -41,7 +41,8 @@ export function useProfile() {
 
     dispatch(setProfileLoading(true));
     try {
-      const res = await fetch(`${API_BASE}/api/fetch-user?user_id=${currentAccount.address}`, {
+      const normalizedAddr = currentAccount.address.toLowerCase();
+      const res = await fetch(`${API_BASE}/api/fetch-user?user_id=${normalizedAddr}`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -51,6 +52,11 @@ export function useProfile() {
         } else {
           dispatch(setProfile(null));
         }
+      } else if (res.status === 403) {
+        // 403 = auth cookie belongs to a different wallet. Stop retrying —
+        // AuthProvider will re-authenticate and then refetch.
+        console.warn("[useProfile] 403 — stale session, stopping retries");
+        dispatch(setProfile(null));
       } else {
         setError("Failed to fetch profile");
         dispatch(setProfileLoading(false));
@@ -77,12 +83,13 @@ export function useProfile() {
     }
 
     try {
+      const normalizedAddr = currentAccount.address.toLowerCase();
       const res = await fetch(`${API_BASE}/api/update-user`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: currentAccount.address,
+          user_id: normalizedAddr,
           preferences: newPrefs,
         })
       });
