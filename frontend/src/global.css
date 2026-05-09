@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 body {
-  background-color: #020202; 
+  background: radial-gradient(circle at center, #0A1028 0%, #03040A 100%);
+  background-attachment: fixed;
   color: white;
   padding: 0;
   font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
 }
 
 *::-webkit-scrollbar {

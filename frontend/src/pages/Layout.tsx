@@ -87,9 +87,9 @@ const LandingPageLayout = () => {
 
 
   return (
-    <main className="bg-gradient-to-b from-[#010103] to-[#010102] text-white flex flex-col min-h-screen max-w-screen overflow-hidden">
+    <main className="bg-transparent text-white flex flex-col min-h-screen max-w-screen overflow-hidden">
       {/* HEADER */}
-      <header className="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-6xl border border-white/10 bg-[#010103]/80 backdrop-blur-md rounded-4xl shadow-2xl transition-all duration-300">
+      <header className="fixed top-4 md:top-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-6xl border border-white/10 bg-transparent/80 backdrop-blur-md rounded-4xl shadow-2xl transition-all duration-300">
         <div className="px-2 sm:px-4 py-2">
           <div className="flex justify-between items-center">
             {/* Logo */}
@@ -127,7 +127,7 @@ const LandingPageLayout = () => {
               </nav>
 
               <a
-                href="#waitlist"
+                href="https://testnet.tovira.xyz"
                 className="bg-[#2563eb] hover:bg-[#3b82f6] text-white  py-2.5 px-8 rounded-full transition-all duration-200 text-[13px] shadow-lg hover:shadow-blue-500/20 whitespace-nowrap"
               >
                 Launch Testnet
@@ -137,7 +137,7 @@ const LandingPageLayout = () => {
             {/* Mobile menu button & CTA */}
             <div className="md:hidden flex items-center gap-2 pr-2">
               <a
-                href="#waitlist"
+                href="https://testnet.tovira.xyz"
                 className="bg-[#326AFD] hover:bg-[#2855D1] text-white py-2 px-4 rounded-full transition-all duration-200 text-[10px] font-semibold whitespace-nowrap shadow-lg shadow-[#326AFD]/10"
               >
                 Launch Testnet
@@ -218,7 +218,7 @@ const LandingPageLayout = () => {
       </div>
 
       {/* Footer Section */}
-      <footer className="relative bg-[#010103] pt-10 md:pt-16 overflow-hidden border-t border-white/5">
+      <footer className="relative bg-transparent pt-10 md:pt-16 overflow-hidden border-t border-white/5">
         <div className="max-w-[1600px] mx-auto px-6 md:px-12 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10 mb-8 md:mb-12">
             {/* Logo and Tagline Column */}
@@ -230,9 +230,9 @@ const LandingPageLayout = () => {
               <p className="text-white text-xs md:text-sm leading-relaxed mb-6 md:mb-10">
                 Get Access to specialized crypto workflow tools across research, analysis and monitoring.
               </p>
-              <button className="bg-[#326AFD] hover:bg-[#2855D1] text-white px-4 py-3 md:px-8 md:py-3.5 rounded-full text-xs font-medium transition-all shadow-lg shadow-[#326AFD]/10">
+              <a href="https://testnet.tovira.xyz" className="inline-block bg-[#326AFD] hover:bg-[#2855D1] text-white px-4 py-3 md:px-8 md:py-3.5 rounded-full text-xs font-medium transition-all shadow-lg shadow-[#326AFD]/10">
                 Try Tovira on Testnet
-              </button>
+              </a>
             </div>
 
             {/* Links Columns */}

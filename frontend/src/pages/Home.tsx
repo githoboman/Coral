@@ -357,8 +357,8 @@ const Home: React.FC = () => {
   }, { dependencies: [activeAgentIdx], scope: heroRef });
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#010103]" ref={heroRef}>
-      <section className="relative min-h-[25rem] md:min-h-[45rem] flex items-center justify-center overflow-hidden bg-[#010103] pt-24 md:pt-32 pb-0 hero-section">
+    <div className="min-h-screen overflow-x-hidden bg-transparent" ref={heroRef}>
+      <section className="relative min-h-[25rem] md:min-h-[45rem] flex items-center justify-center overflow-hidden bg-transparent pt-24 md:pt-32 pb-0 hero-section">
         {/* Floating Mascots */}
         <img
           src="/assets/images/v2/research.png"
@@ -399,7 +399,7 @@ const Home: React.FC = () => {
                 variants={itemVariants}
               >
                 <a
-                  href="#waitlist"
+                  href="https://testnet.tovira.xyz"
                   className="bg-[#326AFD] hover:bg-[#407BFF] text-white py-2.5 md:py-4 px-5 md:px-6 rounded-full font-medium transition-all duration-300 shadow-xl hover:shadow-[#326AFD]/20 hover:-translate-y-1 text-[11px] sm:text-sm text-center whitespace-nowrap"
                 >
                   Get Started for free
@@ -417,7 +417,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Macbook Mockup Section */}
-      <section className="macbook-section relative min-h-0 flex items-center justify-center bg-[#010103] pt-0 pb-20 overflow-hidden">
+      <section className="macbook-section relative min-h-0 flex items-center justify-center bg-transparent pt-0 pb-20 overflow-hidden">
         <div className="w-full max-w-7xl mx-auto px-4 relative flex items-center justify-center">
           
           {/* Floating Text Left */}
@@ -449,7 +449,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Agents Section */}
-      <section className="agents-section relative bg-[#010103] py-24 overflow-hidden">
+      <section className="agents-section relative bg-transparent py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16 relative flex flex-col items-center">
             <h2 className="text-2xl md:text-5xl mb-6 tracking-tight">
@@ -534,7 +534,7 @@ const Home: React.FC = () => {
 
               {/* Link */}
               <a
-                href="#chat"
+                href="https://testnet.tovira.xyz"
                 className="absolute bottom-4 right-5 md:bottom-8 md:right-8 z-10 text-[#326AFD] text-[11px] md:text-sm hover:underline reveal-item"
               >
                 {agentData[activeAgentIdx].chatLink}
@@ -577,7 +577,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* portfolio Section */}
-      <section className="portfolio-section relative bg-[#010103] pt-12 pb-8 md:py-24 overflow-hidden">
+      <section className="portfolio-section relative bg-transparent pt-12 pb-8 md:py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-10 portfolio-reveal-up">
             <h2 className="text-xl md:text-5xl font-medium mb-6 tracking-tight text-white">
@@ -613,7 +613,7 @@ const Home: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <button className="bg-[#326AFD] hover:bg-[#2855D1] text-white px-3 md:px-4 py-2.5 md:py-3 rounded-4xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shadow-lg shadow-[#326AFD]/10">
+                <button onClick={() => window.location.href="https://testnet.tovira.xyz"} className="bg-[#326AFD] hover:bg-[#2855D1] text-white px-3 md:px-4 py-2.5 md:py-3 rounded-4xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shadow-lg shadow-[#326AFD]/10">
                   Analyze wallet
                 </button>
               </div>
@@ -634,7 +634,7 @@ const Home: React.FC = () => {
 
 
       {/* Alert Section */}
-      <section className="alert-section relative bg-[#010103] overflow-hidden pt-8 pb-12 md:py-16">
+      <section className="alert-section relative bg-transparent overflow-hidden pt-8 pb-12 md:py-16">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col-reverse lg:flex-row items-center gap-12 lg:gap-20">
 
@@ -671,7 +671,7 @@ const Home: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                <button className="bg-[#326AFD] hover:bg-[#2855D1] text-white px-3 md:px-4 py-2.5 md:py-3 rounded-4xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shadow-lg shadow-[#326AFD]/10">
+                <button onClick={() => window.location.href="https://testnet.tovira.xyz"} className="bg-[#326AFD] hover:bg-[#2855D1] text-white px-3 md:px-4 py-2.5 md:py-3 rounded-4xl text-[10px] md:text-xs font-medium transition-all whitespace-nowrap shadow-lg shadow-[#326AFD]/10">
                   Subscribe to Alerts
                 </button>
               </div>
@@ -682,7 +682,7 @@ const Home: React.FC = () => {
 
               
       {/* Task Section */}
-       <section className="task-section relative bg-[#010103] overflow-hidden pt-8 pb-8 md:pt-16 md:pb-16">
+       <section className="task-section relative bg-transparent overflow-hidden pt-8 pb-8 md:pt-16 md:pb-16">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
             <div className="lg:w-1/2 task-reveal-left text-center lg:text-left">
@@ -700,7 +700,7 @@ const Home: React.FC = () => {
                   className="w-full bg-[#00060A] border-2 border-white/30 rounded-full py-3 md:py-4 pl-4 pr-12 md:pr-14 text-white placeholder:text-white/60 focus:outline-none focus:border-[#326AFD]/40 transition-all text-[10px] md:text-sm"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <button className="w-8 h-8 md:w-10 md:h-10 bg-[#326AFD] hover:bg-[#2855D1] text-white rounded-full flex items-center justify-center transition-all shadow-lg shadow-[#326AFD]/20">
+                  <button onClick={() => window.location.href="https://testnet.tovira.xyz"} className="w-8 h-8 md:w-10 md:h-10 bg-[#326AFD] hover:bg-[#2855D1] text-white rounded-full flex items-center justify-center transition-all shadow-lg shadow-[#326AFD]/20">
                     <FiArrowUp className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 </div>
@@ -727,7 +727,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Notifications Section */}
-      <section className="notif-section relative bg-[#010103] pt-6 pb-32 md:py-32 overflow-hidden">
+      <section className="notif-section relative bg-transparent pt-6 pb-32 md:py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-xl md:text-5xl font-medium mb-20 text-center tracking-tight text-white leading-tight notif-reveal-up">
             Stay <span className="text-[#326AFD]">ahead</span> of the curve. Get notified when it <span className="text-[#B7FC0D]">matters</span>
@@ -760,7 +760,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Start Section */}
-      <section className="start-section relative bg-[#010103] py-24 md:py-40 overflow-hidden">
+      <section className="start-section relative bg-transparent py-24 md:py-40 overflow-hidden">
         {/* Mascots flanking the section */}
         <div className="absolute -left-10 md:-left-20 top-16 md:top-10 w-20 md:w-56 opacity-90 pointer-events-none z-0 block start-reveal-mascot">
           <img src="/assets/images/v2/eva.png" alt="Eva Mascot" className="w-full h-auto" />
@@ -775,12 +775,12 @@ const Home: React.FC = () => {
           </h2>
 
           <div className="flex flex-row items-center justify-center gap-2 md:gap-4 mb-10 md:mb-16">
-            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-white/5 whitespace-nowrap">
+            <button onClick={() => window.location.href="https://testnet.tovira.xyz"} className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-white/5 whitespace-nowrap cursor-pointer">
               <FcGoogle className="w-4 h-4 md:w-6 md:h-6 shrink-0" />
               Sign up with Google
             </button>
             <span className="text-white text-[14px] md:text-sm font-medium">or</span>
-            <button className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-[#326AFD]/5 whitespace-nowrap">
+            <button onClick={() => window.location.href="https://testnet.tovira.xyz"} className="flex items-center gap-1.5 md:gap-2 bg-[#0A0A0B] border border-white/10 px-3 md:px-6 py-2.5 md:py-3 rounded-full text-white text-[12px] sm:text-xs font-medium hover:bg-white/5 transition-all shadow-xl hover:shadow-[#326AFD]/5 whitespace-nowrap cursor-pointer">
               <SiSui className="w-4 h-4 md:w-6 md:h-6 text-[#326AFD] shrink-0" />
               Continue with Sui
             </button>
