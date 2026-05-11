@@ -138,7 +138,7 @@ export class SubscriptionService {
 
   private needsDailyReset(lastDate: string | undefined): boolean {
     if (!lastDate) return true;
-    return lastDate !== this.getTodayDate();
+    return !lastDate.startsWith(this.getTodayDate());
   }
 
   // Cache tier for 5 minutes to avoid spamming RPC

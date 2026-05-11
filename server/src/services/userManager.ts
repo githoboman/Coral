@@ -406,7 +406,7 @@ export class UserManager {
       if (fetchError) throw fetchError;
 
       const profile = data as any;
-      const needsReset = !profile[dateField] || profile[dateField] !== today;
+      const needsReset = !profile[dateField] || !profile[dateField].startsWith(today);
       const newValue = needsReset ? 1 : (profile[field] || 0) + 1;
 
       const { error: updateError } = await supabase
@@ -447,7 +447,7 @@ export class UserManager {
       if (fetchError) throw fetchError;
 
       const profile = data as any;
-      const needsReset = !profile[resetDateField] || profile[resetDateField] !== today;
+      const needsReset = !profile[resetDateField] || !profile[resetDateField].startsWith(today);
 
       const updateData: any = {
         [resetDateField]: today

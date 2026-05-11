@@ -13,6 +13,9 @@ export default function Home() {
     totalInteractions: 0,
     totalCheckins: 0,
     dau: 0,
+    mau: 0,
+    newUsersToday: 0,
+    totalSubscribers: 0,
   });
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,10 +63,10 @@ export default function Home() {
               <div className="p-3 bg-primary/10 rounded-xl">
                 <Users className="text-primary" size={24} />
               </div>
-              <span className="text-green-400 text-sm font-medium">Live</span>
+              <span className="text-green-400 text-sm font-medium">+{metrics.newUsersToday} Today</span>
             </div>
             <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider">Total Users</h3>
-            <p className="text-3xl font-bold text-white mt-1">{loading ? "..." : metrics.totalUsers}</p>
+            <p className="text-3xl font-bold text-white mt-1">{loading ? "..." : metrics.totalUsers.toLocaleString()}</p>
           </div>
 
           <div className="bg-surface border border-white/10 rounded-2xl p-6">
@@ -71,10 +74,27 @@ export default function Home() {
               <div className="p-3 bg-blue-500/10 rounded-xl">
                 <Activity className="text-blue-400" size={24} />
               </div>
-              <span className="text-white/40 text-xs">24h Active</span>
+              <div className="text-right">
+                <div className="text-white text-xs font-medium">{metrics.dau} DAU</div>
+                <div className="text-white/40 text-[10px]">{metrics.mau} MAU</div>
+              </div>
             </div>
-            <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider">DAU (Est)</h3>
-            <p className="text-3xl font-bold text-white mt-1">{loading ? "..." : metrics.dau}</p>
+            <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider">Active Users</h3>
+            <p className="text-3xl font-bold text-white mt-1">
+              {loading ? "..." : metrics.dau.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="bg-surface border border-[#B7FC0D]/20 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#B7FC0D]/5 blur-2xl rounded-full" />
+            <div className="flex justify-between items-start mb-4 relative z-10">
+              <div className="p-3 bg-[#B7FC0D]/10 rounded-xl border border-[#B7FC0D]/20">
+                <Zap className="text-[#B7FC0D]" size={24} />
+              </div>
+              <span className="text-[#B7FC0D] text-xs font-bold px-2 py-1 bg-[#B7FC0D]/10 rounded-lg">PREMIUM</span>
+            </div>
+            <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider relative z-10">Total Subscribed</h3>
+            <p className="text-3xl font-bold text-white mt-1 relative z-10">{loading ? "..." : metrics.totalSubscribers.toLocaleString()}</p>
           </div>
 
           <div className="bg-surface border border-white/10 rounded-2xl p-6">
@@ -84,19 +104,7 @@ export default function Home() {
               </div>
             </div>
             <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider">Total Interactions</h3>
-            <p className="text-3xl font-bold text-white mt-1">{loading ? "..." : metrics.totalInteractions}</p>
-          </div>
-
-          <div className="bg-surface border border-white/10 rounded-2xl p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-orange-500/10 rounded-xl">
-                <Zap className="text-orange-400" size={24} />
-              </div>
-            </div>
-            <h3 className="text-white/40 text-sm font-medium uppercase tracking-wider">Interactions / User</h3>
-            <p className="text-3xl font-bold text-white mt-1">
-              {loading ? "..." : (metrics.totalUsers > 0 ? (metrics.totalInteractions / metrics.totalUsers).toFixed(1) : 0)}
-            </p>
+            <p className="text-3xl font-bold text-white mt-1">{loading ? "..." : metrics.totalInteractions.toLocaleString()}</p>
           </div>
         </div>
 

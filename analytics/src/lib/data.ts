@@ -4,8 +4,11 @@ import { supabase } from "@/lib/supabase";
 export interface AnalyticsData {
   totalUsers: number;
   totalInteractions: number;
-  totalCheckins: number; // Placeholder
+  totalCheckins: number;
   dau: number;
+  mau: number;
+  newUsersToday: number;
+  totalSubscribers: number;
 }
 
 export interface ChartData {
@@ -15,38 +18,59 @@ export interface ChartData {
 }
 
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
-  // Fetch total users directly from Supabase
-  const { count: totalUsers } = await supabase
-    .from("user_profiles")
-    .select("*", { count: "exact", head: true });
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
 
-  const { count: totalInteractions } = await supabase
-    .from("chat_messages")
-    .select("*", { count: "exact", head: true });
+  // Parallel fetch for counts
+  const [
+    { count: totalUsers },
+    { count: totalInteractions },
+    { count: newUsersToday },
+    { count: totalSubscribers }
+  ] = await Promise.all([
+    supabase.from("user_profiles").select("*", { count: "exact", head: true }),
+    supabase.from("chat_messages").select("*", { count: "exact", head: true }),
+    supabase.from("user_profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfToday.toISOString()),
+    supabase.from("user_profiles").select("*", { count: "exact", head: true }).eq("subscription_tier", 1)
+  ]);
 
-  // Estimate DAU based on interactions (chats + messages + profile updates) in last 24h
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const [activeChats, activeMessages, activeProfiles] = await Promise.all([
+  // DAU Calculation (24h)
+  const [activeChats24, activeMessages24, activeProfiles24] = await Promise.all([
     supabase.from("chats").select("user_id").gte("last_updated", yesterday.toISOString()),
     supabase.from("chat_messages").select("user_id").gte("timestamp", yesterday.toISOString()),
     supabase.from("user_profiles").select("wallet_address").gte("updated_at", yesterday.toISOString())
   ]);
 
-  const activeUserIds = new Set([
-    ...(activeChats.data?.map(c => c.user_id) || []),
-    ...(activeMessages.data?.map(m => m.user_id) || []),
-    ...(activeProfiles.data?.map(p => p.wallet_address) || [])
+  const activeUserIds24 = new Set([
+    ...(activeChats24.data?.map(c => c.user_id) || []),
+    ...(activeMessages24.data?.map(m => m.user_id) || []),
+    ...(activeProfiles24.data?.map(p => p.wallet_address) || [])
   ]);
 
-  const dau = activeUserIds.size;
+  // MAU Calculation (30d)
+  const [activeChats30, activeMessages30, activeProfiles30] = await Promise.all([
+    supabase.from("chats").select("user_id").gte("last_updated", thirtyDaysAgo.toISOString()),
+    supabase.from("chat_messages").select("user_id").gte("timestamp", thirtyDaysAgo.toISOString()),
+    supabase.from("user_profiles").select("wallet_address").gte("updated_at", thirtyDaysAgo.toISOString())
+  ]);
+
+  const activeUserIds30 = new Set([
+    ...(activeChats30.data?.map(c => c.user_id) || []),
+    ...(activeMessages30.data?.map(m => m.user_id) || []),
+    ...(activeProfiles30.data?.map(p => p.wallet_address) || [])
+  ]);
 
   return {
     totalUsers: totalUsers || 0,
     totalInteractions: totalInteractions || 0,
     totalCheckins: 0,
-    dau: dau || 0
+    dau: activeUserIds24.size,
+    mau: activeUserIds30.size,
+    newUsersToday: newUsersToday || 0,
+    totalSubscribers: totalSubscribers || 0
   };
 }
 
@@ -484,4 +508,41 @@ export async function fetchRevenueMetrics(): Promise<RevenueMetrics> {
     ].filter(item => item.value > 0),
     revenueHistory
   };
+}
+
+export interface UserDetail {
+  wallet_address: string;
+  username: string;
+  points: number;
+  subscription_tier: number;
+  created_at: string;
+  interactions_count: number;
+}
+
+export async function fetchTopUsers(limit: number = 20): Promise<UserDetail[]> {
+  const { data: users } = await supabase
+    .from('user_profiles')
+    .select('wallet_address, username, points, subscription_tier, created_at')
+    .order('points', { ascending: false })
+    .limit(limit);
+
+  if (!users) return [];
+
+  const userDetails = await Promise.all(users.map(async (u) => {
+    const { count: interactions } = await supabase
+      .from('chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', u.wallet_address);
+
+    return {
+      wallet_address: u.wallet_address,
+      username: u.username || u.wallet_address.slice(0, 8) + '...',
+      points: u.points || 0,
+      subscription_tier: u.subscription_tier || 0,
+      created_at: u.created_at,
+      interactions_count: interactions || 0
+    };
+  }));
+
+  return userDetails;
 }
