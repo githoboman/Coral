@@ -80,7 +80,7 @@ export const agentConfigs: Record<string, AgentConfig> = {
     id: 'main',
     name: 'main',
     displayName: 'Tovira AI',
-    description: 'Your AI assistant for Web3',
+    description: 'From deep research to onchain execution - all in one place',
     icon: '💬',
     iconUrl: '/assets/images/agents/tovira-agent.svg',
     color: '#10b981',

@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Tovira - AI Assistant for Web3',
-  description: 'The ultimate AI assistant for web3',
+  title: 'Tovira | A smarter way to handle crypto workflows',
+  description: 'From deep research to onchain execution - all in one place',
 };
 
 export default function RootLayout({

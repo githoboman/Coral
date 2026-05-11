@@ -1,7 +1,7 @@
 {
   "name": "Tovira",
   "short_name": "Tovira",
-  "description": "AI-powered crypto companion on Sui blockchain with token research, sentiment analysis, NFT insights, and wallet intelligence.",
+  "description": "From deep research to onchain execution - all in one place.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0D0D0D",
