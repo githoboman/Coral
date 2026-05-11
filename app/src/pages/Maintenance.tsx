@@ -9,17 +9,17 @@ export default function Maintenance() {
     const calculateTimeLeft = () => {
       const now = new Date();
       
-      // Target: Monday at 8 PM (20:00)
+      // Target: Monday at 19:00 UTC (8 PM UTC+1)
       const target = new Date();
-      const dayOfWeek = target.getDay(); // 0 is Sunday, 1 is Monday...
+      const dayOfWeek = target.getUTCDay(); // 0 is Sunday, 1 is Monday...
       const daysUntilMonday = (1 - dayOfWeek + 7) % 7;
       
-      target.setDate(target.getDate() + daysUntilMonday);
-      target.setHours(20, 0, 0, 0);
+      target.setUTCDate(target.getUTCDate() + daysUntilMonday);
+      target.setUTCHours(19, 0, 0, 0);
 
-      // If target is already past today, move to next week's Monday
+      // If target is already past, move to next week's Monday
       if (target.getTime() <= now.getTime()) {
-        target.setDate(target.getDate() + 7);
+        target.setUTCDate(target.getUTCDate() + 7);
       }
 
       const difference = target.getTime() - now.getTime();
