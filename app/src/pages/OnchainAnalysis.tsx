@@ -25,6 +25,7 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { SkeletonBox } from "@/components/ui/SkeletonLoader";
+import { useAlerts, WalletEvent } from "@/hooks/useAlerts";
 const IS_WIP_ENABLED = false;
 export default function OnchainAnalysis() {
   const account = useCurrentAccount();
@@ -798,6 +799,7 @@ export default function OnchainAnalysis() {
 }
 
 function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: string[], refetchProfile: () => void }) {
+  const { events, isFetching: isFetchingAlerts } = useAlerts(alertWallets);
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [newWallet, setNewWallet] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -865,23 +867,37 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
           </div>
 
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 space-y-0 divide-y divide-white/5">
-            {alertWallets.length > 0 ? alertWallets.map((wallet, idx) => (
-              <div key={idx} className="py-6 first:pt-0 last:pb-0 group">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-mono text-sm text-white/90 truncate mr-4">{wallet}</span>
-                  <button 
-                    onClick={() => setWalletToDelete(wallet)}
-                    className="text-rose-500/40 hover:text-rose-500 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+            {alertWallets.length > 0 ? alertWallets.map((wallet, idx) => {
+              const walletEvents = events.filter(e => e.wallet_address === wallet);
+              const lastEvent = walletEvents[0];
+              const lastActivityStr = lastEvent ? formatTimeAgo(new Date(lastEvent.created_at)) : "No recent activity";
+              
+              return (
+                <div key={idx} className="py-6 first:pt-0 last:pb-0 group">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-mono text-sm text-white/90 truncate mr-4">{wallet}</span>
+                    <button 
+                      onClick={() => setWalletToDelete(wallet)}
+                      className="text-rose-500/40 hover:text-rose-500 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="text-white/40">Last activity: {lastActivityStr}</span>
+                    <button 
+                      onClick={() => {
+                        // Switch to dashboard view for this wallet
+                        // Since we are in AlertManagerPage, we need to communicate back to parent
+                        // But for now, just a placeholder or link
+                      }}
+                      className="text-[#246AFC] hover:underline font-bold transition-colors">
+                      View
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="text-white/40">Last activity: 2 minutes ago</span>
-                  <button className="text-[#246AFC] hover:underline font-bold transition-colors">View</button>
-                </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="py-10 text-center text-gray-500 text-sm">
                 No wallets tracked for live alerts yet.
               </div>
@@ -892,33 +908,28 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
         <div className="w-full lg:w-[55%] space-y-6">
           <h3 className="text-white text-xl font-medium mb-8 ">Recent alerts</h3>
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] p-6 space-y-6 h-full min-h-[500px]">
-            {[
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-              { type: 'sent', amount: '10 USDC', to: '0x1a2B3C4d5E6f...', time: '2 minutes ago' },
-            ].map((alert, idx) => (
-              <div key={idx} className="flex items-center justify-between group">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <ArrowUpRight className="text-rose-500 shrink-0" size={18} />
-                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                    <img src="/assets/icons/sui.svg" className="w-5 h-5 opacity-40 grayscale" alt="SUI" />
+            {isFetchingAlerts ? (
+              <div className="space-y-6">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <SkeletonBox className="w-5 h-5 rounded-full" />
+                    <SkeletonBox className="w-8 h-8 rounded-full" />
+                    <SkeletonBox className="h-4 flex-1 rounded-full" />
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm min-w-0">
-                    <span className="text-gray-400 capitalize">{alert.type}</span>
-                    <span className="font-bold text-white whitespace-nowrap">{alert.amount}</span>
-                    <span className="text-gray-500">to</span>
-                    <span className="font-mono text-white/70 truncate max-w-[120px]">{alert.to}</span>
-                    <span className="text-gray-500 ml-2 whitespace-nowrap">{alert.time}</span>
-                  </div>
-                </div>
-                <button className="text-[#246AFC] hover:underline text-sm font-bold ml-4 shrink-0 transition-colors">View</button>
+                ))}
               </div>
-            ))}
+            ) : events.length > 0 ? (
+              events.map((alert, idx) => (
+                <AlertRow key={idx} alert={alert} />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                   <RefreshCw className="text-gray-600" size={24} />
+                </div>
+                <p className="text-gray-500 text-sm">No recent alerts found for your tracked wallets.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1004,6 +1015,72 @@ function AlertManagerPage({ alertWallets, refetchProfile }: { alertWallets: stri
       )}
     </div>
   );
+}
+
+function AlertRow({ alert }: { alert: WalletEvent }) {
+  const { event_type, event_data, created_at, wallet_address } = alert;
+  
+  // Format amount
+  let amountStr = "—";
+  if (event_data.changePercent !== undefined) {
+      // Calculate diff
+      const diff = BigInt(event_data.newBalance || 0) - BigInt(event_data.previousBalance || 0);
+      const absDiff = diff < 0n ? -diff : diff;
+      amountStr = `${(Number(absDiff) / 1_000_000_000).toFixed(4)} SUI`;
+  } else if (event_data.balance) {
+      amountStr = `${(Number(event_data.balance) / 1_000_000_000).toFixed(4)} SUI`;
+  }
+
+  const isSent = event_type === 'token_sent';
+  const isReceived = event_type === 'token_received';
+  
+  // Time ago
+  const timeAgo = formatTimeAgo(new Date(created_at));
+
+  return (
+      <div className="flex items-center justify-between group">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+              {isSent ? (
+                  <ArrowUpRight className="text-rose-500 shrink-0" size={18} />
+              ) : isReceived ? (
+                  <ArrowDownLeft className="text-[#34D399] shrink-0" size={18} />
+              ) : (
+                  <RefreshCw className="text-[#246AFC] shrink-0" size={18} />
+              )}
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                  <img src="/assets/icons/sui.svg" className="w-5 h-5 opacity-40 grayscale" alt="SUI" />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm min-w-0">
+                  <span className="text-gray-400 capitalize">{event_type.replace('_', ' ')}</span>
+                  <span className="font-bold text-white whitespace-nowrap">{amountStr}</span>
+                  <span className="text-gray-500">on</span>
+                  <span className="font-mono text-white/70 truncate max-w-[120px]">{wallet_address}</span>
+                  <span className="text-gray-500 ml-2 whitespace-nowrap">{timeAgo}</span>
+              </div>
+          </div>
+          <a 
+              href={`https://suiscan.xyz/testnet/address/${wallet_address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#246AFC] hover:underline text-sm font-bold ml-4 shrink-0 transition-colors"
+          >
+              View
+          </a>
+      </div>
+  );
+}
+
+function formatTimeAgo(date: Date) {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `${diffInDays}d ago`;
 }
 
 
