@@ -898,6 +898,15 @@ export default function AppLayout() {
     }
   }, [address, dispatch]);
 
+  // Re-fetch claimable state when points are claimed (Activity page fires this event)
+  useEffect(() => {
+    const handlePointsUpdated = () => {
+      if (address) dispatch(fetchClaimablePoints(address));
+    };
+    window.addEventListener("pointsUpdated", handlePointsUpdated);
+    return () => window.removeEventListener("pointsUpdated", handlePointsUpdated);
+  }, [address, dispatch]);
+
   const [sendRecipient, setSendRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
   const [selectedSendToken, setSelectedSendToken] = useState<any>(null);

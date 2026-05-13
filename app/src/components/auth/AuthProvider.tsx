@@ -110,11 +110,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (!isAuthenticated) {
       if (hasCheckedInit && !isSigninPage && !isMaintenancePage) {
-        // Store intended path to redirect back after signin
-        if (location.pathname !== "/" && location.pathname !== "/chat") {
-          sessionStorage.setItem("tovira_intended_path", location.pathname + location.search);
-        }
-        navigate("/signin", { replace: true });
+        // ADDED: Give the wallet kit 2 seconds to recover before kicking the user out.
+        // This fixes flickering connection status (common with Enoki/Google login).
+        const recoverTimer = setTimeout(() => {
+          if (!currentAccount) {
+            if (location.pathname !== "/" && location.pathname !== "/chat") {
+              sessionStorage.setItem("tovira_intended_path", location.pathname + location.search);
+            }
+            navigate("/signin", { replace: true });
+          }
+        }, 2000);
+        return () => clearTimeout(recoverTimer);
       }
       setIsOnboardingOpen(false);
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);

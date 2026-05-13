@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { ChevronRight, Search, X, ChevronDown } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchTasks, removeTask, updateTaskStatus, invalidateCache as invalidateTasksCache } from "@/store/slices/tasksSlice";
 import { fetchEvents } from "@/store/slices/eventsSlice";
-import { fetchClaimablePoints, invalidateCache as invalidatePointsCache } from "@/store/slices/pointsSlice";
 import { ActivitySkeleton } from "@/components/ui/SkeletonLoader";
 import { Toast, ToastType } from "@/components/ui/Toast";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -13,6 +12,28 @@ import { sileo } from "sileo";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+type ClaimableApi = {
+  claimable_tasks: number;
+  claimable_research: number;
+  total_activities: number;
+  total_claimable_points: number;
+};
+
+async function fetchClaimableStatus(
+  userId: string,
+): Promise<ClaimableApi | null> {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/api/task-points/claimable?user_id=${encodeURIComponent(userId)}`,
+      { credentials: "include" },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as ClaimableApi;
+  } catch {
+    return null;
+  }
+}
 
 type Item = {
   id: string | number;
@@ -171,7 +192,41 @@ const Activity = () => {
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.tasks.tasks);
   const events = useAppSelector((state) => state.events.events);
-  const claimable = useAppSelector((state) => state.points.claimable);
+
+  const [claimableState, setClaimableState] = useState<ClaimableApi | null>(null);
+
+  const refreshClaimable = useCallback(async () => {
+    if (!userId) {
+      setClaimableState(null);
+      return;
+    }
+    const data = await fetchClaimableStatus(userId);
+    setClaimableState(data);
+  }, [userId]);
+
+  // Fetch claimable on mount and whenever userId changes
+  useEffect(() => {
+    void refreshClaimable();
+  }, [refreshClaimable]);
+
+  // Re-fetch when page becomes visible (covers tab-switch and SPA route navigation)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && userId) {
+        void refreshClaimable();
+      }
+    };
+    // Also refetch on focus (covers SPA route back-navigation)
+    const handleFocus = () => {
+      if (userId) void refreshClaimable();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [userId, refreshClaimable]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -379,19 +434,18 @@ const Activity = () => {
 
       if (data.success) {
         dispatch(invalidateTasksCache());
-        dispatch(invalidatePointsCache());
         await dispatch(fetchTasks(userId));
-        await dispatch(fetchClaimablePoints(userId));
+        const freshClaimable = await fetchClaimableStatus(userId);
+        setClaimableState(freshClaimable);
         // Success! Remove optimistic task
         setOptimisticTasks(prev => prev.filter(t => t.id !== tempId));
         sileo.success({ title: "Task Created", description: "Your task was created successfully." });
 
-        // Points handled via Redux now
-        if (claimable && claimable.total_activities > 0) {
+        if (freshClaimable && freshClaimable.total_activities > 0) {
             setTimeout(() => {
               sileo.info({
                 title: "Activity Points Available",
-                description: `You have ${claimable.total_claimable_points} points from ${claimable.total_activities} activit${claimable.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
+                description: `You have ${freshClaimable.total_claimable_points} points from ${freshClaimable.total_activities} activit${freshClaimable.total_activities !== 1 ? "ies" : "y"} ready to claim.`,
               });
             }, 1500);
         }
@@ -443,9 +497,7 @@ const Activity = () => {
         completed: !task.completed 
       })).unwrap();
       
-      // Invalidate points cache because task completion might award points
-      dispatch(invalidatePointsCache());
-      dispatch(fetchClaimablePoints(userId));
+      void refreshClaimable();
     } catch (err) {
       console.error("Failed to toggle task:", err);
       sileo.error({ title: "Update Failed", description: "Failed to update task. Please try again." });
@@ -610,7 +662,11 @@ const Activity = () => {
         </div>
       </div>
 
-      <TaskPointsClaimSection />
+      <TaskPointsClaimSection
+        userId={userId}
+        claimable={claimableState}
+        onRefresh={refreshClaimable}
+      />
 
       {/* Middle Controls */}
       <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
@@ -966,21 +1022,20 @@ const Activity = () => {
   );
 };
 
-const TaskPointsClaimSection = () => {
-  const currentAccount = useCurrentAccount();
-  const dispatch = useAppDispatch();
-  const claimable = useAppSelector((state) => state.points.claimable);
+function TaskPointsClaimSection({
+  userId,
+  claimable,
+  onRefresh,
+}: {
+  userId: string;
+  claimable: ClaimableApi | null;
+  onRefresh: () => Promise<void>;
+}) {
   const [isClaiming, setIsClaiming] = useState(false);
-
-  useEffect(() => {
-    if (currentAccount?.address) {
-      dispatch(fetchClaimablePoints(currentAccount.address));
-    }
-  }, [currentAccount?.address, dispatch]);
 
   const handleClaim = async () => {
     if (
-      !currentAccount?.address ||
+      !userId ||
       !claimable ||
       claimable.total_activities === 0
     )
@@ -994,7 +1049,7 @@ const TaskPointsClaimSection = () => {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: currentAccount.address
+          user_id: userId
         })
       });
 
@@ -1007,9 +1062,7 @@ const TaskPointsClaimSection = () => {
 
       window.dispatchEvent(new Event("pointsUpdated"));
 
-      // Refresh claimable status in Redux
-      dispatch(invalidatePointsCache());
-      dispatch(fetchClaimablePoints(currentAccount.address));
+      await onRefresh();
 
       sileo.success({
         title: "Points Claimed!",
@@ -1086,5 +1139,5 @@ const TaskPointsClaimSection = () => {
       </div>
     </div>
   );
-};
+}
 export default Activity;

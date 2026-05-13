@@ -41,6 +41,9 @@ export interface UserProfile {
   // Tracked wallets
   recently_analyzed?: string[];
   alert_wallets?: string[];
+
+  /** Set only in DB; never from untrusted client input */
+  godmode?: boolean;
 }
 
 export interface DecryptedUserProfile {
@@ -80,6 +83,8 @@ export interface DecryptedUserProfile {
   // Tracked wallets
   recently_analyzed?: string[];
   alert_wallets?: string[];
+
+  godmode?: boolean;
 }
 
 export class UserManager {
@@ -286,6 +291,7 @@ export class UserManager {
         last_research_prompt_date: profile.last_research_prompt_date,
         recently_analyzed: profile.recently_analyzed || [],
         alert_wallets: profile.alert_wallets || [],
+        godmode: profile.godmode === true,
       };
     } catch (error) {
       console.error("[USER_MANAGER] Error fetching profile from Supabase:", error);
@@ -358,6 +364,7 @@ export class UserManager {
     lastCheckinDate: string
   ): Promise<boolean> {
     try {
+      walletAddress = walletAddress.toLowerCase();
       const { data: profile, error: fetchError } = await supabase
         .from('user_profiles')
         .select('points, total_checkins')
@@ -394,6 +401,7 @@ export class UserManager {
     today: string
   ): Promise<boolean> {
     try {
+      walletAddress = walletAddress.toLowerCase();
       const field = type === 'task' ? 'daily_prompts_used' : 'daily_research_prompts_used';
       const dateField = type === 'task' ? 'last_prompt_date' : 'last_research_prompt_date';
 
@@ -434,6 +442,7 @@ export class UserManager {
     today: string
   ): Promise<boolean> {
     try {
+      walletAddress = walletAddress.toLowerCase();
       const field = type === 'task' ? 'tasks_created_today' : 'research_created_today';
       const claimedField = type === 'task' ? 'tasks_claimed_today' : 'research_claimed_today';
       const resetDateField = 'last_task_reset_date';
