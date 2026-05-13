@@ -8,6 +8,7 @@ import {
 import { sileo } from "sileo";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useAccount, useSendTransaction, usePublicClient } from "wagmi";
+import { FaInfinity } from "react-icons/fa6";
 import { Connection as SolanaConnection } from "@solana/web3.js";
 
 import {
@@ -52,6 +53,20 @@ import { ChatSkeleton } from "@/components/ui/SkeletonLoader";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+type AgentPromptStatus = {
+  used: number;
+  limit: number;
+  remaining: number;
+  tier: number;
+  resetInSeconds?: number;
+  godmode?: boolean;
+};
+
+/** When godmode is true, daily prompt limits do not apply (server-enforced). */
+function promptsExhausted(status: AgentPromptStatus | null | undefined): boolean {
+  return !!status && !status.godmode && status.remaining === 0;
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -1900,20 +1915,8 @@ const Dashboard = () => {
   const pendingBridgePayloadRef = useRef<BridgeActionPayload | null>(null);
   const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
 
-  const [taskPromptStatus, setTaskPromptStatus] = useState<{
-    used: number;
-    limit: number;
-    remaining: number;
-    tier: number;
-    resetInSeconds?: number;
-  } | null>(null);
-  const [researchPromptStatus, setResearchPromptStatus] = useState<{
-    used: number;
-    limit: number;
-    remaining: number;
-    tier: number;
-    resetInSeconds?: number;
-  } | null>(null);
+  const [taskPromptStatus, setTaskPromptStatus] = useState<AgentPromptStatus | null>(null);
+  const [researchPromptStatus, setResearchPromptStatus] = useState<AgentPromptStatus | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [taskCountdown, setTaskCountdown] = useState<number | null>(null);
   const [researchCountdown, setResearchCountdown] = useState<number | null>(
@@ -2371,14 +2374,11 @@ const Dashboard = () => {
     async (textOverride?: string) => {
       const text = (textOverride || input).trim();
       if (!text || isStreaming || isThinking) return;
-      if (selectedAgentId === "task" && taskPromptStatus?.remaining === 0) {
+      if (selectedAgentId === "task" && promptsExhausted(taskPromptStatus)) {
         setShowUpgradeModal(true);
         return;
       }
-      if (
-        selectedAgentId === "research" &&
-        researchPromptStatus?.remaining === 0
-      ) {
+      if (selectedAgentId === "research" && promptsExhausted(researchPromptStatus)) {
         setShowUpgradeModal(true);
         return;
       }
@@ -2922,7 +2922,7 @@ const Dashboard = () => {
                                 selectedAgentId === "task"
                                   ? taskPromptStatus
                                   : researchPromptStatus;
-                              if (currentStatus?.remaining === 0) {
+                              if (promptsExhausted(currentStatus)) {
                                 setShowUpgradeModal(true);
                                 return;
                               }
@@ -2937,10 +2937,11 @@ const Dashboard = () => {
                               isStreaming || isThinking || activeAgent.isWip
                             }
                             className={`flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-left transition-all duration-200 backdrop-blur-md group ${
-                              (selectedAgentId === "task"
-                                ? taskPromptStatus
-                                : researchPromptStatus
-                              )?.remaining === 0 || activeAgent.isWip
+                              promptsExhausted(
+                                selectedAgentId === "task"
+                                  ? taskPromptStatus
+                                  : researchPromptStatus,
+                              ) || activeAgent.isWip
                                 ? "opacity-50 cursor-not-allowed"
                                 : "hover:bg-white/10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             }`}
@@ -3068,31 +3069,34 @@ const Dashboard = () => {
                 ? taskPromptStatus
                 : researchPromptStatus) && (
                 <div className="flex justify-between items-center px-4 mb-2 text-xs font-medium">
+                  {(() => {
+                    const bar =
+                      selectedAgentId === "task"
+                        ? taskPromptStatus!
+                        : researchPromptStatus!;
+                    return (
+                      <>
                   <span
                     className={`${
-                      (selectedAgentId === "task"
-                        ? taskPromptStatus
-                        : researchPromptStatus)!.remaining === 0
+                      promptsExhausted(bar)
                         ? "text-red-400"
                         : "text-white/40"
                     }`}
                   >
-                    {
-                      (selectedAgentId === "task"
-                        ? taskPromptStatus
-                        : researchPromptStatus)!.used
-                    }{" "}
+                    {bar.godmode ? (
+                      <span className="tabular-nums text-white/50">
+                        <FaInfinity className="w-4 h-4"/>
+                      </span>
+                    ) : (
+                      <>
+                    {bar.used}{" "}
                     /{" "}
-                    {
-                      (selectedAgentId === "task"
-                        ? taskPromptStatus
-                        : researchPromptStatus)!.limit
-                    }{" "}
+                    {bar.limit}{" "}
                     prompts used
+                      </>
+                    )}
                   </span>
-                  {(selectedAgentId === "task"
-                    ? taskPromptStatus
-                    : researchPromptStatus)!.remaining === 0 && (
+                  {promptsExhausted(bar) && (
                     <button
                       onClick={() => setShowUpgradeModal(true)}
                       className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
@@ -3100,6 +3104,9 @@ const Dashboard = () => {
                       Upgrade Limit
                     </button>
                   )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -3135,7 +3142,7 @@ const Dashboard = () => {
                                 selectedAgentId === "task"
                                   ? taskPromptStatus
                                   : researchPromptStatus;
-                              if (currentStatus?.remaining === 0) {
+                              if (promptsExhausted(currentStatus)) {
                                 setShowUpgradeModal(true);
                                 return;
                               }
@@ -3152,9 +3159,11 @@ const Dashboard = () => {
                               isStreaming || isThinking || activeAgent.isWip
                             }
                             className={`w-full flex items-center gap-3 p-4 transition-colors text-left group border-b border-white/5 last:border-0 ${
-                              (taskPromptStatus?.remaining === 0 &&
-                                selectedAgentId === "task") ||
-                              activeAgent.isWip
+                              promptsExhausted(
+                                selectedAgentId === "task"
+                                  ? taskPromptStatus
+                                  : researchPromptStatus,
+                              ) || activeAgent.isWip
                                 ? "opacity-50 cursor-not-allowed bg-white/5"
                                 : "hover:bg-white/5 cursor-pointer"
                             }`}
@@ -3192,10 +3201,11 @@ const Dashboard = () => {
                     placeholder={
                       activeAgent.isWip
                         ? "Agent is WIP: New chats disabled"
-                        : (selectedAgentId === "task"
-                              ? taskPromptStatus
-                              : researchPromptStatus
-                            )?.remaining === 0
+                        : promptsExhausted(
+                              selectedAgentId === "task"
+                                ? taskPromptStatus
+                                : researchPromptStatus,
+                            )
                           ? "Daily limit reached. Upgrade to continue."
                           : `Message ${activeAgent.name}...`
                     }
@@ -3204,10 +3214,11 @@ const Dashboard = () => {
                       isStreaming ||
                       isThinking ||
                       activeAgent.isWip ||
-                      (selectedAgentId === "task"
-                        ? taskPromptStatus
-                        : researchPromptStatus
-                      )?.remaining === 0
+                      promptsExhausted(
+                        selectedAgentId === "task"
+                          ? taskPromptStatus
+                          : researchPromptStatus,
+                      )
                     }
                     className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 px-5 py-4 pr-14 resize-none focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed w-full max-h-[120px] overflow-y-auto"
                     style={{ minHeight: "52px" }}
@@ -3219,8 +3230,11 @@ const Dashboard = () => {
                       isStreaming ||
                       isThinking ||
                       activeAgent.isWip ||
-                      (taskPromptStatus?.remaining === 0 &&
-                        selectedAgentId === "task")
+                      promptsExhausted(
+                        selectedAgentId === "task"
+                          ? taskPromptStatus
+                          : researchPromptStatus,
+                      )
                     }
                     className={`absolute right-2 bottom-2 w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                       input.trim() &&

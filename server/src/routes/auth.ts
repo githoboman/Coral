@@ -127,10 +127,12 @@ async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
 async function isEmailOnWaitlist(email: string): Promise<boolean> {
   try {
     const normalizedEmail = email.toLowerCase().trim();
+    
+    // Use .or() with ilike to handle potential spaces in the database email column
     const { data, error } = await supabase
       .from('waitlist_emails')
       .select('id')
-      .ilike('email', normalizedEmail)
+      .or(`email.ilike."${normalizedEmail}",email.ilike." ${normalizedEmail}",email.ilike."${normalizedEmail} "`)
       .maybeSingle();
 
     if (error) {
@@ -243,9 +245,10 @@ router.post(
       }
 
       const normalizedEmail = email.toLowerCase().trim();
+      const normalizedWallet = normalizeAddr(wallet_address);
       const minter = getLocalTicketMinter();
 
-      const alreadyClaimed = await hasClaimedOnChain(wallet_address);
+      const alreadyClaimed = await hasClaimedOnChain(normalizedWallet);
       if (alreadyClaimed) {
         res.json({
           success: false,
@@ -266,7 +269,7 @@ router.post(
       }
 
       const claimResult =
-        await minter.sponsoredClaimWaitlistPoints(wallet_address);
+        await minter.sponsoredClaimWaitlistPoints(normalizedWallet);
 
       if (!claimResult.success) {
         res.status(500).json({
@@ -280,7 +283,7 @@ router.post(
       (async () => {
         try {
           const um = getLocalUserManager();
-          const existing = await um.getUserProfile(wallet_address);
+          const existing = await um.getUserProfile(normalizedWallet);
 
           if (existing) {
             const updated = um.createUserProfile(

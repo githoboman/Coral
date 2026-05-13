@@ -238,7 +238,7 @@ You MUST always calculate and return due_date when the user specifies any time r
         },
         {
           role: "human",
-          content: `Current Time (ISO): ${state.clientTime ?? new Date().toISOString()}\nUser Message: "${state.message}"\n\nExtract intent & parameters. Ensure due_date is calculated correctly from Current Time.`,
+          content: `Current Time (ISO): ${state.clientTime ?? new Date().toISOString()} (${new Date(state.clientTime || Date.now()).toLocaleDateString("en-US", { weekday: "long" })})\nUser Message: "${state.message}"\n\nExtract intent & parameters. Ensure due_date is calculated correctly from Current Time.`,
         }
       ]),
       new Promise<never>((_, reject) =>

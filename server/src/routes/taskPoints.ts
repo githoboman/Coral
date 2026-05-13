@@ -58,7 +58,7 @@ router.get(
 
       const today = getTodayDate();
       const needsReset =
-        !profile.last_task_reset_date || profile.last_task_reset_date !== today;
+        !profile.last_task_reset_date || !profile.last_task_reset_date.startsWith(today);
 
       const tasksCreated = needsReset ? 0 : profile.tasks_created_today || 0;
       const tasksClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;
@@ -173,7 +173,7 @@ router.post(
 
       const today = getTodayDate();
       const needsReset =
-        !profile.last_task_reset_date || profile.last_task_reset_date !== today;
+        !profile.last_task_reset_date || !profile.last_task_reset_date.startsWith(today);
 
       const tasksCreated = needsReset ? 0 : profile.tasks_created_today || 0;
       const tasksClaimed = needsReset ? 0 : profile.tasks_claimed_today || 0;

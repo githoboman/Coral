@@ -348,6 +348,12 @@ export class SubscriptionService {
 
   async canUsePrompt(walletAddress: string, type: 'task' | 'research' = 'task', forceRefresh = false): Promise<boolean> {
     try {
+      walletAddress = walletAddress.toLowerCase();
+      const profile = await getUserManager().getUserProfile(walletAddress);
+      if (profile?.godmode === true) {
+        return true;
+      }
+
       const today = this.getTodayDate();
       const tierStatus = await this.getCurrentTier(walletAddress, forceRefresh);
 
@@ -412,6 +418,12 @@ export class SubscriptionService {
 
   async trackPromptUsage(walletAddress: string, type: 'task' | 'research' = 'task'): Promise<boolean> {
     try {
+      walletAddress = walletAddress.toLowerCase();
+      const profile = await getUserManager().getUserProfile(walletAddress);
+      if (profile?.godmode === true) {
+        return true;
+      }
+
       const today = this.getTodayDate();
       const tierStatus = await this.getCurrentTier(walletAddress);
       const supabaseData = await this.getSupabaseSubscription(walletAddress);
@@ -460,8 +472,21 @@ export class SubscriptionService {
     limit: number;
     remaining: number;
     tier: number;
+    godmode?: boolean;
   }> {
     try {
+      const profile = await getUserManager().getUserProfile(walletAddress);
+      if (profile?.godmode === true) {
+        const tierStatus = await this.getCurrentTier(walletAddress, forceRefresh);
+        return {
+          used: 0,
+          limit: 0,
+          remaining: 0,
+          tier: tierStatus.tier,
+          godmode: true,
+        };
+      }
+
       const tierStatus = await this.getCurrentTier(walletAddress, forceRefresh);
 
       if (forceRefresh) {
