@@ -20,6 +20,18 @@ import BadgeMint from "@/pages/BadgeMint";
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
+  // Capture referral code before any routing redirects happen
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      const expires = new Date();
+      expires.setTime(expires.getTime() + 7 * 24 * 60 * 60 * 1000);
+      document.cookie = `tovira_referral=${refCode};expires=${expires.toUTCString()};path=/`;
+      console.log("[REFERRAL] Captured at App mount:", refCode);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
