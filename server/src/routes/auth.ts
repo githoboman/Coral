@@ -210,14 +210,6 @@ router.post(
         console.error("Failed to generate referral code for new user", e);
       }
 
-      // If they were referred by someone, link them
-      if (referral_code && typeof referral_code === "string") {
-        const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
-        if (referredBy) {
-          profile.referred_by = referredBy;
-        }
-      }
-
       const result = await um.addOrUpdateUser(profile);
 
       if (!result) {
@@ -226,6 +218,18 @@ router.post(
           detail: "Failed to save user profile to database.",
         });
         return;
+      }
+
+      // If they were referred by someone, link them AFTER profile creation (to satisfy foreign keys)
+      if (referral_code && typeof referral_code === "string") {
+        const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
+        if (referredBy) {
+          // Update the profile in the DB to set referred_by
+          await getSupabaseClient()
+            .from("user_profiles")
+            .update({ referred_by: referredBy })
+            .eq("wallet_address", normalizedWallet);
+        }
       }
 
       // The referral will remain pending until the user completes their first check-in,
@@ -590,14 +594,17 @@ router.post("/login", async (req: Request, res: Response) => {
           profile.referral_code = await referralService.generateUniqueReferralCode();
         } catch (e) {}
 
+        await um.addOrUpdateUser(profile);
+
         if (referral_code && typeof referral_code === "string") {
           const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
           if (referredBy) {
-            profile.referred_by = referredBy;
+            await supabase
+              .from("user_profiles")
+              .update({ referred_by: referredBy })
+              .eq("wallet_address", normalizedWallet);
           }
         }
-
-        await um.addOrUpdateUser(profile);
       } else {
         // Use the casing already present in the database to satisfy FK constraints
         dbWallet = existing.wallet_address;
