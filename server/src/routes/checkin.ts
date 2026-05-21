@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import { getLeaderboardService } from "../services/leaderboardService";
 import { getUserManager } from "../services/userManager";
+import { getReferralService } from "../services/referralService";
 import getSupabaseClient from "../config/supabase";
 import { requireAuth } from "../middleware/auth";
 
@@ -283,6 +284,11 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
     // 9. Sync user stats in background
     try {
       await getUserManager().updateCheckinStats(userId, pointsInfo.totalPoints, nextStreak, todayDate);
+    } catch (e) {}
+
+    // 10. Verify pending referral (if any) to make it claimable
+    try {
+      await getReferralService().verifyReferral(userId);
     } catch (e) {}
 
     res.json({

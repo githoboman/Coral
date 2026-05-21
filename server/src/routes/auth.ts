@@ -11,6 +11,7 @@ import {
 } from "../services/userManager";
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import getSupabaseClient from "../config/supabase";
+import { getReferralService } from "../services/referralService";
 
 const supabase = getSupabaseClient();
 const router = Router();
@@ -157,6 +158,7 @@ router.post(
         first_name,
         last_name,
         preferences,
+        referral_code, // provided by user if they were referred
       } = req.body;
 
       if (!email || typeof email !== "string") {
@@ -199,6 +201,23 @@ router.post(
         },
       );
 
+      // Generate a unique referral code for this new user
+      const referralService = getReferralService();
+      try {
+        const generatedCode = await referralService.generateUniqueReferralCode();
+        profile.referral_code = generatedCode;
+      } catch (e) {
+        console.error("Failed to generate referral code for new user", e);
+      }
+
+      // If they were referred by someone, link them
+      if (referral_code && typeof referral_code === "string") {
+        const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
+        if (referredBy) {
+          profile.referred_by = referredBy;
+        }
+      }
+
       const result = await um.addOrUpdateUser(profile);
 
       if (!result) {
@@ -208,6 +227,9 @@ router.post(
         });
         return;
       }
+
+      // The referral will remain pending until the user completes their first check-in,
+      // at which point the checkin route will call referralService.completeReferral().
 
       res.json({
         success: true,
@@ -506,7 +528,7 @@ router.get("/nonce", (req: Request, res: Response) => {
 
 router.post("/login", async (req: Request, res: Response) => {
   try {
-    const { wallet_address, signature, device_name } = req.body;
+    const { wallet_address, signature, device_name, referral_code } = req.body;
     if (!wallet_address || !signature) {
       res.status(400).json({ error: "Missing wallet_address or signature" });
       return;
@@ -562,6 +584,19 @@ router.post("/login", async (req: Request, res: Response) => {
         console.log(`[AUTH] New user detected, creating profile for ${normalizedWallet}`);
         const um = getLocalUserManager();
         const profile = um.createUserProfile("", normalizedWallet, false, 0);
+        
+        const referralService = getReferralService();
+        try {
+          profile.referral_code = await referralService.generateUniqueReferralCode();
+        } catch (e) {}
+
+        if (referral_code && typeof referral_code === "string") {
+          const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
+          if (referredBy) {
+            profile.referred_by = referredBy;
+          }
+        }
+
         await um.addOrUpdateUser(profile);
       } else {
         // Use the casing already present in the database to satisfy FK constraints

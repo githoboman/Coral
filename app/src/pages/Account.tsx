@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { AccountSkeleton } from "@/components/ui/SkeletonLoader";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
+import { fetchReferralStats, claimReferralPoints } from "@/store/slices/referralSlice";
 import {
   Flame,
   Wallet,
@@ -21,9 +22,12 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   AlertCircle,
-  LogOut,
   ChevronRight,
+  Info,
+  Users,
 } from "lucide-react";
+import { TbLogout2 } from "react-icons/tb";
+import { sileo } from "sileo";
 import { useTelegramLinking } from "@/hooks/useTelegramLinking";
 import { TelegramIcon, GoogleIcon } from "@/components/ui/BrandIcons";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -152,7 +156,7 @@ const LogoutModal = ({
         </button>
         <div className="mb-6 flex justify-center">
           <div className="p-4 bg-red-500/10 rounded-full border border-red-500/20">
-            <LogOut size={40} className="text-red-500" />
+            <TbLogout2 size={40} className="text-red-500" />
           </div>
         </div>
         <h3 className="text-xl font-bold text-white mb-2 text-center text-red-500">
@@ -438,6 +442,14 @@ const Account = () => {
     dispatch(fetchLeaderboard({}));
   }, [dispatch]);
 
+  const referralStats = useAppSelector((state) => state.referral.stats);
+
+  useEffect(() => {
+    if (currentAccount?.address) {
+      dispatch(fetchReferralStats({ walletAddress: currentAccount.address }));
+    }
+  }, [currentAccount?.address, dispatch]);
+
   const [timeRemaining, setTimeRemaining] = useState<string>("");
 
   useEffect(() => {
@@ -583,19 +595,130 @@ const Account = () => {
                 </button>
               </div>
             ))}
+            
+            <div className="pt-2">
+              <button
+                onClick={() => setIsLogoutModalOpen(true)}
+                className="w-min px-4 py-2.5 bg-[#D42424]/10 hover:bg-[#D42424]/20 rounded-2xl flex items-center gap-2 transition-colors group"
+              >
+                <TbLogout2
+                  size={18}
+                  className="text-[#D42424] group-hover:scale-110 transition-transform"
+                />
+                <span className="text-[#D42424] text-sm">Logout</span>
+              </button>
+            </div>
           </div>
 
-          {/* Logout button (dev) */}
-          <button
-            onClick={() => setIsLogoutModalOpen(true)}
-            className="w-min px-6 py-2.5 bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/20 rounded-xl flex items-center gap-3 transition-colors group"
-          >
-            <LogOut
-              size={18}
-              className="text-[#EF4444] group-hover:scale-110 transition-transform"
-            />
-            <span className="text-[#EF4444] font-medium text-sm">Logout</span>
-          </button>
+          {/* Referral Section */}
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-[32px] p-6 sm:p-8 relative overflow-hidden">
+            <div className="flex items-center justify-between gap-4 mb-6 relative">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/5 rounded-2xl border border-white/10 shrink-0">
+                  <Users size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-lg">Refer a Friend</h3>
+                  <p className="text-white/40 text-xs">Earn 2 points for each successful referral</p>
+                </div>
+              </div>
+              <div className="group relative cursor-help">
+                <Info size={20} className="text-white/40 hover:text-white transition-colors" />
+                <div className="absolute top-full right-0 mt-2 w-64 bg-[#1A1A1A] border border-white/10 rounded-xl p-4 text-xs text-white/80 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                  <p className="font-bold mb-1 text-white">How it works:</p>
+                  <ul className="list-disc pl-4 space-y-1 text-white/60">
+                    <li>Share your link with a friend.</li>
+                    <li>They sign up and connect their wallet.</li>
+                    <li>They must complete their <b>First Daily Check-in</b>.</li>
+                    <li>Once completed, their status becomes <b>Verified</b>.</li>
+                    <li>Click <b>Claim</b> to receive your points!</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {referralStats?.referral_code ? (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex-1 w-full overflow-hidden">
+                    <span className="text-white/40 text-xs mb-1 block">Your Referral Link</span>
+                    <span className="text-white font-mono text-sm truncate block">
+                      https://testnet.tovira.xyz/?ref={referralStats.referral_code}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`https://testnet.tovira.xyz/?ref=${referralStats.referral_code}`);
+                      sileo.success({ title: "Copied!", description: "Referral link copied to clipboard." });
+                    }}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-4xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 shrink-0"
+                  >
+                    <Copy size={16} /> Copy Link
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-2xl p-3 text-center">
+                    <span className="text-white/40 text-xs block mb-1">Total Earned</span>
+                    <span className="text-2xl font-bold text-[#B7FC0D]">{referralStats.points_earned} pts</span>
+                  </div>
+                  <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-3 text-center">
+                    <span className="text-white/40 text-xs block mb-1">Successful</span>
+                    <span className="text-2xl font-bold text-white">{referralStats.successful_referrals}</span>
+                  </div>
+                </div>
+
+                {referralStats.history && referralStats.history.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-white/80 font-medium text-sm mb-3">Referred Users</h4>
+                    <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                      {referralStats.history.map((ref) => (
+                        <div key={ref.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3">
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-white text-sm truncate">{ref.email}</span>
+                            <span className="text-white/40 text-xs">
+                              {ref.status === 'pending' && 'Awaiting first check-in...'}
+                              {ref.status === 'claimable' && 'Verified! Ready to claim.'}
+                              {ref.status === 'completed' && 'Points claimed'}
+                            </span>
+                          </div>
+                          
+                          {ref.status === 'claimable' ? (
+                            <button
+                              onClick={() => {
+                                dispatch(claimReferralPoints(ref.id)).unwrap()
+                                  .then((res) => {
+                                    sileo.success({ title: "Success", description: `Claimed ${res.points} points!` });
+                                  })
+                                  .catch((err) => {
+                                    sileo.error({ title: "Error", description: err });
+                                  });
+                              }}
+                              className="px-4 py-1.5 bg-[#B7FC0D] hover:bg-[#97D600] text-black text-xs font-bold rounded-full transition-colors shrink-0 shadow-[0_0_15px_rgba(183,252,13,0.3)] hover:scale-105 active:scale-95"
+                            >
+                              Claim 2 pts
+                            </button>
+                          ) : ref.status === 'completed' ? (
+                            <div className="px-3 py-1 bg-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
+                              Claimed
+                            </div>
+                          ) : (
+                            <div className="px-3 py-1 bg-white/5 border border-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
+                              Pending
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-white/40 text-sm">
+                Complete your profile setup to generate your referral link.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column */}
@@ -638,7 +761,7 @@ const Account = () => {
               <ExternalWalletConnect />
             </div>
 
-            {/* Bridge hint */}
+
             <div className="mt-8">
               <p className="text-white/80 text-sm leading-relaxed ">
                 The Bridge Agent uses your connected wallets for cross-chain transfers in chat.
@@ -647,7 +770,7 @@ const Account = () => {
           </div>
 
           {/* Daily Check-in */}
-          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group mt-2">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6 relative z-10 w-full">
               <div className="flex items-center gap-4">
@@ -731,6 +854,7 @@ const Account = () => {
               )}
             </div>
           </div>
+
         </div>
       </div>
     </div>
