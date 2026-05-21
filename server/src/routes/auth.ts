@@ -224,8 +224,7 @@ router.post(
       if (referral_code && typeof referral_code === "string") {
         const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
         if (referredBy) {
-          // Update the profile in the DB to set referred_by
-          await getSupabaseClient()
+          await supabase
             .from("user_profiles")
             .update({ referred_by: referredBy })
             .eq("wallet_address", normalizedWallet);
