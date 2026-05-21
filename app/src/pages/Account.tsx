@@ -415,6 +415,7 @@ const Account = () => {
   const { checkin, checkinState, refetchStatus } = useCheckin();
   const { profile, updatePreferences, loading } = useProfile();
   const { entries: leaderboard } = useAppSelector((state) => state.leaderboard);
+  const [showReferralInfo, setShowReferralInfo] = useState(false);
 
   const [permissions, setPermissions] = useState({
     analytics_enabled: false,
@@ -622,9 +623,15 @@ const Account = () => {
                   <p className="text-white/40 text-xs">Earn 2 points for each successful referral</p>
                 </div>
               </div>
-              <div className="group relative cursor-help">
-                <Info size={20} className="text-white/40 hover:text-white transition-colors" />
-                <div className="absolute top-full right-0 mt-2 w-64 bg-[#1A1A1A] border border-white/10 rounded-xl p-4 text-xs text-white/80 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+              <div className="group relative">
+                <button 
+                  onClick={() => setShowReferralInfo(!showReferralInfo)}
+                  onBlur={() => setTimeout(() => setShowReferralInfo(false), 200)}
+                  className="p-2 -m-2 text-white/40 hover:text-white transition-colors outline-none"
+                >
+                  <Info size={20} />
+                </button>
+                <div className={`absolute top-full right-0 mt-2 w-64 bg-[#1A1A1A] border border-white/10 rounded-xl p-4 text-xs text-white/80 shadow-xl transition-all z-20 ${showReferralInfo ? 'opacity-100 visible' : 'opacity-0 invisible lg:group-hover:opacity-100 lg:group-hover:visible'}`}>
                   <p className="font-bold mb-1 text-white">How it works:</p>
                   <ul className="list-disc pl-4 space-y-1 text-white/60">
                     <li>Share your link with a friend.</li>

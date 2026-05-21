@@ -850,18 +850,7 @@ export default function AppLayout() {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  // Handle referral codes in URL
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const refCode = searchParams.get("ref");
-    if (refCode) {
-      // Set cookie for 7 days
-      const expires = new Date();
-      expires.setTime(expires.getTime() + 7 * 24 * 60 * 60 * 1000);
-      document.cookie = `tovira_referral=${refCode};expires=${expires.toUTCString()};path=/`;
-      console.log("[REFERRAL] Saved referral code from URL:", refCode);
-    }
-  }, [location.search]);
+
 
   const toggleAutonomy = async () => {
     if (!address || isUpdatingAutonomy) return;
