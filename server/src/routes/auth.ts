@@ -222,12 +222,23 @@ router.post(
 
       // If they were referred by someone, link them AFTER profile creation (to satisfy foreign keys)
       if (referral_code && typeof referral_code === "string") {
-        const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
-        if (referredBy) {
-          await supabase
-            .from("user_profiles")
-            .update({ referred_by: referredBy })
-            .eq("wallet_address", normalizedWallet);
+        try {
+          const referredBy = await referralService.processReferral(normalizedWallet, referral_code);
+          if (referredBy) {
+            const { error: updateError } = await supabase
+              .from("user_profiles")
+              .update({ referred_by: referredBy })
+              .eq("wallet_address", normalizedWallet);
+              
+            if (updateError) {
+              console.error(`[REGISTER] Failed to update user_profiles.referred_by for ${normalizedWallet}:`, updateError);
+            }
+          }
+        } catch (refErr: any) {
+          console.error(
+            `[REGISTER] Failed to process referral for wallet ${normalizedWallet} with code ${referral_code}:`,
+            refErr.message || refErr
+          );
         }
       }
 
@@ -597,15 +608,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
         await um.addOrUpdateUser(profile);
 
-        if (referral_code && typeof referral_code === "string") {
-          const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip);
-          if (referredBy) {
-            await supabase
-              .from("user_profiles")
-              .update({ referred_by: referredBy })
-              .eq("wallet_address", normalizedWallet);
-          }
-        }
+        // Referral processing is handled exclusively in the /register route.
       } else {
         // Use the casing already present in the database to satisfy FK constraints
         dbWallet = existing.wallet_address;

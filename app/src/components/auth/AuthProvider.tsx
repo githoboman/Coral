@@ -17,6 +17,7 @@ import {
   fetchLeaderboard,
   clearLeaderboard,
 } from "@/store/slices/leaderboardSlice";
+import { setProfile } from "@/store/slices/authSlice";
 
 
 interface AuthContextType {
@@ -209,9 +210,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const signatureResult = await signPersonalMessage({ message: messageBytes });
 
-      // Read referral code from cookie if present
-      const refCookie = document.cookie.split('; ').find(row => row.startsWith('tovira_referral='));
-      const referralCode = refCookie ? refCookie.split('=')[1] : undefined;
+      // Read referral code from localStorage
+      const referralCode = localStorage.getItem('tovira_referral') || undefined;
 
       // 3. Verify signature — server sets httpOnly auth_token cookie on success
       const loginRes = await fetch(`${apiBaseUrl}/api/auth/login`, {
@@ -338,9 +338,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingLoading(true);
     setOnboardingMessage(null);
 
-    // Read referral code from cookie if present
-    const refCookie = document.cookie.split('; ').find(row => row.startsWith('tovira_referral='));
-    const referralCode = refCookie ? refCookie.split('=')[1] : undefined;
+    // Read referral code from localStorage
+    const referralCode = localStorage.getItem('tovira_referral') || undefined;
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
@@ -374,6 +373,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const data = await response.json();
       setOnboardingMessage("Profile saved successfully!");
       setUserEmail(email);
+      if (data.user) {
+        dispatch(setProfile(data.user));
+      }
+      localStorage.removeItem('tovira_referral');
       sileo.success({
         title: "Profile Saved",
         description: "Checking waitlist status...",

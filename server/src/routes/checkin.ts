@@ -286,10 +286,18 @@ const handleCheckin = async (req: Request, res: Response, next: NextFunction): P
       await getUserManager().updateCheckinStats(userId, pointsInfo.totalPoints, nextStreak, todayDate);
     } catch (e) {}
 
-    // 10. Verify pending referral (if any) to make it claimable
-    try {
-      await getReferralService().verifyReferral(userId);
-    } catch (e) {}
+    // 10. Verify pending referral (if any) to make it claimable (non-blocking)
+    getReferralService().verifyReferral(userId)
+      .then((result) => {
+        if (result) {
+          console.log(`[CHECKIN] Referral verified and marked claimable for ${userId}`);
+        } else {
+          console.log(`[CHECKIN] No pending referral found or verification failed for ${userId}`);
+        }
+      })
+      .catch((e) => {
+        console.error(`[CHECKIN] Error verifying referral for ${userId}:`, e);
+      });
 
     res.json({
       success: true,
