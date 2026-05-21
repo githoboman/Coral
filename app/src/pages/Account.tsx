@@ -651,12 +651,12 @@ const Account = () => {
                     <div className="flex-1 w-full overflow-hidden">
                       <span className="text-white/40 text-xs mb-1 block">Your Referral Link</span>
                       <span className="text-white font-mono text-sm truncate block">
-                        https://testnet.tovira.xyz/?ref={referralStats.referral_code}
+                        {`${window.location.origin}/?ref=${referralStats.referral_code}`}
                       </span>
                     </div>
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`https://testnet.tovira.xyz/?ref=${referralStats.referral_code}`);
+                        navigator.clipboard.writeText(`${window.location.origin}/?ref=${referralStats.referral_code}`);
                         sileo.success({ title: "Copied!", description: "Referral link copied to clipboard." });
                       }}
                       className="w-full sm:w-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-4xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 shrink-0"
