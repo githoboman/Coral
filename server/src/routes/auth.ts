@@ -234,9 +234,11 @@ router.post(
       // The referral will remain pending until the user completes their first check-in,
       // at which point the checkin route will call referralService.completeReferral().
 
+      const fullProfile = await um.getUserProfile(normalizedWallet);
+
       res.json({
         success: true,
-        user: {
+        user: fullProfile || {
           email: normalizedEmail,
           wallet_address: normalizedWallet,
           username: username || null,
