@@ -15,6 +15,8 @@ export interface UserProfile {
   last_name?: EncryptedData | string;
   preferences?: EncryptedData | Record<string, any>;
   waitlist_verified_at?: string;
+  referral_code?: string;
+  referred_by?: string;
 
   // Activity points tracking
   tasks_created_today?: number;
@@ -57,6 +59,8 @@ export interface DecryptedUserProfile {
   last_name?: string;
   preferences?: Record<string, any>;
   waitlist_verified_at?: string;
+  referral_code?: string;
+  referred_by?: string;
 
   // Activity points tracking
   tasks_created_today?: number;
@@ -136,6 +140,12 @@ export class UserManager {
     }
     if (additionalData?.waitlist_verified_at) {
       profile.waitlist_verified_at = additionalData.waitlist_verified_at;
+    }
+    if (additionalData?.referral_code) {
+      profile.referral_code = additionalData.referral_code;
+    }
+    if (additionalData?.referred_by) {
+      profile.referred_by = additionalData.referred_by;
     }
 
     // Activity tracking
@@ -219,6 +229,13 @@ export class UserManager {
         last_research_prompt_date: userProfile.last_research_prompt_date,
       };
 
+      if (userProfile.referral_code) {
+        upsertData.referral_code = userProfile.referral_code;
+      }
+      if (userProfile.referred_by) {
+        upsertData.referred_by = userProfile.referred_by;
+      }
+
       // Decrypt legacy fields if they are still encrypted in the incoming object
       const encryption = getEncryptionService();
       if (userProfile.email) {
@@ -275,6 +292,8 @@ export class UserManager {
         last_name: profile.last_name,
         preferences: profile.preferences,
         waitlist_verified_at: profile.created_at,
+        referral_code: profile.referral_code,
+        referred_by: profile.referred_by,
         tasks_created_today: profile.tasks_created_today,
         tasks_claimed_today: profile.tasks_claimed_today,
         research_created_today: profile.research_created_today,

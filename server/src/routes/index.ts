@@ -17,7 +17,7 @@ import priceRouter from "./price";
 import proactiveRouter from "./proactive";
 import bridgeTransactionsRouter from "./bridgeTransactions";
 import walletRouter from "./wallet";
-
+import referralsRouter from "./referrals";
 
 const router = Router();
 
@@ -39,7 +39,7 @@ router.use("/price", priceRouter);
 router.use("/proactive", proactiveRouter);
 router.use("/bridge", bridgeTransactionsRouter);
 router.use(walletRouter);
-
+router.use("/referrals", referralsRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({

@@ -7,6 +7,7 @@ import pointsReducer from './slices/pointsSlice';
 import uiReducer from './slices/uiSlice';
 import leaderboardReducer from './slices/leaderboardSlice';
 import badgeMintReducer from './slices/badgeMintSlice';
+import referralReducer from './slices/referralSlice';
 
 export const store = configureStore({
   reducer: {
@@ -17,6 +18,7 @@ export const store = configureStore({
     ui: uiReducer,
     leaderboard: leaderboardReducer,
     badgeMint: badgeMintReducer,
+    referral: referralReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

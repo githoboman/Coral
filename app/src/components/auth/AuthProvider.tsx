@@ -209,6 +209,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const signatureResult = await signPersonalMessage({ message: messageBytes });
 
+      // Read referral code from cookie if present
+      const refCookie = document.cookie.split('; ').find(row => row.startsWith('tovira_referral='));
+      const referralCode = refCookie ? refCookie.split('=')[1] : undefined;
+
       // 3. Verify signature — server sets httpOnly auth_token cookie on success
       const loginRes = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
@@ -218,6 +222,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           wallet_address: walletAddress,
           signature: signatureResult.signature,
           message: btoa(String.fromCharCode(...messageBytes)),
+          referral_code: referralCode,
         }),
       });
 
@@ -333,6 +338,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingLoading(true);
     setOnboardingMessage(null);
 
+    // Read referral code from cookie if present
+    const refCookie = document.cookie.split('; ').find(row => row.startsWith('tovira_referral='));
+    const referralCode = refCookie ? refCookie.split('=')[1] : undefined;
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: "POST",
@@ -344,6 +353,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           username: additionalData?.username,
           first_name: additionalData?.firstName,
           last_name: additionalData?.lastName,
+          referral_code: referralCode,
           preferences: {
             notifications_enabled: additionalData?.notifications_enabled,
             analytics_enabled: additionalData?.analytics_enabled,
