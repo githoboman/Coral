@@ -18,8 +18,9 @@ ADD COLUMN IF NOT EXISTS device_fingerprint VARCHAR(255),
 ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;
 
 -- Add constraints
+ALTER TABLE referrals DROP CONSTRAINT IF EXISTS check_referral_status;
 ALTER TABLE referrals
-ADD CONSTRAINT check_referral_status CHECK (status IN ('pending', 'completed', 'abandoned'));
+ADD CONSTRAINT check_referral_status CHECK (status IN ('pending', 'claimable', 'completed', 'abandoned'));
 
 -- Create indices for quick lookups
 CREATE INDEX IF NOT EXISTS idx_user_profiles_referral_code ON user_profiles(referral_code);

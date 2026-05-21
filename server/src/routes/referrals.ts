@@ -22,4 +22,28 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.post("/claim/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const walletAddress = req.user!.wallet_address;
+    const referralId = req.params.id;
+    
+    if (!referralId) {
+      res.status(400).json({ error: "Referral ID is required" });
+      return;
+    }
+
+    const result = await referralService.claimReferral(walletAddress, referralId);
+    
+    if (!result.success) {
+      res.status(400).json({ error: result.message });
+      return;
+    }
+    
+    res.json(result);
+  } catch (err) {
+    console.error("Error claiming referral:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 export default router;

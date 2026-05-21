@@ -1,10 +1,18 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
+export interface ReferralHistoryItem {
+  id: string;
+  status: 'pending' | 'claimable' | 'completed' | 'abandoned';
+  points: number;
+  email: string;
+}
+
 export interface ReferralStats {
   referral_code: string | null;
   successful_referrals: number;
   pending_referrals: number;
   points_earned: number;
+  history: ReferralHistoryItem[];
 }
 
 interface ReferralState {
@@ -55,6 +63,29 @@ export const fetchReferralStats = createAsyncThunk<
   }
 );
 
+export const claimReferralPoints = createAsyncThunk<
+  { id: string; points: number },
+  string,
+  { rejectValue: string }
+>(
+  "referral/claimReferralPoints",
+  async (referralId, { rejectWithValue }) => {
+    try {
+      const base =
+        (import.meta as any).env?.VITE_API_BASE_URL ?? "http://localhost:3000";
+      const res = await fetch(`${base}/api/referrals/claim/${referralId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to claim referral");
+      return { id: referralId, points: data.points };
+    } catch (err: any) {
+      return rejectWithValue(err.message ?? "Claim error");
+    }
+  }
+);
+
 const referralSlice = createSlice({
   name: "referral",
   initialState,
@@ -80,6 +111,20 @@ const referralSlice = createSlice({
       .addCase(fetchReferralStats.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? "Unknown error";
+      })
+      .addCase(claimReferralPoints.fulfilled, (state, action) => {
+        if (state.stats) {
+          const item = state.stats.history.find(h => h.id === action.payload.id);
+          if (item) {
+            item.status = 'completed';
+            item.points = action.payload.points;
+            state.stats.points_earned += action.payload.points;
+            state.stats.successful_referrals += 1;
+            if (state.stats.pending_referrals > 0) {
+              state.stats.pending_referrals -= 1;
+            }
+          }
+        }
       });
   },
 });

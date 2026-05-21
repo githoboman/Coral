@@ -228,8 +228,8 @@ router.post(
         return;
       }
 
-      // If the user had a pending referral, completing registration qualifies them
-      await referralService.completeReferral(normalizedWallet);
+      // The referral will remain pending until the user completes their first check-in,
+      // at which point the checkin route will call referralService.completeReferral().
 
       res.json({
         success: true,
