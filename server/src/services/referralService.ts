@@ -420,7 +420,7 @@ export class ReferralService {
       let successful = 0, pending = 0, totalPoints = 0;
       const history = (referrals || []).map((ref: any) => {
         if (ref.status === "completed") { successful++; totalPoints += ref.points_awarded || 0; }
-        else if (ref.status === "pending") { pending++; }
+        else if (ref.status === "pending" || ref.status === "claimable") { pending++; }
         
         return {
           id: ref.id,
