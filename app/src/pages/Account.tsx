@@ -644,85 +644,91 @@ const Account = () => {
               </div>
             </div>
 
-            {referralStats?.referral_code ? (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex-1 w-full overflow-hidden">
-                    <span className="text-white/40 text-xs mb-1 block">Your Referral Link</span>
-                    <span className="text-white font-mono text-sm truncate block">
-                      https://testnet.tovira.xyz/?ref={referralStats.referral_code}
-                    </span>
+            {import.meta.env.VITE_REF === 'true' ? (
+              referralStats?.referral_code ? (
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex-1 w-full overflow-hidden">
+                      <span className="text-white/40 text-xs mb-1 block">Your Referral Link</span>
+                      <span className="text-white font-mono text-sm truncate block">
+                        https://testnet.tovira.xyz/?ref={referralStats.referral_code}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://testnet.tovira.xyz/?ref=${referralStats.referral_code}`);
+                        sileo.success({ title: "Copied!", description: "Referral link copied to clipboard." });
+                      }}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-4xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Copy size={16} /> Copy Link
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`https://testnet.tovira.xyz/?ref=${referralStats.referral_code}`);
-                      sileo.success({ title: "Copied!", description: "Referral link copied to clipboard." });
-                    }}
-                    className="w-full sm:w-auto px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-4xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2 shrink-0"
-                  >
-                    <Copy size={16} /> Copy Link
-                  </button>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-2xl p-3 text-center">
-                    <span className="text-white/40 text-xs block mb-1">Total Earned</span>
-                    <span className="text-2xl font-bold text-[#B7FC0D]">{referralStats.points_earned} pts</span>
-                  </div>
-                  <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-3 text-center">
-                    <span className="text-white/40 text-xs block mb-1">Successful</span>
-                    <span className="text-2xl font-bold text-white">{referralStats.successful_referrals}</span>
-                  </div>
-                </div>
-
-                {referralStats.history && referralStats.history.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-white/80 font-medium text-sm mb-3">Referred Users</h4>
-                    <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                      {referralStats.history.map((ref) => (
-                        <div key={ref.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3">
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-white text-sm truncate">{ref.email}</span>
-                            <span className="text-white/40 text-xs">
-                              {ref.status === 'pending' && 'Awaiting first check-in...'}
-                              {ref.status === 'claimable' && 'Verified! Ready to claim.'}
-                              {ref.status === 'completed' && 'Points claimed'}
-                            </span>
-                          </div>
-                          
-                          {ref.status === 'claimable' ? (
-                            <button
-                              onClick={() => {
-                                dispatch(claimReferralPoints(ref.id)).unwrap()
-                                  .then((res) => {
-                                    sileo.success({ title: "Success", description: `Claimed ${res.points} points!` });
-                                  })
-                                  .catch((err) => {
-                                    sileo.error({ title: "Error", description: err });
-                                  });
-                              }}
-                              className="px-4 py-1.5 bg-[#B7FC0D] hover:bg-[#97D600] text-black text-xs font-bold rounded-full transition-colors shrink-0 shadow-[0_0_15px_rgba(183,252,13,0.3)] hover:scale-105 active:scale-95"
-                            >
-                              Claim 2 pts
-                            </button>
-                          ) : ref.status === 'completed' ? (
-                            <div className="px-3 py-1 bg-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
-                              Claimed
-                            </div>
-                          ) : (
-                            <div className="px-3 py-1 bg-white/5 border border-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
-                              Pending
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-2xl p-3 text-center">
+                      <span className="text-white/40 text-xs block mb-1">Total Earned</span>
+                      <span className="text-2xl font-bold text-[#B7FC0D]">{referralStats.points_earned} pts</span>
+                    </div>
+                    <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-white/10 rounded-2xl p-3 text-center">
+                      <span className="text-white/40 text-xs block mb-1">Successful</span>
+                      <span className="text-2xl font-bold text-white">{referralStats.successful_referrals}</span>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {referralStats.history && referralStats.history.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-white/80 font-medium text-sm mb-3">Referred Users</h4>
+                      <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                        {referralStats.history.map((ref) => (
+                          <div key={ref.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3">
+                            <div className="flex flex-col overflow-hidden">
+                              <span className="text-white text-sm truncate">{ref.email}</span>
+                              <span className="text-white/40 text-xs">
+                                {ref.status === 'pending' && 'Awaiting first check-in...'}
+                                {ref.status === 'claimable' && 'Verified! Ready to claim.'}
+                                {ref.status === 'completed' && 'Points claimed'}
+                              </span>
+                            </div>
+                            
+                            {ref.status === 'claimable' ? (
+                              <button
+                                onClick={() => {
+                                  dispatch(claimReferralPoints(ref.id)).unwrap()
+                                    .then((res) => {
+                                      sileo.success({ title: "Success", description: `Claimed ${res.points} points!` });
+                                    })
+                                    .catch((err) => {
+                                      sileo.error({ title: "Error", description: err });
+                                    });
+                                }}
+                                className="px-4 py-1.5 bg-[#B7FC0D] hover:bg-[#97D600] text-black text-xs font-bold rounded-full transition-colors shrink-0 shadow-[0_0_15px_rgba(183,252,13,0.3)] hover:scale-105 active:scale-95"
+                              >
+                                Claim 2 pts
+                              </button>
+                            ) : ref.status === 'completed' ? (
+                              <div className="px-3 py-1 bg-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
+                                Claimed
+                              </div>
+                            ) : (
+                              <div className="px-3 py-1 bg-white/5 border border-white/10 text-white/40 text-xs font-medium rounded-full shrink-0">
+                                Pending
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-white/40 text-sm">
+                  Complete your profile setup to generate your referral link.
+                </div>
+              )
             ) : (
-              <div className="text-center py-6 text-white/40 text-sm">
-                Complete your profile setup to generate your referral link.
+              <div className="text-center py-8 border border-white/10 rounded-2xl bg-white/5 border-dashed mt-4">
+                <span className="text-white/40 text-sm font-medium">The referral program is currently being upgraded.<br/>Check back soon.</span>
               </div>
             )}
           </div>
