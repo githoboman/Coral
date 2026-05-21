@@ -57,6 +57,17 @@ const wagmiConfig = createConfig({
 
 const queryClient = new QueryClient();
 
+// Capture referral code before any routing redirects happen
+const searchParams = new URLSearchParams(window.location.search);
+const refCode = searchParams.get("ref");
+if (refCode) {
+  localStorage.setItem("tovira_referral", refCode);
+  searchParams.delete("ref");
+  const newUrl = window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+  window.history.replaceState({}, document.title, newUrl);
+  console.log("[REFERRAL] Captured at app boot:", refCode);
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
