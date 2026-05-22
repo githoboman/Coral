@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCurrentAccount, useDisconnectWallet } from "@mysten/dapp-kit";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useCheckin } from "@/hooks/useCheckIn";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -10,7 +10,6 @@ import { fetchLeaderboard } from "@/store/slices/leaderboardSlice";
 import { fetchReferralStats, claimReferralPoints } from "@/store/slices/referralSlice";
 import {
   Flame,
-  Wallet,
   User,
   Bell,
   ShieldCheck,
@@ -411,7 +410,6 @@ const Account = () => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const currentAccount = useCurrentAccount();
   const dispatch = useAppDispatch();
-  const { mutate: disconnectWallet } = useDisconnectWallet();
   const { checkin, checkinState, refetchStatus } = useCheckin();
   const { profile, updatePreferences, loading } = useProfile();
   const { entries: leaderboard } = useAppSelector((state) => state.leaderboard);
@@ -528,86 +526,89 @@ const Account = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Left column */}
         <div className="flex flex-col gap-6 sm:gap-8 min-h-[400px]">
-          {/* Sui wallet */}
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <Wallet className="text-white/40 shrink-0" />
-              <span className="text-white font-medium truncate">
-                {currentAccount
-                  ? truncateAddress(currentAccount.address)
-                  : "No Wallet"}
-              </span>
-            </div>
-            <button
-              onClick={() => disconnectWallet()}
-              className="text-[#EF4444] font-bold hover:opacity-80 w-full sm:w-auto text-left sm:text-right"
-            >
-              Disconnect
-            </button>
-          </div>
-
-          {/* Permissions */}
-          <div className="space-y-6 bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8">
-            <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider">
-              Permissions
-            </h3>
-            {[
-              {
-                key: "analytics_enabled",
-                label: "Analytics data sharing",
-                icon: Zap,
-              },
-              {
-                key: "notifications_enabled",
-                label: "Receive notifications",
-                icon: Bell,
-              },
-              {
-                key: "personalization_enabled",
-                label: "Personalization",
-                icon: ShieldCheck,
-              },
-            ].map((p) => (
-              <div
-                key={p.key}
-                className="flex justify-between items-center gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  <p.icon size={18} className="text-white/40 shrink-0" />
-                  <span className="text-white/80 text-sm sm:text-base">
-                    {p.label}
-                  </span>
+          {/* Daily Check-in */}
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6 relative z-10 w-full">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-[#B7FC0D]/10 rounded-2xl border border-[#B7FC0D]/20 shrink-0">
+                  <Flame size={24} className="text-[#B7FC0D]" />
                 </div>
-                <button
-                  onClick={() => handlePermissionToggle(p.key)}
-                  className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${
-                    permissions[p.key as keyof typeof permissions]
-                      ? "bg-[#B7FC0D]"
-                      : "bg-white/10"
-                  }`}
-                >
-                  <div
-                    className={`absolute top-1 w-3 h-3 rounded-full transition-all ${
-                      permissions[p.key as keyof typeof permissions]
-                        ? "right-1 bg-black"
-                        : "left-1 bg-white/40"
-                    }`}
-                  />
-                </button>
+                <div>
+                  <h3 className="text-white font-bold text-lg">
+                    Daily Check-in
+                  </h3>
+                  <p className="text-white/40 text-xs">
+                    {checkinState.currentStreak} day streak
+                  </p>
+                </div>
               </div>
-            ))}
-            
-            <div className="pt-2">
               <button
-                onClick={() => setIsLogoutModalOpen(true)}
-                className="w-min px-4 py-2.5 bg-[#D42424]/10 hover:bg-[#D42424]/20 rounded-2xl flex items-center gap-2 transition-colors group"
+                onClick={() => {
+                  if (checkinState.status === "error") {
+                    refetchStatus();
+                    return;
+                  }
+                  checkin();
+                }}
+                disabled={
+                  !checkinState.canCheckin && checkinState.status !== "error"
+                }
+                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${
+                  checkinState.canCheckin || checkinState.status === "error"
+                    ? "bg-[#B7FC0D] text-black hover:scale-105 active:scale-95"
+                    : "bg-white/5 text-white/20"
+                }`}
               >
-                <TbLogout2
-                  size={18}
-                  className="text-[#D42424] group-hover:scale-110 transition-transform"
-                />
-                <span className="text-[#D42424] text-sm">Logout</span>
+                {(() => {
+                  if (checkinState.status === "checking")
+                    return <Loader2 className="w-4 h-4 animate-spin" />;
+                  if (checkinState.status === "requesting")
+                    return "Requesting...";
+                  if (checkinState.status === "error") return "Retry";
+                  if (checkinState.canCheckin) return "Check In";
+                  return `Next: ${
+                    timeRemaining ||
+                    (checkinState.hoursRemaining !== null
+                      ? `~${checkinState.hoursRemaining}h`
+                      : "...")
+                  }`;
+                })()}
               </button>
+              {checkinState.status === "error" && (
+                <div className="absolute -bottom-8 right-0 text-red-400 text-xs font-medium">
+                  {checkinState.error || "Connection failed"}
+                </div>
+              )}
+            </div>
+            <div className="space-y-3 relative z-10 min-h-[40px]">
+              {checkinState.status === "checking" ? (
+                <div className="animate-pulse space-y-3 opacity-50">
+                  <div className="flex justify-between">
+                    <div className="h-3 w-16 bg-white/20 rounded" />
+                    <div className="h-3 w-8 bg-white/20 rounded" />
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full w-full" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                    <span>Progress</span>
+                    <span className="text-[#B7FC0D]">
+                      {checkinState.currentStreak} /{" "}
+                      {checkinState.nextMilestone}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#B7FC0D] to-[#97D600] transition-all duration-700"
+                      style={{
+                        width: `${(checkinState.currentStreak / checkinState.nextMilestone) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -635,7 +636,7 @@ const Account = () => {
                   <p className="font-bold mb-1 text-white">How it works:</p>
                   <ul className="list-disc pl-4 space-y-1 text-white/60">
                     <li>Share your link with a friend.</li>
-                    <li>They sign up and connect their wallet.</li>
+                    <li>They sign up and verify their email.</li>
                     <li>They must complete their <b>First Daily Check-in</b>.</li>
                     <li>Once completed, their status becomes <b>Verified</b>.</li>
                     <li>Click <b>Claim</b> to receive your points!</li>
@@ -774,7 +775,6 @@ const Account = () => {
               <ExternalWalletConnect />
             </div>
 
-
             <div className="mt-8">
               <p className="text-white/80 text-sm leading-relaxed ">
                 The Bridge Agent uses your connected wallets for cross-chain transfers in chat.
@@ -782,92 +782,70 @@ const Account = () => {
             </div>
           </div>
 
-          {/* Daily Check-in */}
-          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] border border-[#B7FC0D]/20 rounded-[32px] p-6 sm:p-8 relative overflow-hidden group mt-2">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#B7FC0D]/5 blur-[60px] rounded-full group-hover:bg-[#B7FC0D]/10 transition-all duration-500" />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6 relative z-10 w-full">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-[#B7FC0D]/10 rounded-2xl border border-[#B7FC0D]/20 shrink-0">
-                  <Flame size={24} className="text-[#B7FC0D]" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg">
-                    Daily Check-in
-                  </h3>
-                  <p className="text-white/40 text-xs">
-                    {checkinState.currentStreak} day streak
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (checkinState.status === "error") {
-                    refetchStatus();
-                    return;
-                  }
-                  checkin();
-                }}
-                disabled={
-                  !checkinState.canCheckin && checkinState.status !== "error"
-                }
-                className={`w-full sm:w-auto px-8 py-2.5 rounded-full font-bold text-sm transition-all whitespace-nowrap ${
-                  checkinState.canCheckin || checkinState.status === "error"
-                    ? "bg-[#B7FC0D] text-black hover:scale-105 active:scale-95"
-                    : "bg-white/5 text-white/20"
-                }`}
+          {/* Permissions */}
+          <div className="space-y-6 bg-[#0A0A0A] border border-white/10 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8">
+            <h3 className="text-white/40 text-xs font-bold uppercase tracking-wider">
+              Permissions
+            </h3>
+            {[
+              {
+                key: "analytics_enabled",
+                label: "Analytics data sharing",
+                icon: Zap,
+              },
+              {
+                key: "notifications_enabled",
+                label: "Receive notifications",
+                icon: Bell,
+              },
+              {
+                key: "personalization_enabled",
+                label: "Personalization",
+                icon: ShieldCheck,
+              },
+            ].map((p) => (
+              <div
+                key={p.key}
+                className="flex justify-between items-center gap-4"
               >
-                {(() => {
-                  if (checkinState.status === "checking")
-                    return <Loader2 className="w-4 h-4 animate-spin" />;
-                  if (checkinState.status === "requesting")
-                    return "Requesting...";
-                  if (checkinState.status === "error") return "Retry";
-                  if (checkinState.canCheckin) return "Check In";
-                  return `Next: ${
-                    timeRemaining ||
-                    (checkinState.hoursRemaining !== null
-                      ? `~${checkinState.hoursRemaining}h`
-                      : "...")
-                  }`;
-                })()}
-              </button>
-              {checkinState.status === "error" && (
-                <div className="absolute -bottom-8 right-0 text-red-400 text-xs font-medium">
-                  {checkinState.error || "Connection failed"}
+                <div className="flex items-center gap-3">
+                  <p.icon size={18} className="text-white/40 shrink-0" />
+                  <span className="text-white/80 text-sm sm:text-base">
+                    {p.label}
+                  </span>
                 </div>
-              )}
-            </div>
-            <div className="space-y-3 relative z-10 min-h-[40px]">
-              {checkinState.status === "checking" ? (
-                <div className="animate-pulse space-y-3 opacity-50">
-                  <div className="flex justify-between">
-                    <div className="h-3 w-16 bg-white/20 rounded" />
-                    <div className="h-3 w-8 bg-white/20 rounded" />
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full w-full" />
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
-                    <span>Progress</span>
-                    <span className="text-[#B7FC0D]">
-                      {checkinState.currentStreak} /{" "}
-                      {checkinState.nextMilestone}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#B7FC0D] to-[#97D600] transition-all duration-700"
-                      style={{
-                        width: `${(checkinState.currentStreak / checkinState.nextMilestone) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
+                <button
+                  onClick={() => handlePermissionToggle(p.key)}
+                  className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ${
+                    permissions[p.key as keyof typeof permissions]
+                      ? "bg-[#B7FC0D]"
+                      : "bg-white/10"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 w-3 h-3 rounded-full transition-all ${
+                      permissions[p.key as keyof typeof permissions]
+                        ? "right-1 bg-black"
+                        : "left-1 bg-white/40"
+                    }`}
+                  />
+                </button>
+              </div>
+            ))}
           </div>
 
+          <div className="flex justify-end mt-2">
+            <button
+                onClick={() => setIsLogoutModalOpen(true)}
+                className="w-min px-4 py-2.5 bg-[#D42424]/10 hover:bg-[#D42424]/20 rounded-2xl flex items-center gap-2 transition-colors group"
+              >
+                <TbLogout2
+                  size={18}
+                  className="text-[#D42424] group-hover:scale-110 transition-transform"
+                />
+                <span className="text-[#D42424] text-sm">Logout</span>
+              </button>
+          </div>
         </div>
       </div>
     </div>
