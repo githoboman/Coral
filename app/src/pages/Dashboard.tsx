@@ -189,6 +189,7 @@ const AGENTS: Agent[] = [
     name: "Research Agent",
     icon: "/assets/images/agents/research-agent.svg",
     cost: "Free",
+    isWip: true,
   },
   {
     id: "bridge",

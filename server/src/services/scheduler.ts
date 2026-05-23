@@ -359,12 +359,14 @@ export class TaskScheduler {
         }, { onConflict: 'owner_user_id,tracked_address' });
 
       if (upsertError) {
-        console.error(`[WALLET ALERTS] Failed to persist state for ${trackedAddress}:`, upsertError.message, upsertError.details);
+        // Silenced: fires constantly due to schema cache mismatch
+        // console.error(`[WALLET ALERTS] Failed to persist state for ${trackedAddress}:`, upsertError.message, upsertError.details);
       }
 
       // First-time setup grace period
       if (!lastSeenDigest) {
-        console.log(`[WALLET ALERTS] First-time setup for ${trackedAddress.slice(0, 10)}... (owner ${ownerAddress.slice(0, 10)}...). Digest set.`);
+        // Silenced: fires on every tracked wallet's first run
+        // console.log(`[WALLET ALERTS] First-time setup for ${trackedAddress.slice(0, 10)}... (owner ${ownerAddress.slice(0, 10)}...). Digest set.`);
         return;
       }
 
@@ -375,7 +377,7 @@ export class TaskScheduler {
       const latestNew = newOutgoing[0];
       await this.notificationService.dispatchWalletAlert(ownerAddress, trackedAddress, latestNew);
 
-      console.log(`[WALLET ALERTS] Dispatched alert for ${trackedAddress.slice(0, 10)}... → owner ${ownerAddress.slice(0, 10)}...`);
+      // console.log(`[WALLET ALERTS] Dispatched alert for ${trackedAddress.slice(0, 10)}... → owner ${ownerAddress.slice(0, 10)}...`);
 
     } catch (error) {
       console.error(`[WALLET ALERTS] Failed to process ${trackedAddress.slice(0, 10)}...:`, error);

@@ -12,6 +12,7 @@ import {
 import { TicketMinter, getTicketMinter } from "../services/ticketMinter";
 import getSupabaseClient from "../config/supabase";
 import { getReferralService } from "../services/referralService";
+import { normalizeAddr } from "../utils/address";
 
 const supabase = getSupabaseClient();
 const router = Router();
@@ -36,11 +37,8 @@ function getLocalTicketMinter(): TicketMinter {
   return ticketMinter;
 }
 
-export function normalizeAddr(addr: string): string {
-  if (!addr) return "";
-  const cleaned = addr.startsWith("0x") ? addr.slice(2) : addr;
-  return "0x" + cleaned.toLowerCase().padStart(64, "0");
-}
+// Re-export so existing consumers of `normalizeAddr` from this file still work
+export { normalizeAddr } from "../utils/address";
 
 async function hasClaimedOnChain(walletAddress: string): Promise<boolean> {
   if (!PACKAGE_ID) return false;
