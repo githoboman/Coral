@@ -4,6 +4,7 @@ import { getTaskStorageService } from './taskStorageService';
 import { getTicketMinter } from './ticketMinter';
 import { getSubscriptionService } from './subscriptionService';
 import { getUserManager } from './userManager';
+import { normalizeAddr } from '../utils/address';
 
 export interface TelegramAccount {
   wallet_address: string;
@@ -278,6 +279,8 @@ export class TelegramService {
 
   // Generate 6-digit code
   public async generateCode(walletAddress: string): Promise<string> {
+    const normalized = normalizeAddr(walletAddress);
+
     // Clean up expired codes first
     await this.supabase
       .from('telegram_codes')
@@ -295,7 +298,7 @@ export class TelegramService {
     const { error } = await this.supabase
       .from('telegram_codes')
       .insert({
-        wallet_address: walletAddress,
+        wallet_address: normalized,
         code,
         expires_at: expiresAt,
       });
@@ -317,21 +320,42 @@ export class TelegramService {
 
     if (fetchError || !codes) return null;
 
-    const walletAddress = codes.wallet_address;
+    const walletAddress = normalizeAddr(codes.wallet_address);
     const telegramUserId = telegramUser.id.toString();
     const telegramUsername = telegramUser.username;
 
-    // Link account
-    const { error: linkError } = await this.supabase
+    // Link account — check if a row already exists, then insert or update
+    const { data: existing } = await this.supabase
       .from('telegram_accounts')
-      .upsert({
-        wallet_address: walletAddress,
-        telegram_user_id: telegramUserId,
-        telegram_username: telegramUsername,
-        telegram_chat_id: telegramUserId, // Store user ID as chat ID for DM
-      }, { onConflict: 'wallet_address' });
+      .select('id')
+      .eq('wallet_address', walletAddress)
+      .maybeSingle();
 
-    if (linkError) throw linkError;
+    if (existing) {
+      // Update the existing row
+      const { error: updateError } = await this.supabase
+        .from('telegram_accounts')
+        .update({
+          telegram_user_id: telegramUserId,
+          telegram_username: telegramUsername,
+          telegram_chat_id: telegramUserId,
+        })
+        .eq('wallet_address', walletAddress);
+
+      if (updateError) throw updateError;
+    } else {
+      // Insert a new row
+      const { error: insertError } = await this.supabase
+        .from('telegram_accounts')
+        .insert({
+          wallet_address: walletAddress,
+          telegram_user_id: telegramUserId,
+          telegram_username: telegramUsername,
+          telegram_chat_id: telegramUserId,
+        });
+
+      if (insertError) throw insertError;
+    }
 
     // Cleanup used code
     await this.supabase
@@ -382,19 +406,21 @@ export class TelegramService {
 
 
   public async unlinkAccount(walletAddress: string): Promise<void> {
+    const normalized = normalizeAddr(walletAddress);
     const { error } = await this.supabase
       .from('telegram_accounts')
       .delete()
-      .eq('wallet_address', walletAddress);
+      .eq('wallet_address', normalized);
 
     if (error) throw error;
   }
 
   public async getStatus(walletAddress: string): Promise<TelegramAccount | null> {
+    const normalized = normalizeAddr(walletAddress);
     const { data, error } = await this.supabase
       .from('telegram_accounts')
       .select('*')
-      .eq('wallet_address', walletAddress)
+      .eq('wallet_address', normalized)
       .maybeSingle();
 
     if (error) {

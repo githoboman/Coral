@@ -78,10 +78,11 @@ export class RpcManager {
       lastFailure: null,
       latencyMs: null,
     }));
-    console.log(
-      `[RateLimitSwitch] Initializing with ${this.endpoints.length} RPC endpoints:`,
-      urls
-    );
+    // Silenced: noisy during startup
+    // console.log(
+    //   `[RateLimitSwitch] Initializing with ${this.endpoints.length} RPC endpoints:`,
+    //   urls
+    // );
   }
 
   // ── Endpoint selection ─────────────────────────────────────────────
@@ -110,7 +111,8 @@ export class RpcManager {
     }
 
     // All endpoints are in cooldown — reset all and try the first one
-    console.warn('[RateLimitSwitch] All endpoints in cooldown, resetting...');
+    // Silenced: this fires too frequently during rate-limit storms
+    // console.warn('[RateLimitSwitch] All endpoints in cooldown, resetting...');
     this.endpoints.forEach((ep) => {
       ep.failures = 0;
       ep.lastFailure = null;

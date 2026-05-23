@@ -391,10 +391,7 @@ export class BlockVisionService {
 
       const data = response.data.result?.data || response.data.result || [];
       
-      // Step 1 — Log the Raw Response (Temporary)
-      if (data.length > 0) {
-        console.log('[BlockVision DEBUG] Raw activity item:', JSON.stringify(data[0], null, 2));
-      }
+      // Debug log removed — was temporary
 
       return (Array.isArray(data) ? data : []).map((tx: any) => {
         // Sender identification — activities endpoint uses 'sender' not 'from'
@@ -446,7 +443,8 @@ export class BlockVisionService {
         */
         return txs;
       } catch (rpcError: any) {
-        console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError.message);
+        // Silenced: fires constantly for EVM addresses on Sui RPCs
+        // console.error(`[BlockVision] Both BV and RPC fallback failed for transactions: ${address}`, rpcError.message);
         return [];
       }
     }
