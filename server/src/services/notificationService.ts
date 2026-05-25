@@ -413,6 +413,11 @@ export class NotificationService {
     const digest = transaction.digest;
     const amount = transaction.amount;
 
+    const network = process.env.SUI_NETWORK || "testnet";
+    const explorerUrl = network === "mainnet"
+      ? `https://suivision.xyz/txblock/${digest}`
+      : `https://${network}.suivision.xyz/txblock/${digest}`;
+
     // ── Track A: Telegram ─────────────────────────────────────────────
     const telegramTrack = (async () => {
       try {
@@ -427,7 +432,7 @@ export class NotificationService {
           `${this.escapeHtml(amount)} → ${this.escapeHtml(shortCounterparty)}\n\n` +
           `<b>Time</b>\n` +
           `${timeAgoStr}\n\n` +
-          `<a href="https://suivision.xyz/txblock/${digest}">View on SuiVision →</a>`;
+          `<a href="${explorerUrl}">View on SuiVision →</a>`;
 
         await this.sendNotification(ownerAddress, message);
         console.log(`[NOTIFY] Telegram: ✓ Wallet alert sent for ${shortAddress}`);
@@ -455,7 +460,7 @@ export class NotificationService {
               <p><b>Time</b><br>${timeAgoStr}</p>
             </div>
 
-            <p><a href="https://suivision.xyz/txblock/${digest}">View on SuiVision →</a></p>
+            <p><a href="${explorerUrl}">View on SuiVision →</a></p>
 
             <p>Stay on top of it!<br>Tovira Team</p>
           </div>`;
