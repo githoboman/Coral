@@ -266,7 +266,7 @@ export class TaskScheduler {
       }
 
       if (pairs.length === 0) return;
-      // console.log(`[WALLET ALERTS] Checking ${pairs.length} tracked wallet(s)`);
+      console.log(`[WALLET ALERTS] Checking ${pairs.length} tracked wallet(s)`);
 
       // 3. Process in batches of 5 (consistent with existing scheduler pattern)
       const BATCH_SIZE = 5;
@@ -298,11 +298,16 @@ export class TaskScheduler {
         .single();
 
       const lastSeenDigest = stateRow?.last_seen_digest ?? null;
+      console.log(`[WALLET ALERTS] ${trackedAddress.slice(0,10)}... lastSeenDigest=${lastSeenDigest?.slice(0,10) ?? 'NONE (first run)'}`);
 
       // 2. Fetch the most recent transactions for the tracked wallet
       const transactions = await bv.getRecentTransactions(trackedAddress, 5);
 
-      if (!transactions || transactions.length === 0) return;
+      if (!transactions || transactions.length === 0) {
+        console.log(`[WALLET ALERTS] No transactions returned for ${trackedAddress.slice(0,10)}...`);
+        return;
+      }
+      console.log(`[WALLET ALERTS] Got ${transactions.length} txs for ${trackedAddress.slice(0,10)}... newest=${transactions[0]?.digest?.slice(0,10)}... type=${transactions[0]?.type}`);
 
       // 3. Find NEW transactions (strictly newer than lastSeenDigest)
       // Since transactions are descending [newest...oldest], 
@@ -347,6 +352,32 @@ export class TaskScheduler {
         }
       }
 
+      // 3.5. Record new transactions as events in the database (only if not first-time run)
+      if (lastSeenDigest && newTransactions.length > 0) {
+        for (const tx of newTransactions) {
+          const { error: eventError } = await supabase
+            .from('wallet_events')
+            .insert({
+              wallet_address: trackedAddress,
+              event_type: tx.type === 'send' ? 'token_sent' : (tx.type === 'receive' ? 'token_received' : 'other'),
+              tx_digest: tx.digest,
+              sender: tx.type === 'send' ? trackedAddress : tx.counterparty,
+              event_data: {
+                amount: tx.amount,
+                digest: tx.digest,
+                counterparty: tx.counterparty,
+                timestamp: tx.timestamp
+              },
+              processed: false
+            });
+          if (eventError) {
+            console.error(`[WALLET ALERTS] Failed to insert event for ${trackedAddress}:`, eventError.message);
+          } else {
+            console.log(`[WALLET ALERTS] Recorded DB event for ${trackedAddress.slice(0, 10)}...: ${tx.type} ${tx.amount}`);
+          }
+        }
+      }
+
       // 4. Update last_seen_digest to the most recent transaction (first in list)
       // Do this BEFORE dispatching to prevent duplicate notifications if dispatch is slow
         const { error: upsertError } = await supabase
@@ -359,17 +390,16 @@ export class TaskScheduler {
         }, { onConflict: 'owner_user_id,tracked_address' });
 
       if (upsertError) {
-        // Silenced: fires constantly due to schema cache mismatch
-        // console.error(`[WALLET ALERTS] Failed to persist state for ${trackedAddress}:`, upsertError.message, upsertError.details);
+        console.error(`[WALLET ALERTS] ❌ UPSERT FAILED for ${trackedAddress.slice(0,10)}...:`, upsertError.message, upsertError.details, upsertError.hint);
       }
 
       // First-time setup grace period
       if (!lastSeenDigest) {
-        // Silenced: fires on every tracked wallet's first run
-        // console.log(`[WALLET ALERTS] First-time setup for ${trackedAddress.slice(0, 10)}... (owner ${ownerAddress.slice(0, 10)}...). Digest set.`);
+        console.log(`[WALLET ALERTS] First-time baseline set for ${trackedAddress.slice(0, 10)}... — no notification this tick`);
         return;
       }
 
+      console.log(`[WALLET ALERTS] newTxs=${newTransactions.length} newOutgoing=${newOutgoing.length} for ${trackedAddress.slice(0,10)}...`);
       if (newOutgoing.length === 0) return;
 
       // 5. Dispatch notification for each new outgoing transaction
@@ -377,7 +407,7 @@ export class TaskScheduler {
       const latestNew = newOutgoing[0];
       await this.notificationService.dispatchWalletAlert(ownerAddress, trackedAddress, latestNew);
 
-      // console.log(`[WALLET ALERTS] Dispatched alert for ${trackedAddress.slice(0, 10)}... → owner ${ownerAddress.slice(0, 10)}...`);
+      console.log(`[WALLET ALERTS] ✅ Dispatched alert for ${trackedAddress.slice(0, 10)}... → owner ${ownerAddress.slice(0, 10)}...`);
 
     } catch (error) {
       console.error(`[WALLET ALERTS] Failed to process ${trackedAddress.slice(0, 10)}...:`, error);

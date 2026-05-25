@@ -1022,7 +1022,9 @@ function AlertRow({ alert }: { alert: WalletEvent }) {
   
   // Format amount
   let amountStr = "—";
-  if (event_data.changePercent !== undefined) {
+  if (event_data.amount) {
+      amountStr = event_data.amount;
+  } else if (event_data.changePercent !== undefined) {
       // Calculate diff
       const diff = BigInt(event_data.newBalance || 0) - BigInt(event_data.previousBalance || 0);
       const absDiff = diff < 0n ? -diff : diff;
@@ -1036,6 +1038,11 @@ function AlertRow({ alert }: { alert: WalletEvent }) {
   
   // Time ago
   const timeAgo = formatTimeAgo(new Date(created_at));
+
+  // Determine explorer URL: prefer specific transaction details if we have the digest
+  const explorerUrl = event_data.digest 
+      ? `https://suiscan.xyz/testnet/tx/${event_data.digest}` 
+      : `https://suiscan.xyz/testnet/address/${wallet_address}`;
 
   return (
       <div className="flex items-center justify-between group">
@@ -1059,7 +1066,7 @@ function AlertRow({ alert }: { alert: WalletEvent }) {
               </div>
           </div>
           <a 
-              href={`https://suiscan.xyz/testnet/address/${wallet_address}`}
+              href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#246AFC] hover:underline text-sm font-bold ml-4 shrink-0 transition-colors"
