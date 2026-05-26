@@ -19,6 +19,22 @@ const router = Router();
 
 const nonceStore = new Map<string, { nonce: string, expires: number }>();
 
+// Allowed email domains — exact match only, always lowercased before check
+const ALLOWED_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "yahoo.com", "yahoo.co.uk", "yahoo.com.au", "yahoo.ca", "yahoo.fr", "yahoo.de",
+  "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com", "msn.com",
+  "icloud.com", "me.com", "mac.com",
+  "protonmail.com", "proton.me",
+  "zoho.com",
+  "aol.com",
+  "yandex.com", "yandex.ru",
+  "mail.com", "gmx.com", "gmx.net",
+  "tutanota.com",
+  "fastmail.com", "fastmail.fm",
+  "hey.com",
+]);
+
 
 const network = (process.env.SUI_NETWORK || "testnet") as "testnet" | "mainnet";
 const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
@@ -186,6 +202,16 @@ router.post(
         return;
       }
 
+      // Email domain whitelist check — runs for every registration regardless of referral code
+      const emailDomain = normalizedEmail.split("@")[1]?.toLowerCase() ?? "";
+      if (!ALLOWED_EMAIL_DOMAINS.has(emailDomain)) {
+        console.log(`[REGISTER] Blocked disposable/unknown email domain: ${emailDomain}`);
+        res.status(400).json({
+          error: "Please use a valid email address. Disposable or temporary email addresses are not accepted.",
+        });
+        return;
+      }
+
       const profile = um.createUserProfile(
         normalizedEmail,
         normalizedWallet,
@@ -221,7 +247,7 @@ router.post(
       // If they were referred by someone, link them AFTER profile creation (to satisfy foreign keys)
       if (referral_code && typeof referral_code === "string") {
         try {
-          const referredBy = await referralService.processReferral(normalizedWallet, referral_code);
+          const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip ?? null);
           if (referredBy) {
             const { error: updateError } = await supabase
               .from("user_profiles")

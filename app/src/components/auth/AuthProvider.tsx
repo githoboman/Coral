@@ -364,6 +364,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
+          errorData.error ||
           errorData.detail ||
           errorData.message ||
           "Failed to complete onboarding",

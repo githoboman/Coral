@@ -10,6 +10,9 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
+// Trust Render's reverse proxy so req.ip reflects the real client IP via X-Forwarded-For
+app.set('trust proxy', 1);
+
 console.log(`[INIT] LangChain Tracing: ${process.env.LANGCHAIN_TRACING_V2 === 'true' ? 'ENABLED' : 'DISABLED'}`);
 
 app.use(helmet());
