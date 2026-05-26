@@ -247,7 +247,8 @@ router.post(
       // If they were referred by someone, link them AFTER profile creation (to satisfy foreign keys)
       if (referral_code && typeof referral_code === "string") {
         try {
-          const referredBy = await referralService.processReferral(normalizedWallet, referral_code, req.ip ?? null);
+          const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip;
+          const referredBy = await referralService.processReferral(normalizedWallet, referral_code, clientIp);
           if (referredBy) {
             const { error: updateError } = await supabase
               .from("user_profiles")
