@@ -51,7 +51,7 @@ export class ReferralService {
     throw new Error("Failed to generate a unique referral code after multiple attempts.");
   }
 
-  async processReferral(newUserId: string, referralCode: string): Promise<string | null> {
+  async processReferral(newUserId: string, referralCode: string, ipAddress?: string | null): Promise<string | null> {
     try {
       // 1. Look up the referral code
       const { data: referrer } = await supabase
@@ -73,7 +73,22 @@ export class ReferralService {
         return null;
       }
 
-      // 3. Check for existing row
+      // 3. IP restriction — one IP per referrer (skip if IP is absent)
+      if (ipAddress) {
+        const { data: ipMatch } = await supabase
+          .from("referrals")
+          .select("id")
+          .eq("referrer_id", referrerId)
+          .eq("ip_address", ipAddress)
+          .maybeSingle();
+
+        if (ipMatch) {
+          console.log(`[REFERRAL] IP ${ipAddress} already used for referrer ${referrerId} — blocked referred user ${newUserId}`);
+          return null;
+        }
+      }
+
+      // 4. Check for existing row
       const { data: existingRef } = await supabase
         .from("referrals")
         .select("id")
@@ -85,14 +100,14 @@ export class ReferralService {
         return null;
       }
 
-      // 4. Insert row
+      // 5. Insert row
       const { error: insertError } = await supabase
         .from("referrals")
         .insert({
           referrer_id: referrerId,
           referred_user_id: newUserId,
           status: "pending",
-          ip_address: null,
+          ip_address: ipAddress ?? null,
           device_fingerprint: null,
         });
 
