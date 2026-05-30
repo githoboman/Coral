@@ -265,7 +265,7 @@ const LandingPageLayout = () => {
                   <ul className="space-y-4 text-white/80 text-xs text-left">
                     <li><a href="#control" onClick={(e) => handleScrollTo(e, '#control')} className="hover:text-white transition-colors">About</a></li>
                     <li><a href="#agents" onClick={(e) => handleScrollTo(e, '#agents')} className="hover:text-white transition-colors">Product</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Brand kit</a></li>
+                    <li><a href="https://drive.google.com/drive/folders/1PKukwMABHOzTHJ9a9vDLhgID4kgdXcLN?usp=drive_link" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Brand kit</a></li>
                   </ul>
                 </div>
               </div>
@@ -286,13 +286,13 @@ const LandingPageLayout = () => {
                       hello@tovira.xyz
                     </a>
                     <div className="flex items-center gap-6 lg:gap-8">
-                      <a href="#" className="text-white/80 hover:text-white transition-all hover:scale-110">
+                      <a href="https://discord.gg/EWHyz5B7" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-all hover:scale-110">
                         <RiDiscordLine className="w-6 h-6" />
                       </a>
-                      <a href="#" className="text-white/80 hover:text-white transition-all hover:scale-110">
+                      <a href="https://t.me/tovira_xyz"target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-all hover:scale-110">
                         <PiTelegramLogo className="w-5 h-5" />
                       </a>
-                      <a href="#" className="text-white/80 hover:text-white transition-all hover:scale-110">
+                      <a href="https://x.com/tovira_sui" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-all hover:scale-110">
                         <RiTwitterXLine className="w-5 h-5" />
                       </a>
                     </div>
