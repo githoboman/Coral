@@ -1050,6 +1050,13 @@ export default function AppLayout() {
       active: location.pathname === "/badge",
       filterWhite: true,
     },
+    {
+      name: "Agent",
+      to: "/agent",
+      iconUrl: "/assets/icons/wallet.svg",
+      active: location.pathname === "/agent",
+      filterWhite: true,
+    },
   ];
 
   return (

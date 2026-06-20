@@ -18,6 +18,7 @@ import proactiveRouter from "./proactive";
 import bridgeTransactionsRouter from "./bridgeTransactions";
 import walletRouter from "./wallet";
 import referralsRouter from "./referrals";
+import agentWalletRouter from "./agentWallet";
 
 const router = Router();
 
@@ -40,6 +41,7 @@ router.use("/proactive", proactiveRouter);
 router.use("/bridge", bridgeTransactionsRouter);
 router.use(walletRouter);
 router.use("/referrals", referralsRouter);
+router.use(agentWalletRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
@@ -96,6 +98,19 @@ router.get("/info", (_req: Request, res: Response) => {
       wallet: [
         "GET /api/wallet/balance",
         "POST /api/wallet/charge"
+      ],
+      agent: [
+        "POST /api/agent/wallet/init",
+        "GET /api/agent/wallet",
+        "POST /api/agent/policy/create-tx",
+        "POST /api/agent/policy/bind",
+        "POST /api/agent/policy/pause-tx",
+        "POST /api/agent/policy/resume-tx",
+        "POST /api/agent/policy/revoke",
+        "POST /api/agent/deepbook/bootstrap",
+        "POST /api/agent/swap",
+        "POST /api/agent/swap/schedule",
+        "GET /api/agent/alerts",
       ],
     },
     storage: "Supabase",

@@ -12,6 +12,21 @@ export const requireAuth = async (
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  // DEV-ONLY bypass for local demos without a Supabase-backed token store. Gated
+  // behind AGENT_DEV_AUTH=true so it can never run in production. Trusts a wallet
+  // address from the `x-dev-wallet` header (or user_id), skipping token validation.
+  if (process.env.AGENT_DEV_AUTH === 'true') {
+    const devWallet =
+      (req.headers['x-dev-wallet'] as string) ||
+      (req.query.user_id as string) ||
+      (req.body?.user_id as string);
+    if (devWallet) {
+      req.user = { wallet_address: devWallet.toLowerCase() };
+      next();
+      return;
+    }
+  }
+
   const rawToken = req.cookies?.auth_token;
 
   if (!rawToken) {

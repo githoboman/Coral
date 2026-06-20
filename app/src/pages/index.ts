@@ -6,3 +6,4 @@ export { default as AppLayout } from './Layout';
 export { default as OnchainAnalysis } from './OnchainAnalysis';
 export { default as Leaderboard } from './Leaderboard';
 export { default as Maintenance } from './Maintenance';
+export { default as Agent } from './Agent';

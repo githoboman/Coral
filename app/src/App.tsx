@@ -10,6 +10,7 @@ import {
   Leaderboard,
   Signin,
   Maintenance,
+  Agent,
 } from "@/pages/";
 
 import Subscription from "@/pages/Subscription";
@@ -43,6 +44,7 @@ function App() {
           <Route path="/subscription" element={<Subscription />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/badge" element={<BadgeMint />} />
+          <Route path="/agent" element={<Agent />} />
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="/chat/:chatId?" element={<Dashboard />} />
         </Route>

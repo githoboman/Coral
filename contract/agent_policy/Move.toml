@@ -1,0 +1,18 @@
+[package]
+name = "agent_policy"
+edition = "2024.beta"
+
+[dependencies]
+# Pinned to the already-cached testnet framework checkout to avoid a fresh multi-GB
+# clone of sui.git (which fails intermittently over schannel on this machine).
+# The policy contract has NO DeepBook dependency: the off-chain PTB builder composes
+# validate_action + DeepBook moveCalls + record_spend atomically, so DeepBook stays a
+# TS-side concern. Only the Sui framework + stdlib are needed here.
+Sui = { local = "C:/Users/OWNER/.move/https___github_com_MystenLabs_sui_git_framework__testnet/crates/sui-framework/packages/sui-framework" }
+
+[addresses]
+agent_policy = "0x0"
+
+[dev-dependencies]
+
+[dev-addresses]

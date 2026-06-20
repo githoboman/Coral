@@ -1,0 +1,182 @@
+[warning] Client/Server api version mismatch, client api version : 1.61.1, server api version : 1.73.1
+[warning] CLI's protocol version is 102, but the active network's protocol version is 126. 
+ Consider installing the latest version of the CLI - https://docs.sui.io/guides/developer/getting-started/sui-install 
+
+ If publishing/upgrading returns a dependency verification error, then install the latest CLI version.
+[Warning]: Dependency sources are no longer verified automatically during publication and upgrade, so the `--skip-dependency-verification` flag is no longer necessary.
+[warning]: The network is using protocol version ProtocolVersion(102), but this binary only recognizes protocol version ProtocolVersion(126); the system packages used for compilation (e.g. MoveStdlib) may be out of date. If you have errors related to system packages, you may need to update your CLI.
+[note] Dependencies on Bridge, MoveStdlib, Sui, and SuiSystem are automatically added, but this feature is disabled for your package because you have explicitly included dependencies on Sui. Consider removing these dependencies from Move.toml.
+INCLUDING DEPENDENCY Sui
+INCLUDING DEPENDENCY MoveStdlib
+BUILDING agent_policy
+Skipping dependency verification
+{
+  "digest": "HvPwruCky85EbeayoRkgoh1bQANAc6CWb95nQt3dfXiC",
+  "transaction": {
+    "data": {
+      "messageVersion": "v1",
+      "transaction": {
+        "kind": "ProgrammableTransaction",
+        "inputs": [
+          {
+            "type": "pure",
+            "valueType": "address",
+            "value": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+          }
+        ],
+        "transactions": [
+          {
+            "Publish": [
+              "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000000000000000000000000000002"
+            ]
+          },
+          {
+            "TransferObjects": [
+              [
+                {
+                  "Result": 0
+                }
+              ],
+              {
+                "Input": 0
+              }
+            ]
+          }
+        ]
+      },
+      "sender": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa",
+      "gasData": {
+        "payment": [
+          {
+            "objectId": "0x5f540ae255b210f6f46d5332b59910a3a0c7ed7b8a552206950463e417d4526b",
+            "version": 349181737,
+            "digest": "5pBqhNKqS9B3x712xvdKKC9oqSYDEc378SSSiS2UkxF2"
+          }
+        ],
+        "owner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa",
+        "price": "1000",
+        "budget": "200000000"
+      }
+    },
+    "txSignatures": [
+      "AHKbDcBioojSf0Yh394yL99xmyCsBJ1N/FSMplEaBOx76cgF7i8RoYeVqNn7ShhFYGjIwx6uYswNTk/fbewDlwNyOmAdcn+coS6fkR7zLzFoosyP0Il8xd2u7G7/S53atQ=="
+    ]
+  },
+  "effects": {
+    "messageVersion": "v1",
+    "status": {
+      "status": "success"
+    },
+    "executedEpoch": "1130",
+    "gasUsed": {
+      "computationCost": "1000000",
+      "storageCost": "31798400",
+      "storageRebate": "978120",
+      "nonRefundableStorageFee": "9880"
+    },
+    "modifiedAtVersions": [
+      {
+        "objectId": "0x5f540ae255b210f6f46d5332b59910a3a0c7ed7b8a552206950463e417d4526b",
+        "sequenceNumber": "349181737"
+      }
+    ],
+    "transactionDigest": "HvPwruCky85EbeayoRkgoh1bQANAc6CWb95nQt3dfXiC",
+    "created": [
+      {
+        "owner": "Immutable",
+        "reference": {
+          "objectId": "0x2192e9f75e83d8d3814a34bf62a087950f64d053008067a7e1dc0b521aa49cc3",
+          "version": 1,
+          "digest": "DxbteX4YXDhf3FZdKxZQg1QiPr18L1byfFv7rM6DWp9S"
+        }
+      },
+      {
+        "owner": {
+          "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+        },
+        "reference": {
+          "objectId": "0x627b8e7561c09969210b3d1b0c43b11e84ece089b0ff9f8d9108f051943af363",
+          "version": 349181738,
+          "digest": "Byr2Ntj4hjaR8GTHUaxdKDiRX3bVJt36Uq8o7CMJosdG"
+        }
+      }
+    ],
+    "mutated": [
+      {
+        "owner": {
+          "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+        },
+        "reference": {
+          "objectId": "0x5f540ae255b210f6f46d5332b59910a3a0c7ed7b8a552206950463e417d4526b",
+          "version": 349181738,
+          "digest": "CFC3gaMDF6emKAek8ejXGQ4yCgjhGE2MiVr24ZyRUkE3"
+        }
+      }
+    ],
+    "gasObject": {
+      "owner": {
+        "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+      },
+      "reference": {
+        "objectId": "0x5f540ae255b210f6f46d5332b59910a3a0c7ed7b8a552206950463e417d4526b",
+        "version": 349181738,
+        "digest": "CFC3gaMDF6emKAek8ejXGQ4yCgjhGE2MiVr24ZyRUkE3"
+      }
+    },
+    "dependencies": [
+      "2yzJUNua8UTjUYqJjQr5EXp44AMv9AnypDJQE9KE5TeH",
+      "BEVGeVYcUJfuAzBof6yW816Rq6hZD1kUCEoPkAr49pyf"
+    ]
+  },
+  "events": [],
+  "objectChanges": [
+    {
+      "type": "mutated",
+      "sender": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa",
+      "owner": {
+        "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+      },
+      "objectType": "0x2::coin::Coin<0x2::sui::SUI>",
+      "objectId": "0x5f540ae255b210f6f46d5332b59910a3a0c7ed7b8a552206950463e417d4526b",
+      "version": "349181738",
+      "previousVersion": "349181737",
+      "digest": "CFC3gaMDF6emKAek8ejXGQ4yCgjhGE2MiVr24ZyRUkE3"
+    },
+    {
+      "type": "published",
+      "packageId": "0x2192e9f75e83d8d3814a34bf62a087950f64d053008067a7e1dc0b521aa49cc3",
+      "version": "1",
+      "digest": "DxbteX4YXDhf3FZdKxZQg1QiPr18L1byfFv7rM6DWp9S",
+      "modules": [
+        "capability",
+        "events",
+        "policy"
+      ]
+    },
+    {
+      "type": "created",
+      "sender": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa",
+      "owner": {
+        "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+      },
+      "objectType": "0x2::package::UpgradeCap",
+      "objectId": "0x627b8e7561c09969210b3d1b0c43b11e84ece089b0ff9f8d9108f051943af363",
+      "version": "349181738",
+      "digest": "Byr2Ntj4hjaR8GTHUaxdKDiRX3bVJt36Uq8o7CMJosdG"
+    }
+  ],
+  "balanceChanges": [
+    {
+      "owner": {
+        "AddressOwner": "0xc62e1d746e1fdc10deb2fb1445db11be52224fc57fa4257b9672f83cedcab9fa"
+      },
+      "coinType": "0x2::sui::SUI",
+      "amount": "-31820280"
+    }
+  ],
+  "timestampMs": "1781465057657",
+  "confirmedLocalExecution": true,
+  "checkpoint": "348440469"
+}
+

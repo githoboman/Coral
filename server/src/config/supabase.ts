@@ -7,15 +7,33 @@ dotenv.config();
 
 let supabaseClient: SupabaseClient | null = null;
 
+/** True when the value looks like a real http(s) URL (not a placeholder). */
+const isValidHttpUrl = (v: string | undefined): v is string => {
+  if (!v) return false;
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 export const getSupabaseClient = (): SupabaseClient => {
   if (!supabaseClient) {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
+    let supabaseUrl = process.env.SUPABASE_URL;
+    let supabaseKey = process.env.SUPABASE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error(
-        "Missing SUPABASE_URL or SUPABASE_KEY environment variables",
+    // Dev/demo fallback: when creds are absent or placeholders, construct against a
+    // syntactically-valid dummy endpoint so the server still BOOTS (e.g. for the
+    // agent-wallet flow, which doesn't touch Supabase). Any actual DB call will fail
+    // at request time, which is the intended behaviour without real creds.
+    if (!isValidHttpUrl(supabaseUrl) || !supabaseKey) {
+      console.warn(
+        "[supabase] No valid SUPABASE_URL/KEY — using a non-functional dummy client. " +
+          "DB-backed routes will error until real creds are set.",
       );
+      supabaseUrl = "https://placeholder.supabase.co";
+      supabaseKey = supabaseKey || "placeholder-key";
     }
 
     supabaseClient = createClient(supabaseUrl, supabaseKey, {
