@@ -1,5 +1,8 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { z } from "zod";
+import { TradeIntentSchema, type TradeIntent } from "./tradeIntentSchema.js";
+import { parseIntentFallback } from "./tradeIntentFallback.js";
+
+export { TradeIntentSchema, type TradeIntent } from "./tradeIntentSchema.js";
 
 /**
  * Natural-language trade-intent parser. Turns a user instruction like
@@ -9,31 +12,6 @@ import { z } from "zod";
  * Mirrors the codebase's existing pattern (taskManagerAgent): Gemini Flash +
  * Zod `withStructuredOutput`, temperature 0 for deterministic extraction.
  */
-
-export const TradeIntentSchema = z.object({
-  // The kind of action the user is asking for.
-  action: z
-    .enum(["market_swap", "limit_order", "percentage_swap", "conditional_swap", "scheduled_swap", "cancel", "unknown"])
-    .describe("The trading action the user wants the agent to perform."),
-  // Asset moving OUT of the agent wallet (what they're spending/selling).
-  tokenIn: z.string().optional().describe("Symbol of the input token, e.g. SUI or USDC."),
-  // Asset moving IN (what they want to receive).
-  tokenOut: z.string().optional().describe("Symbol of the output token, e.g. USDC or SUI."),
-  // Fixed amount in whole tokens (e.g. 100 for '100 SUI'). Omit for percentage.
-  amount: z.number().optional().describe("Fixed amount in whole token units."),
-  // Percentage of the agent's balance to trade (e.g. 30 for '30%').
-  percentage: z.number().optional().describe("Percentage of balance to trade, 1-100."),
-  // Limit / conditional price in quote units (e.g. 0.20 USDC per SUI).
-  price: z.number().optional().describe("Target price for limit or conditional orders."),
-  // For conditional orders: trigger when price goes below/above this.
-  condition: z.enum(["below", "above"]).optional().describe("Price condition direction."),
-  // ISO time or natural phrase for scheduled execution (e.g. '15:00 UTC').
-  schedule: z.string().optional().describe("When to run a scheduled action."),
-  // A short, friendly restatement of what the agent understood.
-  summary: z.string().describe("One-sentence plain-language summary of the parsed intent."),
-});
-
-export type TradeIntent = z.infer<typeof TradeIntentSchema>;
 
 const SYSTEM_PROMPT = `You translate a user's natural-language crypto instruction into a structured trade intent for an autonomous agent on the Sui blockchain trading via DeepBook.
 
@@ -49,27 +27,55 @@ Rules:
 - Always fill 'summary' with a clear one-line restatement.
 - Never invent amounts or prices that the user didn't state.`;
 
+/** Keys that are clearly placeholders, not real Gemini credentials. */
+function isUsableKey(key: string | undefined): boolean {
+  if (!key) return false;
+  const k = key.trim();
+  if (k.length < 10) return false;
+  return !/^(dummy|test|changeme|placeholder|your[-_]?key|xxx+)/i.test(k);
+}
+
 export class TradeIntentParser {
-  private llm;
-  private structured;
+  // The bound structured-output runnable; null when no usable key is configured.
+  private structured: { invoke: (input: unknown) => Promise<TradeIntent> } | null = null;
+  private readonly hasKey: boolean;
 
   constructor() {
-    this.llm = new ChatGoogleGenerativeAI({
-      model: process.env.LLM_MODEL || "gemini-2.5-flash",
-      apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
-      temperature: 0,
-      maxRetries: 1,
-      maxOutputTokens: 512,
-    });
-    this.structured = this.llm.withStructuredOutput(TradeIntentSchema);
+    const apiKey = process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY;
+    this.hasKey = isUsableKey(apiKey);
+    if (this.hasKey) {
+      const llm = new ChatGoogleGenerativeAI({
+        model: process.env.LLM_MODEL || "gemini-2.5-flash",
+        apiKey,
+        temperature: 0,
+        maxRetries: 1,
+        maxOutputTokens: 512,
+      });
+      this.structured = llm.withStructuredOutput(TradeIntentSchema) as {
+        invoke: (input: unknown) => Promise<TradeIntent>;
+      };
+    }
   }
 
-  /** Parse a natural-language instruction into a structured TradeIntent. */
+  /**
+   * Parse a natural-language instruction into a structured TradeIntent.
+   * Uses Gemini when a real key is configured; otherwise (or if the LLM call
+   * fails) falls back to the deterministic regex parser so the NL box still
+   * works in a live demo. The result is always a validated TradeIntent.
+   */
   async parse(message: string): Promise<TradeIntent> {
-    return this.structured.invoke([
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: message },
-    ]);
+    if (!this.structured) return parseIntentFallback(message);
+    try {
+      return await this.structured.invoke([
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: message },
+      ]);
+    } catch (e) {
+      // Gemini unavailable mid-session (invalid key, network, rate limit):
+      // degrade to the deterministic parser rather than failing the request.
+      console.warn(`[tradeIntent] Gemini parse failed, using fallback: ${(e as Error)?.message || e}`);
+      return parseIntentFallback(message);
+    }
   }
 }
 

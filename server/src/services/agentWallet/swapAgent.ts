@@ -4,7 +4,7 @@ import { getBudgetTracker } from "./budgetTracker.js";
 import { getAgentPtbBuilder } from "./ptbBuilder.js";
 import { getAgentExecutor, type ExecutionResult } from "./executor.js";
 import { AgentDeepBookClient, type DeepBookSetup } from "./deepbookClient.js";
-import { deepbookProtocolId, assetTypeFor } from "./config.js";
+import { deepbookProtocolId, assetTypeFor, toWholeTokens } from "./config.js";
 import { getAgentAlerts } from "./alerts.js";
 import { getWalrusArchiver } from "./walrusArchiver.js";
 import { AgentActionType } from "./types.js";
@@ -84,12 +84,49 @@ export class SwapAgent {
       const clientOrderId = allocationId;
 
       // 3. The DeepBook fragment injected between validate and record.
-      const isBid = req.tokenIn === req.deepbook.poolKey.split("_")[1]; // quote->base = bid
+      //
+      // DeepBook denominates order `quantity` in WHOLE BASE tokens, regardless of
+      // side. The agent, however, tracks `req.amount` as base units of *tokenIn*
+      // (what the user spends). Reconcile the two:
+      //   - SELL (isBid=false): tokenIn is the base asset. quantity = amount in
+      //     whole base tokens.
+      //   - BUY  (isBid=true):  tokenIn is the quote asset. The spend must be
+      //     converted to a base quantity via price (limit) or a book estimate
+      //     (market), since you can't express "spend N quote" as a base quantity
+      //     directly.
+      const baseSymbol = dbClient.baseSymbol();
+      const quoteSymbol = dbClient.quoteSymbol();
+      const isBid = req.tokenIn.toUpperCase() === quoteSymbol.toUpperCase(); // quote->base = bid
+
+      let baseQuantity: number;
+      if (!isBid) {
+        // Selling base: amount is already denominated in the base asset.
+        baseQuantity = toWholeTokens(req.amount, baseSymbol);
+      } else {
+        // Buying base with quote: amount is a quote spend. Convert to base.
+        const quoteWhole = toWholeTokens(req.amount, quoteSymbol);
+        if (req.market) {
+          // No fixed price — ask the book how much base this quote buys.
+          baseQuantity = await dbClient.baseOutForQuote(quoteWhole);
+        } else {
+          if (req.price == null) {
+            tracker.release(wallet.policyId, allocationId);
+            return { ok: false, reason: "Limit order requires a price" };
+          }
+          baseQuantity = quoteWhole / req.price; // base = quote / (quote-per-base)
+        }
+      }
+
+      if (!(baseQuantity > 0)) {
+        tracker.release(wallet.policyId, allocationId);
+        return { ok: false, reason: "Resolved DeepBook quantity is zero — check amount/price and book liquidity" };
+      }
+
       let body: (tx: any) => void;
       if (req.market) {
         body = dbClient.placeMarketOrderFragment({
           clientOrderId,
-          quantity: req.amount,
+          quantity: baseQuantity,
           isBid,
         });
       } else {
@@ -100,7 +137,7 @@ export class SwapAgent {
         body = dbClient.placeLimitOrderFragment({
           clientOrderId,
           price: req.price,
-          quantity: req.amount,
+          quantity: baseQuantity,
           isBid,
         });
       }

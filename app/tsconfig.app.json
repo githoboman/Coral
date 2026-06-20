@@ -7,6 +7,13 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
+    /* Path alias — must mirror vite.config.ts `@` -> ./src so `tsc -b` (the
+       typecheck half of `npm run build`) resolves the same imports Vite bundles. */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

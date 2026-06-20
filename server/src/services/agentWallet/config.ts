@@ -69,6 +69,22 @@ export const ASSET_TYPES: Record<string, string> = {
     "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
 };
 
+/**
+ * On-chain coin decimals per symbol. The agent records spend and sizes amounts in
+ * these base units; DeepBook order quantities, by contrast, are in whole tokens.
+ */
+export const DECIMALS: Record<string, number> = { SUI: 9, USDC: 6 };
+
+/** Decimals for a symbol; defaults to 9 (SUI-like) for unknown coins. */
+export function decimalsFor(symbol: string): number {
+  return DECIMALS[symbol.toUpperCase()] ?? 9;
+}
+
+/** Convert a base-unit amount (bigint) to whole tokens (number) for the DeepBook SDK. */
+export function toWholeTokens(amountBaseUnits: bigint, symbol: string): number {
+  return Number(amountBaseUnits) / 10 ** decimalsFor(symbol);
+}
+
 /** Resolve a short symbol (SUI/USDC) to its fully-qualified coin type string. */
 export function assetTypeFor(symbol: string): string {
   const key = symbol.toUpperCase();

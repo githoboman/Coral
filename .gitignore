@@ -4,6 +4,9 @@ dist/
 dist-ssr/
 *.local
 
+# --- Move / Sui contract build output ---
+contract/**/build/
+
 # Log files
 npm-debug.log*
 yarn-debug.log*

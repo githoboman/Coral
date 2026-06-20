@@ -4,6 +4,7 @@ import { getSuggestionThrottler, type SuggestionRecord } from "./suggestionThrot
 import { getNotificationService } from "./notificationService";
 import { getTaskStorageService } from "./taskStorageService";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { createChatModel } from "./llm";
 
 // ══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -192,13 +193,15 @@ export class SuggestionEngine {
   private eventMonitor = getEventMonitorService();
   private notifications = getNotificationService();
   private taskStorage = getTaskStorageService();
-  private model: ChatGoogleGenerativeAI;
+  // Null when no usable Gemini key is configured; the engine then uses its
+  // deterministic regex suggestion path instead of throwing at construction.
+  private model: ChatGoogleGenerativeAI | null;
 
   constructor() {
-    this.model = new ChatGoogleGenerativeAI({
+    this.model = createChatModel({
       model: "gemini-flash-latest",
-      apiKey: process.env.GEMINI_API_KEY_RESEARCH || process.env.GEMINI_API_KEY,
       temperature: 0.7,
+      apiKeyCandidates: [process.env.GEMINI_API_KEY_RESEARCH],
     });
   }
 
@@ -279,23 +282,25 @@ export class SuggestionEngine {
         }
       `;
 
-      try {
-        const res = await this.model.invoke(prompt);
-        const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (this.model) {
+        try {
+          const res = await this.model.invoke(prompt);
+          const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
 
-        if (jsonMatch) {
-          const intelligentSuggestion = JSON.parse(jsonMatch[0]) as Suggestion;
-          if (intelligentSuggestion.text && intelligentSuggestion.taskTemplate) {
-            await this.deliverSuggestion(walletAddress, {
-              ...intelligentSuggestion,
-              type: "intelligent_followup"
-            });
-            return;
+          if (jsonMatch) {
+            const intelligentSuggestion = JSON.parse(jsonMatch[0]) as Suggestion;
+            if (intelligentSuggestion.text && intelligentSuggestion.taskTemplate) {
+              await this.deliverSuggestion(walletAddress, {
+                ...intelligentSuggestion,
+                type: "intelligent_followup"
+              });
+              return;
+            }
           }
+        } catch (llmErr) {
+          console.warn(`[SuggestionEngine] LLM suggestion failed, falling back: ${llmErr instanceof Error ? llmErr.message : String(llmErr)}`);
         }
-      } catch (llmErr) {
-        console.warn(`[SuggestionEngine] LLM suggestion failed, falling back: ${llmErr instanceof Error ? llmErr.message : String(llmErr)}`);
       }
 
       // 2. Fallback to regex

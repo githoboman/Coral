@@ -53,6 +53,14 @@ export class AgentDeepBookClient {
 
   private poolKey: string;
 
+  /** Pool key is "BASE_QUOTE" (e.g. SUI_USDC). Expose both sides. */
+  baseSymbol(): string {
+    return this.poolKey.split("_")[0];
+  }
+  quoteSymbol(): string {
+    return this.poolKey.split("_")[1];
+  }
+
   // ── Reads ────────────────────────────────────────────────────────────
 
   /** Orderbook mid-price = (best_bid + best_ask) / 2. The hackathon price source. */
@@ -64,6 +72,16 @@ export class AgentDeepBookClient {
   async quoteOutForBase(baseQuantity: number | bigint): Promise<number> {
     const r = await this.client.getQuoteQuantityOut(this.poolKey, Number(baseQuantity));
     return Number((r as any).quoteOut ?? (r as any).quoteQuantityOut ?? 0);
+  }
+
+  /**
+   * Estimated BASE quantity out for a given QUOTE quantity in (whole tokens) —
+   * used to size a market BUY, where the user spends a quote amount but DeepBook's
+   * order quantity is denominated in the base asset.
+   */
+  async baseOutForQuote(quoteQuantity: number): Promise<number> {
+    const r = await this.client.getBaseQuantityOut(this.poolKey, quoteQuantity);
+    return Number((r as any).baseOut ?? (r as any).baseQuantityOut ?? 0);
   }
 
   /** Open order ids for the agent's balance manager in this pool. */

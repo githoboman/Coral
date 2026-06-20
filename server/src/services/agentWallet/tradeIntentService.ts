@@ -5,6 +5,7 @@ import { getAgentWalletStore } from "./store.js";
 import type { AgentWalletRecord } from "./types.js";
 import type { DeepBookSetup } from "./deepbookClient.js";
 import type { SwapOutcome } from "./swapAgent.js";
+import { decimalsFor } from "./config.js";
 
 /**
  * The agentic entrypoint: take a natural-language instruction, parse it into a
@@ -13,13 +14,9 @@ import type { SwapOutcome } from "./swapAgent.js";
  * limits" into "an autonomous agent you instruct in plain language."
  */
 
-// Whole-token -> base-unit scalars (must match the on-chain coin decimals).
-const DECIMALS: Record<string, number> = { SUI: 9, USDC: 6 };
-
 function toBaseUnits(amount: number, symbol: string): bigint {
-  const d = DECIMALS[symbol.toUpperCase()] ?? 9;
-  // Avoid float drift: scale via string.
-  return BigInt(Math.round(amount * 10 ** d));
+  // Whole tokens -> base units, matching the on-chain coin decimals.
+  return BigInt(Math.round(amount * 10 ** decimalsFor(symbol)));
 }
 
 export interface IntentResult {

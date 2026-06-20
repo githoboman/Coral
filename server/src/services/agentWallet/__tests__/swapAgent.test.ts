@@ -35,6 +35,10 @@ vi.mock("../walrusArchiver.js", () => ({
 }));
 vi.mock("../deepbookClient.js", () => ({
   AgentDeepBookClient: class {
+    constructor(private setup: { poolKey: string }) {}
+    baseSymbol = () => this.setup.poolKey.split("_")[0];
+    quoteSymbol = () => this.setup.poolKey.split("_")[1];
+    baseOutForQuote = vi.fn(async (q: number) => q); // 1:1 estimate in tests
     placeMarketOrderFragment = vi.fn(() => () => {});
     placeLimitOrderFragment = vi.fn(() => () => {});
   },
@@ -42,6 +46,8 @@ vi.mock("../deepbookClient.js", () => ({
 vi.mock("../config.js", () => ({
   deepbookProtocolId: () => "0xdeep",
   assetTypeFor: (s: string) => `type::${s}`,
+  toWholeTokens: (units: bigint, sym: string) =>
+    Number(units) / 10 ** (sym.toUpperCase() === "USDC" ? 6 : 9),
   getSuiClient: () => ({}),
   getNetwork: () => "testnet",
 }));

@@ -148,6 +148,10 @@ export class SentimentService {
       lines.push(`Signals: ${result.keySignals.join(", ")}`);
     }
 
+    if (result.sources.length > 0) {
+      lines.push(`Sources: ${result.sources.join(", ")}`);
+    }
+
     return lines.join("\n");
   }
 }

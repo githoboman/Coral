@@ -205,13 +205,13 @@ export class SimulationService {
       const fromPrice = fromToken.price || 0;
       const fromValueUsd = parseFloat(amount) * fromPrice;
 
-      // Check balance
+      // Check balance — reject swaps larger than the wallet holds.
       const availableBalance = parseFloat(fromToken.balance);
-      let isHypothetical = false;
       if (parseFloat(amount) > availableBalance) {
-        isHypothetical = true;
-        warnings.push(
-          `Hypothetical Simulation: You have ${availableBalance} ${fromToken.symbol}, but you're simulating a swap of ${amount}.`
+        return this.failResult(
+          "swap",
+          `Insufficient balance: you have ${availableBalance} ${fromToken.symbol}, but you're trying to swap ${amount}.`,
+          inputParams
         );
       }
 
@@ -272,7 +272,7 @@ export class SimulationService {
       const toSymbol = toToken?.symbol || toCoin;
 
       const narrative =
-        `${isHypothetical ? "**[HYPOTHETICAL SIMULATION]** " : ""}Estimated swap: ${amount} ${fromSymbol} (~$${fromValueUsd.toFixed(2)}) -> ` +
+        `Estimated swap: ${amount} ${fromSymbol} (~$${fromValueUsd.toFixed(2)}) -> ` +
         `~${outputAfterSlippage.toFixed(4)} ${toSymbol} ` +
         `(after ~${slippagePct}% est. slippage). ` +
         `Estimated gas: ~${estimatedGas} SUI. ` +
