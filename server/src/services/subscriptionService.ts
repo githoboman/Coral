@@ -29,6 +29,12 @@ export class SubscriptionService {
   private memoryCache = new Map<string, { count: number, date: string }>();
 
   async startRevenueIndexer(intervalMs = 60000) {
+    // No subscription registry / package configured (e.g. the Coral agent demo) =>
+    // nothing to index. Skip so we don't spam `-32602 Invalid params` every minute.
+    if (!this.subscriptionRegistryId || !this.packageId) {
+      console.log("[REVENUE INDEXER] Disabled (no SUI_SUBSCRIPTION_REGISTRY_ID / SUI_PACKAGE_ID).");
+      return;
+    }
     console.log("[REVENUE INDEXER] Starting...");
     this.indexRevenueEvents(); // Run immediately
     setInterval(() => this.indexRevenueEvents(), intervalMs);
