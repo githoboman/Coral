@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: `dark:` utilities activate when `.dark` is on an
+   ancestor (set on <html> by the theme manager), instead of following the OS
+   preference. Matches the Corral design system. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --splash-bg: #0a0a0a;
   --loader-color: #3b82f6;

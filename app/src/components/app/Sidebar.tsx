@@ -134,7 +134,7 @@ export function Sidebar({
           </div>
           {!isCollapsed && (
             <span className="sidebar-label text-[25px] font-black text-white tracking-tight truncate">
-              Tovira
+              Coral
             </span>
           )}
         </div>

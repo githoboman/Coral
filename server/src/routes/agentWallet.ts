@@ -5,6 +5,7 @@ import { getSuiClient } from "../services/agentWallet/config";
 import { getAgentWalletInitializer } from "../services/agentWallet/init";
 import { getAgentWalletStore } from "../services/agentWallet/store";
 import { getSwapAgent } from "../services/agentWallet/swapAgent";
+import { getPolicyChecker } from "../services/agentWallet/policyChecker";
 import { getAgentAlerts } from "../services/agentWallet/alerts";
 import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/owner/policyCreator";
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
@@ -63,6 +64,42 @@ router.get("/agent/wallet", requireAuth, async (req: AuthRequest, res: Response)
     });
   } catch (e: any) {
     return fail(res, 500, e?.message || "lookup failed");
+  }
+});
+
+/**
+ * GET /api/agent/policy — the live on-chain policy state for the owner's bound
+ * policy: budget cap/spent, whitelists, expiry, active flag. Powers the policy
+ * drawer's budget bar and expiry countdown. bigints are serialized as strings.
+ */
+router.get("/agent/policy", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const wallet = await getAgentWalletStore().getByOwner(req.user!.wallet_address);
+    if (!wallet?.policyId) return ok(res, null, "No bound policy");
+
+    const policy = await getPolicyChecker().readPolicy(wallet.policyId);
+    if (!policy) return ok(res, null, "Policy object not found on-chain");
+
+    const cap = policy.budgetCap;
+    const spent = policy.budgetSpent;
+    const remaining = cap > spent ? cap - spent : 0n;
+    const usedPct = cap > 0n ? Number((spent * 10000n) / cap) / 100 : 0;
+
+    return ok(res, {
+      policyId: policy.policyId,
+      budgetCap: cap.toString(),
+      budgetSpent: spent.toString(),
+      budgetRemaining: remaining.toString(),
+      usedPercent: usedPct,
+      allowedAssets: policy.allowedAssets,
+      allowedProtocols: policy.allowedProtocols,
+      allowedActions: policy.allowedActions,
+      expiryTimestampMs: policy.expiryTimestamp.toString(),
+      gasReserve: policy.gasReserve.toString(),
+      isActive: policy.isActive,
+    });
+  } catch (e: any) {
+    return fail(res, 500, e?.message || "policy read failed");
   }
 });
 

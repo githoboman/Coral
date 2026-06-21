@@ -80,7 +80,7 @@ const Subscription = () => {
           <h1 className="text-3xl text-white mb-4">
             Unlock{" "}
             <span className="relative font-bold inline-block ml-1">
-               Tovira
+               Coral
               <span className="ml-2 inline-flex items-center px-4 bg-gradient-to-r from-[#246AFC] to-[#246AFC]/80 rounded-full text-lg md:text-xl font-bold align-middle">
                 Pro
               </span>
@@ -101,7 +101,7 @@ const Subscription = () => {
           <div className="mb-6">
             <h2 className="text-xl font-bold text-white mb-2">Free</h2>
             <p className="text-white/40 text-sm leading-relaxed">
-              Basic access to Tovira for lighter usage and essential wallet monitoring.
+              Basic access to Coral for lighter usage and essential wallet monitoring.
             </p>
           </div>
 
@@ -136,7 +136,7 @@ const Subscription = () => {
           </div>
 
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-white mb-2">Tovira pro</h2>
+            <h2 className="text-xl font-bold text-white mb-2">Coral pro</h2>
             <p className="text-white/40 text-sm leading-relaxed">
               A higher-access tier for stronger wallet intelligence and advanced monitoring.
             </p>
@@ -177,7 +177,7 @@ const Subscription = () => {
                 <span>Already Pro</span>
               </>
             ) : (
-              "Get Tovira Pro for 2 SUI"
+              "Get Coral Pro for 2 SUI"
             )}
           </button>
         </div>

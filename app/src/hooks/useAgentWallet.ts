@@ -58,6 +58,21 @@ export interface IntentResult {
   armed?: "scheduled" | "conditional";
 }
 
+/** Live on-chain policy state from GET /api/agent/policy (bigints as strings). */
+export interface PolicyState {
+  policyId: string;
+  budgetCap: string;
+  budgetSpent: string;
+  budgetRemaining: string;
+  usedPercent: number;
+  allowedAssets: string[];
+  allowedProtocols: string[];
+  allowedActions: number[];
+  expiryTimestampMs: string;
+  gasReserve: string;
+  isActive: boolean;
+}
+
 type Busy =
   | "idle"
   | "init"
@@ -80,6 +95,7 @@ export function useAgentWallet() {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [status, setStatus] = useState<AgentWalletStatus | null>(null);
+  const [policy, setPolicy] = useState<PolicyState | null>(null);
   const [alerts, setAlerts] = useState<AgentAlert[]>([]);
   const [busy, setBusy] = useState<Busy>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -131,9 +147,26 @@ export function useAgentWallet() {
     }
   }, [account?.address, api]);
 
+  /** Read the live on-chain policy state (budget usage, expiry, whitelists). */
+  const refreshPolicy = useCallback(async () => {
+    if (!account?.address) return;
+    try {
+      const data = (await api("/policy")) as PolicyState | null;
+      setPolicy(data);
+    } catch {
+      /* policy read is best-effort; drawer falls back to configured form */
+    }
+  }, [account?.address, api]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Pull live policy state once the agent is bound (and refresh it as bound flips).
+  useEffect(() => {
+    if (status?.bound) refreshPolicy();
+    else setPolicy(null);
+  }, [status?.bound, refreshPolicy]);
 
   useEffect(() => {
     if (!account?.address) return;
@@ -291,6 +324,7 @@ export function useAgentWallet() {
   return {
     account,
     status,
+    policy,
     alerts,
     busy,
     error,
@@ -302,5 +336,6 @@ export function useAgentWallet() {
     sendIntent,
     refresh,
     refreshAlerts,
+    refreshPolicy,
   };
 }

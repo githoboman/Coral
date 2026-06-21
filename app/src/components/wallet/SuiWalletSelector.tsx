@@ -114,14 +114,14 @@ export function SuiWalletSelector({ isOpen, onClose, onBackToLogin }: SuiWalletS
             </p>
           </div>
 
-          {/* Tovira Wallet Button */}
+          {/* Coral Wallet Button */}
           <button className="w-full p-0.5 bg-gradient-to-r from-[#246AFC] via-[#2D9CDB] to-[#B7FC0D] rounded-full group cursor-pointer active:scale-[0.98] transition-all overflow-hidden group">
             <div className="bg-gradient-to-r from-[#246AFC] to-[#B7FC0D] w-full h-full rounded-full flex items-center justify-between px-4 py-2.5 shadow-lg">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-black flex items-center justify-center">
                   <img src="/assets/images/signin-logo.png" className="w-4 h-4 object-contain brightness-150" />
                 </div>
-                <span className="text-black font-extrabold text-[12px] tracking-tight">Create a Tovira wallet instead</span>
+                <span className="text-black font-extrabold text-[12px] tracking-tight">Create a Coral wallet instead</span>
               </div>
               <ChevronRight size={16} className="text-black/60 group-hover:text-black group-hover:translate-x-1 transition-transform" />
             </div>

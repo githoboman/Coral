@@ -19,14 +19,24 @@ export class AgentWalletInitializer {
     const existing = await store.getByOwner(ownerAddress);
     if (existing) return existing;
 
-    const { agentAddress, encryptedSecretKey } =
-      getAgentKeypairService().generate();
+    // If an existing agent key is provided via env (a testnet agent provisioned
+    // out-of-band), adopt it so the server acts as that exact agent address.
+    // Otherwise generate a fresh server-controlled wallet.
+    const importKey = process.env.AGENT_IMPORT_KEY?.trim();
+    const { agentAddress, encryptedSecretKey } = importKey
+      ? getAgentKeypairService().fromBech32(importKey)
+      : getAgentKeypairService().generate();
+
+    // Optionally pre-bind an already-published policy + capability for this agent,
+    // so a known testnet agent comes up bound on first init.
+    const policyId = importKey ? (process.env.AGENT_IMPORT_POLICY_ID?.trim() || null) : null;
+    const capabilityId = importKey ? (process.env.AGENT_IMPORT_CAPABILITY_ID?.trim() || null) : null;
 
     const record: AgentWalletRecord = {
       agentAddress,
       ownerAddress,
-      policyId: null,
-      capabilityId: null,
+      policyId,
+      capabilityId,
       encryptedSecretKey,
       createdAt: new Date().toISOString(),
     };

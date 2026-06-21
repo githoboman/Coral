@@ -16,7 +16,12 @@ export function RegisterEnokiWallets() {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
     if (!enokiApiKey || !googleClientId) {
-      console.warn('[Enoki] Missing credentials - API key or Google Client ID not configured');
+      // Expected in local dev without Enoki creds — Google/zkLogin sign-in is
+      // simply unavailable; wallet (extension) sign-in still works. Only warn
+      // when DEV is off, so production misconfig is still surfaced.
+      if (!import.meta.env.DEV) {
+        console.warn('[Enoki] Missing credentials - API key or Google Client ID not configured');
+      }
       return;
     }
 

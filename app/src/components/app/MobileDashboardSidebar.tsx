@@ -69,7 +69,7 @@ export function MobileDashboardSidebar({
             />
           </div>
           <span className="text-[25px] font-black text-white tracking-tight truncate">
-            Tovira
+            Coral
           </span>
         </div>
       </div>

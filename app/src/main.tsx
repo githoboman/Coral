@@ -5,7 +5,11 @@ import { Provider } from "react-redux";
 import { store } from "./store";
 import App from "./App.tsx";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { initTheme } from "@/hooks/useTheme";
 import "./global.css";
+
+// Apply persisted theme (default dark) before first paint to avoid a flash.
+initTheme();
 
 import "highlight.js/styles/github-dark.css";
 

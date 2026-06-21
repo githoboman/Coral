@@ -45,11 +45,11 @@ export default function Maintenance() {
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,238,28,0.05),transparent_50%)]" />
 
-      {/* Tovira Logo */}
+      {/* Coral Logo */}
       <div className="fixed top-5 left-5 z-10">
         <img
           src="/assets/images/signin-logo.png"
-          alt="Tovira Logo"
+          alt="Coral Logo"
           className="w-20 h-20 object-contain p-2"
         />
       </div>
@@ -136,7 +136,7 @@ export default function Maintenance() {
 
         {/* Footer */}
         <p className="mt-8 text-white/20 text-xs">
-          © 2026 Tovira Protocol. All systems optimal, just polishing the edges.
+          © 2026 Coral Protocol. All systems optimal, just polishing the edges.
         </p>
       </div>
     </div>

@@ -98,11 +98,11 @@ export default function Signin() {
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,238,28,0.05),transparent_50%)]" />
 
-      {/* Tovira Logo */}
+      {/* Coral Logo */}
       <div className="fixed top-5 left-5 z-10 transition-transform duration-500 hover:scale-105">
         <img
           src="/assets/images/signin-logo.png"
-          alt="Tovira Logo"
+          alt="Coral Logo"
           className="w-20 h-20 object-contain p-2"
         />
       </div>
@@ -115,7 +115,7 @@ export default function Signin() {
             <h2 className="text-[32px] font-[500] text-white tracking-tight mb-3">
               Welcome to{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8BEE1C] to-[#2B87D1]">
-                Tovira
+                Coral
               </span>
             </h2>
             <p className="text-white/50 text-base">

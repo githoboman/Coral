@@ -400,7 +400,7 @@ export function OnboardingModal({
               </div>
 
               <h2 className="text-[26px] font-bold text-white mb-2 text-center tracking-tight">
-                Welcome to Tovira!
+                Welcome to Coral!
               </h2>
               <p className="text-white/40 text-sm text-center mb-8 leading-relaxed">
                 Your account is all set. Let's get started.
@@ -426,7 +426,7 @@ export function OnboardingModal({
           ? "Your email will be checked against our waitlist. Waitlisted users can claim 100 points!"
           : step === 3
             ? "Points are stored on the Sui blockchain. Your email is kept off-chain."
-            : "You're all set. Enjoy Tovira!"}
+            : "You're all set. Enjoy Coral!"}
       </div>
     </div>
   );

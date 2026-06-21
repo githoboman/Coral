@@ -49,7 +49,7 @@ const BadgeImage = ({
     />
     <img
       src={resolveImageUrl(BADGE_IMAGE)}
-      alt="Tovira Testnet Badge"
+      alt="Coral Testnet Badge"
       className="w-full h-full rounded-full object-cover border-2 border-[#B7FC0D]/30"
       draggable={false}
     />
@@ -212,10 +212,10 @@ const BadgeMint = () => {
       <div className="mb-10 md:mb-14">
         <h1 className="text-3xl sm:text-3xl font-medium text-white">
           Claim Your{" "}
-          <span className="text-[#B7FC0D]">Tovira Testnet Badge</span>
+          <span className="text-[#B7FC0D]">Coral Testnet Badge</span>
         </h1>
         <p className="text-white/40 text-sm sm:text-base mt-2 max-w-xl">
-          An on-chain proof of your participation in the Tovira Testnet. One
+          An on-chain proof of your participation in the Coral Testnet. One
           badge per wallet - permanently recorded on Sui.
         </p>
       </div>

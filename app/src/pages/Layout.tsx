@@ -1057,6 +1057,13 @@ export default function AppLayout() {
       active: location.pathname === "/agent",
       filterWhite: true,
     },
+    {
+      name: "Agent Activity",
+      to: "/agent/activity",
+      iconUrl: "/assets/icons/bar-chart.svg",
+      active: location.pathname === "/agent/activity",
+      filterWhite: true,
+    },
   ];
 
   return (

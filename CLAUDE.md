@@ -49,6 +49,48 @@ even a compromised server key cannot overspend or act outside scope.
 
 ---
 
+## ✅ Frontend merged to the Corral (Figma) design
+The other dev's `corral/` Next.js app is the Figma design but was **fully mocked**
+(setTimeout fakes, no backend, no SDK). Per direction, we did **not** adopt its Next.js —
+instead we ported its design into our **working Vite `app/`**, which already has the
+`@mysten` SDK + dapp-kit wiring:
+- `app/src/components/agent/AgentControls.tsx` — reskinned to the Corral design system
+  (light/dark cards, chat-style command surface with suggestion chips, "Strategy Parsed"
+  result card bound to the real parsed `intent`, executed-tx card with explorer link, and a
+  live **Policy Constraints drawer**). Every control still calls the real `useAgentWallet`
+  hook — no mocks. Uses `react-icons/fi` to match Corral.
+- `app/src/pages/Agent.tsx` — Corral light/dark page shell (`#FAF9F6` / `#262626`).
+- **New backend read endpoint** `GET /api/agent/policy` — surfaces live on-chain budget
+  cap/spent/usedPercent, whitelists, expiry, active flag (from `policyChecker.readPolicy`,
+  bigints as strings). Powers the drawer's budget bar + expiry countdown. Hook gained
+  `policy` state + `refreshPolicy()`.
+- `app/src/pages/Activities.tsx` — **NEW**, ported from corral's `activities` screen:
+  the Activity Log (bound to the real alert feed) + live Move Policy sidebar (budget bar,
+  allowed scope, expiry/auto-revoke timer from `GET /api/agent/policy`). Routed at
+  `/agent/activity` with a nav item; no mocks.
+- **Light/dark theme system** — the app was hardcoded-dark with no theme support, while
+  the ported Corral screens use `dark:` classes. Added: `@custom-variant dark
+  (&:where(.dark, .dark *))` in `app/src/global.css` (class-based, not OS-based);
+  `app/src/hooks/useTheme.ts` (toggles `.dark` on `<html>`, persists `coral_theme` to
+  localStorage, **defaults dark**); `initTheme()` in `main.tsx` + `class="dark"` on `<html>`
+  in index.html (no flash); a `ThemeToggle` (sun/moon) on the Agent and Activities pages.
+  Verified: production CSS compiles 177 `.dark`-scoped selectors, so the agent screens
+  switch between the light `#FAF9F6` and dark `#262626` palettes on toggle.
+- `corral/` remains in the repo as the design reference only.
+
+### What corral covers (and why branding/screens still came from our app)
+corral has only ~8 screens, all in the agent area: `chat`, `activities`, `activities/[id]`,
+`activities/edit-policy`, plus **placeholder** `history`/`settings` and an unbranded `login`.
+It is **Next.js**, our live app is **Vite**, so corral can only be a *design reference* —
+screens are hand-ported, not dropped in. Everything outside the agent area (Sidebar,
+Subscription, BadgeMint, Onboarding, Splash, `index.html`) is pre-existing **Tovira `app/`**
+code that corral never replaced — which is why the "Tovira" branding lived there and had to
+be renamed separately (corral itself contains almost no brand text to copy from). Ported so
+far: chat → `AgentControls`, activities → `Activities`. `edit-policy` is covered by the
+`AgentControls` create/manage flow; `history`/`settings` were empty placeholders.
+
+---
+
 ## ✅ Deployment-readiness sweep (whole repo green)
 Hardened the **entire** codebase, not just the agent-wallet feature:
 - **Gemini-without-a-key, everywhere it matters** — `ChatGoogleGenerativeAI`'s constructor
@@ -127,6 +169,11 @@ cd server && npx tsc --noEmit                 # clean
 cd app    && npx tsc --noEmit                 # clean (root tsconfig, has @/ alias)
 cd app    && npm run build                    # tsc -b + vite build — green, emits dist/
 ```
+
+> Frontend lives in `app/` (Vite). The agent UI is `app/src/components/agent/
+> AgentControls.tsx` at route `/agent`, styled to the Corral/Figma design and wired to
+> `/api/agent/*` (incl. `GET /api/agent/policy`). `corral/` is design reference only — not
+> built or deployed.
 
 > Deployment note: `tsconfig.app.json` now carries the same `@/* -> ./src/*` path
 > alias as the root tsconfig and `vite.config.ts`. Without it, `npm run build`'s

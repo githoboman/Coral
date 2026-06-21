@@ -31,6 +31,19 @@ export class AgentKeypairService {
   }
 
   /**
+   * Import an existing agent wallet from its Bech32 `suiprivkey1...` secret key
+   * (e.g. an agent provisioned out-of-band on testnet). Encrypts the key for
+   * storage the same way generate() does, so the rest of the engine is agnostic
+   * to whether the key was generated or imported.
+   */
+  fromBech32(bech32SecretKey: string): GeneratedAgentWallet {
+    const { secretKey } = decodeSuiPrivateKey(bech32SecretKey.trim());
+    const keypair = Ed25519Keypair.fromSecretKey(secretKey);
+    const encryptedSecretKey = getEncryptionService().encrypt(keypair.getSecretKey());
+    return { agentAddress: keypair.toSuiAddress(), encryptedSecretKey };
+  }
+
+  /**
    * Reconstruct the signing keypair from its encrypted form. Used by the executor
    * immediately before signing a PTB; the decrypted material is not retained.
    */

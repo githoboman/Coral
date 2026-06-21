@@ -1,11 +1,14 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { createChatModel } from "./llm";
 
-const fastLlm = new ChatGoogleGenerativeAI({
+// Lazily constructed so the module imports cleanly without a Gemini key (the
+// server must boot without creds); null -> generateCopy uses its deterministic
+// fallback. See llm.ts / [[suggestionEngine]] for the same pattern.
+const fastLlm = createChatModel({
   model: "gemini-2.5-flash",
-  apiKey: process.env.GEMINI_API_KEY_TASK || process.env.GEMINI_API_KEY,
   temperature: 0,
   maxRetries: 1,
   maxOutputTokens: 2048,
+  apiKeyCandidates: [process.env.GEMINI_API_KEY_TASK],
 });
 
 interface NotificationCopy {
@@ -59,6 +62,9 @@ export class NotificationCopyService {
       task_context: taskName.toLowerCase(),
       reminder_time_context: fallbackTime,
     };
+
+    // No LLM configured -> deterministic fallback copy.
+    if (!fastLlm) return fallback;
 
     try {
       const prompt = `
