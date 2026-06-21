@@ -95,36 +95,44 @@ export default function Signin() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,106,77,0.06),transparent_50%)]" />
+    <div className="relative min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4 overflow-hidden">
+      {/* Animated aurora background */}
+      <div className="coral-aurora fixed inset-0 bg-[linear-gradient(120deg,rgba(255,106,77,0.10),transparent_35%,rgba(43,135,209,0.08)_60%,transparent_80%)]" />
+      {/* Floating glow orbs */}
+      <div className="coral-orb pointer-events-none fixed -top-32 -left-24 w-[420px] h-[420px] rounded-full bg-[radial-gradient(circle,rgba(255,106,77,0.22),transparent_70%)] blur-2xl" />
+      <div className="coral-orb-slow pointer-events-none fixed -bottom-40 -right-28 w-[480px] h-[480px] rounded-full bg-[radial-gradient(circle,rgba(43,135,209,0.18),transparent_70%)] blur-2xl" />
+      {/* Subtle grid texture */}
+      <div className="pointer-events-none fixed inset-0 opacity-[0.04] bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       {/* Coral Logo */}
-      <div className="fixed top-5 left-5 z-10 transition-transform duration-500 hover:scale-105">
-        <img
-          src="/assets/coral-mark.svg"
-          alt="Coral Logo"
-          className="w-14 h-14 object-contain"
-        />
+      <div className="coral-fade-up coral-d1 fixed top-5 left-5 z-20 flex items-center gap-2 transition-transform duration-500 hover:scale-105">
+        <img src="/assets/coral-mark.svg" alt="Coral Logo" className="w-11 h-11 object-contain" />
+        <span className="text-white font-bold text-lg tracking-tight hidden sm:block">Coral</span>
       </div>
 
       {/* Card Container */}
-      <div className="relative w-full max-w-[440px] z-10">
-        <div className="w-full flex flex-col justify-between h-[70vh] md:bg-[#0D1117]/60 md:backdrop-blur-xl md:border border-white/5 rounded-[40px] p-0 md:p-8 sm:p-10 md:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <div className="relative w-full max-w-[460px] z-10">
+        <div className="w-full flex flex-col justify-center md:bg-[#0D1117]/60 md:backdrop-blur-xl md:border border-white/10 rounded-[40px] p-0 md:p-9 sm:p-10 md:shadow-[0_30px_80px_-20px_rgba(255,106,77,0.25),0_20px_50px_rgba(0,0,0,0.5)]">
           {/* Title */}
-          <div className="text-center mb-10">
-            <h2 className="text-[32px] font-[500] text-white tracking-tight mb-3">
-              Welcome to{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6A4D] to-[#FF9472]">
-                Coral
-              </span>
+          <div className="text-center mb-9">
+            {/* Animated mark with pulse ring */}
+            <div className="coral-fade-up coral-d1 flex justify-center mb-5">
+              <div className="coral-pulse-ring w-16 h-16 rounded-[18px] flex items-center justify-center">
+                <img src="/assets/coral-mark.svg" alt="" className="w-16 h-16" />
+              </div>
+            </div>
+
+            <h2 className="coral-fade-up coral-d2 text-[34px] font-[600] text-white tracking-tight mb-3 leading-tight">
+              Welcome to <span className="coral-shimmer font-bold">Coral</span>
             </h2>
-            <p className="text-white/50 text-base">
-              Your autonomous agent for on-chain trading — execute DeepBook trades
-              within limits you set once, enforced on-chain.
+            <p className="coral-fade-up coral-d3 text-white/55 text-[15px] leading-relaxed max-w-[380px] mx-auto">
+              An AI agent that trades on Sui <span className="text-white/80">for you</span> — you set the
+              limits once, and they're enforced <span className="text-[#FF9472]">on-chain</span>. Even a
+              compromised key can't overspend or go off-scope.
             </p>
 
             {/* What Coral does */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <div className="coral-fade-up coral-d4 mt-6 flex flex-wrap items-center justify-center gap-2">
               {[
                 "Plain-language commands",
                 "On-chain policy limits",
@@ -133,15 +141,32 @@ export default function Signin() {
               ].map((f) => (
                 <span
                   key={f}
-                  className="text-[11px] font-medium text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1.5"
+                  className="text-[11px] font-medium text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-[#FF6A4D]/40 hover:text-white"
                 >
                   {f}
                 </span>
               ))}
             </div>
+
+            {/* How it works — 3 steps */}
+            <div className="coral-fade-up coral-d5 mt-7 grid grid-cols-3 gap-2 text-left">
+              {[
+                { n: "1", t: "Set limits", d: "Budget, assets, expiry — signed once into an on-chain policy." },
+                { n: "2", t: "Instruct", d: "“Swap 30% of my SUI to USDC.” The agent parses & checks policy." },
+                { n: "3", t: "It trades", d: "Real DeepBook swaps execute. Revoke and it stops instantly." },
+              ].map((s) => (
+                <div key={s.n} className="rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+                  <div className="w-6 h-6 rounded-full bg-[#FF6A4D]/15 text-[#FF9472] text-[12px] font-bold flex items-center justify-center mb-2">
+                    {s.n}
+                  </div>
+                  <div className="text-white text-[12px] font-semibold mb-0.5">{s.t}</div>
+                  <div className="text-white/40 text-[10.5px] leading-snug">{s.d}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div>
+          <div className="coral-fade-up coral-d6">
             {/* Connection Options */}
             <div className="space-y-4 mb-8">
               {/* Google Sign-In */}
@@ -149,7 +174,7 @@ export default function Signin() {
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={isConnecting}
-                  className="w-full bg-[#1A1F24] hover:bg-[#252A30] border border-white/5 rounded-full py-4.5 px-6 flex items-center justify-center gap-3 transition-all duration-300 group disabled:opacity-50 font-medium cursor-pointer hover:border-white/10"
+                  className="w-full bg-[#1A1F24] hover:bg-[#252A30] border border-white/5 rounded-full py-4.5 px-6 flex items-center justify-center gap-3 transition-all duration-300 group disabled:opacity-50 font-medium cursor-pointer hover:border-white/15 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)] active:translate-y-0"
                 >
                   <SocialIconGoogle />
                   <span className="text-white text-base">
@@ -180,7 +205,7 @@ export default function Signin() {
                       key={wallet.name}
                       onClick={() => handleWalletConnect(wallet)}
                       disabled={isConnecting}
-                      className="w-full bg-[#1A1F24]/50 hover:bg-[#252A30] border border-white/5 rounded-full py-4 px-6 flex items-center justify-center gap-3 transition-all duration-300 group disabled:opacity-50 font-medium cursor-pointer hover:border-white/10"
+                      className="w-full bg-[#1A1F24]/50 hover:bg-[#252A30] border border-white/5 rounded-full py-4 px-6 flex items-center justify-center gap-3 transition-all duration-300 group disabled:opacity-50 font-medium cursor-pointer hover:border-[#FF6A4D]/30 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(255,106,77,0.15)] active:translate-y-0"
                     >
                       {wallet.icon && (
                         <img
@@ -224,8 +249,8 @@ export default function Signin() {
                 </div>
               )}
               {!isConnecting && (
-                <p className="text-white/20 text-xs mt-6">
-                  By connecting, you agree to our <span className="text-[#B7FC0D] cursor-pointer hover:text-white/60">Terms</span> and <span className="text-[#B7FC0D] cursor-pointer hover:text-white/60">Privacy Policy</span>
+                <p className="text-white/25 text-xs mt-6">
+                  By connecting, you agree to our <span className="text-[#FF9472] cursor-pointer hover:text-white/70 transition-colors">Terms</span> and <span className="text-[#FF9472] cursor-pointer hover:text-white/70 transition-colors">Privacy Policy</span>
                 </p>
               )}
             </div>

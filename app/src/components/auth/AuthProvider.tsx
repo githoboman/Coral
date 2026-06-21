@@ -270,6 +270,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const checkUserOnboardingStatus = async (walletAddress: string) => {
+    // Coral does not require email onboarding — a connected wallet IS the account.
+    // The Tovira email/waitlist modal is opt-in via VITE_ENABLE_ONBOARDING=true.
+    if (import.meta.env.VITE_ENABLE_ONBOARDING !== "true") {
+      sessionStorage.setItem(SESSION_ONBOARDED_KEY, walletAddress);
+      setIsOnboarded(true);
+      setIsOnboardingOpen(false);
+      checkingRef.current = false;
+      return;
+    }
+
     const maxRetries = 3;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {

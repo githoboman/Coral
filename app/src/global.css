@@ -133,6 +133,68 @@
   --loader-color: #3b82f6;
 }
 
+/* ── Landing / sign-in motion (dependency-free CSS) ─────────────────── */
+@keyframes coral-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes coral-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(20px, -30px) scale(1.08); }
+}
+@keyframes coral-float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-30px, 24px) scale(1.12); }
+}
+@keyframes coral-aurora {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes coral-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes coral-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 106, 77, 0.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(255, 106, 77, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 106, 77, 0); }
+}
+
+.coral-fade-up { opacity: 0; animation: coral-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.coral-d1 { animation-delay: 0.05s; }
+.coral-d2 { animation-delay: 0.15s; }
+.coral-d3 { animation-delay: 0.28s; }
+.coral-d4 { animation-delay: 0.42s; }
+.coral-d5 { animation-delay: 0.56s; }
+.coral-d6 { animation-delay: 0.70s; }
+
+.coral-orb { will-change: transform; animation: coral-float 14s ease-in-out infinite; }
+.coral-orb-slow { will-change: transform; animation: coral-float-slow 20s ease-in-out infinite; }
+
+.coral-aurora {
+  background-size: 200% 200%;
+  animation: coral-aurora 18s ease infinite;
+}
+
+.coral-shimmer {
+  background: linear-gradient(100deg, #ff6a4d 20%, #ffd2c6 45%, #ff9472 60%, #ff6a4d 80%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: coral-shimmer 4.5s linear infinite;
+}
+
+.coral-pulse-ring { animation: coral-pulse-ring 2.4s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .coral-fade-up, .coral-orb, .coral-orb-slow, .coral-aurora, .coral-shimmer, .coral-pulse-ring {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 .splash-screen {
   position: fixed;
   top: 0;
