@@ -1,0 +1,17 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="coralGrad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7E5F"/>
+      <stop offset="1" stop-color="#FF5A3C"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="13" fill="url(#coralGrad)"/>
+  <!-- A clean geometric "C": thick open ring with a flat terminal -->
+  <path
+    d="M33 16.5a11.5 11.5 0 1 0 0 15"
+    stroke="#FFFFFF"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    fill="none"
+  />
+</svg>

@@ -5,6 +5,129 @@
    preference. Matches the Corral design system. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Corral design fonts (copied from the corral reference) ──────────── */
+@font-face {
+  font-family: "ElmsSans";
+  src: url("/fonts/ElmsSans-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ElmsSans";
+  src: url("/fonts/ElmsSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ElmsSans";
+  src: url("/fonts/ElmsSans-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "ElmsSans";
+  src: url("/fonts/ElmsSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrainsMono";
+  src: url("/fonts/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrainsMono";
+  src: url("/fonts/JetBrainsMono-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Register Corral fonts with Tailwind so `font-sans`, `font-geist`, `font-mono`
+   resolve the way the ported corral screens expect. */
+@theme {
+  --font-sans: "ElmsSans", ui-sans-serif, system-ui, sans-serif;
+  --font-geist: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrainsMono", ui-monospace, monospace;
+}
+
+/* ── Corral semantic color tokens ──────────────────────────────────────
+   One source of truth for surfaces/borders/text/brand, resolved per theme via
+   the .dark class. Exposed to Tailwind as `bg-canvas`, `bg-surface`,
+   `border-line`, `text-muted`, `bg-brand`, etc., so every agent screen stays
+   cohesive instead of hardcoding hex values inline. */
+:root {
+  --canvas: #faf9f6;        /* page background */
+  --surface: #ffffff;       /* cards */
+  --surface-2: #f3f2ef;     /* recessed panels / sidebar */
+  --surface-3: #fafaf9;     /* subtle fills */
+  --line: #e7e7e4;          /* borders */
+  --line-strong: #cfc4c5;   /* emphasized borders */
+  --ink: #18181b;           /* primary text (zinc-900) */
+  --muted: #5e5e5e;         /* secondary text */
+  --faint: #9a9a97;         /* tertiary text */
+  --brand: #ff6a4d;         /* Coral accent */
+  --brand-ink: #ffffff;     /* text on brand */
+  --positive: #10b981;      /* success / active */
+  --danger: #ff595b;        /* destructive */
+}
+
+.dark {
+  --canvas: #262626;
+  --surface: #2f2f2f;
+  --surface-2: #242424;
+  --surface-3: #2a2a2a;
+  --line: #000000;
+  --line-strong: #3a3a3a;
+  --ink: #fafafa;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+  --brand: #ff7a5e;
+  --brand-ink: #1a1a1a;
+  --positive: #34d399;
+  --danger: #f87171;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-positive: var(--positive);
+  --color-danger: var(--danger);
+}
+
 :root {
   --splash-bg: #0a0a0a;
   --loader-color: #3b82f6;

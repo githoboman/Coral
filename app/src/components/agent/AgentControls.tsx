@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   FiShield,
   FiHexagon,
-  FiDollarSign,
   FiArrowUp,
   FiStopCircle,
   FiPause,
@@ -15,6 +14,7 @@ import {
   FiXCircle,
 } from "react-icons/fi";
 import { GoArrowUpRight } from "react-icons/go";
+import { TokenSUI, TokenUSDC } from "@web3icons/react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import {
   useAgentWallet,
@@ -50,6 +50,14 @@ const ALERT_ICON: Record<AgentAlert["level"], React.ReactNode> = {
   error: <FiXCircle className="w-4 h-4 text-red-500" />,
   success: <FiCheckCircle className="w-4 h-4 text-emerald-500" />,
 };
+
+/** Real token glyph for SUI/USDC, falling back to a generic shape. */
+function TokenIcon({ symbol, size = 16 }: { symbol: string; size?: number }) {
+  const s = symbol.toUpperCase();
+  if (s.includes("USDC")) return <TokenUSDC variant="branded" size={size} />;
+  if (s.includes("SUI")) return <TokenSUI variant="background" size={size} className="rounded-full overflow-hidden" />;
+  return <FiHexagon className="text-[0.8rem]" />;
+}
 
 /**
  * Owner-facing control surface for the Autonomous Agent Wallet (PRD §7). Restyled
@@ -219,14 +227,15 @@ export function AgentControls() {
                     <button
                       key={a}
                       onClick={() => toggleAsset(a)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-all ${
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-all ${
                         on
-                          ? "bg-[#FAFAF9] dark:bg-zinc-900/40 border-[#E7E7E4] dark:border-zinc-700 text-zinc-800 dark:text-zinc-200"
-                          : "bg-transparent border-dashed border-[#C8C8C5] dark:border-zinc-600 text-[#9a9a97] dark:text-zinc-500"
+                          ? "bg-surface-3 border-line text-ink"
+                          : "bg-transparent border-dashed border-line-strong text-faint opacity-70"
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${on ? "bg-[#10B981]" : "bg-zinc-400"}`} />
+                      <TokenIcon symbol={a} size={16} />
                       {a}
+                      <span className={`w-1.5 h-1.5 rounded-full ${on ? "bg-positive" : "bg-zinc-400"}`} />
                     </button>
                   );
                 })}
@@ -573,13 +582,9 @@ function PolicyDrawer({
             {assets.map((a) => (
               <span
                 key={a}
-                className="flex items-center gap-1.5 bg-white dark:bg-zinc-800/50 border border-[#E7E7E4] dark:border-zinc-700 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm"
+                className="flex items-center gap-1.5 bg-surface border border-line rounded-lg px-3 py-2 text-xs font-semibold text-ink shadow-sm"
               >
-                {a.toUpperCase().includes("USDC") ? (
-                  <FiDollarSign className="text-[0.8rem]" />
-                ) : (
-                  <FiHexagon className="text-[0.8rem]" />
-                )}
+                <TokenIcon symbol={a} size={16} />
                 {a.length > 8 ? `${a.slice(0, 6)}…` : a}
               </span>
             ))}

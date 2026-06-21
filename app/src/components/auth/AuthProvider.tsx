@@ -136,7 +136,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         sessionStorage.removeItem("tovira_intended_path");
         navigate(intendedPath, { replace: true });
       } else {
-        navigate("/", { replace: true });
+        navigate("/agent", { replace: true });
       }
     }
 
@@ -205,7 +205,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { nonce } = await nonceRes.json();
 
       // 2. Sign message
-      const messageToSign = `Welcome to Tovira!\n\nClick to sign in and accept the Tovira Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${nonce}`;
+      const messageToSign = `Welcome to Coral!\n\nClick to sign in and accept the Coral Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${nonce}`;
       const messageBytes = new TextEncoder().encode(messageToSign);
 
       const signatureResult = await signPersonalMessage({ message: messageBytes });
@@ -250,17 +250,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
       }
       
-      // Only sign out (disconnect wallet) if we are sure the current connection is invalid
-      // or if we were already in a "partially connected" state that needs reset.
-      // But for now, let's just reset the checking ref so the user can try again by refreshing
-      // or by clicking something that triggers a re-check.
-      if (!isUserRejection) {
-         signOut();
+      // In the Coral agent app the wallet connection IS the session — the agent
+      // routes run on wallet + backend dev-auth, and Supabase is optional. So a
+      // failed Supabase verify must NOT disconnect the wallet (that caused the
+      // "login -> dashboard -> logged out" loop). Keep the wallet connected and
+      // just stop the auth flow. (Set VITE_REQUIRE_SUPABASE_AUTH=true to restore
+      // the strict sign-out behavior when a real Supabase backend is wired.)
+      const requireSupabaseAuth = import.meta.env.VITE_REQUIRE_SUPABASE_AUTH === "true";
+      if (!isUserRejection && requireSupabaseAuth) {
+        signOut();
       } else {
-         // If they just rejected the signature, we might want to disconnect anyway to let them try a different wallet
-         // but it's better to stay connected to the wallet and just stop the auth flow.
-         checkingRef.current = false;
-         checkedWalletRef.current = null; // Allow re-triggering
+        // Stay connected; allow the user to retry without being kicked out.
+        checkingRef.current = false;
+        checkedWalletRef.current = null;
       }
     } finally {
       checkingRef.current = false;

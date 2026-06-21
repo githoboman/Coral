@@ -276,8 +276,13 @@ export class UserManager {
         .single();
 
       if (error) {
+        // PGRST116 = no row found. Any other error here (incl. a non-functional
+        // dummy Supabase client in a no-creds environment) should degrade to
+        // "no profile" rather than 500 the whole request — the Coral agent app
+        // works without a user profile.
         if (error.code === 'PGRST116') return null;
-        throw error;
+        console.warn(`[userManager] getUserProfile degraded (no profile): ${error.message || error.code || error}`);
+        return null;
       }
 
       // Map Supabase fields back to DecryptedUserProfile structure

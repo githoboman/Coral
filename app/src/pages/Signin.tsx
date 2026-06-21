@@ -96,14 +96,14 @@ export default function Signin() {
 
   return (
     <div className="min-h-screen w-full bg-[#070B0F] flex flex-col items-center justify-center p-4">
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,238,28,0.05),transparent_50%)]" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,106,77,0.06),transparent_50%)]" />
 
       {/* Coral Logo */}
       <div className="fixed top-5 left-5 z-10 transition-transform duration-500 hover:scale-105">
         <img
-          src="/assets/images/signin-logo.png"
+          src="/assets/coral-mark.svg"
           alt="Coral Logo"
-          className="w-20 h-20 object-contain p-2"
+          className="w-14 h-14 object-contain"
         />
       </div>
 
@@ -114,13 +114,31 @@ export default function Signin() {
           <div className="text-center mb-10">
             <h2 className="text-[32px] font-[500] text-white tracking-tight mb-3">
               Welcome to{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8BEE1C] to-[#2B87D1]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6A4D] to-[#FF9472]">
                 Coral
               </span>
             </h2>
             <p className="text-white/50 text-base">
-              The ultimate AI assistant for web3
+              Your autonomous agent for on-chain trading — execute DeepBook trades
+              within limits you set once, enforced on-chain.
             </p>
+
+            {/* What Coral does */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              {[
+                "Plain-language commands",
+                "On-chain policy limits",
+                "DeepBook V3 swaps",
+                "Revoke anytime",
+              ].map((f) => (
+                <span
+                  key={f}
+                  className="text-[11px] font-medium text-white/70 bg-white/5 border border-white/10 rounded-full px-3 py-1.5"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div>
@@ -185,7 +203,7 @@ export default function Signin() {
                       href="https://chromewebstore.google.com/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-[#8BEE1C] hover:text-[#A3FF2D] text-sm font-semibold transition-colors"
+                      className="inline-flex items-center gap-2 text-[#FF6A4D] hover:text-[#FF9472] text-sm font-semibold transition-colors"
                     >
                       Install Sui Wallet
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,8 +219,8 @@ export default function Signin() {
             <div className="text-center">
               {isConnecting && (
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-[#8BEE1C]/20 border-t-[#8BEE1C] rounded-full animate-spin"></div>
-                  <p className="text-[#8BEE1C] text-sm font-medium animate-pulse">Requesting connection...</p>
+                  <div className="w-6 h-6 border-2 border-[#FF6A4D]/20 border-t-[#FF6A4D] rounded-full animate-spin"></div>
+                  <p className="text-[#FF6A4D] text-sm font-medium animate-pulse">Requesting connection...</p>
                 </div>
               )}
               {!isConnecting && (

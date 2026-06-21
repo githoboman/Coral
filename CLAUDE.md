@@ -10,6 +10,20 @@ is the **current state + what's left**, so anyone picking it up knows exactly wh
 
 ---
 
+## Repo layout (after frontend consolidation)
+The repo is now **three folders**: `app/` (the single Vite frontend), `server/`
+(backend), `contract/` (Move). The earlier duplicate frontends — `frontend/`,
+`next-app/`, `analytics/`, and the `corral/` reference — were **deleted**. corral's
+design was first copied into `app/`: its fonts (ElmsSans/Geist/JetBrainsMono → in
+`app/public/fonts` + `@font-face` in `global.css`), icon set (`app/public/assets/icons`),
+and app shell. The agent area now renders inside `app/src/pages/agent/CorralLayout.tsx`
+(Corral sidebar + header with live agent-status pill, dapp-kit `ConnectButton`, theme
+toggle), wrapping `/agent` (control panel), `/agent/activity`, `/agent/history`,
+`/agent/settings`. Branding is **Coral** throughout (the visible "Tovira" sign-in
+message + title were renamed).
+
+---
+
 ## One-sentence pitch
 An AI agent that executes **real DeepBook V3 trades on Sui without per-action approval**,
 constrained by limits the user sets once — and those limits are enforced **on-chain**, so

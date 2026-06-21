@@ -4,7 +4,6 @@ import { MdLockOutline } from "react-icons/md";
 import { RiShareBoxLine } from "react-icons/ri";
 import { IoMdStopwatch } from "react-icons/io";
 import { useAgentWallet, type AgentAlert, type PolicyState } from "@/hooks/useAgentWallet";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 /**
  * Agent Activity Log + live Move Policy sidebar — ported from the Corral (Figma)
@@ -52,16 +51,13 @@ export default function Activities() {
               On-chain executions and agent operations
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <button
-              onClick={() => navigate("/agent")}
-              className="flex items-center gap-1.5 px-4 py-2 border-2 border-[#CFC4C5] dark:border-black bg-white dark:bg-[#2F2F2F] rounded-full text-[14px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer active:scale-95 transition-all"
-            >
-              <FiEdit2 className="text-[16px]" />
-              Manage agent
-            </button>
-          </div>
+          <button
+            onClick={() => navigate("/agent")}
+            className="flex items-center gap-1.5 px-4 py-2 border-2 border-[#CFC4C5] dark:border-black bg-white dark:bg-[#2F2F2F] rounded-full text-[14px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer active:scale-95 transition-all"
+          >
+            <FiEdit2 className="text-[16px]" />
+            Manage agent
+          </button>
         </div>
 
         <div className="bg-[#FAFAF9] dark:bg-[#2F2F2F] border border-[#E7E7E4] dark:border-black rounded-[28px] shadow-sm overflow-hidden flex flex-col">

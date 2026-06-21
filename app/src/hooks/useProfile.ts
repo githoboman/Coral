@@ -58,12 +58,17 @@ export function useProfile() {
         console.warn("[useProfile] 403 — stale session, stopping retries");
         dispatch(setProfile(null));
       } else {
+        // Any other error (e.g. 500 when the profile backend is unavailable).
+        // Mark fetched (setProfile) so we DON'T retry in a loop — the Coral
+        // agent app runs fine without a user profile.
+        console.warn(`[useProfile] ${res.status} — profile unavailable, continuing without it`);
         setError("Failed to fetch profile");
-        dispatch(setProfileLoading(false));
+        dispatch(setProfile(null));
       }
     } catch (err: any) {
+      // Network error — stop retrying for this session too.
       setError(err.message || "Error fetching profile");
-      dispatch(setProfileLoading(false));
+      dispatch(setProfile(null));
     }
   }, [currentAccount?.address, dispatch]);
 
