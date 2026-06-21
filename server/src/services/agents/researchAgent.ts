@@ -30,12 +30,16 @@ const ResearchState = Annotation.Root({
 // SERVICES
 // ======================================================================
 
-// Tavily Tool
-const tavilyTool = new TavilySearch({
-  maxResults: 5,
-  topic: "general",
-  searchDepth: "basic",
-});
+// Tavily Tool — constructed only when a key is configured. TavilySearch's
+// constructor THROWS without TAVILY_API_KEY, which would crash the whole server
+// at boot. Coral doesn't use the research agent, so we degrade to null instead of
+// failing; callers guard on it.
+function isUsableKey(k: string | undefined): boolean {
+  return !!k && k.trim().length > 8 && !/^(tvly-)?placeholder/i.test(k.trim());
+}
+const tavilyTool = isUsableKey(process.env.TAVILY_API_KEY)
+  ? new TavilySearch({ maxResults: 5, topic: "general", searchDepth: "basic" })
+  : null;
 
 // BlockVision Wrapper
 const blockVision = getBlockVisionService();
@@ -119,7 +123,7 @@ const model = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
   apiKey: process.env.GEMINI_API_KEY_RESEARCH || process.env.GEMINI_API_KEY,
   temperature: 0,
-}).bindTools([tavilyTool, BlockVisionTool, SimulationTool]);
+}).bindTools([tavilyTool, BlockVisionTool, SimulationTool].filter(Boolean) as any);
 
 // ── LLM without tools (used in reportNode to avoid Gemini re-ingestion errors) ──
 const reportModel = new ChatGoogleGenerativeAI({
@@ -429,7 +433,9 @@ async function toolNode(state: typeof ResearchState.State) {
       try {
         let result;
         if (call.name === "tavily_search") {
-          result = await tavilyTool.invoke(call.args);
+          result = tavilyTool
+            ? await tavilyTool.invoke(call.args)
+            : "Web search is unavailable (TAVILY_API_KEY not configured).";
         } else if (call.name === "blockvision_analyze") {
           result = await BlockVisionTool.func(call.args as any);
         } else if (call.name === "simulate_action") {
