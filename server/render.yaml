@@ -1,13 +1,60 @@
+# Render Blueprint for the Coral backend.
+# Create the service: Render Dashboard -> New -> Blueprint -> select this repo.
+# Secrets are marked `sync: false` so Render prompts you to enter them securely
+# in the dashboard (they are NOT stored in this file / git).
 services:
   - type: web
     name: coral-server
-    env: node
+    runtime: node
     region: oregon
     plan: free
+    rootDir: server
     buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm start
+    healthCheckPath: /api
     envVars:
+      # ── Build / runtime ──────────────────────────────────────────────
       - key: NODE_VERSION
-        value: 22.16.0
+        value: "22.16.0"
       - key: NPM_CONFIG_PRODUCTION
-        value: false
+        value: "false"
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+
+      # ── CORS: set to your deployed frontend URL ──────────────────────
+      - key: CORS_ORIGIN
+        sync: false
+
+      # ── Auth + encryption (secrets) ──────────────────────────────────
+      - key: TOKEN_HMAC_SECRET
+        generateValue: true
+      - key: TOKEN_EXPIRES_DAYS
+        value: "7"
+      - key: ENCRYPTION_MASTER_KEY
+        sync: false
+
+      # ── Agent wallet (Sui testnet) ───────────────────────────────────
+      - key: SUI_NETWORK
+        value: testnet
+      - key: AGENT_POLICY_PACKAGE_ID
+        sync: false
+      - key: DEEPBOOK_PACKAGE_ID
+        sync: false
+      - key: AGENT_IMPORT_KEY
+        sync: false
+
+      # ── NL intent engine (optional — regex fallback if unset) ────────
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-2.5-flash
+
+      # ── Walrus intent archiving (optional, fails gracefully) ─────────
+      - key: WALRUS_PUBLISHER_URL
+        value: https://publisher.walrus-testnet.walrus.space
+      - key: WALRUS_AGGREGATOR_URL
+        value: https://aggregator.walrus-testnet.walrus.space
+      - key: WALRUS_EPOCHS
+        value: "5"
