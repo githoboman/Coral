@@ -18,6 +18,14 @@ const isValidHttpUrl = (v: string | undefined): v is string => {
   }
 };
 
+/**
+ * True when real Supabase creds are configured. When false, the server runs on a
+ * non-functional dummy client — DB-backed features (auth tokens, profiles) must
+ * degrade gracefully (e.g. tokenService falls back to stateless HMAC tokens).
+ */
+export const isSupabaseConfigured: boolean =
+  isValidHttpUrl(process.env.SUPABASE_URL) && !!process.env.SUPABASE_KEY;
+
 export const getSupabaseClient = (): SupabaseClient => {
   if (!supabaseClient) {
     let supabaseUrl = process.env.SUPABASE_URL;

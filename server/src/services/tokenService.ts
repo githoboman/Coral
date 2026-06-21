@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import getSupabaseClient from '../config/supabase';
+import getSupabaseClient, { isSupabaseConfigured } from '../config/supabase';
 
 const supabase = getSupabaseClient();
 
@@ -28,6 +28,57 @@ export function hashToken(rawToken: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Stateless token mode (no database)
+// ---------------------------------------------------------------------------
+// When Supabase isn't configured (local/demo), session tokens can't be stored
+// in a `user_tokens` table. Instead we mint a self-contained, HMAC-signed token
+// of the form `st.<base64url(userId)>.<expiryMs>.<sig>` that validateToken can
+// verify with no DB lookup. The HMAC secret is the same TOKEN_HMAC_SECRET.
+
+const STATELESS_PREFIX = 'st';
+
+function b64url(s: string): string {
+  return Buffer.from(s, 'utf8').toString('base64url');
+}
+function unb64url(s: string): string {
+  return Buffer.from(s, 'base64url').toString('utf8');
+}
+
+function signStateless(userId: string, expiresAtMs: number): string {
+  return crypto
+    .createHmac('sha256', HMAC_SECRET as string)
+    .update(`${STATELESS_PREFIX}.${userId}.${expiresAtMs}`)
+    .digest('hex');
+}
+
+function makeStatelessToken(userId: string, expiresAtMs: number): string {
+  const sig = signStateless(userId, expiresAtMs);
+  return `${STATELESS_PREFIX}.${b64url(userId)}.${expiresAtMs}.${sig}`;
+}
+
+/** Verify a stateless token; returns userId if valid+unexpired, else null. */
+function validateStatelessToken(rawToken: string): string | null {
+  const parts = rawToken.split('.');
+  if (parts.length !== 4 || parts[0] !== STATELESS_PREFIX) return null;
+  const [, encodedUser, expiryStr, sig] = parts;
+  let userId: string;
+  try {
+    userId = unb64url(encodedUser);
+  } catch {
+    return null;
+  }
+  const expiresAtMs = Number(expiryStr);
+  if (!Number.isFinite(expiresAtMs)) return null;
+  const expected = signStateless(userId, expiresAtMs);
+  // Constant-time compare to avoid timing leaks.
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  if (expiresAtMs < Date.now()) return null;
+  return userId;
+}
+
+// ---------------------------------------------------------------------------
 // Token lifecycle
 // ---------------------------------------------------------------------------
 
@@ -41,9 +92,15 @@ export async function createToken(
   name: string = 'Unknown device',
   expiresInDays: number = TOKEN_EXPIRES_DAYS,
 ): Promise<{ rawToken: string; expiresAt: Date }> {
+  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+
+  // No DB configured -> issue a self-contained, HMAC-signed stateless token.
+  if (!isSupabaseConfigured) {
+    return { rawToken: makeStatelessToken(userId, expiresAt.getTime()), expiresAt };
+  }
+
   const rawToken = generateToken();
   const tokenHash = hashToken(rawToken);
-  const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
 
   const { error } = await supabase.from('user_tokens').insert({
     user_id: userId,
@@ -67,6 +124,11 @@ export async function createToken(
  * Returns the user_id if valid, or null if invalid/expired.
  */
 export async function validateToken(rawToken: string): Promise<string | null> {
+  // Stateless tokens (no-DB mode) verify cryptographically without a lookup.
+  if (rawToken.startsWith(`${STATELESS_PREFIX}.`)) {
+    return validateStatelessToken(rawToken);
+  }
+
   const tokenHash = hashToken(rawToken);
 
   const { data, error } = await supabase
@@ -98,6 +160,7 @@ export async function validateToken(rawToken: string): Promise<string | null> {
  * Hashes the raw token and deletes the matching row.
  */
 export async function revokeToken(rawToken: string): Promise<void> {
+  if (!isSupabaseConfigured) return; // stateless tokens aren't stored
   const tokenHash = hashToken(rawToken);
   await supabase.from('user_tokens').delete().eq('token_hash', tokenHash);
 }
@@ -107,6 +170,7 @@ export async function revokeToken(rawToken: string): Promise<void> {
  * Deletes every row in user_tokens where user_id matches.
  */
 export async function revokeAllTokens(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
   await supabase.from('user_tokens').delete().eq('user_id', userId);
 }
 
@@ -115,5 +179,6 @@ export async function revokeAllTokens(userId: string): Promise<void> {
  * Prevents growing piles of tokens per device.
  */
 export async function revokeDeviceTokens(userId: string, name: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
   await supabase.from('user_tokens').delete().eq('user_id', userId).eq('name', name);
 }
