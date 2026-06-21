@@ -203,7 +203,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
           break;
         }
 
-        case "tovira":
+        case "coral":
         case "alert": {
           sse.status("Processing");
           const msg = `The ${normalizedAgentId} is coming soon. For now, please use the Task Manager.`;

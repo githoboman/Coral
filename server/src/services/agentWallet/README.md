@@ -2,7 +2,7 @@
 
 An on-chain–constrained agent that executes DeepBook V3 actions (swaps, limit
 orders, cancellations) on Sui **without per-action human approval**, inside limits
-the owner sets once. Built on Tovira's intent engine for Sui Overflow 2026.
+the owner sets once. Built on Coral's intent engine for Sui Overflow 2026.
 
 ## Why it's safe
 

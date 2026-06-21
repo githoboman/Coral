@@ -58,12 +58,12 @@ export class TelegramService {
         if (existingAccount) {
           const addr = existingAccount.wallet_address;
           return ctx.reply(
-            `👋 Welcome back to Tovira!\n\n` +
+            `👋 Welcome back to Coral!\n\n` +
             `🔗 Linked wallet: ${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}\n\n` +
             `Use /info to see your profile or /tasks to view your tasks.`
           );
         }
-        return ctx.reply('Welcome to Tovira! Please follow the process indicated in the Tovira app to connect your account.');
+        return ctx.reply('Welcome to Coral! Please follow the process indicated in the Coral app to connect your account.');
       }
 
       // If already linked, don't re-link
@@ -96,7 +96,7 @@ export class TelegramService {
       try {
         const account = await this.getAccountByTelegramId(ctx.from.id.toString());
         if (!account) {
-          return ctx.reply('❌ Your Telegram is not linked to any Tovira account.\nPlease link it from the Tovira app first.');
+          return ctx.reply('❌ Your Telegram is not linked to any Coral account.\nPlease link it from the Coral app first.');
         }
 
         const addr = account.wallet_address;
@@ -126,7 +126,7 @@ export class TelegramService {
         const connectedAt = account.created_at ? new Date(account.created_at).toLocaleDateString() : 'Unknown';
 
         await ctx.reply(
-          `🏙 *Your Tovira Profile*\n\n` +
+          `🏙 *Your Coral Profile*\n\n` +
           `👤 User: ${displayName}\n` +
           `👛 Wallet: \`${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}\`\n` +
           `💎 Plan: ${planLabel}\n` +
@@ -145,7 +145,7 @@ export class TelegramService {
       try {
         const account = await this.getAccountByTelegramId(ctx.from.id.toString());
         if (!account) {
-          return ctx.reply('❌ Your Telegram is not linked to any Tovira account.\nPlease link it from the Tovira app first.');
+          return ctx.reply('❌ Your Telegram is not linked to any Coral account.\nPlease link it from the Coral app first.');
         }
 
         const taskStorage = getTaskStorageService();

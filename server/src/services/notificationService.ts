@@ -115,7 +115,7 @@ export class NotificationService {
     }) : "";
 
     const descLine = desc ? `\n${desc}` : "";
-    const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nTovira Team`;
+    const message = `Hey <b>${safeUsername}</b>,\nYou just created a new task!\n\nHere's the <b>Details</b>\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDateStr}\n\n<b>Priority</b>\n${priority}\n\nI'd be here to remind you once it is due.\n\nThanks,\nCoral Team`;
 
     await this.sendNotification(walletAddress, message);
 
@@ -142,7 +142,7 @@ export class NotificationService {
             ${task.priority ? `<p><b>Priority</b><br>${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</p>` : ''}
 
             <p>I'd be here to remind you once it is due.</p>
-            <p>Thanks,<br>Tovira Team</p>
+            <p>Thanks,<br>Coral Team</p>
         </div>
         `;
       await this.emailService.sendEmail(email, `New Notification!`, html);
@@ -217,7 +217,7 @@ export class NotificationService {
     const safeDesc = this.escapeHtml(desc);
 
     const descLine = desc ? `\n${safeDesc}` : "";
-    const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nTovira Team`;
+    const message = `Hey <b>${safeUsername}</b>,\n\nYour task is due! Kindly attend to it.\n\nHere's the <b>details of what you asked me to remind you</b>\n\n${safeTaskName}${descLine}\n\n<b>Due Date</b>\n${dueDate}\n\nDo well to schedule more activities, I look forward to helping you stay productive.\n\nThanks,\nCoral Team`;
 
     await this.sendNotification(walletAddress, message);
 
@@ -238,7 +238,7 @@ export class NotificationService {
             <p><b>Due Date</b><br>${dueDate}</p>
 
             <p>Do well to schedule more activities, I look forward to helping you stay productive.</p>
-            <p>Thanks,<br>Tovira Team</p>
+            <p>Thanks,<br>Coral Team</p>
         </div>
         `;
       await this.emailService.sendEmail(email, `Reminder Alert!!`, html);
@@ -328,7 +328,7 @@ export class NotificationService {
     const label = typeLabels[suggestionType] || "Suggestion";
 
     const message =
-      `<b>Tovira Suggestion</b>\n` +
+      `<b>Coral Suggestion</b>\n` +
       `<i>${label}</i>\n\n` +
       `${this.escapeHtml(suggestionText)}\n\n` +
       `<i>Tap Accept to create a task, or Dismiss to skip.</i>`;
@@ -371,7 +371,7 @@ export class NotificationService {
     const label = typeLabels[simulationType] || "Simulation";
 
     let message =
-      `<b>Tovira ${label}</b>\n\n` +
+      `<b>Coral ${label}</b>\n\n` +
       `${this.escapeHtml(narrative)}`;
 
     if (warnings.length > 0) {
@@ -462,7 +462,7 @@ export class NotificationService {
 
             <p><a href="${explorerUrl}">View on SuiVision →</a></p>
 
-            <p>Stay on top of it!<br>Tovira Team</p>
+            <p>Stay on top of it!<br>Coral Team</p>
           </div>`;
 
         const ok = await this.emailService.sendEmail(email, `🔔 Wallet Activity: Outgoing ${amount}`, html);

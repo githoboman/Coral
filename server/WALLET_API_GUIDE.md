@@ -3,9 +3,9 @@
 This guide explains how to use the wallet balance and payment intent endpoints for sister apps.
 
 ## 1. Authentication
-The server uses the existing authentication system. Requests must include the `auth_token` cookie from the main Tovira login.
+The server uses the existing authentication system. Requests must include the `auth_token` cookie from the Coral login.
 
-- Base URL: `https://api.tovira.app/api` (or your local/staging equivalent)
+- Base URL: `https://coral-server.onrender.com/api` (or your local/staging equivalent)
 
 ## 2. Get Wallet Balance
 Fetch the user's real-time on-chain portfolio.

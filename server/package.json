@@ -1,7 +1,7 @@
 {
-  "name": "tovira-server",
+  "name": "coral-server",
   "version": "1.0.0",
-  "description": "Express TypeScript server for Tovira",
+  "description": "Coral — autonomous agent wallet server for Sui",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

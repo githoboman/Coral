@@ -47,7 +47,7 @@ async function sendDemo() {
             <p><b>Priority</b><br>${priority1}</p>
 
             <p>I'd be here to remind you once it is due.</p>
-            <p>Thanks,<br>Tovira Team</p>
+            <p>Thanks,<br>Coral Team</p>
         </div>
         `;
 
@@ -73,7 +73,7 @@ async function sendDemo() {
             <p><b>Due Date</b><br>${formatDate(dueDate2)}</p>
 
             <p>Do well to schedule more activities, I look forward to helping you stay productive.</p>
-            <p>Thanks,<br>Tovira Team</p>
+            <p>Thanks,<br>Coral Team</p>
         </div>
         `;
 

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: tovira-server
+    name: coral-server
     env: node
     region: oregon
     plan: free

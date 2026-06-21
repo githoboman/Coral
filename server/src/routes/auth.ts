@@ -592,7 +592,7 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 
     // Must match the message the client signs in AuthProvider.tsx exactly, or
-    // signature verification fails. (Rebranded Tovira -> Coral.)
+    // signature verification fails.
     const expectedMessage = `Welcome to Coral!\n\nClick to sign in and accept the Coral Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${storedData.nonce}`;
     const message = new TextEncoder().encode(expectedMessage);
 

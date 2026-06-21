@@ -40,7 +40,7 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-const SESSION_ONBOARDED_KEY = "tovira_onboarded_wallet";
+const SESSION_ONBOARDED_KEY = "coral_onboarded_wallet";
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const recoverTimer = setTimeout(() => {
           if (!currentAccount) {
             if (location.pathname !== "/" && location.pathname !== "/chat") {
-              sessionStorage.setItem("tovira_intended_path", location.pathname + location.search);
+              sessionStorage.setItem("coral_intended_path", location.pathname + location.search);
             }
             navigate("/signin", { replace: true });
           }
@@ -131,9 +131,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     if (isSigninPage) {
-      const intendedPath = sessionStorage.getItem("tovira_intended_path");
+      const intendedPath = sessionStorage.getItem("coral_intended_path");
       if (intendedPath) {
-        sessionStorage.removeItem("tovira_intended_path");
+        sessionStorage.removeItem("coral_intended_path");
         navigate(intendedPath, { replace: true });
       } else {
         navigate("/agent", { replace: true });
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const signatureResult = await signPersonalMessage({ message: messageBytes });
 
       // Read referral code from localStorage
-      const referralCode = localStorage.getItem('tovira_referral') || undefined;
+      const referralCode = localStorage.getItem('coral_referral') || undefined;
 
       // 3. Verify signature — server sets httpOnly auth_token cookie on success
       const loginRes = await fetch(`${apiBaseUrl}/api/auth/login`, {
@@ -271,7 +271,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkUserOnboardingStatus = async (walletAddress: string) => {
     // Coral does not require email onboarding — a connected wallet IS the account.
-    // The Tovira email/waitlist modal is opt-in via VITE_ENABLE_ONBOARDING=true.
+    // The legacy email/waitlist modal is opt-in via VITE_ENABLE_ONBOARDING=true.
     if (import.meta.env.VITE_ENABLE_ONBOARDING !== "true") {
       sessionStorage.setItem(SESSION_ONBOARDED_KEY, walletAddress);
       setIsOnboarded(true);
@@ -351,7 +351,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setOnboardingMessage(null);
 
     // Read referral code from localStorage
-    const referralCode = localStorage.getItem('tovira_referral') || undefined;
+    const referralCode = localStorage.getItem('coral_referral') || undefined;
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
@@ -389,7 +389,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (data.user) {
         dispatch(setProfile(data.user));
       }
-      localStorage.removeItem('tovira_referral');
+      localStorage.removeItem('coral_referral');
       sileo.success({
         title: "Profile Saved",
         description: "Checking waitlist status...",
@@ -439,11 +439,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       sessionStorage.removeItem(SESSION_ONBOARDED_KEY);
 
-      // Clear any remaining tovira_ cache keys (chat cache etc.)
+      // Clear any remaining coral_ cache keys (chat cache etc.)
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith("tovira_")) keysToRemove.push(key);
+        if (key && key.startsWith("coral_")) keysToRemove.push(key);
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
 

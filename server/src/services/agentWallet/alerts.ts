@@ -2,7 +2,7 @@ import { getPolicyChecker } from "./policyChecker.js";
 
 /**
  * In-app alert feed for the agent wallet — the hackathon-minimum notification
- * layer (toast/banner in the Tovira UI). Alerts are buffered per owner in memory
+ * layer (toast/banner in the Coral UI). Alerts are buffered per owner in memory
  * and drained by a frontend poll. Telegram/email/WhatsApp are post-hackathon
  * stretch goals and intentionally not wired here.
  */

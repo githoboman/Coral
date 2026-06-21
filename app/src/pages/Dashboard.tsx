@@ -208,7 +208,7 @@ const AGENT_THINKING_STEPS: Record<string, string[]> = {
     "Synthesizing findings",
     "Preparing response",
   ],
-  tovira: [
+  coral: [
     "Processing your request",
     "Checking wallet data",
     "Analyzing portfolio metrics",
@@ -266,7 +266,7 @@ const CATEGORIES: Record<string, Category[]> = {
       description: "Protocol deep dives & market news",
     },
   ],
-  tovira: [
+  coral: [
     {
       label: "Wallet",
       value: "Wallet",
@@ -417,7 +417,7 @@ const PROMPTS: Record<string, Prompt[]> = {
       icon: TrendingUp,
     },
   ],
-  tovira: [
+  coral: [
     {
       label: "Check Balance",
       prompt: "What is my current SUI balance?",

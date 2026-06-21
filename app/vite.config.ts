@@ -18,7 +18,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ["tovira.onrender.com", "localhost", "tovira.xyz"],
+    allowedHosts: ["coral-server.onrender.com", "localhost", "coral.app", "coral.vercel.app"],
     proxy: {
       "/sui-rpc": {
         target: "https://fullnode.testnet.sui.io",

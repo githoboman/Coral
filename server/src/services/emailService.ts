@@ -39,7 +39,7 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: `"Tovira" <${process.env.EMAIL_USER}>`, // sender address
+        from: `"Coral" <${process.env.EMAIL_USER}>`, // sender address
         to, // list of receivers
         subject, // Subject line
         text: text || html.replace(/<[^>]*>?/gm, ''), // plain text body

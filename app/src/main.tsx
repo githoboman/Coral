@@ -65,7 +65,7 @@ const queryClient = new QueryClient();
 const searchParams = new URLSearchParams(window.location.search);
 const refCode = searchParams.get("ref");
 if (refCode) {
-  localStorage.setItem("tovira_referral", refCode);
+  localStorage.setItem("coral_referral", refCode);
   searchParams.delete("ref");
   const newUrl = window.location.pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
   window.history.replaceState({}, document.title, newUrl);

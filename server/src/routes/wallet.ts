@@ -55,10 +55,10 @@ router.post("/wallet/charge", requireAuth, async (req: AuthRequest, res: Respons
   try {
     const { coin_type, amount, reason } = req.body;
     const address = req.user!.wallet_address;
-    const TREASURY_ADDRESS = process.env.TOVIRA_TREASURY_ADDRESS;
+    const TREASURY_ADDRESS = process.env.CORAL_TREASURY_ADDRESS || process.env.TOVIRA_TREASURY_ADDRESS;
 
     if (!TREASURY_ADDRESS) {
-      console.error("[WALLET] TOVIRA_TREASURY_ADDRESS is not configured in environment.");
+      console.error("[WALLET] CORAL_TREASURY_ADDRESS is not configured in environment.");
       return res.status(500).json({ 
         status: false,
         message: "Server configuration error",
@@ -124,7 +124,7 @@ router.post("/wallet/charge", requireAuth, async (req: AuthRequest, res: Respons
             recipient: TREASURY_ADDRESS,
             coin_type,
             amount_mist: amountMist,
-            reason: reason || "Tovira Charge",
+            reason: reason || "Coral Charge",
             expires_at: Math.floor(Date.now() / 1000) + 3600,
           }
         }

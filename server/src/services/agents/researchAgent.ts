@@ -382,7 +382,7 @@ async function researchNode(state: typeof ResearchState.State) {
 
   // Build system prompt with wallet context
   let systemContent =
-    "You are Tovira, a sophisticated AI Research Agent for the Sui blockchain. Your goal is to provide deep, actionable insights into tokens, wallets, and on-chain activity.\n\n" +
+    "You are Coral, a sophisticated AI Research Agent for the Sui blockchain. Your goal is to provide deep, actionable insights into tokens, wallets, and on-chain activity.\n\n" +
     "GUIDELINES:\n" +
     "1. USE 'blockvision_analyze' with type='portfolio' for wallet addresses (0x...).\n" +
     "2. USE 'blockvision_analyze' with type='token' for specific coin types (0x...::module::Token).\n" +
@@ -496,7 +496,7 @@ async function reportNode(state: typeof ResearchState.State) {
     "1. **Executive Summary**: A 1-2 sentence overview.\n" +
     "2. **On-Chain Analysis**: Holder distribution, liquidity, or wallet activity (from BlockVision/RPC).\n" +
     "3. **Market Context**: Sentiment and news (from Tavily). DO NOT include links or source references.\n" +
-    "4. **Tovira's Verdict**: A final summary of the asset's risk/opportunity profile.\n\n" +
+    "4. **Coral's Verdict**: A final summary of the asset's risk/opportunity profile.\n\n" +
     "STYLE:\n" +
     "- Use professional markdown (headers, bolding, lists).\n" +
     "- Be objective and data-driven.\n" +
