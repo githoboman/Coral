@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════╗
-║   Tovira Express Server Started       ║
+║   Coral Express Server Started          ║
 ╠════════════════════════════════════════╣
 ║   Environment: ${process.env.NODE_ENV || "development"}
 ║   Port: ${PORT}

@@ -101,7 +101,7 @@ export default function Maintenance() {
             </p>
             <div className="flex items-center justify-center gap-6">
               <a
-                href="https://x.com/tovira_sui"
+                href="https://x.com/coral_sui"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-center transition-all duration-300 group hover:-translate-y-1"
@@ -111,7 +111,7 @@ export default function Maintenance() {
                 </svg>
               </a>
               <a
-                href="https://t.me/tovira_xyz"
+                href="https://t.me/coral_xyz"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-center transition-all duration-300 group hover:-translate-y-1"

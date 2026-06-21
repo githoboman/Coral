@@ -206,7 +206,7 @@
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  transition: opacity 0.8s ease-out, visibility 0.8s;
+  transition: opacity 0.4s ease-out, visibility 0.4s;
 }
 
 .splash-screen.hidden {
@@ -222,17 +222,17 @@
 }
 
 .splash-logo {
-  width: 100px;
+  width: 88px;
   height: auto;
-  animation: logo-entrance 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: logo-entrance 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
   opacity: 0;
 }
 
 .splash-loader {
-  width: 200px;
-  height: 200px;
+  width: 180px;
+  height: 180px;
   padding: 4px;
-  background: conic-gradient(#B7FC0D, #246AFC);
+  background: conic-gradient(#FF6A4D, #FF9472, #FF6A4D);
   mask: radial-gradient(circle, transparent 69%, black 70%);
   border-radius: 50%;
   animation: spin 1s linear infinite;

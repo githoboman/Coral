@@ -61,7 +61,7 @@ app.get("/health", (req: Request, res: Response) => {
 
 app.get("/", (req: Request, res: Response) => {
   res.json({
-    message: "Tovira Express Server - Uhh, How did you get here? ",
+    message: "Coral Express Server - Uhh, How did you get here? ",
     version: "1.0.0",
     endpoints: {
       health: "/health",

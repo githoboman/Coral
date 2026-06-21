@@ -45,10 +45,10 @@ router.use(agentWalletRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
-    name: "Tovira Express Server",
+    name: "Coral Express Server",
     version: "3.0.0",
     description:
-      "Express TypeScript server for Tovira - Powered by Supabase + Sui",
+      "Express TypeScript server for Coral — Sui agent wallet",
     timestamp: new Date().toISOString(),
     endpoints: {
       auth: ["POST /api/auth/verify-and-register", "GET /api/auth/check-user"],

@@ -26,14 +26,24 @@ import AgentSettings from "@/pages/agent/Settings";
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
-
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 5000);
-
-    return () => clearTimeout(timer);
+    // Brief branded flash, not a blocking wait. Hide as soon as the window has
+    // painted (or after a short cap) so the app feels instant.
+    const cap = setTimeout(() => setShowSplash(false), 1500);
+    const onReady = () => setShowSplash(false);
+    if (document.readyState === "complete") {
+      // Already loaded — show only a quick beat so it doesn't flicker.
+      const quick = setTimeout(() => setShowSplash(false), 600);
+      return () => {
+        clearTimeout(cap);
+        clearTimeout(quick);
+      };
+    }
+    window.addEventListener("load", onReady);
+    return () => {
+      clearTimeout(cap);
+      window.removeEventListener("load", onReady);
+    };
   }, []);
 
   return (

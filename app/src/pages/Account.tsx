@@ -87,7 +87,7 @@ const TelegramModal = ({
           <Tooltip content={botCopied ? "Copied!" : "Click to copy"} side="top">
             <button
               onClick={() => {
-                navigator.clipboard.writeText("@ToviraBot");
+                navigator.clipboard.writeText("@CoralBot");
                 setBotCopied(true);
                 setTimeout(() => setBotCopied(false), 2000);
               }}
@@ -204,7 +204,7 @@ const TelegramConnect = () => {
   const handleConnect = async () => {
     const data = await connectTelegram();
     if (data) {
-      setConnectData({ ...data, botUsername: "ToviraBot" });
+      setConnectData({ ...data, botUsername: "CoralBot" });
       setModalOpen(true);
     }
   };

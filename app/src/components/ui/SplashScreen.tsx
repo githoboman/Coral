@@ -5,7 +5,7 @@ export const SplashScreen: React.FC = () => {
     <div className="splash-screen">
       <div className="splash-content">
         <div className="relative h-fit w-fit">
-          <img src="/assets/coral-mark.svg" alt="Coral" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 splash-logo coral-pulse-ring rounded-[18px]" />
+          <img src="/assets/coral-mark.svg" alt="Coral" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 splash-logo rounded-[18px]" />
           <div className="splash-loader"></div>
         </div>
       </div>
