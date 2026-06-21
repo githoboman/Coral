@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { MdOutlineMenuOpen } from "react-icons/md";
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { useTheme } from "@/hooks/useTheme";
@@ -40,6 +40,7 @@ function formatExpiry(expiryMs: number): string {
 
 export default function CorralLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -64,6 +65,16 @@ export default function CorralLayout() {
 
   const usedPct = policy ? Math.min(100, Math.round(policy.usedPercent)) : 0;
   const active = status?.bound && policy?.isActive;
+  // Human-readable agent state for the header pill.
+  const agentState = !account
+    ? "Disconnected"
+    : !status
+    ? "Not initialized"
+    : !status.bound
+    ? "No policy"
+    : policy?.isActive
+    ? "Active"
+    : "Paused";
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-zinc-950 font-sans transition-colors duration-200">
@@ -132,11 +143,22 @@ export default function CorralLayout() {
           {/* Agent status pill (live) */}
           <div className="flex items-center gap-3.5 bg-[#F8F9FA]/80 border border-[#E7E7E4] rounded-full px-4 py-2 text-[0.8rem] font-semibold text-zinc-500 dark:bg-[#2F2F2F] dark:border-black dark:text-[#5E5E5E]">
             <span className="flex items-center gap-1.5 font-medium text-black dark:text-[#5E5E5E]">
-              <span className={`w-2 h-2 rounded-full ${active ? "bg-[#10B981] animate-pulse" : "bg-zinc-400"}`} />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  active ? "bg-[#10B981] animate-pulse" : agentState === "Paused" ? "bg-amber-400" : "bg-zinc-400"
+                }`}
+              />
               Agent:{" "}
-              <span className="text-zinc-900 dark:text-[#5E5E5E] font-bold">
-                {active ? "Active" : "Idle"}
-              </span>
+              {status && !status.bound ? (
+                <button
+                  onClick={() => navigate("/agent/policy")}
+                  className="text-[#FF6A4D] font-bold hover:underline cursor-pointer"
+                >
+                  Set up →
+                </button>
+              ) : (
+                <span className="text-zinc-900 dark:text-[#5E5E5E] font-bold">{agentState}</span>
+              )}
             </span>
             <span className="w-[2px] h-3.5 bg-[#D2D2CD] dark:bg-white/40" />
             <span className="flex items-center gap-2 font-medium text-black dark:text-[#5E5E5E]">
