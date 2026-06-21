@@ -3,9 +3,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
-
-# --- Move / Sui contract build output ---
-contract/**/build/
+*.tsbuildinfo
 
 # Log files
 npm-debug.log*
@@ -52,8 +50,8 @@ Thumbs.db
 
 # --- Environment / Secrets ---
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.secret
 *.key
 
@@ -63,6 +61,14 @@ Thumbs.db
 # --- Rough work --
 file-structure.txt
 .next
+corral/.next/
+corral/out/
+corral/build/
+.next/
+out/
+build/
+.vercel/
+*.tsbuildinfo
 
 # --- Server cache data ---
 server/data/
