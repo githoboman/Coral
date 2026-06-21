@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiShield, FiEdit2, FiHexagon, FiDollarSign } from "react-icons/fi";
+import { FiShield, FiEdit2, FiHexagon, FiDollarSign, FiActivity, FiCheckCircle, FiXCircle, FiClock } from "react-icons/fi";
 import { MdLockOutline } from "react-icons/md";
 import { RiShareBoxLine } from "react-icons/ri";
 import { IoMdStopwatch } from "react-icons/io";
 import { useAgentWallet, type AgentAlert, type PolicyState } from "@/hooks/useAgentWallet";
+
+type LevelFilter = "all" | "success" | "error" | "warning" | "info";
 
 /**
  * Agent Activity Log + live Move Policy sidebar — ported from the Corral (Figma)
@@ -31,6 +34,15 @@ function formatRemaining(expiryMs: number): string {
 export default function Activities() {
   const navigate = useNavigate();
   const { account, status, policy, alerts } = useAgentWallet();
+  const [filter, setFilter] = useState<LevelFilter>("all");
+
+  const stats = {
+    total: alerts.length,
+    success: alerts.filter((a) => a.level === "success").length,
+    failed: alerts.filter((a) => a.level === "error").length,
+    last: alerts[0]?.timestamp,
+  };
+  const visible = filter === "all" ? alerts : alerts.filter((a) => a.level === filter);
 
   if (!account?.address) {
     return (
@@ -60,6 +72,35 @@ export default function Activities() {
           </button>
         </div>
 
+        {/* Stats summary */}
+        <div className="grid grid-cols-4 gap-3 mb-5">
+          <StatCard icon={<FiActivity className="w-4 h-4" />} label="Total actions" value={String(stats.total)} />
+          <StatCard icon={<FiCheckCircle className="w-4 h-4 text-emerald-500" />} label="Successful" value={String(stats.success)} />
+          <StatCard icon={<FiXCircle className="w-4 h-4 text-red-500" />} label="Failed" value={String(stats.failed)} />
+          <StatCard
+            icon={<FiClock className="w-4 h-4" />}
+            label="Last activity"
+            value={stats.last ? new Date(stats.last).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex items-center gap-2 mb-4">
+          {(["all", "success", "error", "warning", "info"] as LevelFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-full text-[12px] font-semibold capitalize transition-all border ${
+                filter === f
+                  ? "bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 border-transparent"
+                  : "bg-white dark:bg-[#2F2F2F] text-[#5E5E5E] dark:text-zinc-400 border-[#E7E7E4] dark:border-black hover:border-zinc-300"
+              }`}
+            >
+              {f === "error" ? "Failed" : f}
+            </button>
+          ))}
+        </div>
+
         <div className="bg-[#FAFAF9] dark:bg-[#2F2F2F] border border-[#E7E7E4] dark:border-black rounded-[28px] shadow-sm overflow-hidden flex flex-col">
           <div className="grid grid-cols-12 px-6 py-4 border-b border-[#F1F1EF] dark:border-zinc-800 text-[13px] font-mono font-bold text-[#5E5E5E] dark:text-zinc-400 bg-[#F3F2EF80] dark:bg-black/20">
             <div className="col-span-1" />
@@ -68,17 +109,23 @@ export default function Activities() {
             <div className="col-span-2 text-right">Time</div>
           </div>
 
-          {alerts.length === 0 ? (
+          {visible.length === 0 ? (
             <div className="px-6 py-16 text-center text-[14px] text-[#9a9a97] dark:text-zinc-500">
-              No agent activity yet. Instruct the agent from the{" "}
-              <button onClick={() => navigate("/agent")} className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
-                Agent
-              </button>{" "}
-              page to see executions here.
+              {alerts.length === 0 ? (
+                <>
+                  No agent activity yet. Instruct the agent from the{" "}
+                  <button onClick={() => navigate("/agent")} className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+                    Agent
+                  </button>{" "}
+                  page to see executions here.
+                </>
+              ) : (
+                <>No {filter === "error" ? "failed" : filter} activity.</>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-[#F1F1EF] dark:divide-zinc-800">
-              {alerts.map((item) => {
+              {visible.map((item) => {
                 const digest = (item.meta?.digest as string | undefined) ?? undefined;
                 return (
                   <div
@@ -239,6 +286,18 @@ function PolicySidebar({
         <FiShield className="text-[13px]" />
         Policy Enforced On-Chain
       </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="bg-white dark:bg-[#2F2F2F] border border-[#E7E7E4] dark:border-black rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center gap-1.5 text-[#5E5E5E] dark:text-zinc-400 text-[12px] font-semibold mb-2">
+        {icon}
+        {label}
+      </div>
+      <div className="text-[24px] font-bold text-zinc-900 dark:text-zinc-50 font-mono leading-none">{value}</div>
     </div>
   );
 }

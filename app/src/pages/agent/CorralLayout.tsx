@@ -5,6 +5,7 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { useTheme } from "@/hooks/useTheme";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { WalletDrawer } from "@/components/agent/WalletDrawer";
+import { NotificationBell } from "@/components/agent/NotificationBell";
 
 /**
  * Corral app shell — sidebar + top header — copied design-for-design from the
@@ -172,18 +173,7 @@ export default function CorralLayout() {
                 className="object-contain flex-shrink-0 dark:[filter:brightness(0)_invert(1)]"
               />
             </button>
-            <button
-              className="flex h-10 w-10 items-center justify-center bg-transparent text-[#5E5E5E] active:scale-[0.98] dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer"
-              title="Notifications"
-            >
-              <img
-                src="/assets/icons/bell.svg"
-                alt="Notifications"
-                width={16}
-                height={16}
-                className="object-contain flex-shrink-0 dark:[filter:brightness(0)_invert(1)]"
-              />
-            </button>
+            <NotificationBell />
             {account ? (
               <>
                 {/* Connected: wallet icon opens the slide-out drawer */}
