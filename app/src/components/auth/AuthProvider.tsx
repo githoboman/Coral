@@ -63,16 +63,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isInitializing = connectionStatus === "connecting";
-
   // New hook for signing messages
   const { mutateAsync: signPersonalMessage } = useSignPersonalMessage();
   const [hasCheckedInit, setHasCheckedInit] = useState(false);
+  // Don't let a hung wallet handshake (connectionStatus stuck at "connecting")
+  // block the whole app behind the spinner forever. After a short grace period
+  // we render the app regardless; routes handle the not-connected state.
+  const [initTimedOut, setInitTimedOut] = useState(false);
+
+  const isInitializing = connectionStatus === "connecting" && !initTimedOut;
 
   useEffect(() => {
     // Small delay to allow wallet kit to settle
     const timer = setTimeout(() => setHasCheckedInit(true), 1000);
-    return () => clearTimeout(timer);
+    const giveUp = setTimeout(() => setInitTimedOut(true), 2500);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(giveUp);
+    };
   }, []);
 
   const apiBaseUrl =
