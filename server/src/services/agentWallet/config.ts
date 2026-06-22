@@ -67,13 +67,20 @@ export const ASSET_TYPES: Record<string, string> = {
   USDC:
     process.env.USDC_TYPE ||
     "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
+  // DeepBook V3 testnet quote coin. The SUI_DBUSDC pool's quote symbol is "DBUSDC";
+  // resolve it so the order/revoke paths (which split the pool key) don't throw.
+  // Defaults to the USDC type; override with DBUSDC_TYPE if the pool uses a distinct coin.
+  DBUSDC:
+    process.env.DBUSDC_TYPE ||
+    process.env.USDC_TYPE ||
+    "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
 };
 
 /**
  * On-chain coin decimals per symbol. The agent records spend and sizes amounts in
  * these base units; DeepBook order quantities, by contrast, are in whole tokens.
  */
-export const DECIMALS: Record<string, number> = { SUI: 9, USDC: 6 };
+export const DECIMALS: Record<string, number> = { SUI: 9, USDC: 6, DBUSDC: 6 };
 
 /** Decimals for a symbol; defaults to 9 (SUI-like) for unknown coins. */
 export function decimalsFor(symbol: string): number {
