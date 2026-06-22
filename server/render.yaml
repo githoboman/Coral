@@ -11,7 +11,9 @@ services:
     rootDir: server
     buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm start
-    healthCheckPath: /api
+    # Must be a 200 route — `/api` returns 404 (routes are mounted UNDER it), which
+    # makes Render's health check fail and the deploy "Time Out". `/health` is 200.
+    healthCheckPath: /health
     envVars:
       # ── Build / runtime ──────────────────────────────────────────────
       - key: NODE_VERSION

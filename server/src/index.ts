@@ -1,9 +1,12 @@
 import app from "./app";
 import { isSupabaseConfigured } from "./config/supabase";
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-const server = app.listen(PORT, () => {
+// Bind to 0.0.0.0 (all interfaces) so Render/host port-detection reliably finds
+// the open port. Without an explicit host, Node may bind IPv6-only (`::`), which
+// some platforms' IPv4 scanners miss — causing a deploy "port detection timeout".
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║   Coral Express Server Started          ║
