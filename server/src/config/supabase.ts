@@ -31,20 +31,15 @@ export const getSupabaseClient = (): SupabaseClient => {
     let supabaseUrl = process.env.SUPABASE_URL;
     let supabaseKey = process.env.SUPABASE_KEY;
 
-    // Dev/demo fallback: when creds are absent or placeholders, construct against a
-    // syntactically-valid dummy endpoint so the server still BOOTS (e.g. for the
-    // agent-wallet flow, which doesn't touch Supabase). Any actual DB call will fail
-    // at request time, which is the intended behaviour without real creds.
-    if (!isValidHttpUrl(supabaseUrl) || !supabaseKey) {
-      console.warn(
-        "[supabase] No valid SUPABASE_URL/KEY — using a non-functional dummy client. " +
-          "DB-backed routes will error until real creds are set.",
-      );
-      supabaseUrl = "https://placeholder.supabase.co";
-      supabaseKey = supabaseKey || "placeholder-key";
-    }
+    // No-database mode: when creds are absent/placeholders, build against a
+    // syntactically-valid dummy endpoint so the server still BOOTS. Coral's
+    // agent-wallet flow doesn't use Supabase — auth runs on stateless HMAC tokens
+    // and the agent store falls back to memory — so this is a supported mode.
+    const configured = isValidHttpUrl(supabaseUrl) && !!supabaseKey;
+    const url: string = configured ? (supabaseUrl as string) : "https://placeholder.supabase.co";
+    const key: string = configured ? (supabaseKey as string) : "placeholder-key";
 
-    supabaseClient = createClient(supabaseUrl, supabaseKey, {
+    supabaseClient = createClient(url, key, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -54,9 +49,11 @@ export const getSupabaseClient = (): SupabaseClient => {
       },
     });
 
-    console.log("✓ Supabase client initialized successfully");
-    console.log("  URL:", supabaseUrl.split("//")[1]?.split("/")[0]); // Log host only
-    console.log("  Key present:", !!supabaseKey);
+    if (configured) {
+      console.log("✓ Supabase connected:", url.split("//")[1]?.split("/")[0]);
+    } else {
+      console.log("[startup] No-database mode — stateless auth + in-memory agent store (Supabase optional).");
+    }
   }
 
   return supabaseClient;
