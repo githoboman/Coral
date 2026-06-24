@@ -1,4 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+  type ReactNode,
+} from "react";
 import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
@@ -88,8 +96,13 @@ type Busy =
  * from the backend, sign them with the connected wallet (dapp-kit), and — for
  * policy creation — post the resulting objectChanges back so the server can bind
  * the policy + capability ids to the agent wallet.
+ *
+ * This is the IMPLEMENTATION hook. Consumers call `useAgentWallet()` (below),
+ * which reads a single shared instance via context — so the header pill, chat,
+ * policy page, notification bell and activity log all see the same state and only
+ * one alert poll runs, instead of 7 independent copies.
  */
-export function useAgentWallet() {
+function useAgentWalletState() {
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
@@ -338,4 +351,28 @@ export function useAgentWallet() {
     refreshAlerts,
     refreshPolicy,
   };
+}
+
+// ── Shared state via context ───────────────────────────────────────────
+type AgentWalletValue = ReturnType<typeof useAgentWalletState>;
+const AgentWalletContext = createContext<AgentWalletValue | null>(null);
+
+/**
+ * Provides ONE shared agent-wallet state instance to the whole tree. Mount this
+ * once (around the agent area) so every consumer shares status/policy/alerts and
+ * a single poll, instead of each `useAgentWallet()` spinning up its own copy.
+ */
+export function AgentWalletProvider({ children }: { children: ReactNode }) {
+  const value = useAgentWalletState();
+  return <AgentWalletContext.Provider value={value}>{children}</AgentWalletContext.Provider>;
+}
+
+/**
+ * Consume the shared agent-wallet state. Falls back to a standalone instance if
+ * no provider is mounted, so isolated usage still works (just not shared).
+ */
+export function useAgentWallet(): AgentWalletValue {
+  const ctx = useContext(AgentWalletContext);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return ctx ?? useAgentWalletState();
 }

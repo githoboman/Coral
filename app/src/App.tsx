@@ -22,6 +22,7 @@ import CorralLayout from "@/pages/agent/CorralLayout";
 import AgentChat from "@/pages/agent/AgentChat";
 import AgentHistory from "@/pages/agent/History";
 import AgentSettings from "@/pages/agent/Settings";
+import { AgentWalletProvider } from "@/hooks/useAgentWallet";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -41,6 +42,23 @@ function App() {
         <Route path="/signin" element={<Signin />} />
         {/* Coral agent app is the home. */}
         <Route path="/" element={<Navigate to="/agent" replace />} />
+
+        {/* Agent area — Corral shell, with ONE shared agent-wallet state. */}
+        <Route
+          element={
+            <AgentWalletProvider>
+              <CorralLayout />
+            </AgentWalletProvider>
+          }
+        >
+          <Route path="/agent" element={<AgentChat />} />
+          <Route path="/agent/policy" element={<Agent />} />
+          <Route path="/agent/activity" element={<Activities />} />
+          <Route path="/agent/history" element={<AgentHistory />} />
+          <Route path="/agent/settings" element={<AgentSettings />} />
+        </Route>
+
+        {/* Legacy Tovira screens (kept, not in the Coral flow). */}
         <Route element={<AppLayout />}>
           <Route path="/onchain" element={<OnchainAnalysis />} />
           <Route path="/activity" element={<Activity />} />
@@ -50,14 +68,9 @@ function App() {
           <Route path="/badge" element={<BadgeMint />} />
           <Route path="/chat/:chatId?" element={<Dashboard />} />
         </Route>
-        {/* Agent area — Corral design shell (sidebar + header), own layout. */}
-        <Route element={<CorralLayout />}>
-          <Route path="/agent" element={<AgentChat />} />
-          <Route path="/agent/policy" element={<Agent />} />
-          <Route path="/agent/activity" element={<Activities />} />
-          <Route path="/agent/history" element={<AgentHistory />} />
-          <Route path="/agent/settings" element={<AgentSettings />} />
-        </Route>
+
+        {/* Anything else → the agent app, instead of a blank screen. */}
+        <Route path="*" element={<Navigate to="/agent" replace />} />
       </Routes>
 
       <SileoToaster />

@@ -78,6 +78,39 @@ export async function bootstrapBalanceManager(
   }
 }
 
+/**
+ * Deposit funds into an EXISTING BalanceManager (the funding half of bootstrap,
+ * without creating a new manager). Use this to top up the agent's already-created
+ * manager so its DeepBook orders can actually settle. Amounts are in whole coin
+ * units (e.g. 0.5 = 0.5 SUI) per the SDK's deposit helper, and the coins come from
+ * the agent wallet, signed by the agent key.
+ */
+export async function depositIntoBalanceManager(
+  wallet: AgentWalletRecord,
+  balanceManagerId: string,
+  deposits: Array<{ coinKey: string; amount: number }>,
+): Promise<DeepBookBootstrapResult> {
+  if (!balanceManagerId) return { ok: false, reason: "balanceManagerId is required" };
+  if (!deposits.length) return { ok: false, reason: "At least one deposit is required" };
+  try {
+    const fundClient = new DeepBookClient({
+      client: getSuiClient() as any,
+      address: wallet.agentAddress,
+      env: getNetwork(),
+      balanceManagers: { [MANAGER_KEY]: { address: balanceManagerId } },
+    });
+    const tx = new Transaction();
+    for (const d of deposits) {
+      fundClient.balanceManager.depositIntoManager(MANAGER_KEY, d.coinKey, d.amount)(tx);
+    }
+    const result = await getAgentExecutor().execute(wallet, tx);
+    if (!result.success) return { ok: false, reason: result.error };
+    return { ok: true, balanceManagerId, digest: result.digest };
+  } catch (err: any) {
+    return { ok: false, reason: err?.message || String(err) };
+  }
+}
+
 /** Find the created BalanceManager object id from a settled tx's object changes. */
 async function findBalanceManagerId(digest: string): Promise<string | null> {
   const tx = await getSuiClient().getTransactionBlock({

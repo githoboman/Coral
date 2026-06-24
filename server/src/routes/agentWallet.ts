@@ -10,7 +10,7 @@ import { getAgentAlerts } from "../services/agentWallet/alerts";
 import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/owner/policyCreator";
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
 import { cleanupAndSweep, returnCapability, buildRevokeTx } from "../services/agentWallet/owner/revocation";
-import { bootstrapBalanceManager } from "../services/agentWallet/deepbookSetup";
+import { bootstrapBalanceManager, depositIntoBalanceManager } from "../services/agentWallet/deepbookSetup";
 import { scheduleSwap } from "../services/agentWallet/strategies";
 import { getTradeIntentService } from "../services/agentWallet/tradeIntentService";
 import type { DeepBookSetup } from "../services/agentWallet/deepbookClient";
@@ -290,6 +290,31 @@ router.post("/agent/deepbook/bootstrap", requireAuth, async (req: AuthRequest, r
     return ok(res, result, "BalanceManager ready");
   } catch (e: any) {
     return fail(res, 500, e?.message || "bootstrap failed");
+  }
+});
+
+/**
+ * POST /api/agent/deepbook/deposit — fund the agent's EXISTING BalanceManager so
+ * its DeepBook orders can settle (without creating a new manager). DeepBook trades
+ * from the manager, not the wallet, so this is required before swaps work.
+ * Body: { balanceManagerId, deposits: [{ coinKey, amount }] }  (amounts in whole tokens)
+ */
+router.post("/agent/deepbook/deposit", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const owner = req.user!.wallet_address;
+    const wallet = await getAgentWalletStore().getByOwner(owner);
+    if (!wallet) return fail(res, 404, "No agent wallet");
+    const balanceManagerId = String(req.body?.balanceManagerId ?? "").trim();
+    const deposits = req.body?.deposits ?? [];
+    if (!balanceManagerId) return fail(res, 400, "balanceManagerId is required");
+    if (!Array.isArray(deposits) || deposits.length === 0) {
+      return fail(res, 400, "deposits array is required (e.g. [{ coinKey: 'SUI', amount: 0.5 }])");
+    }
+    const result = await depositIntoBalanceManager(wallet, balanceManagerId, deposits);
+    if (!result.ok) return fail(res, 422, result.reason || "deposit failed");
+    return ok(res, result, "Deposited into BalanceManager");
+  } catch (e: any) {
+    return fail(res, 500, e?.message || "deposit failed");
   }
 });
 
