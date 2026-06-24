@@ -10,12 +10,15 @@ import type { AgentWalletRecord } from "../types.js";
  * Revocation is two sequenced steps because the two halves need DIFFERENT signers
  * (Sui can't put them in one atomic PTB):
  *
- *   Step 1 (AGENT-signed): cancel all open DeepBook orders + sweep the agent's
- *           coins back to the owner. Atomic within this PTB — if the sweep fails,
- *           the cancels revert too.
- *   Step 2 (OWNER-signed): policy::revoke destroys the AgentCapability and sets
- *           is_active=false. After this, any agent PTB referencing the destroyed
- *           capability aborts on object-not-found.
+ *   Step 1 (AGENT-signed): cancel all open DeepBook orders, sweep the agent's coins
+ *           back to the owner, AND transfer the AgentCapability back to the owner.
+ *           That last move is essential: create_and_delegate gave the capability to
+ *           the AGENT (so it can reference it while trading), but policy::revoke
+ *           takes the capability BY VALUE and must be sent by the OWNER. An owner
+ *           can't pass an agent-owned object, so the agent first hands it back.
+ *   Step 2 (OWNER-signed): policy::revoke consumes the (now owner-owned) capability
+ *           and sets is_active=false. After this, any agent PTB referencing the
+ *           destroyed capability aborts on object-not-found.
  *
  * The demo runs cleanupAndSweep() (server, agent key), then hands buildRevokeTx()
  * to the owner's wallet. End state: orders gone, funds home, capability destroyed,
@@ -51,6 +54,12 @@ export async function cleanupAndSweep(
   // ALL coins of the type; gas is paid from the SUI gas coin the SDK reserves.
   await appendCoinSweep(tx, wallet.agentAddress, wallet.ownerAddress, setup);
 
+  // Hand the AgentCapability back to the owner so the owner-signed step 2 can
+  // consume it (policy::revoke takes it by value, sender must be the owner).
+  if (wallet.capabilityId) {
+    tx.transferObjects([tx.object(wallet.capabilityId)], tx.pure.address(wallet.ownerAddress));
+  }
+
   const result = await getAgentExecutor().execute(wallet, tx);
 
   // Clear local budget allocations regardless — the policy is being torn down.
@@ -63,8 +72,23 @@ export async function cleanupAndSweep(
 }
 
 /**
+ * Step 1 (no-DeepBook path): agent-signed tx that just transfers the
+ * AgentCapability back to the owner, so the owner-signed revoke can consume it.
+ * Used when a revoke is requested without a DeepBook setup (nothing to sweep).
+ */
+export async function returnCapability(wallet: AgentWalletRecord): Promise<RevocationResult> {
+  if (!wallet.capabilityId) return { ok: false, reason: "Wallet has no capability to return" };
+  const tx = new Transaction();
+  tx.transferObjects([tx.object(wallet.capabilityId)], tx.pure.address(wallet.ownerAddress));
+  const result = await getAgentExecutor().execute(wallet, tx);
+  if (!result.success) return { ok: false, reason: result.error };
+  return { ok: true, cleanupDigest: result.digest };
+}
+
+/**
  * Step 2: owner-signed capability destruction. Returns an unsigned tx for the
- * owner's connected wallet. capabilityId is the object the agent holds.
+ * owner's connected wallet. By this point the capability has been handed back to
+ * the owner (step 1), so the owner can pass it by value to policy::revoke.
  */
 export function buildRevokeTx(policyId: string, capabilityId: string): Transaction {
   const { packageId } = getAgentPolicyConfig();

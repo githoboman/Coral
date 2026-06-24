@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { WalletDrawer } from "@/components/agent/WalletDrawer";
 import { NotificationBell } from "@/components/agent/NotificationBell";
+import { HelpModal } from "@/components/agent/HelpModal";
 
 /**
  * Corral app shell — sidebar + top header — copied design-for-design from the
@@ -45,6 +46,7 @@ export default function CorralLayout() {
   const isDark = theme === "dark";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const account = useCurrentAccount();
   const { status, policy } = useAgentWallet();
 
@@ -183,6 +185,13 @@ export default function CorralLayout() {
           {/* Right controls */}
           <div className="flex items-center gap-1.5">
             <button
+              onClick={() => setHelpOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E7E7E4] dark:border-zinc-700 bg-[#F3F2EF] dark:bg-[#2F2F2F] text-[13px] font-bold text-[#5E5E5E] hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-95 transition-all cursor-pointer"
+              title="How Coral works"
+            >
+              ?
+            </button>
+            <button
               onClick={toggleTheme}
               className="flex h-10 w-10 items-center justify-center bg-transparent text-[#5E5E5E] hover:text-zinc-950 active:scale-[0.98] dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer"
               title="Toggle theme"
@@ -234,6 +243,7 @@ export default function CorralLayout() {
       </main>
 
       {walletOpen && account && <WalletDrawer onClose={() => setWalletOpen(false)} />}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }

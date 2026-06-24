@@ -55,7 +55,7 @@ router.post("/wallet/charge", requireAuth, async (req: AuthRequest, res: Respons
   try {
     const { coin_type, amount, reason } = req.body;
     const address = req.user!.wallet_address;
-    const TREASURY_ADDRESS = process.env.CORAL_TREASURY_ADDRESS || process.env.TOVIRA_TREASURY_ADDRESS;
+    const TREASURY_ADDRESS = process.env.CORAL_TREASURY_ADDRESS;
 
     if (!TREASURY_ADDRESS) {
       console.error("[WALLET] CORAL_TREASURY_ADDRESS is not configured in environment.");

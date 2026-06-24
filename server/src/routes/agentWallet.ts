@@ -9,7 +9,7 @@ import { getPolicyChecker } from "../services/agentWallet/policyChecker";
 import { getAgentAlerts } from "../services/agentWallet/alerts";
 import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/owner/policyCreator";
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
-import { cleanupAndSweep, buildRevokeTx } from "../services/agentWallet/owner/revocation";
+import { cleanupAndSweep, returnCapability, buildRevokeTx } from "../services/agentWallet/owner/revocation";
 import { bootstrapBalanceManager } from "../services/agentWallet/deepbookSetup";
 import { scheduleSwap } from "../services/agentWallet/strategies";
 import { getTradeIntentService } from "../services/agentWallet/tradeIntentService";
@@ -194,9 +194,14 @@ router.post("/agent/policy/revoke", requireAuth, async (req: AuthRequest, res: R
     if (!wallet?.policyId || !wallet.capabilityId) return fail(res, 404, "No bound policy");
 
     const deepbook = req.body?.deepbook as DeepBookSetup | undefined;
-    let cleanup: { ok: boolean; reason?: string; cleanupDigest?: string } = { ok: true };
-    if (deepbook) {
-      cleanup = await cleanupAndSweep(wallet, deepbook);
+    // Step 1 (agent-signed): with a DeepBook setup, cancel orders + sweep coins +
+    // hand the capability back; otherwise just hand the capability back. Either way
+    // the owner ends up owning the capability so step 2 (owner revoke) can consume it.
+    const cleanup = deepbook
+      ? await cleanupAndSweep(wallet, deepbook)
+      : await returnCapability(wallet);
+    if (!cleanup.ok) {
+      return fail(res, 500, `Pre-revoke step failed: ${cleanup.reason ?? "unknown"}`);
     }
 
     const revokeTx = buildRevokeTx(wallet.policyId, wallet.capabilityId);

@@ -67,8 +67,9 @@ human approval needed, no bypass possible.
 | Bind wallet to owner address | ✅ | `init.ts` → `AgentWalletRecord.ownerAddress`; on-chain `AgentPolicy.owner` |
 | Bind wallet to policy constraints | ✅ | `init.ts:bindToPolicy()` + on-chain `AgentCapability` links agent → policy |
 
-Agent key is generated server-side, **encrypted at rest** (reuses Tovira's
-`EncryptionService`), and persisted in Supabase (`agent_wallets`). The agent wallet is
+Agent key is generated server-side, **encrypted at rest** (AES-256-GCM via
+`EncryptionService`), and persisted in Supabase (`agent_wallets`), with an in-memory
+fallback in no-database mode. The agent wallet is
 **separate** from the user's connected wallet.
 
 ---
@@ -183,7 +184,7 @@ Walrus is our additive deep-archive.
 | Order not filled in window | ✅ | `alerts.ts` |
 | Order about to expire | ✅ | `alerts.ts` |
 | Budget nearly exhausted (80%) | ✅ | `alerts.ts:evaluatePolicy` |
-| Channels: web / push / email | 🟡 | In-app web feed built (`GET /api/agent/alerts` + UI). Telegram/email are stretch (Tovira already has a Telegram bot to extend) |
+| Channels: web / push / email | 🟡 | In-app web feed built (`GET /api/agent/alerts` + UI). Telegram/email are stretch goals |
 
 ---
 

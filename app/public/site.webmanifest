@@ -1,7 +1,7 @@
 {
-  "name": "Tovira",
-  "short_name": "Tovira",
-  "description": "From deep research to onchain execution - all in one place.",
+  "name": "Coral",
+  "short_name": "Coral",
+  "description": "Autonomous agent wallet for on-chain trading on Sui — enforced on-chain.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0D0D0D",
