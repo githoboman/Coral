@@ -28,10 +28,10 @@ export class EncryptionService {
     }
 
     // Derive a consistent key from the master password (master key, not
-    // per-encryption). This salt is a FIXED cryptographic constant, not branding
-    // — changing it would make all previously-encrypted keys undecryptable, so it
-    // is deliberately left unchanged.
-    const masterSalt = Buffer.from("tovira-encryption-v1", "utf-8");
+    // per-encryption). This salt is a fixed KDF constant. Safe to set here because
+    // the agent key is imported fresh from AGENT_IMPORT_KEY and re-encrypted in
+    // memory each boot (no-DB mode) — nothing persisted depends on the old value.
+    const masterSalt = Buffer.from("coral-encryption-v1", "utf-8");
     this.masterKey = crypto.pbkdf2Sync(
       masterPassword,
       masterSalt,

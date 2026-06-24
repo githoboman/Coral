@@ -50,6 +50,15 @@ export interface SwapOutcome {
   events?: ExecutionResult["events"];
 }
 
+// Monotonic numeric client-order-id generator. DeepBook stores this as a u64, so
+// it must be numeric and unique per order; ms-timestamp plus a wrapping counter
+// guarantees both without overflowing u64.
+let _coidCounter = 0;
+function nextClientOrderId(): string {
+  _coidCounter = (_coidCounter + 1) % 1000;
+  return (Date.now() * 1000 + _coidCounter).toString();
+}
+
 export class SwapAgent {
   async execute(req: SwapRequest): Promise<SwapOutcome> {
     const { wallet } = req;
@@ -81,7 +90,10 @@ export class SwapAgent {
 
     try {
       const dbClient = new AgentDeepBookClient(req.deepbook);
-      const clientOrderId = allocationId;
+      // DeepBook's clientOrderId is an on-chain u64 — it must be numeric, not the
+      // UUID we use internally for budget allocation. Derive a unique numeric id
+      // (ms timestamp + a small counter) that always fits in u64.
+      const clientOrderId = nextClientOrderId();
 
       // 3. The DeepBook fragment injected between validate and record.
       //

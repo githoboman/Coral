@@ -105,7 +105,9 @@ export function AgentControls() {
   };
 
   const [form, setForm] = useState<CreatePolicyForm>({
-    budgetCap: "500000000", // 500 USDC at 6 decimals, as an example default
+    // Budget is spent in the tokenIn's base units. SUI has 9 decimals, so a
+    // 1-SUI swap consumes 1_000_000_000. Default to 50 SUI so demo swaps fit.
+    budgetCap: "50000000000",
     allowedAssets: ["SUI", "USDC"],
     expiryHours: 24,
     gasReserve: "100000000",
