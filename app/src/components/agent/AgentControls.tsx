@@ -104,14 +104,30 @@ export function AgentControls() {
     void revoke(status?.agentAddress ? DEMO_DEEPBOOK(status.agentAddress) : undefined);
   };
 
+  // The form holds HUMAN SUI amounts (e.g. "50") for budget/gas so users don't
+  // have to count 9 zeros; we convert to base units only at submit time.
+  const [budgetSui, setBudgetSui] = useState("50");
+  const [gasReserveSui, setGasReserveSui] = useState("0.1");
   const [form, setForm] = useState<CreatePolicyForm>({
-    // Budget is spent in the tokenIn's base units. SUI has 9 decimals, so a
-    // 1-SUI swap consumes 1_000_000_000. Default to 50 SUI so demo swaps fit.
-    budgetCap: "50000000000",
+    budgetCap: "50000000000", // kept in sync from budgetSui on submit
     allowedAssets: ["SUI", "USDC"],
     expiryHours: 24,
     gasReserve: "100000000",
   });
+
+  // Whole SUI -> base units (9 decimals), tolerant of decimals & junk.
+  const suiToBaseUnits = (sui: string): string => {
+    const n = Number(sui);
+    if (!Number.isFinite(n) || n < 0) return "0";
+    return BigInt(Math.round(n * 1e9)).toString();
+  };
+
+  const submitPolicy = () =>
+    createPolicy({
+      ...form,
+      budgetCap: suiToBaseUnits(budgetSui),
+      gasReserve: suiToBaseUnits(gasReserveSui),
+    });
 
   if (!account?.address) {
     return (
@@ -208,14 +224,21 @@ export function AgentControls() {
 
             <div>
               <label className="text-[12px] font-semibold text-[#5E5E5E] dark:text-zinc-400 block mb-2">
-                Maximum Budget Cap (base units)
+                Maximum Budget Cap (SUI)
               </label>
-              <input
-                value={form.budgetCap}
-                onChange={(e) => setForm({ ...form, budgetCap: e.target.value.replace(/\D/g, "") })}
-                className="w-full rounded-xl bg-white dark:bg-zinc-900/40 border border-[#6B7280] dark:border-zinc-700 px-4 py-3 text-[15px] font-mono font-semibold text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
-                inputMode="numeric"
-              />
+              <div className="relative">
+                <input
+                  value={budgetSui}
+                  onChange={(e) => setBudgetSui(e.target.value.replace(/[^\d.]/g, ""))}
+                  placeholder="50"
+                  className="w-full rounded-xl bg-white dark:bg-zinc-900/40 border border-[#6B7280] dark:border-zinc-700 px-4 py-3 pr-14 text-[15px] font-mono font-semibold text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+                  inputMode="decimal"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-[#9a9a97] dark:text-zinc-500">SUI</span>
+              </div>
+              <p className="text-[11px] text-[#9a9a97] dark:text-zinc-500 mt-1.5 font-mono">
+                = {Number(suiToBaseUnits(budgetSui)).toLocaleString()} base units on-chain
+              </p>
             </div>
 
             <div>
@@ -259,13 +282,14 @@ export function AgentControls() {
               </div>
               <div>
                 <label className="text-[12px] font-semibold text-[#5E5E5E] dark:text-zinc-400 block mb-2">
-                  Gas reserve (base units)
+                  Gas reserve (SUI)
                 </label>
                 <input
-                  value={form.gasReserve}
-                  onChange={(e) => setForm({ ...form, gasReserve: e.target.value.replace(/\D/g, "") })}
+                  value={gasReserveSui}
+                  onChange={(e) => setGasReserveSui(e.target.value.replace(/[^\d.]/g, ""))}
+                  placeholder="0.1"
                   className="w-full rounded-xl bg-white dark:bg-zinc-900/40 border border-[#6B7280] dark:border-zinc-700 px-4 py-3 text-[15px] font-mono font-semibold text-zinc-900 dark:text-zinc-100 outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
-                  inputMode="numeric"
+                  inputMode="decimal"
                 />
               </div>
             </div>
@@ -276,8 +300,8 @@ export function AgentControls() {
             </p>
 
             <button
-              onClick={() => createPolicy(form)}
-              disabled={!busyIdle || form.allowedAssets.length === 0}
+              onClick={submitPolicy}
+              disabled={!busyIdle || form.allowedAssets.length === 0 || Number(budgetSui) <= 0}
               className="w-full rounded-full bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 px-4 py-3 text-[14px] font-semibold disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-sm"
             >
               {busy === "creating" || busy === "binding" ? (
