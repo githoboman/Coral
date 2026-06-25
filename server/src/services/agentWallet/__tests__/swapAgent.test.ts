@@ -39,6 +39,8 @@ vi.mock("../deepbookClient.js", () => ({
     baseSymbol = () => this.setup.poolKey.split("_")[0];
     quoteSymbol = () => this.setup.poolKey.split("_")[1];
     baseOutForQuote = vi.fn(async (q: number) => q); // 1:1 estimate in tests
+    // Permissive pool params so test amounts (100n base units) clear validation.
+    bookParams = vi.fn(async () => ({ minSize: 0, lotSize: 0, tickSize: 0 }));
     placeMarketOrderFragment = vi.fn(() => () => {});
     placeLimitOrderFragment = vi.fn(() => () => {});
   },

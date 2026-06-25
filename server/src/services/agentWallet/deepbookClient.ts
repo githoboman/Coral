@@ -68,6 +68,25 @@ export class AgentDeepBookClient {
     return this.client.midPrice(this.poolKey);
   }
 
+  /**
+   * On-chain pool trading constraints: minimum order size, lot size (quantity
+   * granularity), and tick size (price granularity) — all in whole tokens. Orders
+   * that violate these abort in `order_info::validate_inputs`, so we read them to
+   * validate/round before submitting. Returns null if the read fails.
+   */
+  async bookParams(): Promise<{ minSize: number; lotSize: number; tickSize: number } | null> {
+    try {
+      const p = (await (this.client as any).poolBookParams(this.poolKey)) as any;
+      return {
+        minSize: Number(p?.minSize ?? 0),
+        lotSize: Number(p?.lotSize ?? 0),
+        tickSize: Number(p?.tickSize ?? 0),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /** Estimated quote out for a given base quantity in — used to size budget spend. */
   async quoteOutForBase(baseQuantity: number | bigint): Promise<number> {
     const r = await this.client.getQuoteQuantityOut(this.poolKey, Number(baseQuantity));

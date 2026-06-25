@@ -134,6 +134,30 @@ export class SwapAgent {
         return { ok: false, reason: "Resolved DeepBook quantity is zero — check amount/price and book liquidity" };
       }
 
+      // Validate/round against the pool's on-chain trading constraints so we fail
+      // fast with a clear message instead of an opaque `validate_inputs` MoveAbort.
+      const params = await dbClient.bookParams();
+      if (params) {
+        // Snap quantity DOWN to the lot-size grid (e.g. 0.1 SUI lots).
+        if (params.lotSize > 0) {
+          baseQuantity = Math.floor(baseQuantity / params.lotSize) * params.lotSize;
+          // Clean float drift from the division (e.g. 0.30000000000000004 -> 0.3).
+          baseQuantity = Number(baseQuantity.toFixed(9));
+        }
+        if (params.minSize > 0 && baseQuantity < params.minSize) {
+          tracker.release(wallet.policyId, allocationId);
+          return {
+            ok: false,
+            reason: `Order too small for this pool. Minimum is ${params.minSize} ${baseSymbol} (lot size ${params.lotSize}); your order resolves to ${baseQuantity} ${baseSymbol}.`,
+          };
+        }
+        // Snap a limit price to the tick-size grid.
+        if (!req.market && req.price != null && params.tickSize > 0) {
+          req.price = Math.round(req.price / params.tickSize) * params.tickSize;
+          req.price = Number(req.price.toFixed(9));
+        }
+      }
+
       let body: (tx: any) => void;
       if (req.market) {
         body = dbClient.placeMarketOrderFragment({
