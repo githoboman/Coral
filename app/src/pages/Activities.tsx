@@ -64,7 +64,7 @@ export default function Activities() {
             </p>
           </div>
           <button
-            onClick={() => navigate("/agent")}
+            onClick={() => navigate("/agent/policy")}
             className="flex items-center gap-1.5 px-4 py-2 border-2 border-[#CFC4C5] dark:border-black bg-white dark:bg-[#2F2F2F] rounded-full text-[14px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer active:scale-95 transition-all"
           >
             <FiEdit2 className="text-[16px]" />
@@ -176,7 +176,7 @@ export default function Activities() {
       <div className="w-px h-[92%] my-auto bg-[#E7E7E4] dark:bg-zinc-800 flex-shrink-0" />
 
       {/* Right: live Move Policy sidebar */}
-      <PolicySidebar status={status?.bound ?? false} policy={policy} onEdit={() => navigate("/agent")} />
+      <PolicySidebar status={status?.bound ?? false} policy={policy} onEdit={() => navigate("/agent/policy")} />
     </div>
   );
 }
