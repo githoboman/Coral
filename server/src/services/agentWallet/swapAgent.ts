@@ -158,6 +158,30 @@ export class SwapAgent {
         }
       }
 
+      // Pre-flight BalanceManager check. DeepBook settles from the manager (not the
+      // wallet), so a swap aborts in `withdraw_with_proof` if the manager is short.
+      // Read what it can actually spend and fail with a clear, actionable message.
+      //   - SELL (isBid=false): spends `baseQuantity` of the BASE token.
+      //   - BUY  (isBid=true):  spends ~baseQuantity * price of the QUOTE token
+      //     (use the limit price, or the mid-price for a market order as an estimate).
+      const spendSymbol = isBid ? quoteSymbol : baseSymbol;
+      let needed = baseQuantity;
+      if (isBid) {
+        const px = req.price ?? (await dbClient.midPrice().catch(() => 0));
+        needed = px > 0 ? baseQuantity * px : 0;
+      }
+      const have = await dbClient.managerBalance(spendSymbol);
+      if (have != null && needed > 0 && have + 1e-9 < needed) {
+        tracker.release(wallet.policyId, allocationId);
+        return {
+          ok: false,
+          reason:
+            `Insufficient ${spendSymbol} in the agent's BalanceManager: has ${Number(have.toFixed(6))} ${spendSymbol}, ` +
+            `needs ~${Number(needed.toFixed(6))} ${spendSymbol}. Deposit more via POST /api/agent/deepbook/deposit ` +
+            `(balanceManagerId ${req.deepbook.balanceManagerId}).`,
+        };
+      }
+
       let body: (tx: any) => void;
       if (req.market) {
         body = dbClient.placeMarketOrderFragment({

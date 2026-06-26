@@ -41,6 +41,9 @@ vi.mock("../deepbookClient.js", () => ({
     baseOutForQuote = vi.fn(async (q: number) => q); // 1:1 estimate in tests
     // Permissive pool params so test amounts (100n base units) clear validation.
     bookParams = vi.fn(async () => ({ minSize: 0, lotSize: 0, tickSize: 0 }));
+    midPrice = vi.fn(async () => 1);
+    // Ample manager balance so the pre-flight check passes in tests.
+    managerBalance = vi.fn(async () => 1_000_000);
     placeMarketOrderFragment = vi.fn(() => () => {});
     placeLimitOrderFragment = vi.fn(() => () => {});
   },

@@ -87,6 +87,20 @@ export class AgentDeepBookClient {
     }
   }
 
+  /**
+   * The BalanceManager's deposited balance of a coin symbol (whole tokens). DeepBook
+   * settles trades from the manager, not the wallet, so this is what an order can
+   * actually spend. Returns null if the read fails.
+   */
+  async managerBalance(coinSymbol: string): Promise<number | null> {
+    try {
+      const r = (await this.client.checkManagerBalance(this.managerKey, coinSymbol)) as any;
+      return Number(r?.balance ?? 0);
+    } catch {
+      return null;
+    }
+  }
+
   /** Estimated quote out for a given base quantity in — used to size budget spend. */
   async quoteOutForBase(baseQuantity: number | bigint): Promise<number> {
     const r = await this.client.getQuoteQuantityOut(this.poolKey, Number(baseQuantity));
