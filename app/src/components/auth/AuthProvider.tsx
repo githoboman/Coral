@@ -123,7 +123,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // This fixes flickering connection status (common with Enoki/Google login).
         const recoverTimer = setTimeout(() => {
           if (!currentAccount) {
-            if (location.pathname !== "/" && location.pathname !== "/chat") {
+            // Only remember agent-area paths to return to — never /signin,
+            // /maintenance, / or legacy routes (those cause post-login loops).
+            if (location.pathname.startsWith("/agent")) {
               sessionStorage.setItem("coral_intended_path", location.pathname + location.search);
             }
             navigate("/signin", { replace: true });
@@ -140,12 +142,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     if (isSigninPage) {
       const intendedPath = sessionStorage.getItem("coral_intended_path");
-      if (intendedPath) {
-        sessionStorage.removeItem("coral_intended_path");
-        navigate(intendedPath, { replace: true });
-      } else {
-        navigate("/agent", { replace: true });
-      }
+      sessionStorage.removeItem("coral_intended_path");
+      // Only honor an intended path if it's inside the Coral agent area; otherwise
+      // (stale/legacy/loop-prone paths like /signin, /chat, /leaderboard) go home.
+      const safePath =
+        intendedPath && intendedPath.startsWith("/agent") ? intendedPath : "/agent";
+      navigate(safePath, { replace: true });
     }
 
     const activeAddress = currentAccount.address;

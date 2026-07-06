@@ -82,11 +82,23 @@ export class PolicyChecker {
     const policy = await this.readPolicy(policyId);
     if (!policy) return { ok: false, reason: "Policy object not found on-chain" };
 
-    if (!policy.isActive) {
-      return { ok: false, reason: "Policy is paused or revoked (is_active=false)", policy };
-    }
+    // Order matters: an expired policy is also inactive, but "expired" is the more
+    // actionable message (create a new one), so check expiry first.
     if (BigInt(nowMs) >= policy.expiryTimestamp) {
-      return { ok: false, reason: "Policy has expired", policy };
+      return {
+        ok: false,
+        reason: "This policy has expired. Create a new policy to keep trading.",
+        policy,
+      };
+    }
+    if (!policy.isActive) {
+      // Inactive but not expired = either paused (resumable) or revoked (gone).
+      return {
+        ok: false,
+        reason:
+          "This policy is inactive — it was paused or revoked. Resume it, or create a new policy to trade.",
+        policy,
+      };
     }
     if (!policy.allowedActions.includes(input.actionType)) {
       return { ok: false, reason: `Action ${AgentActionType[input.actionType]} not permitted by policy`, policy };

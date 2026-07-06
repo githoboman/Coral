@@ -21,6 +21,7 @@ import {
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RegisterEnokiWallets } from "./components/auth/RegisterEnokiWallets";
+import { RegisterSlushWallet } from "./components/auth/RegisterSlushWallet";
 
 import {
   ConnectionProvider,
@@ -85,6 +86,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               >
                 <WalletProvider autoConnect>
                   <RegisterEnokiWallets />
+                  <RegisterSlushWallet />
                   <Provider store={store}>
                     <BrowserRouter>
                       <AuthProvider>

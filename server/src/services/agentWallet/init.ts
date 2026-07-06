@@ -1,5 +1,6 @@
 import { getAgentKeypairService } from "./keypair.js";
 import { getAgentWalletStore } from "./store.js";
+import { discoverBinding } from "./discovery.js";
 import type { AgentWalletRecord } from "./types.js";
 
 /**
@@ -17,7 +18,20 @@ export class AgentWalletInitializer {
   async getOrCreate(ownerAddress: string): Promise<AgentWalletRecord> {
     const store = getAgentWalletStore();
     const existing = await store.getByOwner(ownerAddress);
-    if (existing) return existing;
+    if (existing) {
+      // Self-heal: the in-memory store loses bindings on restart. If we have a
+      // wallet but no policy binding, try to rediscover it from chain (the agent's
+      // AgentCapability holds the policy_id) and persist it, so revoke/swap work
+      // again after a redeploy without the user recreating their policy.
+      if (!existing.policyId || !existing.capabilityId) {
+        const found = await discoverBinding(existing.agentAddress).catch(() => null);
+        if (found) {
+          await store.bindPolicy(existing.agentAddress, found.policyId, found.capabilityId);
+          return (await store.getByAgentAddress(existing.agentAddress)) ?? existing;
+        }
+      }
+      return existing;
+    }
 
     // If an existing agent key is provided via env (a testnet agent provisioned
     // out-of-band), adopt it so the server acts as that exact agent address.
@@ -27,10 +41,18 @@ export class AgentWalletInitializer {
       ? getAgentKeypairService().fromBech32(importKey)
       : getAgentKeypairService().generate();
 
-    // Optionally pre-bind an already-published policy + capability for this agent,
-    // so a known testnet agent comes up bound on first init.
-    const policyId = importKey ? (process.env.AGENT_IMPORT_POLICY_ID?.trim() || null) : null;
-    const capabilityId = importKey ? (process.env.AGENT_IMPORT_CAPABILITY_ID?.trim() || null) : null;
+    // Pre-bind an already-published policy + capability for this agent so it comes
+    // up bound on first init. Prefer explicit env ids; otherwise discover from chain
+    // (the agent's AgentCapability holds the policy_id).
+    let policyId = importKey ? (process.env.AGENT_IMPORT_POLICY_ID?.trim() || null) : null;
+    let capabilityId = importKey ? (process.env.AGENT_IMPORT_CAPABILITY_ID?.trim() || null) : null;
+    if (!policyId || !capabilityId) {
+      const found = await discoverBinding(agentAddress).catch(() => null);
+      if (found) {
+        policyId = found.policyId;
+        capabilityId = found.capabilityId;
+      }
+    }
 
     const record: AgentWalletRecord = {
       agentAddress,

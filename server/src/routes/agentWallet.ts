@@ -23,8 +23,12 @@ const router = Router();
 // We serialize to base64 tx bytes built against the owner as sender.
 async function serializeForOwner(tx: Transaction, owner: string): Promise<string> {
   tx.setSenderIfNotSet(owner);
-  const bytes = await tx.build({ client: getSuiClient() });
-  return toBase64(bytes);
+  // Serialize the UNBUILT transaction (JSON, not BCS). The owner's wallet
+  // reconstructs it with Transaction.from() and resolves gas + signs client-side.
+  // We must NOT tx.build() here: building triggers server-side gas selection and a
+  // dry-run, which fails when the owner has no gas coin yet, or aborts on
+  // owner-gated Move calls like revoke (sender==owner). The wallet handles all that.
+  return tx.serialize();
 }
 
 const ok = (res: Response, data: unknown, message = "OK") =>
@@ -192,6 +196,17 @@ router.post("/agent/policy/revoke", requireAuth, async (req: AuthRequest, res: R
     const owner = req.user!.wallet_address;
     const wallet = await getAgentWalletStore().getByOwner(owner);
     if (!wallet?.policyId || !wallet.capabilityId) return fail(res, 404, "No bound policy");
+
+    // Guard: if the policy is already revoked/inactive on-chain, don't build another
+    // revoke tx — the wallet would just hit a raw ENotOwner/already-destroyed abort.
+    // Return a clean, friendly message instead.
+    const current = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
+    if (current && !current.isActive) {
+      return fail(res, 409, "This policy is already revoked. Create a new policy to delegate again.");
+    }
+    if (!current) {
+      return fail(res, 409, "This policy no longer exists on-chain (already revoked). Create a new one.");
+    }
 
     const deepbook = req.body?.deepbook as DeepBookSetup | undefined;
     // Step 1 (agent-signed): with a DeepBook setup, cancel orders + sweep coins +

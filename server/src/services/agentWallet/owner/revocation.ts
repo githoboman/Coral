@@ -42,6 +42,20 @@ export async function cleanupAndSweep(
 ): Promise<RevocationResult> {
   if (!wallet.policyId) return { ok: false, reason: "Wallet not bound to a policy" };
 
+  // Idempotency: if a prior revoke attempt already handed the capability back to
+  // the owner, the agent no longer owns it — re-running the agent cleanup would
+  // fail ("wrong sender"). In that case the on-chain cleanup is already done; skip
+  // straight to the owner-signed destroy step.
+  if (wallet.capabilityId) {
+    const capOwner = await ownerOf(wallet.capabilityId);
+    if (capOwner && capOwner !== wallet.agentAddress) {
+      getBudgetTracker().clear(wallet.policyId);
+      getOrderManager().list().forEach((o) => (o.state = "cancelled"));
+      getOrderManager().prune();
+      return { ok: true, reason: "Cleanup already completed in a prior attempt." };
+    }
+  }
+
   const db = new AgentDeepBookClient(setup);
   const tx = new Transaction();
 
@@ -50,8 +64,8 @@ export async function cleanupAndSweep(
   // Pull settled balances out so they're sweepable.
   db.withdrawSettledFragment()(tx);
 
-  // Sweep the agent's owned coins of each pool asset back to the owner. We move
-  // ALL coins of the type; gas is paid from the SUI gas coin the SDK reserves.
+  // Sweep the agent's owned NON-SUI trading assets back to the owner (fresh coin
+  // reads inside; SUI/gas is deliberately left with the agent).
   await appendCoinSweep(tx, wallet.agentAddress, wallet.ownerAddress, setup);
 
   // Hand the AgentCapability back to the owner so the owner-signed step 2 can
@@ -71,6 +85,17 @@ export async function cleanupAndSweep(
   return { ok: true, cleanupDigest: result.digest };
 }
 
+/** Address that currently owns an object, or null if shared/immutable/gone. */
+async function ownerOf(objectId: string): Promise<string | null> {
+  try {
+    const res = await getSuiClient().getObject({ id: objectId, options: { showOwner: true } });
+    const owner: any = res.data?.owner;
+    return owner && typeof owner === "object" && "AddressOwner" in owner ? owner.AddressOwner : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Step 1 (no-DeepBook path): agent-signed tx that just transfers the
  * AgentCapability back to the owner, so the owner-signed revoke can consume it.
@@ -78,6 +103,11 @@ export async function cleanupAndSweep(
  */
 export async function returnCapability(wallet: AgentWalletRecord): Promise<RevocationResult> {
   if (!wallet.capabilityId) return { ok: false, reason: "Wallet has no capability to return" };
+  // Idempotency: already handed back? Nothing to do — proceed to owner destroy.
+  const capOwner = await ownerOf(wallet.capabilityId);
+  if (capOwner && capOwner !== wallet.agentAddress) {
+    return { ok: true, reason: "Capability already returned to owner." };
+  }
   const tx = new Transaction();
   tx.transferObjects([tx.object(wallet.capabilityId)], tx.pure.address(wallet.ownerAddress));
   const result = await getAgentExecutor().execute(wallet, tx);
@@ -113,7 +143,15 @@ async function appendCoinSweep(
   const client = getSuiClient();
   const [baseSym, quoteSym] = setup.poolKey.split("_");
   const { assetTypeFor } = await import("../config.js");
-  const coinTypes = [assetTypeFor(baseSym), assetTypeFor(quoteSym)];
+  const SUI_TYPE = "0x2::sui::SUI";
+
+  // NEVER sweep the SUI (gas) coin type here: this is the agent-signed cleanup tx,
+  // and it must keep a SUI coin to pay its OWN gas. Transferring all SUI away leaves
+  // nothing for gas → "No valid gas coins". Non-SUI trading assets (e.g. USDC) are
+  // swept in full; leftover SUI stays with the agent and can be recovered later.
+  const coinTypes = [assetTypeFor(baseSym), assetTypeFor(quoteSym)].filter(
+    (t) => t !== SUI_TYPE,
+  );
 
   for (const coinType of coinTypes) {
     const { data: coins } = await client.getCoins({ owner: agentAddress, coinType });
@@ -124,8 +162,6 @@ async function appendCoinSweep(
     if (objects.length > 1) {
       tx.mergeCoins(primary, objects.slice(1));
     }
-    // For the SUI gas type, leaving the full balance can starve gas; the SDK's gas
-    // selection handles reserving a gas coin separately when other SUI coins exist.
     tx.transferObjects([primary], tx.pure.address(ownerAddress));
   }
 }

@@ -171,9 +171,22 @@ function useAgentWalletState() {
     }
   }, [account?.address, api]);
 
+  // On connect/mount, hit /wallet/init (not just /wallet). init is idempotent and
+  // triggers the server's on-chain binding discovery, so after a backend restart
+  // (in-memory store reset) the policy/capability are re-bound automatically —
+  // preventing the "No bound policy" / "No agent wallet yet" errors on refresh.
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (!account?.address) return;
+    (async () => {
+      try {
+        const data = (await api("/wallet/init", {})) as AgentWalletStatus;
+        setStatus(data);
+      } catch {
+        // Fall back to a plain read if init isn't available for any reason.
+        refresh();
+      }
+    })();
+  }, [account?.address, api, refresh]);
 
   // Pull live policy state once the agent is bound (and refresh it as bound flips).
   useEffect(() => {
