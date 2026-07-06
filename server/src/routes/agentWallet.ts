@@ -60,11 +60,36 @@ router.get("/agent/wallet", requireAuth, async (req: AuthRequest, res: Response)
   try {
     const wallet = await getAgentWalletStore().getByOwner(req.user!.wallet_address);
     if (!wallet) return ok(res, null, "No agent wallet yet");
+
+    // A policyId in the store is NOT enough to be "bound" — the policy may have
+    // expired or been revoked on-chain. Verify liveness so the UI can show the
+    // create-policy flow again instead of trapping the user on a dead policy.
+    let bound = Boolean(wallet.policyId && wallet.capabilityId);
+    let policyState: "active" | "expired" | "revoked" | "none" = "none";
+    if (wallet.policyId) {
+      const p = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
+      if (!p) {
+        policyState = "revoked"; // gone on-chain => revoked
+        bound = false;
+      } else if (Number(p.expiryTimestamp) <= Date.now()) {
+        policyState = "expired";
+        bound = false;
+      } else if (!p.isActive) {
+        policyState = "revoked"; // inactive but present => paused/revoked; treat as unbound
+        bound = false;
+      } else {
+        policyState = "active";
+      }
+    }
+
     return ok(res, {
       agentAddress: wallet.agentAddress,
-      policyId: wallet.policyId,
-      capabilityId: wallet.capabilityId,
-      bound: Boolean(wallet.policyId && wallet.capabilityId),
+      // When not truly bound, null the ids so the client never tries to act on a
+      // dead policy (and the create-policy flow shows).
+      policyId: bound ? wallet.policyId : null,
+      capabilityId: bound ? wallet.capabilityId : null,
+      bound,
+      policyState,
     });
   } catch (e: any) {
     return fail(res, 500, e?.message || "lookup failed");
@@ -197,15 +222,19 @@ router.post("/agent/policy/revoke", requireAuth, async (req: AuthRequest, res: R
     const wallet = await getAgentWalletStore().getByOwner(owner);
     if (!wallet?.policyId || !wallet.capabilityId) return fail(res, 404, "No bound policy");
 
-    // Guard: if the policy is already revoked/inactive on-chain, don't build another
-    // revoke tx — the wallet would just hit a raw ENotOwner/already-destroyed abort.
-    // Return a clean, friendly message instead.
+    // Guard: if the policy is already revoked/expired/inactive on-chain, don't build
+    // another revoke tx — the wallet would hit a raw ENotOwner/already-destroyed
+    // abort. Unbind the stale policy so the UI clears + offers create-policy, and
+    // return a clean message.
     const current = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
-    if (current && !current.isActive) {
-      return fail(res, 409, "This policy is already revoked. Create a new policy to delegate again.");
-    }
-    if (!current) {
-      return fail(res, 409, "This policy no longer exists on-chain (already revoked). Create a new one.");
+    const dead = !current || !current.isActive || Number(current.expiryTimestamp) <= Date.now();
+    if (dead) {
+      await getAgentWalletStore().unbindPolicy(wallet.agentAddress);
+      return ok(
+        res,
+        { alreadyInactive: true, bound: false },
+        "This policy is already revoked or expired. Create a new policy to delegate again.",
+      );
     }
 
     const deepbook = req.body?.deepbook as DeepBookSetup | undefined;
@@ -230,6 +259,23 @@ router.post("/agent/policy/revoke", requireAuth, async (req: AuthRequest, res: R
     });
   } catch (e: any) {
     return fail(res, 500, e?.message || "revoke failed");
+  }
+});
+
+/**
+ * POST /api/agent/policy/unbind — clear the stored policy binding after the owner
+ * has signed+executed the revoke tx (step 2). Leaves the agent wallet intact so a
+ * fresh policy can be created. Idempotent.
+ */
+router.post("/agent/policy/unbind", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const owner = req.user!.wallet_address;
+    const wallet = await getAgentWalletStore().getByOwner(owner);
+    if (!wallet) return fail(res, 404, "No agent wallet");
+    await getAgentWalletStore().unbindPolicy(wallet.agentAddress);
+    return ok(res, { bound: false }, "Policy unbound — create a new one to delegate again.");
+  } catch (e: any) {
+    return fail(res, 500, e?.message || "unbind failed");
   }
 });
 

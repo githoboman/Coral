@@ -118,6 +118,17 @@ export class AgentWalletStore {
     await this.save({ ...existing, policyId, capabilityId });
   }
 
+  /**
+   * Detach the policy/capability from a wallet (after revoke/expiry), so status
+   * reports the agent as unbound and the create-policy flow becomes available.
+   * Keeps the agent wallet + key; only clears the binding.
+   */
+  async unbindPolicy(agentAddress: string): Promise<void> {
+    const existing = await this.getByAgentAddress(agentAddress);
+    if (!existing) return;
+    await this.save({ ...existing, policyId: null, capabilityId: null });
+  }
+
   // A missing table (Postgres 42P01) shouldn't crash the demo — degrade to memory.
   private handleDbError(err: any) {
     const msg = (err?.message || "").toLowerCase();

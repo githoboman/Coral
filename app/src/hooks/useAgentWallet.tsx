@@ -330,13 +330,27 @@ function useAgentWalletState() {
       setError(null);
       try {
         const data = (await api("/policy/revoke", { deepbook })) as {
-          cleanup: { ok: boolean; reason?: string };
-          revokeTxBytes: string;
+          cleanup?: { ok: boolean; reason?: string };
+          revokeTxBytes?: string;
+          alreadyInactive?: boolean;
         };
+        // Policy was already revoked/expired: server unbound it — just refresh.
+        if (data.alreadyInactive || !data.revokeTxBytes) {
+          await refresh();
+          await refreshAlerts();
+          return data.cleanup ?? { ok: true };
+        }
+        // Owner signs the on-chain revoke, then we clear the binding so the UI
+        // immediately shows "no policy" and offers create-policy again.
         await signServerTx(data.revokeTxBytes);
+        try {
+          await api("/policy/unbind", {});
+        } catch {
+          /* best-effort; status endpoint also detects the dead policy */
+        }
         await refresh();
         await refreshAlerts();
-        return data.cleanup;
+        return data.cleanup ?? { ok: true };
       } catch (e: any) {
         setError(e?.message ?? "revoke failed");
         throw e;
