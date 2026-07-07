@@ -14,7 +14,7 @@ import {
   FiCpu,
   FiCheckCircle,
 } from "react-icons/fi";
-import { POLICY_FIELDS, AGENT_TASKS } from "@/components/agent/CoralGuide";
+import { POLICY_FIELDS, AGENT_TASKS, WALLETS } from "@/components/agent/CoralGuide";
 
 /**
  * Signin / Landing page — orange × white × black redesign.
@@ -352,6 +352,31 @@ export default function Signin() {
               </div>
               <h3 className="text-[18px] font-bold mb-2">{s.t}</h3>
               <p className="text-[14px] leading-relaxed text-white/50">{s.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Two wallets ──────────────────────────────────────────── */}
+      <section className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-12 sm:py-16 border-t border-white/5">
+        <SectionHeader
+          eyebrow="Two wallets"
+          title="Your wallet signs. The agent's wallet trades."
+          subtitle="Coral uses two accounts. You sign the policy and revoke with your own wallet. The agent has its own separate wallet that it trades from autonomously — no approval per swap. That's the whole point."
+        />
+        <div className="grid md:grid-cols-2 gap-4">
+          {WALLETS.map((w, i) => (
+            <div
+              key={w.name}
+              className={`rounded-3xl border p-6 transition-all ${
+                i === 1
+                  ? "border-[#FF6B00]/30 bg-[#FF6B00]/[0.06] hover:border-[#FF6B00]/50"
+                  : "border-white/10 bg-white/[0.03] hover:border-white/20"
+              }`}
+            >
+              <h3 className="text-[18px] font-bold mb-1">{w.name}</h3>
+              <div className="text-[13px] font-semibold text-[#FFB366] mb-2.5">{w.who}</div>
+              <p className="text-[14px] leading-relaxed text-white/55">{w.detail}</p>
             </div>
           ))}
         </div>

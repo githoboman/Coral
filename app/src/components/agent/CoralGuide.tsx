@@ -46,6 +46,27 @@ export const POLICY_FIELDS: PolicyField[] = [
   },
 ];
 
+export interface WalletInfo {
+  name: string;
+  who: string;
+  detail: string;
+}
+
+export const WALLETS: WalletInfo[] = [
+  {
+    name: "Your Wallet",
+    who: "The wallet you connect (you sign)",
+    detail:
+      "You use it to create the policy and to revoke — that's it. You sign those two actions once each. It holds your own funds; the agent never touches it.",
+  },
+  {
+    name: "Agent Wallet",
+    who: "The agent's own account (it signs autonomously)",
+    detail:
+      "A separate on-chain wallet the agent controls. DeepBook trades are signed FROM this wallet with no approval from you — that's the autonomy. It needs a little SUI for gas, so fund it from the wallet drawer (Receive shows its address + QR).",
+  },
+];
+
 export interface AgentTask {
   icon: React.ReactNode;
   name: string;
@@ -125,6 +146,27 @@ export function CoralGuide({ variant = "app" }: { variant?: "app" | "dark" }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Two wallets */}
+      <div>
+        <p className={`text-[12px] font-bold uppercase tracking-wider mb-3 ${sectionLabel}`}>
+          Two wallets — how they differ
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {WALLETS.map((w, i) => (
+            <div key={w.name} className={`rounded-2xl border p-4 ${i === 1 ? (dark ? "border-[#FF6A4D]/30 bg-[#FF6A4D]/[0.06]" : "border-brand/30 bg-brand/[0.05]") : card}`}>
+              <div className={`text-[14px] font-bold mb-0.5 ${heading}`}>{w.name}</div>
+              <div className={`text-[12px] font-semibold mb-1.5 ${mono}`}>{w.who}</div>
+              <div className={`text-[12px] leading-relaxed ${sub}`}>{w.detail}</div>
+            </div>
+          ))}
+        </div>
+        <p className={`text-[12px] leading-relaxed mt-3 ${body}`}>
+          <span className="font-semibold">Why two?</span> For the agent to trade on its own without
+          asking you to sign every swap, it needs its own key. Your policy is the on-chain leash that
+          keeps it safe.
+        </p>
       </div>
 
       {/* Policy settings */}
