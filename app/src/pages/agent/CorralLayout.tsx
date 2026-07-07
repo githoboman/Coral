@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { MdOutlineMenuOpen } from "react-icons/md";
 import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
@@ -7,6 +7,7 @@ import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { WalletDrawer } from "@/components/agent/WalletDrawer";
 import { NotificationBell } from "@/components/agent/NotificationBell";
 import { HelpModal } from "@/components/agent/HelpModal";
+import { Tutorial, hasSeenTutorial } from "@/components/agent/Tutorial";
 
 /**
  * Coral app shell — redesigned with orange/white/black palette,
@@ -44,8 +45,18 @@ export default function CorralLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [walletOpen, setWalletOpen]   = useState(false);
   const [helpOpen,   setHelpOpen]     = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const account        = useCurrentAccount();
   const { status, policy } = useAgentWallet();
+
+  // Show the first-run tutorial once the user has connected (so it lands in the
+  // real app, not on a blank pre-connect screen). Persisted so it shows once.
+  useEffect(() => {
+    if (account?.address && !hasSeenTutorial()) {
+      const t = setTimeout(() => setTutorialOpen(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [account?.address]);
 
   const { data: agentBal } = useSuiClientQuery(
     "getBalance",
@@ -350,7 +361,8 @@ export default function CorralLayout() {
       </main>
 
       {walletOpen && account && <WalletDrawer onClose={() => setWalletOpen(false)} />}
-      {helpOpen   && <HelpModal onClose={() => setHelpOpen(false)} />}
+      {helpOpen   && <HelpModal onClose={() => setHelpOpen(false)} onReplayTutorial={() => { setHelpOpen(false); setTutorialOpen(true); }} />}
+      {tutorialOpen && <Tutorial onClose={() => setTutorialOpen(false)} />}
     </div>
   );
 }
