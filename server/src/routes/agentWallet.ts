@@ -11,6 +11,7 @@ import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
 import { cleanupAndSweep, returnCapability, buildRevokeTx } from "../services/agentWallet/owner/revocation";
 import { bootstrapBalanceManager, depositIntoBalanceManager } from "../services/agentWallet/deepbookSetup";
+import { agentSend } from "../services/agentWallet/owner/agentSend";
 import { scheduleSwap } from "../services/agentWallet/strategies";
 import { getTradeIntentService } from "../services/agentWallet/tradeIntentService";
 import type { DeepBookSetup } from "../services/agentWallet/deepbookClient";
@@ -52,6 +53,28 @@ router.post("/agent/wallet/init", requireAuth, async (req: AuthRequest, res: Res
     });
   } catch (e: any) {
     return fail(res, 500, e?.message || "init failed");
+  }
+});
+
+/**
+ * POST /api/agent/wallet/send — agent-signed transfer of SUI/token OUT of the
+ * agent wallet to any address. Body: { recipient, symbol, amount } (amount in
+ * whole tokens). Powers "Send" on the Agent Wallet card.
+ */
+router.post("/agent/wallet/send", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const owner = req.user!.wallet_address;
+    const wallet = await getAgentWalletStore().getByOwner(owner);
+    if (!wallet) return fail(res, 404, "No agent wallet");
+    const { recipient, symbol, amount } = req.body ?? {};
+    if (!recipient || !symbol || amount == null) {
+      return fail(res, 400, "recipient, symbol and amount are required");
+    }
+    const result = await agentSend(wallet, String(recipient), String(symbol), Number(amount));
+    if (!result.ok) return fail(res, 422, result.reason || "send failed");
+    return ok(res, result, "Sent");
+  } catch (e: any) {
+    return fail(res, 500, e?.message || "send failed");
   }
 });
 

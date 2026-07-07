@@ -361,6 +361,30 @@ function useAgentWalletState() {
     [api, signServerTx, refresh, refreshAlerts],
   );
 
+  /** Send SUI/token OUT of the AGENT wallet (agent-signed, server-side). */
+  const agentSend = useCallback(
+    async (recipient: string, symbol: string, amount: number) => {
+      const data = (await api("/wallet/send", { recipient, symbol, amount })) as { digest?: string };
+      return data;
+    },
+    [api],
+  );
+
+  /** Send SUI OUT of YOUR (owner) wallet — signed client-side by the connected wallet. */
+  const ownerSend = useCallback(
+    async (recipient: string, amountSui: number) => {
+      if (!account?.address) throw new Error("Connect your wallet first");
+      const tx = new Transaction();
+      const base = BigInt(Math.round(amountSui * 1e9));
+      const [coin] = tx.splitCoins(tx.gas, [base]);
+      tx.transferObjects([coin], tx.pure.address(recipient));
+      const result = await signAndExecute({ transaction: tx });
+      await suiClient.waitForTransaction({ digest: result.digest });
+      return { digest: result.digest };
+    },
+    [account?.address, signAndExecute, suiClient],
+  );
+
   return {
     account,
     status,
@@ -374,6 +398,8 @@ function useAgentWalletState() {
     resume,
     revoke,
     sendIntent,
+    agentSend,
+    ownerSend,
     refresh,
     refreshAlerts,
     refreshPolicy,
