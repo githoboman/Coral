@@ -37,11 +37,16 @@ import { sepolia } from "wagmi/chains";
 const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
   | "testnet"
   | "mainnet";
+// RPC endpoint. Prefer an explicit VITE_SUI_RPC_URL so production can point at a
+// dedicated provider (the shared public fullnode can rate-limit browser origins,
+// which breaks on-chain reads and makes the app look blank). Otherwise use the
+// official fullnode. In dev, use the vite proxy to avoid CORS.
+const testnetRpc = import.meta.env.DEV
+  ? (import.meta.env.VITE_SUI_RPC_URL || "/sui-rpc")
+  : (import.meta.env.VITE_SUI_RPC_URL || getFullnodeUrl("testnet"));
 const { networkConfig } = createNetworkConfig({
-  testnet: {
-    url: import.meta.env.DEV ? "/sui-rpc" : getFullnodeUrl("testnet"),
-  },
-  mainnet: { url: getFullnodeUrl("mainnet") },
+  testnet: { url: testnetRpc },
+  mainnet: { url: import.meta.env.VITE_SUI_RPC_URL_MAINNET || getFullnodeUrl("mainnet") },
 });
 
 // ── Solana config ─────────────────────────────────────────────────────
