@@ -110,7 +110,7 @@ export function Tutorial({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
       <div className="relative w-full max-w-md rounded-[28px] border border-line bg-surface shadow-[0_30px_80px_rgba(0,0,0,0.35)] overflow-hidden whisk-pop">
         {/* Close */}
         <button

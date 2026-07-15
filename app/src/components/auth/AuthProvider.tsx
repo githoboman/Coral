@@ -162,6 +162,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
+    // Dev-auth mode: the agent API trusts the connected wallet via the x-dev-wallet
+    // header, so there's NO need for the signature/cookie login. Skip it — otherwise
+    // users get an unnecessary "sign message" popup and a 401 on /auth/verify if
+    // they decline. Just mark the wallet ready.
+    if (import.meta.env.VITE_AGENT_DEV_AUTH === "true") {
+      checkedWalletRef.current = activeAddress;
+      setIsOnboarded(true);
+      setIsOnboardingOpen(false);
+      return;
+    }
+
     if (!checkingRef.current) {
       checkingRef.current = true;
       checkedWalletRef.current = activeAddress;

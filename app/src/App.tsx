@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 
 import {
   AppLayout,
@@ -40,15 +41,17 @@ function App() {
       <Routes>
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/signin" element={<Signin />} />
-        {/* Coral agent app is the home. */}
-        <Route path="/" element={<Navigate to="/agent" replace />} />
+        {/* Home: to the agent app if connected, else to sign-in. */}
+        <Route path="/" element={<HomeRedirect />} />
 
-        {/* Agent area — Corral shell, with ONE shared agent-wallet state. */}
+        {/* Agent area — Corral shell + shared state, GATED on a connected wallet. */}
         <Route
           element={
-            <AgentWalletProvider>
-              <CorralLayout />
-            </AgentWalletProvider>
+            <RequireWallet>
+              <AgentWalletProvider>
+                <CorralLayout />
+              </AgentWalletProvider>
+            </RequireWallet>
           }
         >
           <Route path="/agent" element={<AgentChat />} />
@@ -69,13 +72,26 @@ function App() {
           <Route path="/chat/:chatId?" element={<Dashboard />} />
         </Route>
 
-        {/* Anything else → the agent app, instead of a blank screen. */}
-        <Route path="*" element={<Navigate to="/agent" replace />} />
+        {/* Anything else → home (which routes by auth), not a blank screen. */}
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
 
       <SileoToaster />
     </div>
   );
+}
+
+/** Root: send connected users to the agent app, others to sign-in. */
+function HomeRedirect() {
+  const account = useCurrentAccount();
+  return <Navigate to={account ? "/agent" : "/signin"} replace />;
+}
+
+/** Gate the agent area on a connected wallet — no wallet ⇒ sign-in. */
+function RequireWallet({ children }: { children: React.ReactNode }) {
+  const account = useCurrentAccount();
+  if (!account) return <Navigate to="/signin" replace />;
+  return <>{children}</>;
 }
 
 export default App;
