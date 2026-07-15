@@ -1,10 +1,6 @@
-const CACHE_NAME = 'tovira-v1';
+// Bump this on every deploy-affecting change so old caches are purged.
+const CACHE_NAME = 'coral-v3';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/assets/logo.png',
-  '/assets/icons/icon-192x192.png',
-  '/assets/icons/icon-512x512.png',
   '/apple-touch-icon.png'
 ];
 
@@ -32,38 +28,42 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first with cache fallback
+// Fetch: for the app shell (HTML) and JS/CSS, ALWAYS go to network — never serve a
+// stale cached bundle, which causes broken/blurry renders after a deploy. Only fall
+// back to cache when genuinely offline. Non-app requests pass straight through.
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
-
-  // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  const url = new URL(event.request.url);
+  const isAppCode =
+    event.request.mode === 'navigate' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.html');
+
+  if (isAppCode) {
+    // Network-only for app code; on hard offline, fall back to the shell.
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        event.request.mode === 'navigate'
+          ? caches.match('/index.html')
+          : new Response('Offline', { status: 503 }),
+      ),
+    );
+    return;
+  }
+
+  // Other static assets: network-first, cache as a nice-to-have offline fallback.
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone and cache successful responses
         if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       })
-      .catch(() => {
-        // Fallback to cache on network failure
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Return offline fallback for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-          return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-        });
-      })
+      .catch(() => caches.match(event.request).then((c) => c || new Response('Offline', { status: 503 }))),
   );
 });
