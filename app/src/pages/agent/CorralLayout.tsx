@@ -7,7 +7,7 @@ import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { WalletDrawer } from "@/components/agent/WalletDrawer";
 import { NotificationBell } from "@/components/agent/NotificationBell";
 import { HelpModal } from "@/components/agent/HelpModal";
-import { Tutorial, hasSeenTutorial } from "@/components/agent/Tutorial";
+import { Tutorial, hasSeenTutorial, markTutorialSeen } from "@/components/agent/Tutorial";
 
 /**
  * Coral app shell — redesigned with orange/white/black palette,
@@ -53,7 +53,12 @@ export default function CorralLayout() {
   // real app, not on a blank pre-connect screen). Persisted so it shows once.
   useEffect(() => {
     if (account?.address && !hasSeenTutorial()) {
-      const t = setTimeout(() => setTutorialOpen(true), 600);
+      const t = setTimeout(() => {
+        // Persist "seen" the instant we show it, so a re-render/StrictMode
+        // double-invoke or an unmount can never re-trigger and trap the page.
+        markTutorialSeen();
+        setTutorialOpen(true);
+      }, 600);
       return () => clearTimeout(t);
     }
   }, [account?.address]);

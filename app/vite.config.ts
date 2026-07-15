@@ -21,9 +21,11 @@ export default defineConfig({
     allowedHosts: ["coral-server.onrender.com", "localhost", "coral.app", "coral.vercel.app"],
     proxy: {
       "/sui-rpc": {
-        target: "https://fullnode.testnet.sui.io",
+        // publicnode is a reliable testnet RPC (blockvision/official fullnode 429/404 flakily).
+        target: "https://sui-testnet-rpc.publicnode.com",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/sui-rpc/, ""),
+        // Strip the prefix down to "/" (not an empty string, which some targets 404 on).
+        rewrite: (path) => path.replace(/^\/sui-rpc\/?/, "/"),
       },
     },
   },
