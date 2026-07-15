@@ -65,7 +65,21 @@ const wagmiConfig = createConfig({
   },
 });
 
-const queryClient = new QueryClient();
+// Tuned to be gentle on public Sui RPCs, which rate-limit (429) aggressively.
+// React Query's defaults (3 retries + refetch-on-focus + short staleness) create
+// a request storm against a 429ing node, which spirals. Cap retries, back off
+// long, and cache reads so we poll sparingly instead of hammering.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: (attempt) => Math.min(3000 * 2 ** attempt, 30_000),
+      staleTime: 15_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  },
+});
 
 // Capture referral code before any routing redirects happen
 const searchParams = new URLSearchParams(window.location.search);
