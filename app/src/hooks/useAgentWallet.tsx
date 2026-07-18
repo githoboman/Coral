@@ -221,15 +221,39 @@ function useAgentWalletState() {
     }
   }, [api]);
 
-  /** Sign a server-built unsigned tx (base64) with the owner wallet. */
+  /** Sign a server-built unsigned tx (base64 or serialized JSON) with the owner wallet. */
   const signServerTx = useCallback(
     async (txBytes: string) => {
       const tx = Transaction.from(txBytes);
       const result = await signAndExecute({ transaction: tx });
-      const confirmed = await suiClient.waitForTransaction({
-        digest: result.digest,
-        options: { showEffects: true, showObjectChanges: true },
-      });
+
+      // Confirm the tx landed. The wallet may execute against a different node
+      // than our suiClient, so the digest can take a moment to be indexable here.
+      // Retry a few times before giving up, and surface a clear on-chain error.
+      let confirmed: Awaited<ReturnType<typeof suiClient.waitForTransaction>> | null = null;
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          confirmed = await suiClient.waitForTransaction({
+            digest: result.digest,
+            options: { showEffects: true, showObjectChanges: true },
+            timeout: 20_000,
+          });
+          break;
+        } catch (e) {
+          lastErr = e;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+
+      if (!confirmed) {
+        // The wallet accepted and broadcast the tx (we have a digest), but our RPC
+        // never indexed it. Don't hard-fail: return the digest so callers that can
+        // reconcile from chain (e.g. bind via on-chain discovery) still proceed.
+        console.warn("[agent] waitForTransaction never indexed", result.digest, lastErr);
+        return { digest: result.digest, effects: undefined, objectChanges: [] } as any;
+      }
+
       if (confirmed.effects?.status?.status !== "success") {
         throw new Error(confirmed.effects?.status?.error || "Transaction failed");
       }
@@ -243,6 +267,8 @@ function useAgentWalletState() {
     async (form: CreatePolicyForm) => {
       setBusy("creating");
       setError(null);
+      // Tag each stage so a failure tells the user (and us) exactly where it died.
+      let stage = "building the policy transaction";
       try {
         const { txBytes } = (await api("/policy/create-tx", {
           budgetCap: form.budgetCap,
@@ -251,13 +277,17 @@ function useAgentWalletState() {
           gasReserve: form.gasReserve,
         })) as { txBytes: string };
 
+        stage = "signing in your wallet";
         const confirmed = await signServerTx(txBytes);
 
+        stage = "binding the policy on the server";
         setBusy("binding");
         await api("/policy/bind", { objectChanges: confirmed.objectChanges ?? [] });
         await refresh();
       } catch (e: any) {
-        setError(e?.message ?? "create policy failed");
+        const detail = e?.message ?? String(e);
+        console.error(`[createPolicy] failed while ${stage}:`, e);
+        setError(`Couldn't create the policy while ${stage}: ${detail}`);
         throw e;
       } finally {
         setBusy("idle");
