@@ -16,7 +16,7 @@
     "@mui/material": "^7.3.2",
     "@mysten/dapp-kit": "^0.18.0",
     "@mysten/enoki": "^0.13.0",
-    "@mysten/sui": "^1.38.0",
+    "@mysten/sui": "1.45.2",
     "@mysten/zklogin": "^0.8.1",
     "@reduxjs/toolkit": "^2.11.1",
     "@solana/wallet-adapter-phantom": "^0.9.28",
