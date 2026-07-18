@@ -8,6 +8,7 @@ import { getSwapAgent } from "../services/agentWallet/swapAgent";
 import { getPolicyChecker } from "../services/agentWallet/policyChecker";
 import { getAgentAlerts } from "../services/agentWallet/alerts";
 import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/owner/policyCreator";
+import { discoverBinding } from "../services/agentWallet/discovery";
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
 import { cleanupAndSweep, returnCapability, buildRevokeTx } from "../services/agentWallet/owner/revocation";
 import { bootstrapBalanceManager, depositIntoBalanceManager } from "../services/agentWallet/deepbookSetup";
@@ -197,9 +198,31 @@ router.post("/agent/policy/bind", requireAuth, async (req: AuthRequest, res: Res
     const wallet = await getAgentWalletStore().getByOwner(owner);
     if (!wallet) return fail(res, 404, "No agent wallet to bind");
 
-    const { policyId, capabilityId } = extractCreatedIds(req.body?.objectChanges ?? []);
+    // Primary path: read the created ids straight from the objectChanges the
+    // frontend posts after the owner signs create_and_delegate.
+    let { policyId, capabilityId } = extractCreatedIds(req.body?.objectChanges ?? []);
+
+    // Fallback: some wallets/RPCs return empty or partial objectChanges (indexing
+    // lag, or a wallet that omits showObjectChanges). The tx still succeeded
+    // on-chain, so rebuild the binding from chain — the agent now owns the
+    // AgentCapability, which stores its policy_id. Retry to absorb indexing lag.
     if (!policyId || !capabilityId) {
-      return fail(res, 400, "Could not find AgentPolicy/AgentCapability in objectChanges");
+      for (let attempt = 0; attempt < 4 && (!policyId || !capabilityId); attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+        const discovered = await discoverBinding(wallet.agentAddress);
+        if (discovered) {
+          policyId = policyId ?? discovered.policyId;
+          capabilityId = capabilityId ?? discovered.capabilityId;
+        }
+      }
+    }
+
+    if (!policyId || !capabilityId) {
+      return fail(
+        res,
+        400,
+        "Could not resolve the new AgentPolicy/AgentCapability. The on-chain policy was created — retry binding in a moment.",
+      );
     }
     const bound = await getAgentWalletInitializer().bindToPolicy(wallet.agentAddress, policyId, capabilityId);
     return ok(res, { policyId: bound.policyId, capabilityId: bound.capabilityId }, "Policy bound");
