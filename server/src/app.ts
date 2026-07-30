@@ -31,6 +31,15 @@ app.use(
         return callback(null, true);
       }
 
+      // Dev: allow any localhost/LAN port — Vite bumps 5173→5174 when busy,
+      // and the phone-on-same-wifi flow hits the LAN IP.
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
       console.warn(`[CORS] Rejected origin: ${origin}`);
       return callback(new Error('Not allowed by CORS'));
     },

@@ -41,12 +41,23 @@ export type PreflightResult =
  * remains the authoritative guarantee; the two must stay in lockstep.
  */
 export class PolicyChecker {
-  /** Fetch and decode the shared AgentPolicy object. Returns null if not found. */
+  /**
+   * Fetch and decode the shared AgentPolicy object. Returns null if not found OR
+   * if the RPC read fails (node hiccup / indexing lag) — a transient read error
+   * must never crash a caller. Callers treat null as "not readable right now",
+   * not "revoked".
+   */
   async readPolicy(policyId: string): Promise<OnChainPolicy | null> {
-    const res = await getSuiClient().getObject({
-      id: policyId,
-      options: { showContent: true },
-    });
+    let res;
+    try {
+      res = await getSuiClient().getObject({
+        id: policyId,
+        options: { showContent: true },
+      });
+    } catch (e: any) {
+      console.warn(`[policyChecker] readPolicy RPC failed for ${policyId.slice(0, 10)}…: ${e?.message ?? e}`);
+      return null;
+    }
 
     const content = res.data?.content;
     if (!content || content.dataType !== "moveObject") return null;

@@ -13,11 +13,27 @@ export function getNetwork(): SuiNetwork {
   return (process.env.SUI_NETWORK as SuiNetwork) || "testnet";
 }
 
+/**
+ * Resolve the Sui JSON-RPC endpoint. The official public fullnode
+ * (`getFullnodeUrl`) has DEPRECATED JSON-RPC methods like getOwnedObjects /
+ * queryEvents that the agent engine relies on for capability discovery and
+ * balance reads — those now return "Method not found", which surfaced as
+ * intermittent 500s. Prefer an explicit SUI_RPC_URL, otherwise default to a
+ * provider that still serves full JSON-RPC (publicnode).
+ */
+export function getSuiRpcUrl(): string {
+  const explicit = process.env.SUI_RPC_URL?.trim();
+  if (explicit) return explicit;
+  return getNetwork() === "mainnet"
+    ? "https://sui-rpc.publicnode.com"
+    : "https://sui-testnet-rpc.publicnode.com";
+}
+
 /** Shared read/execute client for the agent engine. */
 let sharedClient: SuiClient | null = null;
 export function getSuiClient(): SuiClient {
   if (!sharedClient) {
-    sharedClient = new SuiClient({ url: getFullnodeUrl(getNetwork()) });
+    sharedClient = new SuiClient({ url: getSuiRpcUrl() });
   }
   return sharedClient;
 }

@@ -40,6 +40,17 @@ services:
       # ── Agent wallet (Sui testnet) ───────────────────────────────────
       - key: SUI_NETWORK
         value: testnet
+      # Sui JSON-RPC endpoint. The official public fullnode has DEPRECATED
+      # JSON-RPC (getOwnedObjects/queryEvents/getBalance return -32601), which
+      # breaks capability discovery + balance reads. Use a provider that still
+      # serves JSON-RPC. Defaults to publicnode in code if unset.
+      - key: SUI_RPC_URL
+        value: https://sui-testnet-rpc.publicnode.com
+      # Demo auth: the hosted app has no Supabase, so it relies on dev-auth
+      # (x-dev-wallet header). Without this, every /api/agent/* call is 401.
+      # SECURITY: testnet demo only — anyone can act as any wallet while on.
+      - key: AGENT_DEV_AUTH
+        value: "true"
       - key: AGENT_POLICY_PACKAGE_ID
         sync: false
       - key: DEEPBOOK_PACKAGE_ID

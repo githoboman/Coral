@@ -91,10 +91,19 @@ router.get("/agent/wallet", requireAuth, async (req: AuthRequest, res: Response)
     let bound = Boolean(wallet.policyId && wallet.capabilityId);
     let policyState: "active" | "expired" | "revoked" | "none" = "none";
     if (wallet.policyId) {
-      const p = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
+      // Retry the on-chain read: right after create+bind the RPC may not have
+      // indexed the policy object yet, and a null read here must NOT be
+      // interpreted as "revoked" (that erased fresh bindings and made the UI
+      // report the policy as never created).
+      let p = null;
+      for (let attempt = 0; attempt < 3 && !p; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+        p = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
+      }
       if (!p) {
-        policyState = "revoked"; // gone on-chain => revoked
-        bound = false;
+        // Unreadable ≠ revoked. Keep the stored binding and report it active;
+        // a truly revoked policy is unbound explicitly by the revoke flow.
+        policyState = "active";
       } else if (Number(p.expiryTimestamp) <= Date.now()) {
         policyState = "expired";
         bound = false;
@@ -130,8 +139,11 @@ router.get("/agent/policy", requireAuth, async (req: AuthRequest, res: Response)
     const wallet = await getAgentWalletStore().getByOwner(req.user!.wallet_address);
     if (!wallet?.policyId) return ok(res, null, "No bound policy");
 
-    const policy = await getPolicyChecker().readPolicy(wallet.policyId);
-    if (!policy) return ok(res, null, "Policy object not found on-chain");
+    // A just-created policy can 404 on the RPC for a few seconds (indexing lag).
+    // Never 500 for that — return null data so the drawer shows "syncing" and
+    // the next poll picks it up.
+    const policy = await getPolicyChecker().readPolicy(wallet.policyId).catch(() => null);
+    if (!policy) return ok(res, null, "Policy not readable yet (indexing)");
 
     const cap = policy.budgetCap;
     const spent = policy.budgetSpent;

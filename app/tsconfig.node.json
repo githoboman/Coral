@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    // Emit the compiled vite.config into a throwaway dir, NOT next to the source.
+    // Otherwise `tsc -b` writes vite.config.js beside vite.config.ts, and Vite
+    // PREFERS the .js — silently overriding every edit made to the .ts (this cost
+    // us hours: the proxy target reverted to a dead RPC on each build).
+    "outDir": "./node_modules/.tmp/tsnode",
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",

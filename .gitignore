@@ -78,3 +78,6 @@ backup
 # --- Internal dev docs (not for public repo) ---
 BRIEFING.md
 CLAUDE.md
+
+# local audit notes — never commit (hackathon)
+AUDIT.md
