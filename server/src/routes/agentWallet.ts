@@ -11,7 +11,13 @@ import { buildCreatePolicyTx, extractCreatedIds } from "../services/agentWallet/
 import { discoverBinding } from "../services/agentWallet/discovery";
 import { buildPauseTx, buildResumeTx } from "../services/agentWallet/owner/pauseResume";
 import { cleanupAndSweep, returnCapability, buildRevokeTx } from "../services/agentWallet/owner/revocation";
-import { bootstrapBalanceManager, depositIntoBalanceManager } from "../services/agentWallet/deepbookSetup";
+import {
+  bootstrapBalanceManager,
+  depositIntoBalanceManager,
+  discoverBalanceManagerId,
+  getOrCreateBalanceManager,
+  readManagerBalances,
+} from "../services/agentWallet/deepbookSetup";
 import { agentSend } from "../services/agentWallet/owner/agentSend";
 import { scheduleSwap } from "../services/agentWallet/strategies";
 import { getTradeIntentService } from "../services/agentWallet/tradeIntentService";
@@ -413,25 +419,61 @@ router.post("/agent/deepbook/bootstrap", requireAuth, async (req: AuthRequest, r
 });
 
 /**
- * POST /api/agent/deepbook/deposit — fund the agent's EXISTING BalanceManager so
- * its DeepBook orders can settle (without creating a new manager). DeepBook trades
- * from the manager, not the wallet, so this is required before swaps work.
- * Body: { balanceManagerId, deposits: [{ coinKey, amount }] }  (amounts in whole tokens)
+ * GET /api/agent/deepbook/manager — resolve the agent's BalanceManager (its
+ * DeepBook trading account) and report the balances held inside it. Powers the
+ * "Fund trading account" card: the user sees what's actually available to trade
+ * vs sitting in the wallet as gas. Never 404s on a cold store — self-heals the
+ * agent wallet first, then discovers the manager on-chain.
+ * Response: { balanceManagerId | null, balances: { SUI, DBUSDC } }
+ */
+router.get("/agent/deepbook/manager", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const owner = req.user!.wallet_address;
+    const wallet = await getAgentWalletInitializer().getOrCreate(owner);
+    const balanceManagerId = await discoverBalanceManagerId(wallet.agentAddress);
+    if (!balanceManagerId) {
+      return ok(res, { balanceManagerId: null, balances: {} }, "No BalanceManager yet");
+    }
+    const balances = await readManagerBalances(wallet.agentAddress, balanceManagerId);
+    return ok(res, { balanceManagerId, balances }, "OK");
+  } catch (e: any) {
+    return fail(res, 500, e?.message || "manager lookup failed");
+  }
+});
+
+/**
+ * POST /api/agent/deepbook/deposit — fund the agent's BalanceManager (its DeepBook
+ * trading account) so orders can settle. DeepBook trades from the manager, not the
+ * wallet, so this is required before swaps work. The balanceManagerId is OPTIONAL:
+ * if omitted we discover the agent's manager on-chain (creating one if none exists),
+ * so the client never has to know the id.
+ * Body: { deposits: [{ coinKey, amount }], balanceManagerId? }  (amounts in whole tokens)
  */
 router.post("/agent/deepbook/deposit", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const owner = req.user!.wallet_address;
-    const wallet = await getAgentWalletStore().getByOwner(owner);
-    if (!wallet) return fail(res, 404, "No agent wallet");
-    const balanceManagerId = String(req.body?.balanceManagerId ?? "").trim();
+    // Self-heal on a cold store (Render restart wipes the in-memory record).
+    const wallet = await getAgentWalletInitializer().getOrCreate(owner);
     const deposits = req.body?.deposits ?? [];
-    if (!balanceManagerId) return fail(res, 400, "balanceManagerId is required");
     if (!Array.isArray(deposits) || deposits.length === 0) {
       return fail(res, 400, "deposits array is required (e.g. [{ coinKey: 'SUI', amount: 0.5 }])");
     }
+
+    // Resolve the manager id: use the one supplied, else discover/create it.
+    let balanceManagerId = String(req.body?.balanceManagerId ?? "").trim();
+    if (!balanceManagerId) {
+      const resolved = await getOrCreateBalanceManager(wallet);
+      if (!resolved.ok || !resolved.balanceManagerId) {
+        return fail(res, 422, resolved.reason || "Could not resolve a BalanceManager");
+      }
+      balanceManagerId = resolved.balanceManagerId;
+    }
+
     const result = await depositIntoBalanceManager(wallet, balanceManagerId, deposits);
     if (!result.ok) return fail(res, 422, result.reason || "deposit failed");
-    return ok(res, result, "Deposited into BalanceManager");
+    // Report the fresh balances so the UI updates without a second call.
+    const balances = await readManagerBalances(wallet.agentAddress, balanceManagerId).catch(() => ({}));
+    return ok(res, { ...result, balanceManagerId, balances }, "Deposited into BalanceManager");
   } catch (e: any) {
     return fail(res, 500, e?.message || "deposit failed");
   }

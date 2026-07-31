@@ -163,6 +163,11 @@ export function WalletDrawer({ onClose }: { onClose: () => void }) {
                 onCopy={() => copy("agent", agentAddr)}
               />
               <SendReceiveRow onSend={() => setView({ kind: "send", which: "agent" })} onReceive={() => setView({ kind: "receive", which: "agent" })} />
+
+              {/* Trading account (DeepBook BalanceManager) — separate from the gas
+                  wallet above. Swaps settle from HERE, so it must be funded too. */}
+              <FundTradingAccount agentSui={agentSui} />
+
               {agentSui < FUND_THRESHOLD && (
                 <div className="mt-2 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4">
                   <div className="flex items-center gap-2 text-[13px] font-bold text-amber-600 dark:text-amber-400 mb-1">
@@ -286,6 +291,89 @@ function WalletCard({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Fund the agent's DeepBook trading account (BalanceManager). This is the piece
+ * users kept missing: SUI in the agent wallet pays GAS, but swaps SETTLE from the
+ * BalanceManager — a separate on-chain account. This card moves SUI from the
+ * agent wallet into that trading account in one click (agent-signed server-side).
+ */
+function FundTradingAccount({ agentSui }: { agentSui: number }) {
+  const { manager, fundBalanceManager, refreshManager } = useAgentWallet();
+  const [amount, setAmount] = useState("3");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const tradingSui = manager?.balances?.SUI ?? 0;
+  const amt = Number(amount);
+  const canFund = amt > 0 && amt <= Math.max(agentSui - 0.05, 0) && !busy; // leave gas
+
+  const fund = async () => {
+    if (!canFund) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await fundBalanceManager(amt);
+      setMsg({ ok: true, text: `Moved ${amt} SUI into the trading account.` });
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.message ?? "Funding failed" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 rounded-2xl border border-line bg-surface-3 p-4">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[13px] font-bold text-ink">Trading account</span>
+        <span className="text-[12px] text-muted">
+          {tradingSui.toLocaleString(undefined, { maximumFractionDigits: 4 })} SUI available
+        </span>
+      </div>
+      <p className="text-[12px] text-muted leading-relaxed mb-3">
+        Swaps settle from the agent's <span className="font-semibold">trading account</span>, not its gas
+        wallet. Move some SUI here so orders can execute.
+      </p>
+      <div className="flex gap-2">
+        <div className="flex-1 flex items-center rounded-full border border-line bg-surface px-3">
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full bg-transparent py-2.5 text-[13px] text-ink outline-none"
+            placeholder="Amount"
+          />
+          <span className="text-[12px] font-semibold text-muted pl-1">SUI</span>
+        </div>
+        <button
+          onClick={fund}
+          disabled={!canFund}
+          className="rounded-full bg-[var(--brand)] text-white text-[13px] font-bold px-5 py-2.5 shadow-md hover:bg-[var(--brand-hover)] transition-all active:scale-[0.97] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {busy ? "Funding…" : "Fund"}
+        </button>
+      </div>
+      {amt > agentSui - 0.05 && amt > 0 && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2">
+          Not enough in the agent wallet (has {agentSui.toFixed(3)} SUI; keep some for gas).
+        </p>
+      )}
+      {msg && (
+        <p className={`text-[12px] mt-2 ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+          {msg.text}
+        </p>
+      )}
+      <button
+        onClick={() => refreshManager()}
+        className="text-[11px] text-muted hover:text-ink mt-2 underline transition-colors cursor-pointer"
+      >
+        Refresh balance
+      </button>
     </div>
   );
 }

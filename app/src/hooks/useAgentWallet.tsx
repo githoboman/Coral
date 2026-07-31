@@ -66,6 +66,12 @@ export interface IntentResult {
   armed?: "scheduled" | "conditional";
 }
 
+/** The agent's DeepBook trading account (BalanceManager) + balances held in it. */
+export interface ManagerState {
+  balanceManagerId: string | null;
+  balances: Record<string, number>; // whole tokens, e.g. { SUI: 3.5, DBUSDC: 0 }
+}
+
 /** Live on-chain policy state from GET /api/agent/policy (bigints as strings). */
 export interface PolicyState {
   policyId: string;
@@ -109,6 +115,7 @@ function useAgentWalletState() {
 
   const [status, setStatus] = useState<AgentWalletStatus | null>(null);
   const [policy, setPolicy] = useState<PolicyState | null>(null);
+  const [manager, setManager] = useState<ManagerState | null>(null);
   const [alerts, setAlerts] = useState<AgentAlert[]>([]);
   const [busy, setBusy] = useState<Busy>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +178,17 @@ function useAgentWalletState() {
     }
   }, [account?.address, api]);
 
+  /** Read the agent's DeepBook trading account (BalanceManager) + its balances. */
+  const refreshManager = useCallback(async () => {
+    if (!account?.address) return;
+    try {
+      const data = (await api("/deepbook/manager")) as ManagerState;
+      setManager(data);
+    } catch {
+      /* best-effort; the fund card handles a null manager */
+    }
+  }, [account?.address, api]);
+
   // On connect/mount, hit /wallet/init (not just /wallet). init is idempotent and
   // triggers the server's on-chain binding discovery, so after a backend restart
   // (in-memory store reset) the policy/capability are re-bound automatically —
@@ -193,6 +211,11 @@ function useAgentWalletState() {
     if (status?.bound) refreshPolicy();
     else setPolicy(null);
   }, [status?.bound, refreshPolicy]);
+
+  // Load the trading-account (BalanceManager) balances once we know the agent.
+  useEffect(() => {
+    if (status?.agentAddress) refreshManager();
+  }, [status?.agentAddress, refreshManager]);
 
   useEffect(() => {
     if (!account?.address) return;
@@ -400,6 +423,25 @@ function useAgentWalletState() {
     [api],
   );
 
+  /**
+   * Move SUI from the agent wallet INTO its DeepBook trading account
+   * (BalanceManager), so orders can settle. Agent-signed server-side; the manager
+   * id is resolved/created on the server, so the client just names an amount.
+   */
+  const fundBalanceManager = useCallback(
+    async (amountSui: number, symbol = "SUI") => {
+      const data = (await api("/deepbook/deposit", {
+        deposits: [{ coinKey: symbol, amount: amountSui }],
+      })) as { balanceManagerId?: string; balances?: Record<string, number>; digest?: string };
+      if (data.balanceManagerId) {
+        setManager({ balanceManagerId: data.balanceManagerId, balances: data.balances ?? {} });
+      }
+      await refreshManager();
+      return data;
+    },
+    [api, refreshManager],
+  );
+
   /** Send SUI OUT of YOUR (owner) wallet — signed client-side by the connected wallet. */
   const ownerSend = useCallback(
     async (recipient: string, amountSui: number) => {
@@ -419,6 +461,7 @@ function useAgentWalletState() {
     account,
     status,
     policy,
+    manager,
     alerts,
     busy,
     error,
@@ -430,9 +473,11 @@ function useAgentWalletState() {
     sendIntent,
     agentSend,
     ownerSend,
+    fundBalanceManager,
     refresh,
     refreshAlerts,
     refreshPolicy,
+    refreshManager,
   };
 }
 
