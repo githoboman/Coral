@@ -1,0 +1,28 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/**/dry-run/
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+apps/web/.next/
+
+# Generated WASM output is CHECKED IN (CI verifies it is never stale) — do not ignore
+# apps/web/packages/core-wasm/
+
+# Local env — secrets never live in the repo (SEC-1); gitleaks enforces in CI
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
