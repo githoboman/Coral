@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 4 of 8 |
-| **Active ticket** | C-102 — `RawPolicy` → `ValidatedPolicy` |
-| **Next up** | C-103 — Action DSL + `Plan` |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 5 of 8 |
+| **Active ticket** | C-103 — Action DSL + `Plan` |
+| **Next up** | C-105 — error taxonomy + `retry_class` |
 | **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
@@ -26,7 +26,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 1 | C-003 workspace + Foundry + pnpm + just | ☑ | `cargo check --workspace` ✓, clippy `-D warnings` ✓, `forge build` ✓, wasm32 build ✓, `cargo deny check` ✓ (2026-08-01) |
 | 2 | C-004 + C-007 CI guardrails + wasm32 | ☑ | Workflow: clippy `-D warnings`, tests, cargo-deny, wasm32 build, core-isolation dep-tree check, `enableSessions`/`U256::MAX` boundary greps, Foundry, gitleaks. All constituent checks proven locally 2026-08-01. **Caveat:** enforcement on PRs starts when a GitHub remote exists — the "reqwest fails CI" acceptance test runs then |
 | 3 | C-101 `TokenAmount` | ☑ | proptest: checked add/sub can't silently wrap; strict decimal-string serde (hex/negative/float/number rejected); no `Add` impl. 7/7 tests green (2026-08-01) |
-| 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☐ | failing-case test per invariant (PRD §8) |
+| 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☑ | All six invariants have failing-case tests (+ U256::MAX-cap and symbol-spoof edge cases); `ValidatedPolicy` has no `Deserialize`; `deny_unknown_fields` on every policy type. 11/11 tests green (2026-08-01) |
 | 5 | C-103 Action DSL + `Plan` | ☐ | extra JSON field fails deserialisation |
 | 6 | C-105 error taxonomy + `retry_class` | ☐ | unclassified variant fails to compile |
 | 7 | C-107 + C-108 WASM bindings + FE wiring | ☐ | FE renders summary from crate; CI stale-check |
@@ -53,6 +53,14 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 2 (cont.): C-102 policy validation
+
+- **C-102 done, test-first:** `RawPolicy`, `ValidatedPolicy` (constructible only via `TryFrom`, `Serialize` but deliberately no `Deserialize`), `PolicyError`, and the supporting types `AssetRef`, `BudgetConstraint`, `ActionKind`, `TargetConstraint`, `ParamRule` (EQ_ACCOUNT / IN_SET / LTE / GTE, mirroring the on-chain comparator names for C-304), `RuleValue`.
+- All six PRD §8 invariants tested with failing cases, plus hardening beyond the table: an approval "capped" at `U256::MAX` counts as unbounded, and asset identity is by address never symbol (symbol-spoof test).
+- Design decisions for the encoder's benefit: `TargetConstraint.action: ActionKind` is how `is_swap_target()` is derived; per-execution ceilings live as LTE param rules on targets (per spec §4.3 worked example), while `BudgetConstraint` carries only the cumulative cap.
+- Test fixture is the spec §4.3 worked session config (Base Sepolia USDC→WETH DCA), so the types are proven against the exact shape the encoder must produce.
+- Verified: clippy `-D warnings`, 18/18 corral-core tests, wasm32 build, fmt, deny — all green.
 
 ### 2026-08-01 — Session 2 (cont.): C-101 `TokenAmount`
 
