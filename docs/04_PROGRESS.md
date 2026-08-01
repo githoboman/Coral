@@ -10,10 +10,10 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 1 of 8 |
-| **Active ticket** | C-003 — Cargo workspace + Foundry + pnpm wiring + `just` runner |
-| **Next up** | C-004 / C-007 — CI guardrails + wasm32 target |
-| **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before) |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 2 of 8 |
+| **Active ticket** | C-004/C-007 — CI guardrails + wasm32 target |
+| **Next up** | C-101 — `TokenAmount` newtype |
+| **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
 
@@ -23,7 +23,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 | # | Ticket | Status | Evidence when done |
 |---|---|---|---|
-| 1 | C-003 workspace + Foundry + pnpm + just | ◐ | `cargo check --workspace` and `forge build` pass |
+| 1 | C-003 workspace + Foundry + pnpm + just | ☑ | `cargo check --workspace` ✓, clippy `-D warnings` ✓, `forge build` ✓, wasm32 build ✓, `cargo deny check` ✓ (2026-08-01) |
 | 2 | C-004 + C-007 CI guardrails + wasm32 | ☐ | PR adding `reqwest` to `corral-core` fails CI |
 | 3 | C-101 `TokenAmount` | ☐ | proptest: no silent-overflow path |
 | 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☐ | failing-case test per invariant (PRD §8) |
@@ -37,8 +37,9 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | Item | Status |
 |---|---|
 | Reconcile docs (see §5, entry 2026-07-31) | ☑ |
-| `git init` + docs baseline commit | ◐ |
-| Toolchain install (Rust, Foundry, pnpm, just) | ◐ |
+| `git init` + docs baseline commit | ☑ `98f1d05` |
+| Toolchain install (Rust 1.97.1, Foundry 1.5.1, pnpm 11.18, just 1.57, cargo-deny 0.20.2) | ☑ |
+| VS Build Tools (MSVC linker, for local `cargo test` + native deps) | ◐ installing |
 
 ## 3. Gates
 
@@ -52,6 +53,13 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 2: toolchain + C-003 scaffold
+
+- Toolchain installed from scratch (machine had only git + Node): Rust 1.97.1 stable + wasm32 target, Foundry 1.5.1 (Windows binaries), pnpm 11.18, just 1.57 (winget), cargo-deny 0.20.2. VS Build Tools (MSVC linker) still installing — local `cargo test` can't link until it lands; CI runs on Linux and is unaffected.
+- **C-003 done:** 9-crate Cargo workspace (`forbid(unsafe_code)` + clippy cast bans as workspace lints), Foundry config (`solc 0.8.28`), pnpm workspace wiring (`apps/web` + `harness/encoder-diff` slots), `justfile` mirroring CLAUDE.md §6, `rust-toolchain.toml` pinning stable + wasm32.
+- Verified: `cargo check --workspace`, `cargo clippy -D warnings`, `cargo build --target wasm32-unknown-unknown -p corral-core --features wasm`, `forge build`, `cargo deny check`, `cargo fmt --check` — all green.
+- C-004/C-007 CI workflow + `deny.toml` authored (committed next; needs a GitHub remote before it can actually run).
 
 ### 2026-07-31 — Session 1: reconciliation, tracking, bootstrap start
 

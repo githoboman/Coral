@@ -1,0 +1,5 @@
+{
+  "name": "corral",
+  "private": true,
+  "packageManager": "pnpm@11.18.0"
+}
