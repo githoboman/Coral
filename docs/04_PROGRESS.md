@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 6 of 8 |
-| **Active ticket** | C-105 — error taxonomy + `retry_class` |
-| **Next up** | C-107/C-108 — WASM bindings + FE wiring |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 7 of 8 |
+| **Active ticket** | C-107/C-108 — WASM bindings + FE wiring |
+| **Next up** | C-201/C-202 — `CorralJournal.sol` + Sepolia deploy |
 | **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
@@ -28,7 +28,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 3 | C-101 `TokenAmount` | ☑ | proptest: checked add/sub can't silently wrap; strict decimal-string serde (hex/negative/float/number rejected); no `Add` impl. 7/7 tests green (2026-08-01) |
 | 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☑ | All six invariants have failing-case tests (+ U256::MAX-cap and symbol-spoof edge cases); `ValidatedPolicy` has no `Deserialize`; `deny_unknown_fields` on every policy type. 11/11 tests green (2026-08-01) |
 | 5 | C-103 Action DSL + `Plan` | ☑ | Closed DSL (no raw-calldata/delegatecall variant possible); extra field on `Plan` or any `Action` fails deserialisation; unknown action tags rejected. 6/6 tests green (2026-08-01) |
-| 6 | C-105 error taxonomy + `retry_class` | ☐ | unclassified variant fails to compile |
+| 6 | C-105 error taxonomy + `retry_class` | ☑ | 19 codes; `retry_class` + `user_message` exhaustive with no wildcard arm (unclassified variant = compile error); policy rejections all `(Never, 0)`. 7/7 tests green (2026-08-01) |
 | 7 | C-107 + C-108 WASM bindings + FE wiring | ☐ | FE renders summary from crate; CI stale-check |
 | 8 | C-201 + C-202 `CorralJournal` + deploy | ☐ | verified on Base Sepolia, address committed |
 
@@ -53,6 +53,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 2 (cont.): C-105 error taxonomy
+
+- **C-105 done, test-first:** `ErrorCode` (19 codes from reconciled PRD §9), `RetryClass`, `const fn retry_class` and `const fn user_message` — both exhaustive matches with **no wildcard arm**, so adding a code without classifying it fails to compile (the ticket's done-criterion, enforced by the compiler).
+- Tests: every policy rejection and safety pause is `(Never, 0)`; infra errors backoff ×5; requote ×3 for slippage/simulation; wire names match PRD §9 exactly; every code has a user message except deliberately-silent `NONCE_CONFLICT`; no hex in any message (FR-11.8).
+- PRD §9 `PLAN_INVALID_SCHEMA` aligned to spec `Never` (see §5 reconciliation entry).
 
 ### 2026-08-01 — Session 2 (cont.): C-103 Action DSL + Plan
 
@@ -106,5 +112,11 @@ Architecture decisions still go to `00_FEASIBILITY_AND_TIMELINE.md` §6 (ADR log
 | `02` §7.1 | Added `GasSponsorUnavailable` to the backoff arm (was in PRD §9 but missing from the match) |
 | `01` §14 | Release-plan weeks aligned to feasibility §8.2: alpha wk 8/G1′, beta wk 17–18, guarded mainnet wk 20 |
 | `01` §15 Q2 | Marked resolved (FE ready per stakeholder) |
+
+**2026-08-01 — Doc reconciliation (found during C-105):**
+
+| Doc | Fix |
+|---|---|
+| `01` §9 | `PLAN_INVALID_SCHEMA` retry "Once, then abort" → "Never", matching spec §7.1. Rationale: v2 autonomous execution uses only the `DeterministicPlanner` — identical input reproduces identical output, so a schema-failure retry can never succeed. The "Once" rule was a v1 leftover from when an LLM planner could be in the loop. |
 
 **2026-07-31 — Process:** solo/agent execution means the two-track (product ∥ infra) plan collapses to one track; infra tickets (I-xxx) will be pulled in at the point the product track needs them (first: I-201 Postgres before C-502). Calendar-week targets in the docs describe the 3.6-FTE plan and are kept as reference, not as this track's schedule.

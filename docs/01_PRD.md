@@ -357,7 +357,7 @@ Required because "failure" in the source document is one word covering behaviour
 | `POLICY_EXPIRED` | Preflight/chain | Never | "This agent's permission expired on {date}." |
 | `POLICY_USAGE_LIMIT` | Chain | Backoff to next window | "Daily action limit reached." |
 | `SESSION_REVOKED` | Chain | Never | "You revoked this agent." |
-| `PLAN_INVALID_SCHEMA` | Planner | Once, then abort | "Couldn't build a valid plan; nothing was executed." |
+| `PLAN_INVALID_SCHEMA` | Planner | Never | "Couldn't build a valid plan; nothing was executed." |
 | `PLAN_UNSAFE_BOUNDS` | Planner | Never | "Plan looked unusual and was blocked." |
 | `SIMULATION_REVERT` | Preflight | 3× w/ fresh quote | "Trade would have failed; skipped this run." |
 | `SLIPPAGE_EXCEEDED` | Chain | 3× w/ fresh quote | "Price moved too much; skipped this run." |
