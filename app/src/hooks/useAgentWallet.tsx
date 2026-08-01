@@ -69,7 +69,7 @@ export interface IntentResult {
 /** The agent's DeepBook trading account (BalanceManager) + balances held in it. */
 export interface ManagerState {
   balanceManagerId: string | null;
-  balances: Record<string, number>; // whole tokens, e.g. { SUI: 3.5, DBUSDC: 0 }
+  balances: Record<string, number>; // whole tokens, e.g. { SUI: 3, DBUSDC: 12.4 }
 }
 
 /** Live on-chain policy state from GET /api/agent/policy (bigints as strings). */

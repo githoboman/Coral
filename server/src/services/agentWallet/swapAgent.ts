@@ -28,7 +28,9 @@ export interface SwapRequest {
   /** Symbols, e.g. tokenIn "SUI", tokenOut "USDC". */
   tokenIn: string;
   tokenOut: string;
-  /** Amount of tokenIn to spend, in base units. */
+  /** Amount of tokenIn to spend, in base units. The intent service normalizes
+   *  "buy N <base>" into the equivalent tokenIn spend before calling in, so this
+   *  is always denominated in tokenIn. */
   amount: bigint;
   /** True for a market swap; false for a limit order (requires price). */
   market: boolean;

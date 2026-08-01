@@ -14,6 +14,13 @@ export const TradeIntentSchema = z.object({
   tokenIn: z.string().optional().describe("Symbol of the input token, e.g. SUI or USDC."),
   // Asset moving IN (what they want to receive).
   tokenOut: z.string().optional().describe("Symbol of the output token, e.g. USDC or SUI."),
+  // Whether the user framed this as buying or selling the named token. Disambiguates
+  // "buy 10 SUI" (want 10 SUI, spend USDC) from "sell 10 SUI" (spend 10 SUI). When
+  // set, `amountToken` says which token `amount` is denominated in.
+  side: z.enum(["buy", "sell"]).optional().describe("Buy or sell the primary named token."),
+  // Which token `amount` counts. "in" = amount is the token being spent (default);
+  // "out" = amount is the token being received (e.g. "buy 10 SUI" → 10 is SUI out).
+  amountToken: z.enum(["in", "out"]).optional().describe("Whether amount is denominated in tokenIn or tokenOut."),
   // Fixed amount in whole tokens (e.g. 100 for '100 SUI'). Omit for percentage.
   amount: z.number().optional().describe("Fixed amount in whole token units."),
   // Percentage of the agent's balance to trade (e.g. 30 for '30%').

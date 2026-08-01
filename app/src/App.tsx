@@ -21,6 +21,7 @@ import { SileoToaster } from "@/components/SileoToaster";
 import BadgeMint from "@/pages/BadgeMint";
 import CorralLayout from "@/pages/agent/CorralLayout";
 import AgentChat from "@/pages/agent/AgentChat";
+import Overview from "@/pages/agent/Overview";
 import AgentHistory from "@/pages/agent/History";
 import AgentSettings from "@/pages/agent/Settings";
 import { AgentWalletProvider } from "@/hooks/useAgentWallet";
@@ -55,6 +56,7 @@ function App() {
           }
         >
           <Route path="/agent" element={<AgentChat />} />
+          <Route path="/agent/overview" element={<Overview />} />
           <Route path="/agent/policy" element={<Agent />} />
           <Route path="/agent/activity" element={<Activities />} />
           <Route path="/agent/history" element={<AgentHistory />} />

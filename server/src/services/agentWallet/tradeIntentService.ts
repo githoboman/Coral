@@ -68,27 +68,63 @@ export class TradeIntentService {
     return { tokenIn: (intent.tokenIn || "SUI").toUpperCase(), tokenOut: (intent.tokenOut || "USDC").toUpperCase() };
   }
 
+  /**
+   * Convert a parsed amount into tokenIn base units — the unit swapAgent expects.
+   * When the user named the amount in the token they're RECEIVING (amountToken=
+   * "out", e.g. "buy 10 SUI"), and a price is known, translate that desired output
+   * into the equivalent spend of tokenIn. Without a price (market buy by output
+   * amount) we can't translate exactly, so we treat the number as the tokenIn
+   * spend and let the book fill — surfacing a clear note in the summary.
+   */
+  private amountInBaseUnits(
+    intent: TradeIntent,
+    tokenIn: string,
+    tokenOut: string,
+  ): { amount: bigint; note?: string } {
+    const amt = intent.amount as number;
+    if (intent.amountToken === "out" && intent.price != null && intent.price > 0) {
+      // amount is in tokenOut (base you want); spend = amount * price of tokenIn.
+      const spend = amt * intent.price;
+      return { amount: toBaseUnits(spend, tokenIn) };
+    }
+    if (intent.amountToken === "out" && intent.price == null) {
+      return {
+        amount: toBaseUnits(amt, tokenIn),
+        note: `Interpreting ${amt} as ${tokenIn} to spend (no price given to size ${tokenOut} exactly).`,
+      };
+    }
+    return { amount: toBaseUnits(amt, tokenIn) };
+  }
+
   private async marketSwap(wallet: AgentWalletRecord, deepbook: DeepBookSetup, intent: TradeIntent): Promise<IntentResult> {
     const { tokenIn, tokenOut } = this.resolvePair(intent);
     if (intent.amount == null) return { ok: false, intent, message: "How much should I swap? No amount given." };
+    const { amount, note } = this.amountInBaseUnits(intent, tokenIn, tokenOut);
     const outcome = await getSwapAgent().execute({
       wallet, deepbook, tokenIn, tokenOut,
-      amount: toBaseUnits(intent.amount, tokenIn),
+      amount,
       market: true,
     });
-    return { ok: outcome.ok, intent, outcome, message: outcome.ok ? `Swapped ${intent.amount} ${tokenIn} → ${tokenOut}.` : (outcome.reason || "Swap rejected.") };
+    const base = outcome.ok
+      ? intent.side === "buy"
+        ? `Bought ${tokenOut} with ${tokenIn}.`
+        : `Swapped ${tokenIn} → ${tokenOut}.`
+      : (outcome.reason || "Swap rejected.");
+    return { ok: outcome.ok, intent, outcome, message: note ? `${note} ${base}` : base };
   }
 
   private async limitOrder(wallet: AgentWalletRecord, deepbook: DeepBookSetup, intent: TradeIntent): Promise<IntentResult> {
     const { tokenIn, tokenOut } = this.resolvePair(intent);
     if (intent.amount == null) return { ok: false, intent, message: "A limit order needs an amount." };
     if (intent.price == null) return { ok: false, intent, message: "A limit order needs a price." };
+    const { amount } = this.amountInBaseUnits(intent, tokenIn, tokenOut);
     const outcome = await getSwapAgent().execute({
       wallet, deepbook, tokenIn, tokenOut,
-      amount: toBaseUnits(intent.amount, tokenIn),
+      amount,
       market: false, price: intent.price,
     });
-    return { ok: outcome.ok, intent, outcome, message: outcome.ok ? `Placed limit order: ${intent.amount} ${tokenIn} @ ${intent.price}.` : (outcome.reason || "Limit order rejected.") };
+    const verb = intent.side === "buy" ? "buy" : intent.side === "sell" ? "sell" : "limit";
+    return { ok: outcome.ok, intent, outcome, message: outcome.ok ? `Placed ${verb} order @ ${intent.price}.` : (outcome.reason || "Limit order rejected.") };
   }
 
   private async percentageSwap(wallet: AgentWalletRecord, deepbook: DeepBookSetup, intent: TradeIntent): Promise<IntentResult> {

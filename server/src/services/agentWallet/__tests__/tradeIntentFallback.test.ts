@@ -82,4 +82,43 @@ describe("parseIntentFallback", () => {
     expect(i.amount).toBeUndefined();
     expect(i.action).not.toBe("market_swap");
   });
+
+  it("'buy N SUI at P' is a limit BUY: spend USDC to receive SUI (amount = SUI out)", () => {
+    const i = parseIntentFallback("buy 10 SUI at 0.2");
+    expect(i.action).toBe("limit_order");
+    expect(i.side).toBe("buy");
+    expect(i.tokenIn).toBe("USDC"); // spending USDC
+    expect(i.tokenOut).toBe("SUI"); // receiving SUI
+    expect(i.amountToken).toBe("out"); // 10 is the SUI we want, not USDC spent
+    expect(i.amount).toBe(10);
+    expect(i.price).toBe(0.2);
+  });
+
+  it("'sell N SUI at P' is a limit SELL: spend SUI to receive USDC (amount = SUI in)", () => {
+    const i = parseIntentFallback("sell 5 SUI at 0.3");
+    expect(i.action).toBe("limit_order");
+    expect(i.side).toBe("sell");
+    expect(i.tokenIn).toBe("SUI");
+    expect(i.tokenOut).toBe("USDC");
+    expect(i.amountToken).toBe("in");
+    expect(i.amount).toBe(5);
+  });
+
+  it("'buy N SUI' (market) buys SUI with USDC, amount denominated in SUI out", () => {
+    const i = parseIntentFallback("buy 10 SUI");
+    expect(i.action).toBe("market_swap");
+    expect(i.side).toBe("buy");
+    expect(i.tokenIn).toBe("USDC");
+    expect(i.tokenOut).toBe("SUI");
+    expect(i.amountToken).toBe("out");
+    expect(i.amount).toBe(10);
+  });
+
+  it("a plain swap keeps the old semantics (amount is tokenIn)", () => {
+    const i = parseIntentFallback("swap 1 SUI to USDC");
+    expect(i.action).toBe("market_swap");
+    expect(i.tokenIn).toBe("SUI");
+    expect(i.amountToken).toBe("in");
+    expect(i.amount).toBe(1);
+  });
 });

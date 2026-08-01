@@ -21,10 +21,11 @@ interface TabItem {
 }
 
 const NAV_TABS: TabItem[] = [
-  { name: "New Chat",   href: "/agent",          icon: "/assets/icons/plus.svg"    },
-  { name: "Policy",     href: "/agent/policy",   icon: "/assets/icons/shield.svg"  },
-  { name: "Activities", href: "/agent/activity", icon: "/assets/icons/list.svg"    },
-  { name: "History",    href: "/agent/history",  icon: "/assets/icons/history.svg" },
+  { name: "New Chat",   href: "/agent",          icon: "/assets/icons/plus.svg"      },
+  { name: "Overview",   href: "/agent/overview", icon: "/assets/icons/bar-chart.svg" },
+  { name: "Policy",     href: "/agent/policy",   icon: "/assets/icons/shield.svg"    },
+  { name: "Activities", href: "/agent/activity", icon: "/assets/icons/list.svg"      },
+  { name: "History",    href: "/agent/history",  icon: "/assets/icons/history.svg"   },
 ];
 
 function formatExpiry(expiryMs: number): string {

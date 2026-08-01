@@ -41,6 +41,28 @@ function num(text: string, re: RegExp): number | undefined {
 }
 
 /**
+ * Resolve tokenIn/tokenOut and how `amount` is denominated from an explicit
+ * buy/sell verb plus the primary named token.
+ *   "buy 10 SUI"  -> tokenIn=USDC, tokenOut=SUI, amountToken="out" (10 = SUI wanted)
+ *   "sell 10 SUI" -> tokenIn=SUI,  tokenOut=USDC, amountToken="in"  (10 = SUI spent)
+ * The named token is the SUBJECT of buy/sell (the first token mentioned); its
+ * counterpart defaults to the other side of the SUI/USDC pair.
+ */
+function resolveSided(
+  tokens: string[],
+  side: "buy" | "sell",
+): { tokenIn: string; tokenOut: string; amountToken: "in" | "out" } {
+  const primary = (tokens[0] || "SUI").toUpperCase();
+  const counter = primary === "USDC" ? "SUI" : "USDC";
+  if (side === "buy") {
+    // Buying `primary`: spend the counter token, receive `primary`. Amount = primary.
+    return { tokenIn: counter, tokenOut: primary, amountToken: "out" };
+  }
+  // Selling `primary`: spend `primary`, receive the counter. Amount = primary.
+  return { tokenIn: primary, tokenOut: counter, amountToken: "in" };
+}
+
+/**
  * Parse a natural-language instruction into a structured TradeIntent without any
  * LLM. Returns a validated TradeIntent (action="unknown" on failure).
  */
@@ -57,6 +79,15 @@ export function parseIntentFallback(message: string): TradeIntent {
   const percentage = num(text, /(\d+(?:\.\d+)?)\s*%/);
   const priceMatch = text.match(/(?:below|above|at|under|over)\s*\$?\s*(\d+(?:\.\d+)?)/i);
   const price = priceMatch ? Number(priceMatch[1]) : undefined;
+
+  // Explicit buy/sell verb. This is what disambiguates "buy 10 SUI" (want 10 SUI
+  // out, spend USDC) from "sell 10 SUI" (spend 10 SUI). Without it we'd guess the
+  // direction purely from which token is named, which inverts "buy".
+  const side: "buy" | "sell" | undefined = /\bbuy\b/i.test(lower)
+    ? "buy"
+    : /\bsell\b/i.test(lower)
+    ? "sell"
+    : undefined;
 
   // Resolve the trade amount. Prefer a token-qualified number ("100 SUI"); only
   // fall back to a bare number when it isn't the price we already extracted, so
@@ -89,16 +120,23 @@ export function parseIntentFallback(message: string): TradeIntent {
     });
   }
 
-  // limit order: explicit "limit" + a price
-  if (/\blimit\b/i.test(lower) && price != null) {
-    const { tokenIn, tokenOut } = resolvePair(tokens);
+  // limit order: a price plus either the word "limit" or an explicit buy/sell verb
+  // ("buy 10 SUI at 0.2" is a limit buy even without the word "limit").
+  if (price != null && (/\blimit\b/i.test(lower) || side)) {
+    const { tokenIn, tokenOut, amountToken } = side
+      ? resolveSided(tokens, side)
+      : { ...resolvePair(tokens), amountToken: "in" as const };
+    const verb = side === "buy" ? "Buy" : side === "sell" ? "Sell" : "Limit order";
+    const subject = side ? (tokens[0] || tokenOut).toUpperCase() : tokenIn;
     return TradeIntentSchema.parse({
       action: "limit_order",
       tokenIn,
       tokenOut,
+      side,
+      amountToken,
       ...(amount != null ? { amount } : {}),
       price,
-      summary: `Limit order ${amount ?? ""} ${tokenIn} @ ${price}.`.replace(/\s+/g, " ").trim(),
+      summary: `${verb} ${amount ?? ""} ${subject} @ ${price}.`.replace(/\s+/g, " ").trim(),
     });
   }
 
@@ -127,15 +165,25 @@ export function parseIntentFallback(message: string): TradeIntent {
     });
   }
 
-  // market swap: a swap verb + an amount
+  // market swap: a swap verb + an amount. Honor an explicit buy/sell so
+  // "buy 10 SUI" resolves to spending USDC to receive 10 SUI, not selling SUI.
   if (amount != null && /\b(swap|sell|buy|trade|convert|exchange)\b/i.test(lower)) {
-    const { tokenIn, tokenOut } = resolvePair(tokens);
+    const { tokenIn, tokenOut, amountToken } = side
+      ? resolveSided(tokens, side)
+      : { ...resolvePair(tokens), amountToken: "in" as const };
+    const subject = side ? (tokens[0] || tokenOut).toUpperCase() : tokenIn;
+    const verb = side === "buy" ? "Buy" : side === "sell" ? "Sell" : "Swap";
     return TradeIntentSchema.parse({
       action: "market_swap",
       tokenIn,
       tokenOut,
+      side,
+      amountToken,
       amount,
-      summary: `Swap ${amount} ${tokenIn} → ${tokenOut}.`,
+      summary:
+        side === "buy"
+          ? `Buy ${amount} ${subject} with ${tokenIn}.`
+          : `${verb} ${amount} ${tokenIn} → ${tokenOut}.`,
     });
   }
 
