@@ -1,4 +1,4 @@
-import { getSuiClient, assetTypeFor } from "./config.js";
+import { getSuiClient, assetTypeFor, decimalsFor } from "./config.js";
 import { getSwapAgent, type SwapRequest, type SwapOutcome } from "./swapAgent.js";
 import { AgentDeepBookClient, type DeepBookSetup } from "./deepbookClient.js";
 import type { AgentWalletRecord } from "./types.js";
@@ -29,16 +29,34 @@ export async function executePercentageSwap(args: {
     return { ok: false, reason: `Invalid percent ${args.percent}` };
   }
 
-  const coinType = assetTypeFor(args.tokenIn);
-  const balance = await getSuiClient().getBalance({
-    owner: args.wallet.agentAddress,
-    coinType,
-  });
-  const total = BigInt(balance.totalBalance);
-  // floor(total * percent / 100) without floats.
-  const amount = (total * BigInt(Math.round(args.percent * 100))) / 10_000n;
+  // Swaps settle from the DeepBook BalanceManager (the trading account), NOT the
+  // agent's gas wallet — so "30% of my SUI" must mean 30% of what's actually
+  // tradable there. Read the manager balance; fall back to the wallet balance
+  // only if the manager can't be read.
+  const decimals = decimalsFor(args.tokenIn);
+  let totalWhole = 0;
+  try {
+    const db = new AgentDeepBookClient(args.deepbook);
+    const managed = await db.managerBalance(args.tokenIn);
+    if (managed != null) totalWhole = managed;
+  } catch {
+    /* fall through to wallet balance */
+  }
+  if (totalWhole <= 0) {
+    const balance = await getSuiClient().getBalance({
+      owner: args.wallet.agentAddress,
+      coinType: assetTypeFor(args.tokenIn),
+    });
+    totalWhole = Number(balance.totalBalance) / 10 ** decimals;
+  }
+
+  const amountWhole = (totalWhole * args.percent) / 100;
+  const amount = BigInt(Math.floor(amountWhole * 10 ** decimals));
   if (amount <= 0n) {
-    return { ok: false, reason: `Computed amount is zero (balance ${total})` };
+    return {
+      ok: false,
+      reason: `Computed amount is zero — the trading account has ${totalWhole} ${args.tokenIn}. Fund it or trade a fixed amount.`,
+    };
   }
 
   return getSwapAgent().execute(buildRequest(args, amount));
