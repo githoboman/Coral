@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 2 of 8 |
-| **Active ticket** | C-004/C-007 — CI guardrails + wasm32 target |
-| **Next up** | C-101 — `TokenAmount` newtype |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 3 of 8 |
+| **Active ticket** | C-101 — `TokenAmount` newtype |
+| **Next up** | C-102 — `RawPolicy` → `ValidatedPolicy` |
 | **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
@@ -24,7 +24,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | # | Ticket | Status | Evidence when done |
 |---|---|---|---|
 | 1 | C-003 workspace + Foundry + pnpm + just | ☑ | `cargo check --workspace` ✓, clippy `-D warnings` ✓, `forge build` ✓, wasm32 build ✓, `cargo deny check` ✓ (2026-08-01) |
-| 2 | C-004 + C-007 CI guardrails + wasm32 | ☐ | PR adding `reqwest` to `corral-core` fails CI |
+| 2 | C-004 + C-007 CI guardrails + wasm32 | ☑ | Workflow: clippy `-D warnings`, tests, cargo-deny, wasm32 build, core-isolation dep-tree check, `enableSessions`/`U256::MAX` boundary greps, Foundry, gitleaks. All constituent checks proven locally 2026-08-01. **Caveat:** enforcement on PRs starts when a GitHub remote exists — the "reqwest fails CI" acceptance test runs then |
 | 3 | C-101 `TokenAmount` | ☐ | proptest: no silent-overflow path |
 | 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☐ | failing-case test per invariant (PRD §8) |
 | 5 | C-103 Action DSL + `Plan` | ☐ | extra JSON field fails deserialisation |

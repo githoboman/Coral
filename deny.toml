@@ -1,0 +1,38 @@
+# cargo-deny configuration (C-004).
+# Workspace-wide supply-chain rules. The corral-core I/O isolation rule
+# (CLAUDE.md §2.8) is enforced by the "core-isolation" CI job, which fails
+# if any I/O crate appears anywhere in corral-core's dependency tree.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Crates that must never enter the workspace at all
+deny = [
+    # No in-process key material anywhere (CLAUDE.md §2.1); corral-signer
+    # talks to KMS and even it never holds raw keys.
+    { crate = "secp256k1", reason = "raw key handling is forbidden; signing goes through KMS in corral-signer only" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

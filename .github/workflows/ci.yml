@@ -1,0 +1,103 @@
+# Corral CI — the guardrails exist before the code they guard (CLAUDE.md §5).
+# C-004: clippy -D warnings, cargo-deny, gitleaks, Foundry, boundary greps.
+# C-007: wasm32-unknown-unknown target for corral-core, from day one.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+      - name: corral-core compiles to WASM (C-007)
+        run: cargo build --target wasm32-unknown-unknown -p corral-core --features wasm
+
+  core-isolation:
+    name: corral-core has no I/O (CLAUDE.md §2.8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: No I/O crates in corral-core's dependency tree
+        run: |
+          set -euo pipefail
+          TREE=$(cargo tree -p corral-core --edges normal --all-features --prefix none | awk '{print $1}' | sort -u)
+          FORBIDDEN='^(tokio|sqlx|reqwest|hyper|axum|mio|async-std|smol|ureq|curl|openssl|native-tls|rustls|alloy-provider|alloy-transport.*)$'
+          if BAD=$(echo "$TREE" | grep -E "$FORBIDDEN"); then
+            echo "::error::corral-core must stay pure logic (WASM-compatible). Forbidden dependencies found:"
+            echo "$BAD"
+            exit 1
+          fi
+          echo "corral-core dependency tree is I/O-free."
+
+  policy-boundary:
+    name: No policy-widening paths, no unbounded approvals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: enableSessions only in the encoder and the install handler (CLAUDE.md §2.3)
+        run: |
+          set -euo pipefail
+          HITS=$(grep -rn "enableSessions" crates/ --include='*.rs' \
+            | grep -v "crates/corral-core/src/encode" \
+            | grep -v "crates/corral-api/src/sessions" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::enableSessions referenced outside corral-core::encode / the install handler:"
+            echo "$HITS"
+            exit 1
+          fi
+      - name: No U256::MAX in approval construction (CLAUDE.md §2.5)
+        run: |
+          set -euo pipefail
+          HITS=$(grep -rn "U256::MAX" crates/ --include='*.rs' | grep -i "approv" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::possible unbounded approval:"
+            echo "$HITS"
+            exit 1
+          fi
+
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: contracts }
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Build
+        run: forge build
+      - name: Test
+        run: forge test -vvv
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # C-108 (added when apps/web is imported): regenerate the WASM package and
+  # fail if the checked-in apps/web/packages/core-wasm differs — generated
+  # types must never go stale.
