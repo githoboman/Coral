@@ -54,6 +54,13 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 ## 4. Session log (newest first)
 
+### 2026-08-01 — Session 2 (cont.): reviewed upstream `Tovira-xyz/Coral`
+
+- Cloned and reviewed the repo the stakeholder was invited to (private; read via stored git credential; local clone in session scratchpad only, not added to this repo).
+- **Finding: Coral is the Sui hackathon predecessor, not the v2 frontend.** Sui Overflow 2026 entry: Move `AgentPolicy`/`AgentCapability` contracts (17 Move tests), Express+TS backend with server-held encrypted agent keys and Gemini NL intent parsing (104 tests), Vite+React frontend embedded in a larger consumer app (Supabase auth, points/streaks/referrals, Telegram mini-app, Solana+EVM wallet deps). Same core thesis (on-chain-bounded agent autonomy, owner revoke), different chain, custody model, and stack.
+- **Doc impact:** the "existing Next.js frontend" premise in CLAUDE.md §3 / spec §2 / PRD Q2 does not match reality — the candidate FE is Vite+React inside a multi-purpose app, targets Sui, and hand-writes its types. Import strategy for `apps/web` is an open decision for the stakeholder (see report in session transcript); no doc edits made pending that decision.
+- No code or dependency from Coral was pulled into this repo.
+
 ### 2026-08-01 — Session 2 (cont.): C-105 error taxonomy
 
 - **C-105 done, test-first:** `ErrorCode` (19 codes from reconciled PRD §9), `RetryClass`, `const fn retry_class` and `const fn user_message` — both exhaustive matches with **no wildcard arm**, so adding a code without classifying it fails to compile (the ticket's done-criterion, enforced by the compiler).
