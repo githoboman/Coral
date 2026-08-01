@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 5 of 8 |
-| **Active ticket** | C-103 — Action DSL + `Plan` |
-| **Next up** | C-105 — error taxonomy + `retry_class` |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 6 of 8 |
+| **Active ticket** | C-105 — error taxonomy + `retry_class` |
+| **Next up** | C-107/C-108 — WASM bindings + FE wiring |
 | **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
@@ -27,7 +27,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 2 | C-004 + C-007 CI guardrails + wasm32 | ☑ | Workflow: clippy `-D warnings`, tests, cargo-deny, wasm32 build, core-isolation dep-tree check, `enableSessions`/`U256::MAX` boundary greps, Foundry, gitleaks. All constituent checks proven locally 2026-08-01. **Caveat:** enforcement on PRs starts when a GitHub remote exists — the "reqwest fails CI" acceptance test runs then |
 | 3 | C-101 `TokenAmount` | ☑ | proptest: checked add/sub can't silently wrap; strict decimal-string serde (hex/negative/float/number rejected); no `Add` impl. 7/7 tests green (2026-08-01) |
 | 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☑ | All six invariants have failing-case tests (+ U256::MAX-cap and symbol-spoof edge cases); `ValidatedPolicy` has no `Deserialize`; `deny_unknown_fields` on every policy type. 11/11 tests green (2026-08-01) |
-| 5 | C-103 Action DSL + `Plan` | ☐ | extra JSON field fails deserialisation |
+| 5 | C-103 Action DSL + `Plan` | ☑ | Closed DSL (no raw-calldata/delegatecall variant possible); extra field on `Plan` or any `Action` fails deserialisation; unknown action tags rejected. 6/6 tests green (2026-08-01) |
 | 6 | C-105 error taxonomy + `retry_class` | ☐ | unclassified variant fails to compile |
 | 7 | C-107 + C-108 WASM bindings + FE wiring | ☐ | FE renders summary from crate; CI stale-check |
 | 8 | C-201 + C-202 `CorralJournal` + deploy | ☐ | verified on Base Sepolia, address committed |
@@ -53,6 +53,11 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 2 (cont.): C-103 Action DSL + Plan
+
+- **C-103 done, test-first:** `Action` (SWAP/TRANSFER/APPROVE/WRAP/UNWRAP, internally-tagged serde with `deny_unknown_fields`, no variant can carry raw calldata or an arbitrary target) and `Plan { chain_id, session_id, strategy_id, seq, actions }`. `Action::kind()` maps totally onto `ActionKind`.
+- Tests: round-trip; extra field on Plan rejected; extra field inside an Action rejected; unknown tag (`DELEGATECALL`) rejected; wire tags match `ActionKind` names.
 
 ### 2026-08-01 — Session 2 (cont.): C-102 policy validation
 
