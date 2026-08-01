@@ -140,11 +140,14 @@ export class SwapAgent {
       // fast with a clear message instead of an opaque `validate_inputs` MoveAbort.
       const params = await dbClient.bookParams();
       if (params) {
-        // Snap quantity DOWN to the lot-size grid (e.g. 0.1 SUI lots).
+        // Snap quantity DOWN to the lot-size grid (e.g. 0.1 SUI lots). Do the
+        // division in integer "lot" space with an epsilon nudge first: naive
+        // Math.floor(1.0 / 0.1) is 9 (since 1.0/0.1 === 9.999999999999998 in IEEE
+        // floats), which would wrongly snap a clean 1.0 down to 0.9. Round the lot
+        // count to kill that drift before flooring.
         if (params.lotSize > 0) {
-          baseQuantity = Math.floor(baseQuantity / params.lotSize) * params.lotSize;
-          // Clean float drift from the division (e.g. 0.30000000000000004 -> 0.3).
-          baseQuantity = Number(baseQuantity.toFixed(9));
+          const lots = Math.floor(baseQuantity / params.lotSize + 1e-9);
+          baseQuantity = Number((lots * params.lotSize).toFixed(9));
         }
         if (params.minSize > 0 && baseQuantity < params.minSize) {
           tracker.release(wallet.policyId, allocationId);
