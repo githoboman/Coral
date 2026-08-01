@@ -9,6 +9,12 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # `paste` is unmaintained (not vulnerable): a compile-time proc-macro with
+    # no runtime surface, pulled in transitively by alloy-primitives → ruint.
+    # Revisit when alloy migrates off it.
+    { id = "RUSTSEC-2024-0436", reason = "unmaintained transitive proc-macro (alloy → ruint → paste); compile-time only" },
+]
 
 [licenses]
 version = 2

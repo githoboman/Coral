@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 3 of 8 |
-| **Active ticket** | C-101 — `TokenAmount` newtype |
-| **Next up** | C-102 — `RawPolicy` → `ValidatedPolicy` |
+| **Current phase** | Bootstrap (CLAUDE.md §5) — task 4 of 8 |
+| **Active ticket** | C-102 — `RawPolicy` → `ValidatedPolicy` |
+| **Next up** | C-103 — Action DSL + `Plan` |
 | **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
 
 ## 2. Ticket board
@@ -25,7 +25,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 |---|---|---|---|
 | 1 | C-003 workspace + Foundry + pnpm + just | ☑ | `cargo check --workspace` ✓, clippy `-D warnings` ✓, `forge build` ✓, wasm32 build ✓, `cargo deny check` ✓ (2026-08-01) |
 | 2 | C-004 + C-007 CI guardrails + wasm32 | ☑ | Workflow: clippy `-D warnings`, tests, cargo-deny, wasm32 build, core-isolation dep-tree check, `enableSessions`/`U256::MAX` boundary greps, Foundry, gitleaks. All constituent checks proven locally 2026-08-01. **Caveat:** enforcement on PRs starts when a GitHub remote exists — the "reqwest fails CI" acceptance test runs then |
-| 3 | C-101 `TokenAmount` | ☐ | proptest: no silent-overflow path |
+| 3 | C-101 `TokenAmount` | ☑ | proptest: checked add/sub can't silently wrap; strict decimal-string serde (hex/negative/float/number rejected); no `Add` impl. 7/7 tests green (2026-08-01) |
 | 4 | C-102 `RawPolicy` → `ValidatedPolicy` | ☐ | failing-case test per invariant (PRD §8) |
 | 5 | C-103 Action DSL + `Plan` | ☐ | extra JSON field fails deserialisation |
 | 6 | C-105 error taxonomy + `retry_class` | ☐ | unclassified variant fails to compile |
@@ -39,7 +39,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | Reconcile docs (see §5, entry 2026-07-31) | ☑ |
 | `git init` + docs baseline commit | ☑ `98f1d05` |
 | Toolchain install (Rust 1.97.1, Foundry 1.5.1, pnpm 11.18, just 1.57, cargo-deny 0.20.2) | ☑ |
-| VS Build Tools (MSVC linker, for local `cargo test` + native deps) | ◐ installing |
+| VS Build Tools (MSVC linker, for local `cargo test` + native deps) | ☑ |
 
 ## 3. Gates
 
@@ -53,6 +53,13 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 2 (cont.): C-101 `TokenAmount`
+
+- **C-101 done, test-first:** property tests (add/sub either exact or `None` — no third outcome), strict wire-format tests, boundary cases; then the implementation: `TokenAmount(U256)`, `checked_add`/`checked_sub` with `#[must_use]`, no `Add`/`Sub`/`Mul` impls, `Display` + serde as decimal string.
+- **Spec divergence resolved in CLAUDE.md's favour:** spec §3.1's sketch shows `#[serde(transparent)]` (would inherit U256's hex serde); CLAUDE.md §5 task 3 requires decimal-string serde. Implemented decimal-string with strict digit-only parsing (rejects `0x…`, sign, exponent, separators, bare JSON numbers — U256's own `FromStr` would accept hex, too permissive for money).
+- Dependencies added: `alloy-primitives` + `serde` (corral-core), `proptest` + `serde_json` (dev). RUSTSEC-2024-0436 (`paste` unmaintained, transitive via ruint, compile-time only) triaged with documented ignore in `deny.toml`.
+- Verified: clippy `-D warnings`, 7/7 tests, wasm32 build, `cargo fmt --check`, `cargo deny check` — all green. VS Build Tools completed; local linking now works.
 
 ### 2026-08-01 — Session 2: toolchain + C-003 scaffold
 
