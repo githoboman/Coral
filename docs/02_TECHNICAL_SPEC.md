@@ -8,6 +8,29 @@
 
 ---
 
+## §0 — v3 respec addendum (1 Aug 2026 · ADRs D19–D24 · CLAUDE.md is the authority)
+
+**What changed:** backend = Coral-lineage Express + TypeScript + Supabase (`server/`); shared core = `@corral/core` TypeScript package (zod `.strict()`, branded-`bigint` `TokenAmount`); chain layer = viem; session encoding = **pinned reference TS SmartSessions SDK** (no hand-written encoder, no differential harness); infra = managed (Supabase, hosted app tier, commercial RPC failover, KMS). Detailed section rewrites land per-epic as each area is implemented; until then use this mapping:
+
+| Section below | v3 status |
+|---|---|
+| §1 Trust boundaries | **Valid** — substitute "managed services we use" for "servers we own"; KMS boundary unchanged |
+| §2 Repository layout / rules | Superseded — see CLAUDE.md §4 (packages/core, server/, app/, contracts/) |
+| §3 Shared core (Rust sketches) | Superseded in language, **binding in semantics** — every invariant, the checked-arithmetic rule, and parse-don't-validate carry into `@corral/core`; PRD §8 has the TS shape |
+| §4 On-chain design | **Valid, unchanged** (module manifest, CorralJournal, worked session config, revocation ordering) |
+| §5 Policy encoder | §5.1–5.2 superseded by D22 (reference SDK, pinned). **§5.3 post-install verification remains mandatory** |
+| §6 Services | Rust crate boundaries → TS module boundaries in `server/src/services/evm/` (signer, relayer, jobs, indexer, api); all behavioral rules (signer refusal, relayer never widens policy, queue semantics, no-calldata-through-API) **carry unchanged** |
+| §7 Execution pipeline | **Valid, unchanged** (13 steps, commit point, idempotency key, retry classes) |
+| §8 Planner | **Valid, unchanged** (deterministic in execution path; LLM authoring-only) |
+| §9 Data model | **Valid** on Supabase Postgres; amounts stay `numeric(78,0)` |
+| §10 Testing | Violation matrix, invariant fuzz, compiler property tests, chaos, prompt-injection, E2E: **valid**. Encoder differential rows: superseded by D22 (SDK pin + §5.3 + matrix). proptest → fast-check |
+| §11 Infrastructure | Superseded by D19 (managed posture); alert list and runbook discipline carry, scoped to what we actually run |
+| §12 Chain-agnosticism | **Valid** — and Coral's Sui build is the existence proof of the portable-core argument |
+
+---
+
+---
+
 ## 1. Trust boundaries
 
 ```

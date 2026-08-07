@@ -1,7 +1,8 @@
 # Corral — Product Requirements Document
 *Product release v1 · Document version 2.0*
 
-**Version:** 2.0 — respecified for a Rust backend on self-hosted infrastructure
+**Version:** 2.1 — v3-amended, 1 Aug 2026 (ADRs D19–D24): backend is the Coral-lineage Express + TypeScript + Supabase service; the shared core is the TypeScript `@corral/core` package; session encoding uses the reference TS SmartSessions SDK. **Every FR is unchanged** — they were stack-independent by design. §8 and the SEC-13/15 wordings are amended below; NFR-9/12/13/14 retargeted for the managed posture.
+*(v2.0 header follows for provenance)* — respecified for a Rust backend on self-hosted infrastructure
 **Changes from v1.0:** §8 policy schema moved to the `corral-core` Rust crate (WASM-shared with the frontend); §10 event schema likewise; §11 NFRs updated for self-hosted infrastructure; SEC-13…SEC-18 added for own key custody, encoder verification and the sequencer honesty rule; §15 open questions revised. **All functional requirements (FR-x.y) are unchanged** — they were written to be stack-independent, and the respec proved that out.
 **Date:** 30 July 2026
 **Target release:** Guarded mainnet, week 20 (see `00_FEASIBILITY_AND_TIMELINE.md` v2 §8.2)
@@ -276,7 +277,7 @@ The FE is where the product's differentiation lives. Requirements are deliberate
 | FR-11.6 | **Activity feed** per FR-7.3, with failures and aborts visually distinct from rejections | **[MUST]** |
 | FR-11.7 | Empty, loading, stale, error, expired, revoked and paused states designed for every screen. No spinner-only states | **[MUST]** |
 | FR-11.8 | Never display a raw revert string, hex selector, or unmapped error code to a user | **[MUST]** |
-| FR-11.9 | Shared types generated from the `corral-core` WASM build; the FE must not hand-write or duplicate Policy, Action, or ExecutionStatus | **[MUST]** |
+| FR-11.9 | Shared types imported from `@corral/core` (zod-derived); the FE must not hand-write or duplicate Policy, Action, or ExecutionStatus | **[MUST]** |
 | FR-11.10 | Mobile-responsive down to 375px; kill switch and budget meters must work on mobile | **[SHOULD]** |
 | FR-11.11 | Reads (feed, budgets) degrade gracefully to direct RPC if the Corral API is unavailable | **[SHOULD]** |
 
@@ -284,37 +285,39 @@ The FE is where the product's differentiation lives. Requirements are deliberate
 
 ---
 
-## 8. Policy schema (canonical, Rust)
+## 8. Policy schema (canonical — `@corral/core`, TypeScript)
 
-> **v2 change.** The canonical schema moved from TypeScript (`packages/core`) to the **`corral-core` Rust crate**, compiled natively for the backend and to WASM for the frontend. The schema and its validation logic now exist exactly once. TypeScript definitions are generated, never hand-written, so the guarantee shown in the UI cannot drift from the one enforced on-chain. Full types in `02_TECHNICAL_SPEC.md` §3.
+> **v3 change (D20).** The canonical schema lives in the **`@corral/core` TypeScript package**, imported by the backend and the frontend from one source. Zod `.strict()` schemas are the single definition; TS types derive via `z.infer` and are never hand-written. The guarantee shown in the UI is rendered from the same `policySummary()` that validates what goes on-chain, so it cannot drift.
 
-Chain-agnostic by construction: `corral-core` has no I/O, no chain client, and must keep compiling to `wasm32-unknown-unknown`.
+Chain-agnostic by construction: `@corral/core` has no I/O, no chain client, no environment access (CI-enforced by dependency-cruiser).
 
-```rust
-/// Base units only. No Add impl, no float conversion, no primitive casts:
-/// a silent overflow in a spending limit is the worst bug this system can have.
-pub struct TokenAmount(U256);
+```ts
+/// Base units only, as a branded bigint. No number, no float math, no
+/// arithmetic operators — checkedAdd/checkedSub only: a silent overflow in a
+/// spending limit is the worst bug this system can have.
+type TokenAmount = bigint & { readonly __brand: "TokenAmount" };
 
-/// Untrusted, straight off the wire.
-pub struct RawPolicy {
-    pub version: u8,
-    pub chain_id: u64,
-    pub asset_scope: Vec<AssetRef>,            // FR-2.1
-    pub budgets: Vec<BudgetConstraint>,        // FR-2.2 — cumulative, per asset
-    pub max_native_value: TokenAmount,         // FR-2.3
-    pub target_scope: Vec<TargetConstraint>,   // FR-2.4, FR-2.5
-    pub action_scope: Vec<ActionKind>,         // FR-2.8
-    pub valid_after: u64,                      // FR-2.6
-    pub valid_until: u64,
-    pub max_executions: u32,                   // FR-2.7
-    pub max_executions_per_24h: u32,
-    pub min_output_bps: u16,
-}
+/// Untrusted, straight off the wire (zod .strict() — unknown fields fail).
+const RawPolicy = z.strictObject({
+  version: z.number().int(),
+  chainId: z.number().int(),
+  assetScope: z.array(AssetRef),            // FR-2.1
+  budgets: z.array(BudgetConstraint),       // FR-2.2 — cumulative, per asset
+  maxNativeValue: TokenAmountSchema,        // FR-2.3
+  targetScope: z.array(TargetConstraint),   // FR-2.4, FR-2.5
+  actionScope: z.array(ActionKind),         // FR-2.8
+  validAfter: z.number().int(),             // FR-2.6
+  validUntil: z.number().int(),
+  maxExecutions: z.number().int(),          // FR-2.7
+  maxExecutionsPer24h: z.number().int(),
+  minOutputBps: z.number().int(),
+});
 
-/// Constructible only via TryFrom<RawPolicy>. Everything downstream —
-/// encoder, compiler, API, WASM bindings — accepts this type and never RawPolicy,
-/// so "unvalidated policy past the boundary" is unrepresentable.
-pub struct ValidatedPolicy(RawPolicy);
+/// Constructible only via parsePolicy(raw) — schema parse + the six invariant
+/// checks below. Everything downstream (session install, compiler, API, UI)
+/// accepts ValidatedPolicy and never RawPolicy. TS's substitute for Rust's
+/// TryFrom boundary: the constructor is not exported, only parsePolicy is.
+declare function parsePolicy(raw: unknown): ValidatedPolicy; // throws PolicyError
 ```
 
 **Invariants enforced at parse time**, each mapping to a requirement:
@@ -328,19 +331,18 @@ pub struct ValidatedPolicy(RawPolicy);
 | 24h cap ≤ total cap | FR-2.7 | |
 | `min_output_bps` in 5000..=10000 | FR-9.3 | |
 
-The `Action`/`Plan` DSL uses `#[serde(deny_unknown_fields)]`: a model adding a helpful extra field fails deserialisation rather than passing something unmodelled into the compiler (FR-4.2).
+The `Action`/`Plan` DSL uses `z.strictObject` throughout: a model adding a helpful extra field fails parsing rather than passing something unmodelled into the compiler (FR-4.2).
 
 ### 8.1 Frontend consumption
 
 ```ts
-import init, { policy_summary, validate_policy } from "@corral/core";
+import { parsePolicy, policySummary } from "@corral/core";
 
-await init();
-const summary = policy_summary(JSON.stringify(draft));
+const summary = policySummary(parsePolicy(draft));
 // summary.maxTotalSpend / permittedDestinations / expiresAt
 ```
 
-FR-11.1's plain-language worst-case panel renders from `policy_summary()`. That is a requirement, not an implementation preference: it is what guarantees the sentence shown to the user is derived from the same code that produces the on-chain configuration.
+FR-11.1's plain-language worst-case panel renders from `policySummary()`. That is a requirement, not an implementation preference: it is what guarantees the sentence shown to the user is derived from the same code that validates the on-chain configuration.
 
 ---
 
@@ -427,12 +429,12 @@ This satisfies the source document's §3.7 and its §5 goal of a standardised cr
 | NFR-6 | Scheduler availability | 99.5% monthly; a missed run is skipped-and-notified, never silently dropped |
 | NFR-7 | Execution correctness | Zero double-executions against a single budget. Non-negotiable. |
 | NFR-8 | Cost per execution (gas, sponsored) | <$0.05 on Base |
-| NFR-9 | **Infrastructure cost** | **<$2,200/mo at up to 1,000 active sessions** (self-hosted; see feasibility §9.2) |
+| NFR-9 | **Infrastructure cost** | **<$600/mo at up to 1,000 active sessions** (managed posture: Supabase + app hosting + commercial RPC + KMS; D19) |
 | NFR-10 | Data retention | Executions indefinite; planner traces 90 days |
 | NFR-11 | Accessibility | WCAG 2.1 AA on policy review, budget and kill-switch screens |
-| NFR-12 | **Frontend bundle impact incl. WASM core** | **<250KB gzipped added** (raised from 150KB for the WASM payload; measure in C-801 and apply `wasm-opt`) |
-| NFR-13 | **Database durability** | Streaming replica; PITR; restore drilled quarterly. RPO <5 min, RTO <2h |
-| NFR-14 | **Node availability** (from wk 20) | 2 nodes; automatic failover to break-glass RPC when >20 blocks behind head |
+| NFR-12 | **Frontend bundle impact of `@corral/core`** | **<150KB gzipped added** (pure TS, no WASM payload; measure at FE integration) |
+| NFR-13 | **Database durability** | Supabase PITR enabled and restore drilled quarterly. RPO <5 min, RTO <2h. The DB is a mirror — chain state is authoritative for money |
+| NFR-14 | **RPC availability** | ≥2 commercial providers behind automatic failover; alert when primary >20 blocks behind head (D19 — no own nodes) |
 | NFR-15 | **Signer availability** | KMS multi-region; on outage executions queue and retry — they never bypass |
 
 ---
@@ -453,9 +455,9 @@ This satisfies the source document's §3.7 and its §5 goal of a standardised cr
 | SEC-10 | Incident response: named on-call, pre-drafted user comms, a rehearsed global pause, and a public post-mortem commitment. |
 | SEC-11 | **Legal review required before launch** on: (a) whether delegated execution constitutes custody in target jurisdictions, (b) whether strategy templates constitute investment advice, (c) money-transmission exposure, (d) MiCA/geographic restrictions. Product copy must not promise returns or describe Corral as managing, advising on, or optimising a portfolio. |
 | SEC-12 | Publish the bounded revocation guarantee (feasibility doc §6) rather than an "instant" claim. Overstating the guarantee is both a trust and a legal risk. |
-| SEC-13 | **Key custody is ours (v2).** Signing keys live in KMS/HSM and are never exported. `corral-signer` is the only component permitted to hold KMS credentials. Rotation quarterly; break-glass documented and rehearsed. |
+| SEC-13 | **Key custody is ours (v3: D23).** Mainnet signing keys live in KMS/HSM (secp256k1) and are never exported; the signer module is the only component permitted to hold KMS credentials. The testnet-only encrypted-at-rest key model inherited from Coral is a launch blocker until replaced. Rotation quarterly; break-glass documented and rehearsed. |
 | SEC-14 | **The signer independently refuses to sign for a revoked or expired session**, regardless of caller. This replaces the defence-in-depth previously provided by a custody vendor's policy engine. |
-| SEC-15 | **Encoder correctness is a release gate.** The Rust policy encoder must be byte-equal to the reference implementation across ≥10,000 generated policies, in CI, on every commit. Every installed session is additionally read back from chain, decoded and compared against the signed policy before being marked ACTIVE; a mismatch pauses and pages. |
+| SEC-15 | **Session-configuration correctness is a release gate (v3: D22).** Session encoding uses the reference TypeScript SmartSessions SDK, pinned by exact version and lockfile integrity; an SDK upgrade is a security-reviewed change, never a routine bump. Every installed session is read back from chain, decoded and compared against the signed policy before being marked ACTIVE; a mismatch pauses and pages. The on-chain violation matrix must pass on every commit. |
 | SEC-16 | **The relayer cannot widen policy.** It receives signed userOps and submits them. Its key is hot and holds gas only; the blast radius of its compromise is gas theft, not user funds. |
 | SEC-17 | **Self-hosting confers no additional trust.** Our servers remain in the untrusted zone of the threat model. Any argument of the form "it's safe because it's on our own infrastructure" is rejected in review. |
 | SEC-18 | **Do not claim censorship resistance.** Base uses a centralised sequencer; running our own nodes does not change that. Marketing and product copy must not imply otherwise (feasibility §1.2). |
@@ -496,14 +498,14 @@ Resolved since v1: chain (Base), backend language (Rust), infrastructure posture
 
 | # | Question | Owner | Needed by |
 |---|---|---|---|
-| Q1 | **Is the infra/SRE engineer hired or assigned?** Without them the plan reverts from 20 weeks to ~28 and launch moves to late February 2027 | Founder | **Wk 1 — the single most schedule-critical open item** |
+| Q1 | ~~Is the infra/SRE engineer hired or assigned?~~ **Resolved by D19 (1 Aug 2026):** managed posture (Supabase/hosted services) removes the dedicated-infra-owner requirement; on-call for the services we run is still needed (Q10 stands) | — | Closed |
 | Q2 | ~~Confirm the existing frontend stack, and whether it currently contains any policy or execution logic~~ **Resolved (31 Jul 2026, stakeholder):** the FE is ready and is not expected to be an issue. On import into `apps/web`, verify it contains no hand-written Policy/Action/ExecutionStatus types (FR-11.9) before wiring the WASM core (C-801) | FE dev | ~~Wk 1~~ Done |
-| Q3 | KMS provider and region strategy (AWS vs GCP vs on-prem HSM); multi-region replication plan | INF | Wk 4 |
+| Q3 | KMS provider and region strategy (AWS vs GCP; secp256k1 support required); multi-region replication plan. **Direction fixed by D23 (KMS before mainnet); provider choice still open** | BE | Before mainnet-prep epic |
 | Q4 | Audit budget and tier confirmed, so the week-16 slot can be booked in week 5 | Founder | Wk 2 |
 | Q5 | Legal posture on custody and advice — note that operating our own signing infrastructure may change the custody analysis versus using a regulated vendor. Raise this with counsel explicitly | Founder + counsel | **Wk 2** |
-| Q6 | Hosting: bare metal, dedicated cloud, or colo? Drives procurement lead time for the node phase | INF | Wk 2 |
+| Q6 | ~~Hosting: bare metal, dedicated cloud, or colo?~~ **Resolved by D19:** managed hosting (Render/Vercel-class + Supabase), as Coral runs today | — | Closed |
 | Q7 | Gas sponsorship: indefinite, or passed through after beta? | Product | Wk 10 |
-| Q8 | L1 endpoint for `op-node`: commercial provider permanently, or own Ethereum node later? | INF | Wk 16 |
+| Q8 | ~~L1 endpoint for `op-node`?~~ **Moot under D19:** no own Base nodes; commercial RPC with multi-provider failover permanently | — | Closed |
 | Q9 | Do we support a user's existing Safe, or only Corral-deployed accounts? Existing accounts carry an unknown module set — a real security consideration | SOL | Wk 4 |
 | Q10 | On-call: who, what rota, what escalation? Self-hosting means there is no vendor to page | Founder + INF | Wk 14 |
 | Q11 | Target geography and geo-fencing | Founder | Wk 14 |

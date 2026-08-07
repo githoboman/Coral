@@ -3,6 +3,33 @@
 **Version:** 2.0 — supersedes v1.0
 Two parallel tracks: **PRODUCT** (Solidity + Rust product engineer + frontend) and **INFRA** (infra/SRE). Estimates in ideal engineer-days for a senior engineer. The 20-week calendar in `00_FEASIBILITY_AND_TIMELINE.md` §8.2 already includes review, integration and slack.
 
+---
+
+# ⚠️ v3 DELTA MAP (1 Aug 2026 · ADRs D19–D24) — read this first
+
+The v2 ticket bodies below remain the reference for *scope and acceptance criteria*, re-targeted to the TS stack. Current work uses **T-numbers** (CLAUDE.md §5); the mapping:
+
+**New foundations (active):**
+| ID | Ticket | Maps to |
+|---|---|---|
+| T-001 | Import Coral `app/` + `server/` snapshot; pnpm workspace; both build | new |
+| T-002 | `@corral/core`: port `TokenAmount` (branded bigint, fast-check parity with the Rust tests) | C-101 |
+| T-003 | `@corral/core`: port `parsePolicy` — zod `.strict()`, all six invariants | C-102 |
+| T-004 | `@corral/core`: Action DSL + `Plan` + error taxonomy + exhaustive `retryClass` | C-103, C-105 |
+| T-005 | CI re-point to TS (tsc strict, eslint boundaries, dependency-cruiser, vitest); delete `crates/` + Rust jobs | C-004 rework |
+| T-006 | `CorralJournal.sol` + coverage + CREATE2 Sepolia deploy | C-201, C-202 |
+| T-007 | EVM account layer via viem/permissionless: deploy, counterfactual address, pinned modules + codehash | C-203–C-206 |
+| T-008 | Session install with pinned SmartSessions TS SDK + post-install read-back verify | C-301–C-305 collapse, C-308 |
+
+**Per-epic status of the v2 tickets:**
+- **EPIC 0–1:** done in v2 form (Rust, commits in `docs/04`); semantics re-land as T-002…T-005. C-104 (events), C-106 (strategy machine), C-107/C-108 (WASM) → C-104/C-106 fold into T-004's successor tickets; C-107/C-108 are **obsolete** (no WASM — FE imports the TS package directly).
+- **EPIC 2:** all live, → T-006/T-007.
+- **EPIC 3:** C-301–C-307 (hand-written encoder + differential harness) **obsolete per D22**. C-308 (post-install verify), C-309 (violation matrix), C-310 (invariant fuzz), C-311 (revoke flow), C-312 (preflight) **live and unchanged in intent** — these are now the security core of the epic.
+- **EPIC 4–9:** live as written, TS-retargeted (adapters/compiler/pipeline/strategies/feed in `server/src/services/evm/`; FE tickets apply to `app/`, minus WASM wiring; C-807 standalone revoke page unchanged).
+- **INFRA track:** I-1xx/I-2xx (provisioning, self-hosted Postgres) **obsolete per D19** — replaced by Supabase config + PITR restore drill (I-204 survives in spirit). I-3xx (signer/KMS) **live**, mainnet gate. I-4xx (relayer) **live** — D13 retained. I-5xx (jobs/indexer) **live** on Supabase Postgres. I-6xx (observability) reduced to managed-stack scope. I-7xx (own Base nodes) **obsolete per D19**.
+
+---
+
 **Roles:** `SOL` Solidity/AA · `RS` Rust product · `INF` infra/SRE · `FE` frontend · `PM` product · `SEC` external
 
 **Definition of Done:** code + tests + no new lint/`cargo-deny`/boundary violations + docs updated + demoable on Base Sepolia. For anything touching `corral-core::encode`, add: **differential harness green.**

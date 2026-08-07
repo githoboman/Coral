@@ -10,16 +10,29 @@
 
 | | |
 |---|---|
-| **Current phase** | Bootstrap (CLAUDE.md §5) — task 7 of 8 |
-| **Active ticket** | C-107/C-108 — WASM bindings + FE wiring |
-| **Next up** | C-201/C-202 — `CorralJournal.sol` + Sepolia deploy |
-| **Blocked / waiting** | `apps/web` frontend import (stakeholder says FE is ready; not yet in repo — needed by C-108/C-801, not before). Local `cargo test` link step waits on VS Build Tools install (in progress); check/clippy/wasm unaffected |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-001 of 8 |
+| **Active ticket** | T-001 — import Coral `app/` + `server/` snapshot; pnpm workspace; both build |
+| **Next up** | T-002 — `@corral/core` scaffold + `TokenAmount` port with fast-check parity |
+| **Blocked / waiting** | **Disk space**: drive was down to 326 MB free on 2026-08-01 (freed to ~1.9 GB by deleting Rust `target/`; stakeholder should clear more before T-001's `node_modules` install, which needs several GB) |
 
 ## 2. Ticket board
 
-Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. Only tickets touched or imminent are listed; the full backlog stays in `03_BACKLOG.md`.
+Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. Only tickets touched or imminent are listed; the full backlog stays in `03_BACKLOG.md` (v3 delta map at its top).
 
-### Bootstrap (CLAUDE.md §5 — strict order)
+### v3 bootstrap (CLAUDE.md §5 — strict order)
+
+| # | Ticket | Status | Evidence when done |
+|---|---|---|---|
+| 1 | T-001 Coral snapshot import + workspace | ☐ | `pnpm -r build` green; provenance commit cites Coral SHA |
+| 2 | T-002 `@corral/core` + `TokenAmount` port | ☐ | fast-check parity with the retired Rust suite |
+| 3 | T-003 `parsePolicy` — six invariants | ☐ | failing-case test per invariant |
+| 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☐ | extra field fails parse; unclassified code fails `tsc` |
+| 5 | T-005 CI re-point to TS; delete `crates/` | ☐ | CI green with no Rust; §4 boundary rules enforced |
+| 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☐ | verified on Base Sepolia, address committed |
+| 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
+| 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
+
+### v2 bootstrap (historical — semantics carry into T-002…T-004, then `crates/` retires)
 
 | # | Ticket | Status | Evidence when done |
 |---|---|---|---|
@@ -45,14 +58,28 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 | Gate | Criteria (short) | Status |
 |---|---|---|
-| G0 | ADRs signed, threat model, audit slot, infra owner | ☐ — needs stakeholder (C-001/C-002/C-005/C-006) |
-| G1′ | 10k-policy differential harness green; V1–V25 revert | ☐ |
+| G0 | ADRs signed, threat model, audit slot | ◐ — D19–D24 decided by stakeholder 2026-08-01; threat model + audit outreach open |
+| G1′ | **(v3, D22)** Session install verified by on-chain read-back; V1–V25 revert; SDK pinned | ☐ |
 | G2 | Zero double-executions across 50 induced failures | ☐ |
 | G3 | Zero known highs; runbooks; restore tested | ☐ |
 | G4 | Audit criticals/highs closed | ☐ |
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-01 — Session 3: **v3 respec** — the stakeholder decisions and the doc update
+
+Stakeholder decisions (recorded as ADRs D19–D24 in `docs/00` §6):
+1. **Backend stays Express + TS + Supabase** (the Coral lineage, 104 tests) — supersedes the Rust services plan.
+2. **Chain stays Base/EVM**; Sui Coral is demo-only heritage. The BE gains a viem chain layer.
+3. **Shared core rewritten in TypeScript** (`@corral/core`: zod `.strict()`, branded-bigint `TokenAmount`, fast-check) — Rust crates retire at T-005 once ported with test parity.
+4. **This repo stays primary**; `Tovira-xyz/Coral` wired as git remote `coral` for optional future upstreaming (nothing pushed without instruction). Directory names will mirror Coral's.
+5. **KMS custody before mainnet** (secp256k1, non-exportable); testnet may keep encrypted-at-rest keys.
+6. Consequence of TS + Base: session encoding now uses the **reference TS SmartSessions SDK, pinned** (D22) — the v2 hand-written-encoder risk and its differential harness are obsolete; post-install read-back verification and the violation matrix carry unchanged as the security gates.
+
+Docs updated in this commit: CLAUDE.md fully rewritten (v3 stack, non-negotiables reworked for TS, new bootstrap T-001…T-008); `docs/00` v3 banner + ADRs; `docs/01` §8 schema in TS, SEC-13/15 amended, NFR-9/12/13/14 retargeted, Q1/Q6/Q8 closed; `docs/02` §0 addendum with per-section validity map; `docs/03` v3 delta map.
+
+Ops note: the drive hit **326 MB free** mid-edit (two writes failed with ENOSPC and were re-applied); deleted the 843 MB Rust `target/` dir to recover. Stakeholder should free more space before T-001.
 
 ### 2026-08-01 — Session 2 (cont.): reviewed upstream `Tovira-xyz/Coral`
 

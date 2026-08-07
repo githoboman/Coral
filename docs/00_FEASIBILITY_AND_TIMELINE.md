@@ -4,6 +4,19 @@
 **Supersedes:** v1.0 (30 July 2026, serverless + TypeScript)
 **Date:** 30 July 2026
 
+> **⚠️ v3 respec, 1 Aug 2026 (stakeholder decisions — see ADRs D19–D24 in §6).**
+> The stack described in this document's body is **superseded**: the backend is
+> the existing Coral Express + TypeScript + Supabase service (not Rust, not
+> self-hosted), the shared core is a TypeScript package (not a Rust/WASM crate),
+> and the policy encoder uses the **reference TypeScript SmartSessions SDK
+> directly** — which retires the §4 hand-written-encoder risk and its
+> differential harness. The chain (**Base/EVM**), the on-chain enforcement
+> design, the violation matrix, post-install verification, the own-relayer
+> revocation guarantee (D13), KMS custody (D14/D23), and every FR in the PRD
+> **carry forward unchanged**. §§1.1, 5, 10–12 remain valid; treat the Rust- and
+> self-hosting-specific sections (§§1.3, 2, 3, 4, 8, 9) as historical rationale.
+> `CLAUDE.md` is the current authority on the stack.
+
 ---
 
 ## 0. What changed from v1 and why
@@ -173,6 +186,12 @@ Supersedes v1 §8. D1–D4, D6, D7, D9, D10 carry over unchanged.
 | D16 | Chain access | Commercial RPC with multi-provider failover **until week 20**, then own `op-reth`+`op-node` | §1.2 — sequencing, not a downgrade |
 | D17 | Encoder verification | Differential test against the reference TS SDK, in CI, release-blocking | §4 |
 | D18 | Signer scaling | One KMS key per session signer at v1 scale; migrate to enclave-held derived keys above ~5,000 sessions | Per-key cost and API limits become the binding constraint; plan the migration, don't build it yet |
+| **D19** | **Backend & infra posture (v3, 1 Aug 2026)** | **Keep the existing Coral Express + TypeScript + Supabase backend; managed posture (Supabase Postgres, Render/Vercel-class hosting, commercial RPC with multi-provider failover permanently)** | Stakeholder decision after reviewing `Tovira-xyz/Coral` (104 passing server tests, working agent engine). Supersedes D8′ (Rust services) and D16 (own Base nodes — never built now). DB remains a mirror, never authoritative about money |
+| **D20** | **Shared core language (v3)** | **TypeScript package `@corral/core`: zod `.strict()` schemas, branded-`bigint` `TokenAmount`, fast-check property tests. Consumed by BE and FE from one source** | Stakeholder decision; supersedes D11 (Rust/WASM core). The Rust crates retire once semantics + test suites are ported with parity. Single-source-of-truth goal is preserved; compiler-level unrepresentability is traded for lint- and test-enforced discipline — see CLAUDE.md §2 |
+| **D21** | **Chain (v3)** | **Base/EVM confirmed** (ERC-7579 + SmartSessions, unchanged). The Sui Coral build (Move `AgentPolicy`, DeepBook) is demo-only heritage; its chain code is not ported | Stakeholder decision. The existing BE gains a new EVM chain layer (viem) |
+| **D22** | **Encoder approach (v3)** | **Use the reference TypeScript SmartSessions SDK directly**, pinned by exact version + lockfile integrity. Supersedes D17's Rust↔TS differential harness (no longer meaningful — we now *run* the reference implementation). Retained and still mandatory: post-install read-back verification (old C-308) and the on-chain violation matrix (old C-309) | Being in TS dissolves the "reimplement a security-critical encoder" risk (old §4) instead of mitigating it |
+| **D23** | **Custody (v3)** | **KMS-held agent/session keys before mainnet** (secp256k1; keys never exportable; a dedicated signer module is the only KMS-credentialed component). Testnet may run Coral's existing AES-256-GCM encrypted-at-rest keys; the mainnet launch gate requires KMS | Affirms D14 under the TS stack. D13 (own relayer, `handleOps`, no third-party bundler) is also **retained** — now a TS service via viem — because the bounded-revocation guarantee (§1.1, PRD NFR-4a) depends on it |
+| **D24** | **Repo strategy (v3)** | This `corral` repo stays the primary workspace; `Tovira-xyz/Coral` is wired as git remote `coral` for possible future upstreaming. Nothing is pushed there without explicit stakeholder instruction. Directory names mirror Coral's (`app/`, `server/`) to keep an upstream push low-friction | Stakeholder wants the option, not the obligation, of contributing back |
 
 ---
 
