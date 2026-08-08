@@ -7,10 +7,12 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/**/dry-run/
 
-# Node / pnpm
+# Node
 node_modules/
-.pnpm-store/
-apps/web/.next/
+app/dist/
+server/dist/
+packages/core/dist/
+app/.vite/
 
 # Generated WASM output is CHECKED IN (CI verifies it is never stale) — do not ignore
 # apps/web/packages/core-wasm/

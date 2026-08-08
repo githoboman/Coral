@@ -82,6 +82,7 @@ corral/
 ├─ docs/                           # the five reference documents
 ├─ packages/
 │  └─ core/                        # ⚠️ @corral/core — pure logic. No I/O. The only source of shared types.
+│                                  #    consumed by app/ and server/ as a file: dependency (no workspace tool)
 │     └─ src/{policy,action,amount,events,errors,strategy}.ts
 ├─ server/                         # Express + TS backend (imported from Coral, gains:)
 │  └─ src/services/evm/            #   viem chain layer, session install/verify, signer, relayer, planner
@@ -114,7 +115,7 @@ Work these before touching anything else. T-numbers are the v3 re-baseline ticke
 
 | # | Task | Ticket | Done when |
 |---|---|---|---|
-| 1 | Import Coral `app/` + `server/` snapshot into this repo; pnpm workspace wiring; both build | T-001 | `pnpm -r build` passes; provenance commit references the Coral SHA |
+| 1 | Import Coral `app/` + `server/` snapshot into this repo; keep their per-package **npm** layout and lockfiles intact (lockfile pins are provenance; D24 keeps upstream pushes low-friction) | T-001 | `npm run build` green in both `app/` and `server/`; inherited server vitest suite passes; provenance commit references the Coral SHA |
 | 2 | `@corral/core` scaffold + port `TokenAmount` from Rust with test parity (fast-check) | T-002 | Property tests: no silent overflow; decimal-string wire form; rejects `number` |
 | 3 | Port `RawPolicy → ValidatedPolicy` (zod `.strict()` + `parsePolicy()`), all six invariants | T-003 | Each invariant has a failing-case test (PRD §8 table) |
 | 4 | Port Action DSL + `Plan` (closed enum, `.strict()`) and error taxonomy + exhaustive `retryClass` | T-004 | Extra JSON field fails parse; unclassified error code fails `tsc` (exhaustive switch + `never`) |
@@ -129,13 +130,15 @@ After task 8: the violation matrix (highest-value security artifact), then the U
 
 ## 6. Commands
 
+Per-package npm (Coral lineage — `--legacy-peer-deps` is required, their lockfiles assume it). `@corral/core` is consumed via `file:../packages/core` dependencies, not a workspace.
+
 ```bash
-pnpm -r build                      # everything
-pnpm --filter @corral/core test    # core: vitest + fast-check
-pnpm --filter server test          # BE: vitest (104 inherited + new)
-pnpm --filter server exec tsc --noEmit
-pnpm --filter app build            # FE: tsc -b + vite build
-pnpm lint                          # eslint + dependency-cruiser boundaries
+npm --prefix packages/core test    # core: vitest + fast-check
+npm --prefix packages/core run build
+npm --prefix server run build      # tsc
+npm --prefix server test           # vitest (104 inherited + new)
+npm --prefix app run build         # tsc -b + vite build
+npm --prefix app run lint
 
 # Contracts
 forge build --root contracts

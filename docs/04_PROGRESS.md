@@ -10,10 +10,10 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-001 of 8 |
-| **Active ticket** | T-001 — import Coral `app/` + `server/` snapshot; pnpm workspace; both build |
-| **Next up** | T-002 — `@corral/core` scaffold + `TokenAmount` port with fast-check parity |
-| **Blocked / waiting** | **Disk space**: drive was down to 326 MB free on 2026-08-01 (freed to ~1.9 GB by deleting Rust `target/`; stakeholder should clear more before T-001's `node_modules` install, which needs several GB) |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-002 of 8 |
+| **Active ticket** | T-002 — `@corral/core` scaffold + `TokenAmount` port with fast-check parity |
+| **Next up** | T-003 — `parsePolicy` (zod `.strict()`, six invariants) |
+| **Blocked / waiting** | — |
 
 ## 2. Ticket board
 
@@ -23,7 +23,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 | # | Ticket | Status | Evidence when done |
 |---|---|---|---|
-| 1 | T-001 Coral snapshot import + workspace | ☐ | `pnpm -r build` green; provenance commit cites Coral SHA |
+| 1 | T-001 Coral snapshot import (npm per-package) | ☑ | Imported at Coral `4e07c85`; server: tsc ✓ + **104/104 vitest** ✓; app: `tsc -b && vite build` ✓ (2026-08-08). Divergences: `app/package.json` gains `overrides: {"@mysten/sui": "1.45.2"}` and `app/package-lock.json` regenerated — **upstream's lockfile was desynced from its own package.json** (their final commit bumped the dep without regenerating; `npm ci` impossible as shipped). First candidate patch to offer upstream |
 | 2 | T-002 `@corral/core` + `TokenAmount` port | ☐ | fast-check parity with the retired Rust suite |
 | 3 | T-003 `parsePolicy` — six invariants | ☐ | failing-case test per invariant |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☐ | extra field fails parse; unclassified code fails `tsc` |
@@ -66,6 +66,14 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-08 — Session 4: T-001 — Coral snapshot imported and verified
+
+- Imported `app/` + `server/` from `Tovira-xyz/Coral` @ `4e07c85d0e252765127ec346d7a6f80f45e3b49c` (183 + 184 files). Kept per-package **npm** layout and lockfiles (pnpm wiring removed; CLAUDE.md §5/§6 amended accordingly) — lockfile pins are provenance and keep upstream pushes low-friction (D24).
+- **Server:** lockfile imported byte-identical; `tsc` build ✓; inherited test suite **104/104** ✓.
+- **App:** upstream bug found — `package-lock.json` desynced from `package.json` (last upstream commit bumped `@mysten/sui` to 1.45.2 without regenerating the lock; `npm ci` fails as shipped, and plain `npm install` produced a duplicated `@mysten/sui` tree that broke `tsc`). Fixed by adding `overrides: {"@mysten/sui": "1.45.2"}` and regenerating the lockfile. Build ✓. Noted for upstream.
+- Flaky-network battle: repeated `ERR_SOCKET_TIMEOUT` (50–90 s/tarball) caused two silently-truncated package extractions (`@types/node/stream.d.ts` cut mid-comment; `react-icons` missing every `index.d.ts`) — repaired by targeted delete + re-extract. Lesson recorded: on this connection, treat "file exists" as unproven — verify builds.
+- Known inherited debt (not fixed, per scope rule): app main chunk is 2.2 MB minified (Vite warns); server carries non-Corral consumer features (points/referrals/Telegram) — boundary rules in CLAUDE.md §8.4 apply.
 
 ### 2026-08-01 — Session 3: **v3 respec** — the stakeholder decisions and the doc update
 

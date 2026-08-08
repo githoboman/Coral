@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "src/**/__tests__/*",
+    "src/scripts/*"
+  ]
+}

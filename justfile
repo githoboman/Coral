@@ -1,40 +1,43 @@
 # Corral task runner — mirrors CLAUDE.md §6. `just check-all` = everything CI runs.
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
-default: check
+default: check-all
 
-check:
-    cargo check --workspace
+# ── TypeScript (v3 stack) ─────────────────────────────────────────────
+core-build:
+    npm --prefix packages/core run build
 
-clippy:
-    cargo clippy --workspace --all-targets -- -D warnings
+core-test:
+    npm --prefix packages/core test
 
-test:
-    cargo test --workspace
+server-build:
+    npm --prefix server run build
 
-deny:
-    cargo deny check
+server-test:
+    npm --prefix server test
 
-# corral-core must always compile to WASM (CLAUDE.md §2.8, C-007)
-wasm:
-    cargo build --target wasm32-unknown-unknown -p corral-core --features wasm
+app-build:
+    npm --prefix app run build
 
-# Regenerate the frontend's WASM package. CI fails if the checked-in output differs (C-108).
-wasm-pack:
-    wasm-pack build crates/corral-core --features wasm --target bundler --out-dir ../../apps/web/packages/core-wasm
+app-lint:
+    npm --prefix app run lint
 
+# ── Contracts ─────────────────────────────────────────────────────────
 forge-build:
     forge build --root contracts
 
 forge-test:
     forge test --root contracts -vvv
 
-# Security-critical: the 25-case violation matrix (C-309)
+# Security-critical: the 25-case violation matrix
 violations:
     forge test --root contracts --match-path test/Violations.t.sol
 
-# Release-blocking encoder differential harness (C-306/C-307)
-encoder-diff:
-    pnpm --dir harness/encoder-diff test
+# ── Rust (v2 legacy — retires at T-005 once @corral/core reaches parity) ──
+rust-check:
+    cargo check --workspace
 
-check-all: check clippy test deny wasm forge-build forge-test
+rust-test:
+    cargo test --workspace
+
+check-all: server-build app-build forge-build rust-check

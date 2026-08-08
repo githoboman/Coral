@@ -1,5 +1,0 @@
-packages:
-  # Existing frontend, imported when handed over (PRD Q2). packages/core-wasm inside it is generated output.
-  - "apps/web"
-  # CI/local-only differential harness (C-306) — never deployed to production
-  - "harness/encoder-diff"
