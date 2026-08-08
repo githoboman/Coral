@@ -90,7 +90,6 @@ corral/
 ├─ contracts/                      # Foundry (EVM)
 │  ├─ src/CorralJournal.sol
 │  └─ test/Violations.t.sol        # the 25-case matrix
-├─ crates/                         # v2 Rust workspace — RETIRING: removed once @corral/core reaches test parity
 └─ .github/workflows/
 ```
 
@@ -203,8 +202,8 @@ just check-all                     # everything CI runs
 ## 11. Status (v3 re-baseline)
 
 **Product track**
-- [x] v2 bootstrap 1–6 (Rust core through error taxonomy — retiring; semantics port to TS in T-002…T-004)
-- [ ] T-001…T-005 Foundations: Coral import, `@corral/core`, CI re-point
+- [x] v2 bootstrap 1–6 (Rust core through error taxonomy — retired at T-005; semantics live on in `@corral/core` with test parity)
+- [x] T-001…T-005 Foundations: Coral import, `@corral/core`, CI re-point
 - [ ] T-006…T-008 Contracts + account + session install/verify ⚠️ critical path
 - [ ] Violation matrix
 - [ ] Adapter + planner + execution pipeline

@@ -3,7 +3,6 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 default: check-all
 
-# ── TypeScript (v3 stack) ─────────────────────────────────────────────
 core-build:
     npm --prefix packages/core run build
 
@@ -22,7 +21,6 @@ app-build:
 app-lint:
     npm --prefix app run lint
 
-# ── Contracts ─────────────────────────────────────────────────────────
 forge-build:
     forge build --root contracts
 
@@ -33,11 +31,4 @@ forge-test:
 violations:
     forge test --root contracts --match-path test/Violations.t.sol
 
-# ── Rust (v2 legacy — retires at T-005 once @corral/core reaches parity) ──
-rust-check:
-    cargo check --workspace
-
-rust-test:
-    cargo test --workspace
-
-check-all: server-build app-build forge-build rust-check
+check-all: core-build core-test server-build server-test app-build forge-build

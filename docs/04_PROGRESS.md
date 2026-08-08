@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-005 of 8 |
-| **Active ticket** | T-005 — CI re-point to TS; parity audit; delete `crates/` |
-| **Next up** | T-006 — `CorralJournal.sol` + Sepolia deploy (deploy step needs a funded Base Sepolia key from stakeholder) |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-006 of 8 |
+| **Active ticket** | T-006 — `CorralJournal.sol` + 100% coverage + CREATE2 Sepolia deploy |
+| **Next up** | T-007 — EVM account layer (viem). **T-006's deploy step needs from stakeholder: a funded Base Sepolia deployer key (or hardware-wallet flow) + preferred RPC endpoint** |
 | **Blocked / waiting** | — |
 
 ## 2. Ticket board
@@ -27,7 +27,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 2 | T-002 `@corral/core` + `TokenAmount` port | ☑ | Branded-bigint `TokenAmount`, checked add/sub, strict decimal-string zod schema; 8/8 vitest+fast-check, each test named for the Rust test it ports (2026-08-08) |
 | 3 | T-003 `parsePolicy` — six invariants | ☑ | zod `.strict()` everywhere; every invariant has failing-case tests incl. symbol-spoof, U256_MAX-cap, nested-unknown-field and checksum-case edge cases; result deep-frozen; `policyToWire` round-trip law tested. 14/14 (2026-08-08) |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☑ | Closed DSL (no calldata/delegatecall variant); strict `Plan`; `Record<ErrorCode,…>` tables give compile-time exhaustiveness; policy rejections all `["NEVER",0]`. 14 new tests, 36/36 package-wide (2026-08-08) |
-| 5 | T-005 CI re-point to TS; delete `crates/` | ☐ | CI green with no Rust; §4 boundary rules enforced |
+| 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b:** replace grep boundary checks with eslint + dependency-cruiser |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☐ | verified on Base Sepolia, address committed |
 | 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
 | 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
@@ -66,6 +66,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-08 — Session 4 (cont.): T-005 — Rust retired, CI re-pointed
+
+- Parity audit: every Rust module and test file has a TS counterpart (amount 8≥7, policy 14≥11, action 7≥6, errors 7≥7 tests); the other eight crates were empty stubs. Removed `crates/`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `deny.toml` — the Rust implementation remains reachable in git history (`ed1d85c^` and earlier) as the reference spec.
+- CI rewritten: `core` (npm ci + strict tsc + vitest), `server` (npm ci --legacy-peer-deps + tsc + vitest), `app` (npm ci --legacy-peer-deps + build), `boundaries` (grep: core-purity/enableSessions/unbounded-approvals), `contracts` (Foundry), `gitleaks`. **T-005b follow-up:** eslint + dependency-cruiser to replace the greps per CLAUDE.md §4.
+- justfile now all-TS; `check-all` = core/server/app builds + tests + forge. VS Build Tools and the Rust toolchain on the dev box are now removable if disk pressure returns (stakeholder's call).
 
 ### 2026-08-08 — Session 4 (cont.): T-004 — Action DSL, `Plan`, error taxonomy
 

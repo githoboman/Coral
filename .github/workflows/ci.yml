@@ -1,6 +1,6 @@
-# Corral CI — the guardrails exist before the code they guard (CLAUDE.md §5).
-# C-004: clippy -D warnings, cargo-deny, gitleaks, Foundry, boundary greps.
-# C-007: wasm32-unknown-unknown target for corral-core, from day one.
+# Corral CI (v3 — TS stack, ADRs D19–D24). The guardrails from CLAUDE.md §4.
+# eslint + dependency-cruiser boundary enforcement is ticketed as T-005b;
+# until it lands, the boundary jobs below use grep checks.
 name: ci
 
 on:
@@ -8,68 +8,75 @@ on:
     branches: [main]
   pull_request:
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  rust:
+  core:
+    name: "@corral/core: strict tsc + vitest/fast-check"
     runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: packages/core }
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      - name: Format
-        run: cargo fmt --all --check
-      - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests
-        run: cargo test --workspace
-      - name: cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v2
-      - name: corral-core compiles to WASM (C-007)
-        run: cargo build --target wasm32-unknown-unknown -p corral-core --features wasm
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: packages/core/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
 
-  core-isolation:
-    name: corral-core has no I/O (CLAUDE.md §2.8)
+  server:
+    name: "server: tsc + vitest (Coral lineage)"
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: server }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: server/package-lock.json }
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      - run: npm test
+
+  app:
+    name: "app: tsc -b + vite build"
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: app }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: app/package-lock.json }
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+
+  boundaries:
+    name: "core purity + policy-widening + approval greps"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: No I/O crates in corral-core's dependency tree
+      - name: "@corral/core imports nothing but zod (CLAUDE.md §2.8)"
         run: |
           set -euo pipefail
-          TREE=$(cargo tree -p corral-core --edges normal --all-features --prefix none | awk '{print $1}' | sort -u)
-          FORBIDDEN='^(tokio|sqlx|reqwest|hyper|axum|mio|async-std|smol|ureq|curl|openssl|native-tls|rustls|alloy-provider|alloy-transport.*)$'
-          if BAD=$(echo "$TREE" | grep -E "$FORBIDDEN"); then
-            echo "::error::corral-core must stay pure logic (WASM-compatible). Forbidden dependencies found:"
+          BAD=$(grep -rhoE 'from "[^"]+"' packages/core/src --include='*.ts' \
+            | sed 's/from "//; s/"//' | sort -u | grep -vE '^(zod|\./)' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::@corral/core must stay pure (zod + relative imports only). Found:"
             echo "$BAD"
             exit 1
           fi
-          echo "corral-core dependency tree is I/O-free."
-
-  policy-boundary:
-    name: No policy-widening paths, no unbounded approvals
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: enableSessions only in the encoder and the install handler (CLAUDE.md §2.3)
+      - name: "enableSessions only in the session-install module (CLAUDE.md §2.3)"
         run: |
           set -euo pipefail
-          HITS=$(grep -rn "enableSessions" crates/ --include='*.rs' \
-            | grep -v "crates/corral-core/src/encode" \
-            | grep -v "crates/corral-api/src/sessions" || true)
+          HITS=$(grep -rn "enableSessions" server/src app/src packages/core/src 2>/dev/null \
+            | grep -v "server/src/services/evm/sessionInstall" || true)
           if [ -n "$HITS" ]; then
-            echo "::error::enableSessions referenced outside corral-core::encode / the install handler:"
+            echo "::error::enableSessions referenced outside the install module:"
             echo "$HITS"
             exit 1
           fi
-      - name: No U256::MAX in approval construction (CLAUDE.md §2.5)
+      - name: "no unbounded approvals (CLAUDE.md §2.5)"
         run: |
           set -euo pipefail
-          HITS=$(grep -rn "U256::MAX" crates/ --include='*.rs' | grep -i "approv" || true)
+          HITS=$(grep -rniE "maxUint256|MAX_UINT256" server/src packages/core/src 2>/dev/null \
+            | grep -i "approv" || true)
           if [ -n "$HITS" ]; then
             echo "::error::possible unbounded approval:"
             echo "$HITS"
@@ -84,10 +91,8 @@ jobs:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
       - uses: foundry-rs/foundry-toolchain@v1
-      - name: Build
-        run: forge build
-      - name: Test
-        run: forge test -vvv
+      - run: forge build
+      - run: forge test -vvv
 
   gitleaks:
     runs-on: ubuntu-latest
@@ -97,7 +102,3 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # C-108 (added when apps/web is imported): regenerate the WASM package and
-  # fail if the checked-in apps/web/packages/core-wasm differs — generated
-  # types must never go stale.
