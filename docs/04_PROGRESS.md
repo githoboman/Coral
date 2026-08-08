@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-002 of 8 |
-| **Active ticket** | T-002 — `@corral/core` scaffold + `TokenAmount` port with fast-check parity |
-| **Next up** | T-003 — `parsePolicy` (zod `.strict()`, six invariants) |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-003 of 8 |
+| **Active ticket** | T-003 — `parsePolicy` (zod `.strict()`, six invariants) |
+| **Next up** | T-004 — Action DSL + `Plan` + error taxonomy + `retryClass` |
 | **Blocked / waiting** | — |
 
 ## 2. Ticket board
@@ -24,7 +24,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | # | Ticket | Status | Evidence when done |
 |---|---|---|---|
 | 1 | T-001 Coral snapshot import (npm per-package) | ☑ | Imported at Coral `4e07c85`; server: tsc ✓ + **104/104 vitest** ✓; app: `tsc -b && vite build` ✓ (2026-08-08). Divergences: `app/package.json` gains `overrides: {"@mysten/sui": "1.45.2"}` and `app/package-lock.json` regenerated — **upstream's lockfile was desynced from its own package.json** (their final commit bumped the dep without regenerating; `npm ci` impossible as shipped). First candidate patch to offer upstream |
-| 2 | T-002 `@corral/core` + `TokenAmount` port | ☐ | fast-check parity with the retired Rust suite |
+| 2 | T-002 `@corral/core` + `TokenAmount` port | ☑ | Branded-bigint `TokenAmount`, checked add/sub, strict decimal-string zod schema; 8/8 vitest+fast-check, each test named for the Rust test it ports (2026-08-08) |
 | 3 | T-003 `parsePolicy` — six invariants | ☐ | failing-case test per invariant |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☐ | extra field fails parse; unclassified code fails `tsc` |
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☐ | CI green with no Rust; §4 boundary rules enforced |
@@ -66,6 +66,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-08 — Session 4 (cont.): T-002 — `@corral/core` scaffold + `TokenAmount`
+
+- `packages/core`: strict-TS package (`NodeNext`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`), zod runtime dep, vitest + fast-check dev deps.
+- `TokenAmount` ported from `crates/corral-core/src/amount.rs`: branded `bigint` in `[0, 2^256−1]`, `checkedAdd`/`checkedSub` returning `null` on overflow/underflow (no operator path), `TokenAmountSchema` accepting only pure-decimal strings (regex-validated *before* `BigInt()` — `BigInt(" 1")`/`BigInt("")` would silently accept), rejecting bare numbers and bigints.
+- 8/8 tests green; property tests mirror the Rust suite one-for-one (test names cite their Rust counterparts for the parity audit at T-005).
 
 ### 2026-08-08 — Session 4: T-001 — Coral snapshot imported and verified
 
