@@ -11,6 +11,27 @@ export {
 } from "./amount.js";
 
 export {
+  ActionSchema,
+  B256Schema,
+  PlanSchema,
+  actionKind,
+  parsePlan,
+  planToWire,
+  type Action,
+  type B256,
+  type Plan,
+} from "./action.js";
+
+export {
+  ERROR_CODES,
+  ErrorCodeSchema,
+  retryClass,
+  userMessage,
+  type ErrorCode,
+  type RetryClass,
+} from "./errors.js";
+
+export {
   ActionKindSchema,
   AddressSchema,
   AssetRefSchema,

@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-004 of 8 |
-| **Active ticket** | T-004 — Action DSL + `Plan` + error taxonomy + `retryClass` |
-| **Next up** | T-005 — CI re-point to TS; parity audit; delete `crates/` |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-005 of 8 |
+| **Active ticket** | T-005 — CI re-point to TS; parity audit; delete `crates/` |
+| **Next up** | T-006 — `CorralJournal.sol` + Sepolia deploy (deploy step needs a funded Base Sepolia key from stakeholder) |
 | **Blocked / waiting** | — |
 
 ## 2. Ticket board
@@ -26,7 +26,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 1 | T-001 Coral snapshot import (npm per-package) | ☑ | Imported at Coral `4e07c85`; server: tsc ✓ + **104/104 vitest** ✓; app: `tsc -b && vite build` ✓ (2026-08-08). Divergences: `app/package.json` gains `overrides: {"@mysten/sui": "1.45.2"}` and `app/package-lock.json` regenerated — **upstream's lockfile was desynced from its own package.json** (their final commit bumped the dep without regenerating; `npm ci` impossible as shipped). First candidate patch to offer upstream |
 | 2 | T-002 `@corral/core` + `TokenAmount` port | ☑ | Branded-bigint `TokenAmount`, checked add/sub, strict decimal-string zod schema; 8/8 vitest+fast-check, each test named for the Rust test it ports (2026-08-08) |
 | 3 | T-003 `parsePolicy` — six invariants | ☑ | zod `.strict()` everywhere; every invariant has failing-case tests incl. symbol-spoof, U256_MAX-cap, nested-unknown-field and checksum-case edge cases; result deep-frozen; `policyToWire` round-trip law tested. 14/14 (2026-08-08) |
-| 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☐ | extra field fails parse; unclassified code fails `tsc` |
+| 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☑ | Closed DSL (no calldata/delegatecall variant); strict `Plan`; `Record<ErrorCode,…>` tables give compile-time exhaustiveness; policy rejections all `["NEVER",0]`. 14 new tests, 36/36 package-wide (2026-08-08) |
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☐ | CI green with no Rust; §4 boundary rules enforced |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☐ | verified on Base Sepolia, address committed |
 | 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
@@ -66,6 +66,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-08 — Session 4 (cont.): T-004 — Action DSL, `Plan`, error taxonomy
+
+- `action.ts`: closed discriminated union (SWAP/TRANSFER/APPROVE/WRAP/UNWRAP — tags equal `ActionKind` wire names, so `actionKind` is total by construction); strict `Plan` with nullable-but-required `strategy_id` (wire parity with Rust `Option`); `planToWire` round-trip law tested.
+- `errors.ts`: 19 codes; `retryClass`/`userMessage` as `Record<ErrorCode,…>` — TS's compile-time substitute for Rust's exhaustive match (missing or extra key fails `tsc`). Policy rejections and safety pauses all terminal.
+- 36/36 tests. All four Rust modules (`amount`, `policy`, `action`, `errors`) now have TS parity ports — `crates/` is eligible for retirement at T-005.
 
 ### 2026-08-08 — Session 4 (cont.): T-003 — `parsePolicy` (six invariants)
 
