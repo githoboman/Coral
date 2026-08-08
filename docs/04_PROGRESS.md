@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-003 of 8 |
-| **Active ticket** | T-003 — `parsePolicy` (zod `.strict()`, six invariants) |
-| **Next up** | T-004 — Action DSL + `Plan` + error taxonomy + `retryClass` |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-004 of 8 |
+| **Active ticket** | T-004 — Action DSL + `Plan` + error taxonomy + `retryClass` |
+| **Next up** | T-005 — CI re-point to TS; parity audit; delete `crates/` |
 | **Blocked / waiting** | — |
 
 ## 2. Ticket board
@@ -25,7 +25,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 |---|---|---|---|
 | 1 | T-001 Coral snapshot import (npm per-package) | ☑ | Imported at Coral `4e07c85`; server: tsc ✓ + **104/104 vitest** ✓; app: `tsc -b && vite build` ✓ (2026-08-08). Divergences: `app/package.json` gains `overrides: {"@mysten/sui": "1.45.2"}` and `app/package-lock.json` regenerated — **upstream's lockfile was desynced from its own package.json** (their final commit bumped the dep without regenerating; `npm ci` impossible as shipped). First candidate patch to offer upstream |
 | 2 | T-002 `@corral/core` + `TokenAmount` port | ☑ | Branded-bigint `TokenAmount`, checked add/sub, strict decimal-string zod schema; 8/8 vitest+fast-check, each test named for the Rust test it ports (2026-08-08) |
-| 3 | T-003 `parsePolicy` — six invariants | ☐ | failing-case test per invariant |
+| 3 | T-003 `parsePolicy` — six invariants | ☑ | zod `.strict()` everywhere; every invariant has failing-case tests incl. symbol-spoof, U256_MAX-cap, nested-unknown-field and checksum-case edge cases; result deep-frozen; `policyToWire` round-trip law tested. 14/14 (2026-08-08) |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☐ | extra field fails parse; unclassified code fails `tsc` |
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☐ | CI green with no Rust; §4 boundary rules enforced |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☐ | verified on Base Sepolia, address committed |
@@ -66,6 +66,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-08 — Session 4 (cont.): T-003 — `parsePolicy` (six invariants)
+
+- Ported `policy.rs` → `packages/core/src/policy.ts` keeping the **wire format byte-compatible with the Rust serde output** (snake_case fields, tagged `rule`/`kind` objects, decimal-string amounts) so any existing consumer of the format is unaffected.
+- `parsePolicy()` is the only constructor of `ValidatedPolicy` (branded + deep-frozen — runtime immutability for FR-2.9); addresses/selectors lowercase at the boundary so checksum casing can't split identity; asset identity by address, never symbol.
+- `policyToWire()` added as the serialization inverse (bigints → decimal strings; round-trip law `parsePolicy(policyToWire(vp)) ≡ vp` tested). 14/14 policy tests, 22/22 package-wide.
 
 ### 2026-08-08 — Session 4 (cont.): T-002 — `@corral/core` scaffold + `TokenAmount`
 
