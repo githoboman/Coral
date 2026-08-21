@@ -67,6 +67,11 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 ## 4. Session log (newest first)
 
+### 2026-08-08 — Session 5 (cont.): first push to the Coral repo
+
+- Stakeholder-directed (D24 satisfied): full history pushed to `Tovira-xyz/Coral` as branch **`corral-v3`** (their `main` untouched). Standing plan: our own repo `github.com/olaDmenace/corral` becomes primary `origin` once the stakeholder creates it; `coral/corral-v3` is the visibility branch for the upstream team.
+- Remote `origin` pre-wired to `https://github.com/olaDmenace/corral.git` (repo not yet created).
+
 ### 2026-08-08 — Session 5: toolchain cleanup + T-006 code
 
 - Dev-box cleanup per stakeholder: Rust toolchain/cargo/rustup and VS Build Tools fully removed (winget's uninstall was a silent no-op; the VS installer's own `setup.exe` did it), orphaned VS package cache cleared. 9.3 → 20.5 GB free. Foundry/Node/just retained.
