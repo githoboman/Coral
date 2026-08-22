@@ -9,6 +9,9 @@ core-build:
 core-test:
     npm --prefix packages/core test
 
+core-lint:
+    npm --prefix packages/core run lint
+
 server-build:
     npm --prefix server run build
 
@@ -31,4 +34,4 @@ forge-test:
 violations:
     forge test --root contracts --match-path test/Violations.t.sol
 
-check-all: core-build core-test server-build server-test app-build forge-build
+check-all: core-build core-test core-lint server-build server-test app-build forge-build

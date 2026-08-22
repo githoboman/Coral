@@ -21,6 +21,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - name: "purity + money-path lint (eslint + dependency-cruiser, T-005b)"
+        run: npm run lint
 
   server:
     name: "server: tsc + vitest (Coral lineage)"
@@ -52,14 +54,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: "@corral/core imports nothing but zod (CLAUDE.md §2.8)"
+      - name: "no hand-written shared types outside @corral/core (CLAUDE.md §2.9)"
         run: |
           set -euo pipefail
-          BAD=$(grep -rhoE 'from "[^"]+"' packages/core/src --include='*.ts' \
-            | sed 's/from "//; s/"//' | sort -u | grep -vE '^(zod|\./)' || true)
-          if [ -n "$BAD" ]; then
-            echo "::error::@corral/core must stay pure (zod + relative imports only). Found:"
-            echo "$BAD"
+          HITS=$(grep -rnE "(interface|type)\s+(Policy|Plan|ExecutionStatus|TokenAmount)\b" \
+            app/src server/src --include='*.ts' --include='*.tsx' 2>/dev/null || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::shared types must be imported from @corral/core, never re-declared:"
+            echo "$HITS"
             exit 1
           fi
       - name: "enableSessions only in the session-install module (CLAUDE.md §2.3)"

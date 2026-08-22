@@ -11,7 +11,7 @@
 import { z } from "zod";
 
 import { TokenAmountSchema } from "./amount.js";
-import { ActionKindSchema, AddressSchema, AssetRefSchema, type ActionKind } from "./policy.js";
+import { AddressSchema, AssetRefSchema, type ActionKind } from "./policy.js";
 
 /** 32-byte hex value (session/strategy ids), lowercase-normalized. */
 export const B256Schema = z

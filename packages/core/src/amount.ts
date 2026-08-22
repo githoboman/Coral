@@ -37,7 +37,7 @@ export const TOKEN_AMOUNT_ZERO: TokenAmount = 0n as TokenAmount;
  */
 export function tokenAmount(v: bigint): TokenAmount {
   if (v < 0n || v > U256_MAX) {
-    throw new RangeError(`token amount out of range: ${v}`);
+    throw new RangeError(`token amount out of range: ${v.toString(10)}`);
   }
   return v as TokenAmount;
 }

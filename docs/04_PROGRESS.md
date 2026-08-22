@@ -27,7 +27,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 2 | T-002 `@corral/core` + `TokenAmount` port | ☑ | Branded-bigint `TokenAmount`, checked add/sub, strict decimal-string zod schema; 8/8 vitest+fast-check, each test named for the Rust test it ports (2026-08-08) |
 | 3 | T-003 `parsePolicy` — six invariants | ☑ | zod `.strict()` everywhere; every invariant has failing-case tests incl. symbol-spoof, U256_MAX-cap, nested-unknown-field and checksum-case edge cases; result deep-frozen; `policyToWire` round-trip law tested. 14/14 (2026-08-08) |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☑ | Closed DSL (no calldata/delegatecall variant); strict `Plan`; `Record<ErrorCode,…>` tables give compile-time exhaustiveness; policy rejections all `["NEVER",0]`. 14 new tests, 36/36 package-wide (2026-08-08) |
-| 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b:** replace grep boundary checks with eslint + dependency-cruiser |
+| 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b: ☑ done 2026-08-22** — eslint (strictTypeChecked + money-path bans) + dependency-cruiser purity contract wired into `npm run lint`, CI, and `just check-all`; lint found and fixed 3 real nits in core |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ◐ | Contract (spec §4.2 verbatim + NatSpec), 5 tests incl. 2 fuzz suites, **100% coverage all metrics**; CREATE2 script, fixed salt `keccak256("corral.journal.v1")`; forge-std v1.16.2 submodule. **Deploy + verify + address commit pending stakeholder key** (2026-08-08) |
 | 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
 | 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
@@ -66,6 +66,12 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-22 — Session 6: env verified, deployer wallet, T-005b
+
+- Stakeholder supplied Alchemy + Basescan keys. Verified end-to-end: Alchemy RPC answers chain id 84532; Basescan key well-formed; deploy **simulation against live Base Sepolia succeeds**. CREATE2 gives the journal's permanent address ahead of time: **`0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F`** (same on every chain, forever, for salt `corral.journal.v1`).
+- The value initially pasted as `DEPLOYER_PRIVATE_KEY` was actually the Basescan API key; a real deployer wallet was generated with `cast wallet new` and written straight into the gitignored `contracts/.env` **without the key ever entering the transcript**. Deployer address: `0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9`. **T-006 close-out waits only on faucet ETH to that address.** `origin` repo still not created (probed 2026-08-22).
+- **T-005b:** grep-based CI boundary checks upgraded to real tooling — `@corral/core` gains eslint (typescript-eslint strictTypeChecked + money-path bans: no `parseFloat`/`parseInt`/`Number()`/`Math.*`, no `any`, no ts-suppressions, no non-null assertions) and dependency-cruiser (imports limited to zod + own files, no Node builtins). CI core job runs `npm run lint`; the freed boundaries step now greps app/server for hand-written shared-type declarations (§2.9).
 
 ### 2026-08-08 — Session 5 (cont.): first push to the Coral repo
 

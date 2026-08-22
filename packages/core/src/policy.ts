@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 
-import { TokenAmountSchema, U256_MAX, formatTokenAmount, type TokenAmount } from "./amount.js";
+import { TokenAmountSchema, U256_MAX, formatTokenAmount } from "./amount.js";
 
 // ── Primitives ──────────────────────────────────────────────────────────────
 
