@@ -10,9 +10,10 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-006 of 8 (code done, deploy pending) |
-| **Active ticket** | T-006 — contract+tests+script ☑; **deploy blocked on stakeholder**: `contracts/.env` needs a `cast wallet new` key funded from a Base Sepolia faucet (see `.env.example`) |
-| **Next up** | T-007 — EVM account layer (viem/permissionless) |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-007 of 8 |
+| **Active ticket** | T-007 — EVM account layer: ERC-7579 account deploy + counterfactual address (viem/permissionless), pinned module addresses + codehash assertions |
+| **Next up** | T-008 — session install with pinned SmartSessions SDK + post-install read-back verification |
+| **Deployed** | `CorralJournal` @ `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F` on Base Sepolia — see `contracts/deployments/base-sepolia.json` |
 | **Blocked / waiting** | — |
 
 ## 2. Ticket board
@@ -28,7 +29,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 3 | T-003 `parsePolicy` — six invariants | ☑ | zod `.strict()` everywhere; every invariant has failing-case tests incl. symbol-spoof, U256_MAX-cap, nested-unknown-field and checksum-case edge cases; result deep-frozen; `policyToWire` round-trip law tested. 14/14 (2026-08-08) |
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☑ | Closed DSL (no calldata/delegatecall variant); strict `Plan`; `Record<ErrorCode,…>` tables give compile-time exhaustiveness; policy rejections all `["NEVER",0]`. 14 new tests, 36/36 package-wide (2026-08-08) |
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b: ☑ done 2026-08-22** — eslint (strictTypeChecked + money-path bans) + dependency-cruiser purity contract wired into `npm run lint`, CI, and `just check-all`; lint found and fixed 3 real nits in core |
-| 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ◐ | Contract (spec §4.2 verbatim + NatSpec), 5 tests incl. 2 fuzz suites, **100% coverage all metrics**; CREATE2 script, fixed salt `keccak256("corral.journal.v1")`; forge-std v1.16.2 submodule. **Deploy + verify + address commit pending stakeholder key** (2026-08-08) |
+| 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☑ | Contract + 5 tests at 100% coverage (2026-08-08); **deployed 2026-08-22 via CREATE2 to `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F`** (tx `0xcc394ab6…3600`, block 45834924, 101,288 gas), bytecode confirmed via RPC, **Basescan-verified**. Manifest: `contracts/deployments/base-sepolia.json` |
 | 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
 | 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
 
@@ -66,6 +67,11 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-22 — Session 6 (cont.): T-006 deployed and verified
+
+- Stakeholder funded the deployer (0.052 ETH). `forge script --broadcast` deployed `CorralJournal` via CREATE2 to the precomputed address; inline `--verify` raced Basescan's indexer ("Unable to locate ContractCode") — a standalone `forge verify-contract --watch` a moment later returned **Pass – Verified**. Bytecode (218 bytes) independently confirmed with `cast code`. Broadcast record committed under `contracts/broadcast/` (dry-runs stay ignored); canonical manifest at `contracts/deployments/base-sepolia.json`.
+- Bootstrap: **6 of 8 done.** T-007 next — its on-chain half (account deploy) can use the same funded deployer.
 
 ### 2026-08-22 — Session 6: env verified, deployer wallet, T-005b
 

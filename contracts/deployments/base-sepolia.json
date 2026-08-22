@@ -1,0 +1,18 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "contracts": {
+    "CorralJournal": {
+      "address": "0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F",
+      "deployedAt": "2026-08-22",
+      "txHash": "0xcc394ab657bc2c380a45ec293453c13dfcdc51da5500ada197803836562d3600",
+      "block": 45834924,
+      "deployer": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "create2Salt": "keccak256(\"corral.journal.v1\")",
+      "sourceCommit": "30c1cdd",
+      "solc": "0.8.28",
+      "verified": "basescan",
+      "note": "CREATE2 with a fixed salt: this address is identical on every chain the same bytecode is deployed to. Changing the salt or the source changes the address everywhere."
+    }
+  }
+}
