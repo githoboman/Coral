@@ -14,5 +14,18 @@
       "verified": "basescan",
       "note": "CREATE2 with a fixed salt: this address is identical on every chain the same bytecode is deployed to. Changing the salt or the source changes the address everywhere."
     }
-  }
+  },
+  "accounts": {
+    "dev-owner-salt0": {
+      "address": "0xf2A97cd5439C01D5CE8bE75e0f7a8Dc8294C7343",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "0",
+      "implementation": "Safe 1.4.1 + Safe7579 (launchpad-staged; phase 2 completes on first userOp)",
+      "txHash": "0x0db2e9d9fc57eaae4d9f0f973b01c8b8414a16da4f0c54d78ea5359f7bf0c983",
+      "block": 45835691,
+      "deployedAt": "2026-08-22",
+      "note": "T-007 acceptance account. Counterfactual address matched ProxyCreation event exactly (FR-1.1)."
+    }
+  },
+  "pinnedModules": "see server/src/services/evm/addresses.ts (codehash-asserted)"
 }

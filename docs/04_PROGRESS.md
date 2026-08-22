@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D24) — bootstrap T-007 of 8 |
-| **Active ticket** | T-007 — EVM account layer: ERC-7579 account deploy + counterfactual address (viem/permissionless), pinned module addresses + codehash assertions |
-| **Next up** | T-008 — session install with pinned SmartSessions SDK + post-install read-back verification |
+| **Current phase** | **v3 re-baseline** (ADRs D19–D25) — bootstrap T-008 of 8 |
+| **Active ticket** | T-008 — session install with pinned SmartSessions SDK + post-install read-back verification |
+| **Next up** | Violation matrix (`contracts/test/Violations.t.sol`), then Uniswap adapter + deterministic planner |
 | **Deployed** | `CorralJournal` @ `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F` on Base Sepolia — see `contracts/deployments/base-sepolia.json` |
 | **Blocked / waiting** | — |
 
@@ -30,7 +30,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 4 | T-004 Action DSL + `Plan` + errors + `retryClass` | ☑ | Closed DSL (no calldata/delegatecall variant); strict `Plan`; `Record<ErrorCode,…>` tables give compile-time exhaustiveness; policy rejections all `["NEVER",0]`. 14 new tests, 36/36 package-wide (2026-08-08) |
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b: ☑ done 2026-08-22** — eslint (strictTypeChecked + money-path bans) + dependency-cruiser purity contract wired into `npm run lint`, CI, and `just check-all`; lint found and fixed 3 real nits in core |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☑ | Contract + 5 tests at 100% coverage (2026-08-08); **deployed 2026-08-22 via CREATE2 to `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F`** (tx `0xcc394ab6…3600`, block 45834924, 101,288 gas), bytecode confirmed via RPC, **Basescan-verified**. Manifest: `contracts/deployments/base-sepolia.json` |
-| 7 | T-007 EVM account layer (viem) | ☐ | account deploys on Sepolia; modules pinned + codehash |
+| 7 | T-007 EVM account layer (viem) | ☑ | D25 Safe 1.4.1 + Safe7579. `addresses.ts`: 14 contracts hand-pinned with keccak codehashes + `assertPinnedCodehashes` boot gate; `account.ts` via permissionless `toSafeSmartAccount` (EntryPoint v0.7, registry-attested modules only). Tests: 6 SDK-builders-vs-pins (offline), 1 codehash integration, 3 counterfactual-address integration — all green. **Account deployed on Sepolia at the exact predicted address** `0xf2A97cd5…c7343` (tx `0x0db2e9d9…c983`), FR-1.1 proven (2026-08-22) |
 | 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
 
 ### v2 bootstrap (historical — semantics carry into T-002…T-004, then `crates/` retires)
@@ -67,6 +67,15 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-22/23 — Session 7: T-007 — EVM account layer
+
+- Stakeholder chose **Safe + Safe7579** (ADR D25). Installed viem 2.55.19, permissionless 0.4.0, @rhinestone/module-sdk 0.4.0 (exact-pinned per D22).
+- **Security finding while pinning:** module-sdk 0.4.0 carries **two** SmartSessions policy address sets — legacy V1 in per-policy folders, current V2 in `GLOBAL_CONSTANTS` (Rhinestone's migration guide confirms a redeploy). The builders use V2. We hand-pin V2 hex, and a unit test asserts each builder's output address equals our pin, so a future SDK bump that moves addresses fails CI instead of silently encoding against different contracts. Exactly the risk class D22 / CLAUDE.md §8.1 warned about.
+- All 14 pinned addresses (EntryPoint v0.7, Safe 1.4.1 singleton/factory, Safe7579 adapter/launchpad, registry, attester, SmartSessions, five policies, CorralJournal) verified to hold bytecode on Base Sepolia; keccak codehashes captured, asserted at boot (`assertPinnedCodehashes`) and in an integration test.
+- **Account deployed at the counterfactual address** — the factory's `ProxyCreation` event names exactly the predicted proxy (FR-1.1 proven). Launchpad flow is two-phase: the proxy points at the launchpad until the first userOp completes `initSafe7579`; that first userOp will be the T-008 session install.
+- **Ops finding:** the load-balanced RPC served a stale `getCode` immediately after `waitForTransactionReceipt` (the script briefly reported FR-1.1 violated; a re-read was fine). Post-write reads — including T-008's post-install verification — must retry with backoff or read at a confirmed block. Script patched accordingly.
+- Server: tsc clean; inherited 104 + 10 new tests = 114/114.
 
 ### 2026-08-22 — Session 6 (cont.): T-006 deployed and verified
 
