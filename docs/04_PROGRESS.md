@@ -70,6 +70,13 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 ## 4. Session log (newest first)
 
+### 2026-08-23 — Session 12: the standalone kill switch (FR-8.1/8.3/8.4, J3)
+
+- `app/public/revoke/` — a static page with **zero dependencies**: no viem, no bundler, no Corral API or RPC; only the user's injected wallet (EIP-1193). Design: the owner's EOA sends one ordinary transaction `Safe.execTransaction(SmartSessions, removeSession(permissionId))` using Safe's pre-approved-hash signature (`r = owner, s = 0, v = 1`, valid iff `msg.sender == owner`) — no EntryPoint, no relayer, no service of ours in the path. The page shows the session's on-chain status before and after and states exactly what revoke does not do (FR-8.4).
+- Hand-written ABI encoder is **byte-for-byte equal to viem** (parity test imports the page's real JS; selectors pinned) — and the first draft's guessed selectors were wrong, which the test caught before anything shipped. A `revoke.d.ts` keeps the test suppression-free (§2.14) while the page stays plain JS (§9: do not DRY it up).
+- Fork test `RevokeStandalone.t.sol`: the owner revokes the live salt-8 session through exactly that path; a stranger cannot. Combined with matrix V15, post-revoke agent ops are rejected on-chain.
+- Not yet: the off-chain half of revoke (signer disable + relayer refusal, FR-8.2) lands with the pipeline persistence (needs Supabase); the in-app kill switch (FR-11.4) lands with the FE re-point.
+
 ### 2026-08-23 — Session 11: adapter, compiler, preflight, agent execution — **J2 proven live**
 
 - **Uniswap v3 adapter** (`adapters/uniswapV3.ts`, FR-5.1–5.4): `exactInputSingle` only, recipient pinned to the account as a constant (never an input), exact `approve(router, amountIn)` before it, QuoterV2 quote floored by `min_output_bps`, `requiredTargets()` emits the exact policy targets it needs and `isCompatible()` rejects a mismatch at creation time (FR-5.3). **Spec correction:** SwapRouter02 pulls via `transferFrom`, so the approve spender is the router, not Permit2 (spec §4.3 example fixed; fixtures/matrix updated; matrix still 26/26).

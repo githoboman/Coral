@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Corral — Revoke an agent (standalone)</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.4rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input { width: 100%; padding: .6rem; font-family: monospace; font-size: .9rem; }
+    button { margin-top: 1.25rem; padding: .8rem 1.2rem; font-size: 1rem; cursor: pointer; }
+    #revoke { background: #b00020; color: #fff; border: 0; border-radius: .4rem; }
+    #revoke:disabled { opacity: .5; cursor: not-allowed; }
+    .box { border: 1px solid #8884; border-radius: .5rem; padding: 1rem; margin-top: 1rem; }
+    .ok { color: #1b7f3b; } .bad { color: #b00020; } .muted { opacity: .75; font-size: .9rem; }
+    code { font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>Revoke a Corral agent</h1>
+  <p class="muted">
+    This page works with <strong>no Corral servers at all</strong>. It uses only your wallet and the public chain.
+    You are the account owner; this sends one ordinary transaction from your wallet.
+  </p>
+
+  <div class="box">
+    <strong>What revoke does:</strong> disables the agent's session on-chain. Every future attempt by the agent is rejected at the protocol level.<br />
+    <strong>What revoke does not do:</strong> it cannot reverse a transaction that was already included in a block, and it does not move any funds — everything stays in your account.
+  </div>
+
+  <label for="account">Your Corral account address</label>
+  <input id="account" placeholder="0x…" spellcheck="false" />
+  <label for="pid">Session (permission) id</label>
+  <input id="pid" placeholder="0x… (32 bytes)" spellcheck="false" />
+
+  <button id="connect">Connect wallet</button>
+  <button id="check" disabled>Check session status</button>
+  <button id="revoke" disabled>Revoke now</button>
+
+  <div id="status" class="box muted">Not connected.</div>
+
+  <script type="module">
+    import { CHAINS, buildRevokeTx, readPermissionEnabled } from "./revoke.js";
+
+    const $ = (id) => document.getElementById(id);
+    const status = (html, cls = "muted") => { $("status").className = `box ${cls}`; $("status").innerHTML = html; };
+    let provider, owner, chainId;
+
+    const isAddr = (s) => /^0x[0-9a-fA-F]{40}$/.test(s);
+    const isB32 = (s) => /^0x[0-9a-fA-F]{64}$/.test(s);
+
+    $("connect").onclick = async () => {
+      provider = window.ethereum;
+      if (!provider) return status("No wallet found. Install a browser wallet, then reload.", "bad");
+      [owner] = await provider.request({ method: "eth_requestAccounts" });
+      chainId = Number(await provider.request({ method: "eth_chainId" }));
+      if (!CHAINS[chainId]) return status(`Unsupported chain ${chainId}. Switch your wallet to ${Object.values(CHAINS).map((c) => c.name).join(" / ")}.`, "bad");
+      status(`Connected as <code>${owner}</code> on ${CHAINS[chainId].name}.`);
+      $("check").disabled = false;
+    };
+
+    $("check").onclick = async () => {
+      const account = $("account").value.trim(), pid = $("pid").value.trim();
+      if (!isAddr(account) || !isB32(pid)) return status("Enter a valid account address and a 32-byte session id.", "bad");
+      try {
+        const enabled = await readPermissionEnabled(provider, chainId, account, pid);
+        if (enabled) { status("Session is <strong>ACTIVE</strong> on-chain. You can revoke it.", "bad"); $("revoke").disabled = false; }
+        else { status("Session is <strong>not enabled</strong> on this account (already revoked, or wrong id).", "ok"); $("revoke").disabled = true; }
+      } catch (e) { status(`Could not read the chain: ${e.message ?? e}`, "bad"); }
+    };
+
+    $("revoke").onclick = async () => {
+      const account = $("account").value.trim(), pid = $("pid").value.trim();
+      $("revoke").disabled = true;
+      try {
+        const tx = buildRevokeTx({ chainId, account, owner, permissionId: pid });
+        status("Confirm the transaction in your wallet…");
+        const hash = await provider.request({ method: "eth_sendTransaction", params: [tx] });
+        status(`Sent: <a href="${CHAINS[chainId].explorer}${hash}" target="_blank" rel="noopener">${hash}</a><br />Waiting for inclusion…`);
+        for (let i = 0; i < 60; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const rc = await provider.request({ method: "eth_getTransactionReceipt", params: [hash] });
+          if (rc) {
+            const enabled = await readPermissionEnabled(provider, chainId, account, pid);
+            if (rc.status === "0x1" && !enabled) return status(`<strong>Revoked</strong> in block ${Number(rc.blockNumber)}. The agent can no longer act. Funds remain in your account. <a href="${CHAINS[chainId].explorer}${hash}" target="_blank" rel="noopener">Proof</a>.`, "ok");
+            return status(`Transaction included but the session still reads as enabled — check the id and try again. <a href="${CHAINS[chainId].explorer}${hash}" target="_blank" rel="noopener">Transaction</a>.`, "bad");
+          }
+        }
+        status("Still pending after 2 minutes — check the transaction link above.", "bad");
+      } catch (e) { status(`Revoke failed: ${e.message ?? e}`, "bad"); $("revoke").disabled = false; }
+    };
+  </script>
+</body>
+</html>
