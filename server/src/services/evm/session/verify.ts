@@ -163,6 +163,14 @@ export async function verifyInstalledSession(
         const [valueLimitPerUse, paramRules] = cfg;
         const [exp] = decodeAbiParameters(UAP_ACTION_CONFIG_ABI, p.initData);
         const tag = `action.${a.actionId}.UNIVERSAL_ACTION`;
+        if (exp.paramRules.length === 0n && exp.valueLimitPerUse === 0n) {
+          // An all-zero UAP config is indistinguishable from "never
+          // initialized" on-chain (UAP reverts PolicyNotInitialized for it).
+          // Such an expectation is a composition defect and must never
+          // verify as ACTIVE (found via the violation matrix, 2026-08-23).
+          miss(`${tag}.uninitializable`, "≥1 rule or value limit", "all-zero config");
+          continue;
+        }
         if (valueLimitPerUse !== exp.valueLimitPerUse) miss(`${tag}.valueLimitPerUse`, exp.valueLimitPerUse, valueLimitPerUse);
         if (paramRules.length !== exp.paramRules.length) miss(`${tag}.rules.length`, exp.paramRules.length, paramRules.length);
         const n = Number(exp.paramRules.length);

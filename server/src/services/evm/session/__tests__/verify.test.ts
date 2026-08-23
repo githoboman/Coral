@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { parsePolicy } from "@corral/core";
-import { decodeAbiParameters, type Address, type Hex } from "viem";
+import { decodeAbiParameters, encodeAbiParameters, type Address, type Hex } from "viem";
 import { BASE_SEPOLIA } from "../../addresses.js";
 import { composeSession, UAP_ACTION_CONFIG_ABI } from "../compose.js";
 import { actionConfigId, userOpConfigId } from "../ids.js";
@@ -174,6 +174,21 @@ describe("verifyInstalledSession", () => {
     const r = await verifyInstalledSession(reader, BASE_SEPOLIA, E);
     expect(r.ok).toBe(false);
     expect(r.mismatches.some((m) => m.what.startsWith("getPolicyData@") && m.actual.includes("PolicyNotInitialized"))).toBe(true);
+  });
+
+  it("an all-zero UAP expectation can never verify (indistinguishable from uninitialized on-chain)", async () => {
+    const a0 = E.actions[0];
+    if (!a0) throw new Error("fixture has no actions");
+    const zeroRule = { condition: 0, offset: 0n, isLimited: false, ref: `0x${"0".repeat(64)}` as Hex, usage: { limit: 0n, used: 0n } };
+    const zeroInit = encodeAbiParameters(UAP_ACTION_CONFIG_ABI, [{ valueLimitPerUse: 0n, paramRules: { length: 0n, rules: Array(16).fill(zeroRule) as never } }]);
+    const uap = a0.policies.find((p) => p.kind === "UNIVERSAL_ACTION");
+    if (!uap) throw new Error("fixture has no UAP");
+    const tampered = { ...E, actions: [{ ...a0, policies: a0.policies.map((p) => (p.kind === "UNIVERSAL_ACTION" ? { ...p, initData: zeroInit } : p)) }, ...E.actions.slice(1)] };
+    const cid = actionConfigId(ACCOUNT, E.permissionId, a0.actionId);
+    const reader = faithfulReader({ [K("actionConfigs", [cid, SS, ACCOUNT])]: [0n, { length: 0n, rules: Array(16).fill(zeroRule) }] });
+    const r = await verifyInstalledSession(reader, BASE_SEPOLIA, tampered);
+    expect(r.ok).toBe(false);
+    expect(r.mismatches.map((m) => m.what)).toContain(`action.${a0.actionId}.UNIVERSAL_ACTION.uninitializable`);
   });
 
   it("spending limit stored higher than the budget is a mismatch", async () => {

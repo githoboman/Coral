@@ -205,7 +205,7 @@ just check-all                     # everything CI runs
 - [x] v2 bootstrap 1–6 (Rust core through error taxonomy — retired at T-005; semantics live on in `@corral/core` with test parity)
 - [x] T-001…T-005 Foundations: Coral import, `@corral/core`, CI re-point
 - [x] T-006…T-008 Contracts + account + session install/verify (live on Base Sepolia, 2026-08-23)
-- [ ] Violation matrix
+- [x] Violation matrix (26/26 on a Base Sepolia fork, 2026-08-23 — `FORK_RPC_URL` required)
 - [ ] Adapter + planner + execution pipeline
 - [ ] FE re-point (Sui → Base), policy review screen, kill switch, standalone revoke
 - [ ] Security & launch (KMS custody, audit, guarded mainnet)

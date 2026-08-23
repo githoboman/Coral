@@ -55,6 +55,25 @@ export interface InstallResult {
   readonly error?: string;
 }
 
+/**
+ * Diagnostic string for a failed submission: viem nests the decoded revert
+ * (errorName + args, e.g. EntryPoint FailedOp/FailedOpWithRevert) under
+ * `cause`; surface it without ever echoing the transport URL (which embeds
+ * the RPC key).
+ */
+function describeError(e: unknown): string {
+  const parts: string[] = [];
+  let cur: unknown = e;
+  for (let depth = 0; cur && depth < 6; depth++) {
+    const o = cur as { name?: string; shortMessage?: string; data?: { errorName?: string; args?: unknown[] }; cause?: unknown };
+    if (o.data?.errorName) parts.push(`${o.data.errorName}(${(o.data.args ?? []).map((a) => (typeof a === "bigint" ? a.toString() : String(a))).join(", ")})`);
+    else if (o.shortMessage) parts.push(o.shortMessage);
+    else if (o.name) parts.push(o.name);
+    cur = o.cause;
+  }
+  return parts.length > 0 ? parts.join(" ← ") : String(e);
+}
+
 /** Intent hash journaled for the install itself — a fixed, documented sentinel. */
 export const INSTALL_INTENT_HASH: Hex = keccak256(stringToHex("corral.session.install.v1"));
 
@@ -154,7 +173,7 @@ export async function installSession(params: InstallParams): Promise<InstallResu
   try {
     submission = await submitViaHandleOps({ client, relayer: params.relayer, entryPoint: addresses.entryPoint.address, userOp });
   } catch (e) {
-    return { status: "SUBMISSION_FAILED", permissionId, submission: null, verification: null, error: e instanceof Error ? e.message : String(e) };
+    return { status: "SUBMISSION_FAILED", permissionId, submission: null, verification: null, error: describeError(e) };
   }
   if (!submission.txSuccess) {
     return { status: "SUBMISSION_FAILED", permissionId, submission, verification: null, error: "handleOps tx reverted" };

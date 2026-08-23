@@ -188,6 +188,12 @@ function ruleFor(r: ParamRule, account: Address, target: TargetConstraint): UapR
 
 function universalActionFor(rules: UapRule[]): { policy: Address; initData: Hex } {
   if (rules.length > MAX_RULES) throw new ComposeError("RULE_NOT_EXPRESSIBLE", `${rules.length} rules > ${MAX_RULES}`);
+  if (rules.length === 0) {
+    // UniversalActionPolicy treats an all-zero config (no rules, no value
+    // limit) as NOT INITIALIZED and reverts every call (found via the
+    // violation matrix, 2026-08-23). An action must carry at least one rule.
+    throw new ComposeError("RULE_NOT_EXPRESSIBLE", "an action needs at least one parameter rule (zero-rule UAP configs are uninitialized on-chain)");
+  }
   const padded = [...rules, ...Array.from({ length: MAX_RULES - rules.length }, zeroRule)];
   const p = getUniversalActionPolicy({
     valueLimitPerUse: 0n,
@@ -204,6 +210,23 @@ export function composeSession(input: ComposeInput): ComposedSession {
 
   // Session validator: the agent signer, threshold 1.
   const validator = getOwnableValidator({ threshold: 1, owners: [agentSigner] });
+
+  // permissionId = keccak(validator, validatorInitData, salt) — independent of
+  // policies and actions, so it is known before the actions are built and can
+  // be pinned into the journal action's rules (FR-3.4: every journal entry
+  // must cite the session it ran under).
+  const permissionId = getPermissionId({
+    session: {
+      sessionValidator: validator.address,
+      sessionValidatorInitData: validator.initData,
+      salt,
+      userOpPolicies: [],
+      erc7739Policies: { allowedERC7739Content: [], erc1271Policies: [] },
+      actions: [],
+      permitERC4337Paymaster: false,
+      chainId: BigInt(policy.chain_id),
+    },
+  });
 
   // userOp-level policies (apply to every execution).
   const usageLimit = getUsageLimitPolicy({ limit: BigInt(policy.max_executions) });
@@ -261,9 +284,13 @@ export function composeSession(input: ComposeInput): ComposedSession {
     return { actionId: actionId(target, selector), target, selector, policies };
   });
 
-  // Journal action: always present, never user-configurable (FR-3.4).
+  // Journal action: always present, never user-configurable (FR-3.4). Its one
+  // rule pins log(sessionId, …) to THIS session's permissionId — entries cannot
+  // cite another session, and the config is non-zero (hence initialized).
   const journalSel = toFunctionSelector("log(bytes32,bytes32,bytes32,uint32)");
-  const journalUap = universalActionFor([]);
+  const journalUap = universalActionFor([
+    { condition: UAP_CONDITION.EQUAL, offset: wordOffset(0), isLimited: false, ref: permissionId, usage: { limit: 0n, used: 0n } },
+  ]);
   actions.push({
     actionId: actionId(addresses.corralJournal.address, journalSel),
     target: addresses.corralJournal.address,
@@ -285,7 +312,9 @@ export function composeSession(input: ComposeInput): ComposedSession {
     permitERC4337Paymaster: false,
     chainId: BigInt(policy.chain_id),
   };
-  const permissionId = getPermissionId({ session });
+  if (getPermissionId({ session }) !== permissionId) {
+    throw new ComposeError("RULE_NOT_EXPRESSIBLE", "permissionId changed after adding actions — SmartSessions hashing assumption broken");
+  }
 
   return {
     session,

@@ -94,7 +94,11 @@ jobs:
         with: { submodules: recursive }
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge build
+      # The violation matrix (test/Violations.t.sol) forks Base Sepolia and
+      # self-skips without FORK_RPC_URL. Set the secret so CI enforces it.
       - run: forge test -vvv
+        env:
+          FORK_RPC_URL: ${{ secrets.FORK_RPC_URL }}
 
   gitleaks:
     runs-on: ubuntu-latest

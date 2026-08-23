@@ -67,7 +67,22 @@
         "status": "ACTIVE (post-install verification: 0 mismatches, incl. CorralRateLimitPolicy limit 2 / 86400s)",
         "agentSigner": "0x210Bf6e13547542A210d99631eB0524371D6b932 (throwaway, key discarded)"
       },
-      "note": "D26 acceptance: first session carrying the rolling 24h cap on-chain."
+      "note": "D26 acceptance: first session carrying the rolling 24h cap on-chain. SUPERSEDED: its journal action was composed with zero rules and is uninitialized on-chain (UAP PolicyNotInitialized) — journaled executions would be rejected."
+    },
+    "dev-owner-salt6-session": {
+      "address": "0xBB7a2A845f0A14EA23811a614eb102eedDcB40d7",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "6",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "firstUserOpTx": "0xf32853a1e22a41b8aaa16bc7866b0fd6320c89d7b9fe41d0be24bd92d25824b2",
+      "block": 45858213,
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0x9d7e0eb3912cc413e53aff4006548b02edeedf1a27eafc5504fcb0d7ccfde242",
+        "status": "ACTIVE (post-install verification: 0 mismatches; journal action pinned to permissionId)",
+        "agentSigner": "0x5982833170187bC906C8bB3fa5774A465C43D071 (throwaway, key discarded)"
+      },
+      "note": "First fully-correct session: rate limit + initialized journal action. The violation matrix fixture uses the salt-5 ACCOUNT with its own test session (vm.prank), not this one."
     }
   },
   "pinnedModules": "see server/src/services/evm/addresses.ts (codehash-asserted)",

@@ -103,6 +103,25 @@ describe("composeSession — structure", () => {
     expect(expectation.actions[2]!.actionId).toBe(actionId(BASE_SEPOLIA.corralJournal.address, JOURNAL_SEL));
   });
 
+  it("the journal action pins log(sessionId, …) to this session's permissionId (FR-3.4) — never a zero-rule config", () => {
+    const { permissionId, expectation } = compose();
+    const uap = expectation.actions[2]!.policies.find((p) => p.kind === "UNIVERSAL_ACTION")!;
+    const [cfg] = decodeAbiParameters(UAP_ACTION_CONFIG_ABI, uap.initData);
+    expect(cfg.paramRules.length).toBe(1n);
+    expect(cfg.paramRules.rules[0]!.condition).toBe(0); // EQUAL
+    expect(cfg.paramRules.rules[0]!.offset).toBe(0n); // param 0 = sessionId
+    expect(cfg.paramRules.rules[0]!.ref).toBe(permissionId);
+  });
+
+  it("an action with no parameter rules is refused (zero-rule UAP configs are uninitialized on-chain)", () => {
+    // A WRAP target (WETH.deposit()) has no parameters, so the policy layer
+    // accepts it with zero rules — the composer must still refuse it.
+    const w = wire();
+    (w.target_scope as unknown[]).push({ address: WETH, selector: "0xd0e30db0", action: "WRAP", param_rules: [] });
+    (w.action_scope as string[]).push("WRAP");
+    expect(() => compose(w)).toThrow(ComposeError);
+  });
+
   it("permissionId is deterministic and salt-sensitive", () => {
     const a = compose().permissionId, b = compose().permissionId;
     expect(a).toBe(b);
