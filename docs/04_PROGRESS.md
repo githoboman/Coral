@@ -10,9 +10,9 @@
 
 | | |
 |---|---|
-| **Current phase** | **v3 re-baseline** (ADRs D19–D25) — bootstrap T-008 of 8 |
-| **Active ticket** | T-008 — session install with pinned SmartSessions SDK + post-install read-back verification |
-| **Next up** | Violation matrix (`contracts/test/Violations.t.sol`), then Uniswap adapter + deterministic planner |
+| **Current phase** | **Bootstrap complete (8/8).** Next epic: violation matrix |
+| **Active ticket** | Violation matrix V1–V25 (`contracts/test/Violations.t.sol`, old C-309) — the highest-value security artifact; write before the pipeline |
+| **Next up** | Uniswap adapter + deterministic planner + execution pipeline in `server/` |
 | **Deployed** | `CorralJournal` @ `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F` on Base Sepolia — see `contracts/deployments/base-sepolia.json` |
 | **Blocked / waiting** | — |
 
@@ -31,7 +31,7 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | 5 | T-005 CI re-point to TS; delete `crates/` | ☑ | Parity audit passed (4/4 modules, TS suites ≥ Rust suites); `crates/`, `Cargo.*`, `rust-toolchain.toml`, `deny.toml` removed; CI = core/server/app npm jobs + grep boundary checks + Foundry + gitleaks; justfile all-TS (2026-08-08). **Follow-up T-005b: ☑ done 2026-08-22** — eslint (strictTypeChecked + money-path bans) + dependency-cruiser purity contract wired into `npm run lint`, CI, and `just check-all`; lint found and fixed 3 real nits in core |
 | 6 | T-006 `CorralJournal.sol` + Sepolia deploy | ☑ | Contract + 5 tests at 100% coverage (2026-08-08); **deployed 2026-08-22 via CREATE2 to `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F`** (tx `0xcc394ab6…3600`, block 45834924, 101,288 gas), bytecode confirmed via RPC, **Basescan-verified**. Manifest: `contracts/deployments/base-sepolia.json` |
 | 7 | T-007 EVM account layer (viem) | ☑ | D25 Safe 1.4.1 + Safe7579. `addresses.ts`: 14 contracts hand-pinned with keccak codehashes + `assertPinnedCodehashes` boot gate; `account.ts` via permissionless `toSafeSmartAccount` (EntryPoint v0.7, registry-attested modules only). Tests: 6 SDK-builders-vs-pins (offline), 1 codehash integration, 3 counterfactual-address integration — all green. **Account deployed on Sepolia at the exact predicted address** `0xf2A97cd5…c7343` (tx `0x0db2e9d9…c983`), FR-1.1 proven (2026-08-22) |
-| 8 | T-008 Session install (pinned SDK) + read-back verify | ☐ | install → decode → compare → ACTIVE; mismatch pauses |
+| 8 | T-008 Session install (pinned SDK) + read-back verify | ☑ | `compose.ts` (policy → Session + expectation model; multi-valued IN_SET and zero ValueLimit handled explicitly), `verify.ts` (validator, userOp/action policy sets, every stored policy config; reverting getter = mismatch), own relayer `handleOps.ts` (op-level success/revert decoded), `install.ts` (owner-signed first userOp: deploy + setupSafe + installModule + journal). 32 offline tests. **Live on Base Sepolia 2026-08-23: account `0xB497…4ef0`, permissionId `0x32ab6293…7e57`, verification 0 mismatches → ACTIVE** (tx `0x6b8e41ed…6e32`) |
 
 ### v2 bootstrap (historical — semantics carry into T-002…T-004, then `crates/` retires)
 
@@ -67,6 +67,18 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-23 — Session 8: T-008 — session install + post-install verification (bootstrap complete)
+
+- **Result:** owner-signed first userOp deploys the Safe7579 account, installs SmartSessions with the composed session, journals the install; submitted via our own `handleOps` relayer; read-back verification compares validator, userOp-policy set, action set, per-action policy sets and **every stored policy config** (UAP rules, spending limit, time frame, usage limit) against the signed policy → **0 mismatches → ACTIVE.**
+- Findings along the way (each fixed and tested):
+  1. **Registry attestation gap on Base Sepolia:** neither Rhinestone's attester nor its mock attester has attested SmartSessions or the V2 policies (registry records empty), while the Safe7579 launchpad requires a non-empty trusted-attester set (`InvalidTrustedAttesterInput` on empty). Resolution: the dev key attests the pinned SmartSessions address (`scripts/evmAttestModules.ts`, Rhinestone's schema, types 1+7) and is Base Sepolia's sole trusted attester — the same mechanism mainnet uses with Rhinestone's attester. `registryGating` is per-chain config; **mainnet gate: verify Rhinestone attestations and switch.** SmartSessions itself hard-codes `useRegistry:false` for policy enables, so only the validator install is gated.
+  2. **ValueLimitPolicy V2 rejects limit 0** (`PolicyNotInitialized` at init). A zero native cap is now enforced by every action's UAP `valueLimitPerUse = 0` (exact); non-zero caps install ValueLimitPolicy.
+  3. **Direct factory deploy leaves a dead launchpad-staged proxy** (permissionless checks `getCode` and skips `setupSafe`). Product path = first-userOp deploy (FR-1.3). Dev accounts salts 0–3 are dead; salt 4 is the live one.
+  4. **Relayer must read op-level success** (`UserOperationEvent.success`, `UserOperationRevertReason`), not tx status — a userOp can revert inside a successful `handleOps`. Fixed.
+  5. **Verifier: a reverting getter is a mismatch, never an exception.** Fixed + tested.
+  6. **Ops:** a viem error dump printed the Alchemy URL (API key) into the session transcript — stakeholder advised to rotate; all further tool output masks RPC URLs. Alchemy free tier limits `eth_getLogs` to 10-block ranges (indexer design note).
+- **Spec gaps raised (stakeholder decisions, not blocking):** (a) FR-2.7 rolling-24h execution cap has no on-chain policy in the V2 set — enforced off-chain only until a custom policy (a second contract → architecture decision) is approved; (b) multi-valued `IN_SET` (e.g. fee tiers {500,3000}) is not expressible in UniversalActionPolicy — composition rejects it (FR-5.3), policies must pick one value per parameter.
 
 ### 2026-08-22/23 — Session 7: T-007 — EVM account layer
 

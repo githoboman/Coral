@@ -24,6 +24,13 @@ export interface CorralAccountParams {
   readonly owner: LocalAccount;
   /** Per-user salt so one owner can hold several accounts. Default 0. */
   readonly saltNonce?: bigint;
+  /**
+   * Validator modules installed as part of account initialization (the
+   * first userOp's `setupSafe`). Used by the owner-initiated session install
+   * (T-008) to deploy + install in one signature (FR-1.3). Changes the
+   * counterfactual address — it is part of the launchpad init data.
+   */
+  readonly validators?: readonly { address: Address; context: Hex }[];
 }
 
 export interface CorralAccount {
@@ -68,10 +75,12 @@ export async function createCorralAccount(params: CorralAccountParams): Promise<
     erc7579LaunchpadAddress: addresses.safe7579Launchpad.address,
     safeSingletonAddress: addresses.safeSingleton.address,
     safeProxyFactoryAddress: addresses.safeProxyFactory.address,
-    // Registry-gated module installs: only Rhinestone-attested modules may
-    // be installed (FR-1.5 first line of defence; the monitor is the second).
-    attesters: [addresses.rhinestoneAttester.address],
-    attestersThreshold: 1,
+    // Registry-gated module installs where the chain's attestations exist
+    // (see ChainAddresses.registryGating). Pinned codehashes + the module
+    // monitor enforce FR-1.5 regardless.
+    attesters: [...(addresses.registryGating?.attesters ?? [])],
+    attestersThreshold: addresses.registryGating?.threshold ?? 0,
+    validators: [...(params.validators ?? [])],
     saltNonce,
   });
 

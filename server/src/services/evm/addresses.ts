@@ -38,6 +38,18 @@ export interface ChainAddresses {
   readonly valueLimitPolicy: PinnedContract;
   readonly usageLimitPolicy: PinnedContract;
   readonly corralJournal: PinnedContract;
+  readonly ownableValidator: PinnedContract;
+  /**
+   * ERC-7484 registry gating for module installs and session-policy enables.
+   * `null` disables it (account created with no attesters; SmartSessions
+   * `useRegistry: false`). Disabled on Base Sepolia because, as verified on
+   * 2026-08-23, neither the Rhinestone attester nor its mock attester has
+   * attested SmartSessions or the V2 policies there — with gating on, every
+   * install reverts with InsufficientAttestations. FR-1.5 remains enforced by
+   * the pinned codehashes above and the module monitor. MAINNET GATE: re-run
+   * the attestation check and enable gating before pinning mainnet addresses.
+   */
+  readonly registryGating: { readonly attesters: readonly Address[]; readonly threshold: number } | null;
 }
 
 const pin = (address: Address, codehash: Hex, role: string): PinnedContract =>
@@ -59,6 +71,13 @@ export const BASE_SEPOLIA: ChainAddresses = Object.freeze({
   valueLimitPolicy: pin("0x000000000021dC45451291BCDfc9f0B46d6f0278", "0x086e8421c6c9daab4a93e63366c83e8f20cc3f736b7be5a97e0e81633581e4ed", "ValueLimitPolicy (V2)"),
   usageLimitPolicy: pin("0x00000000001d4479FA2A947026204d0283ceDe4B", "0xa85499ae68f4ac7819fa0c9a06dfb89538a820879ed356913915ea5daac62cdd", "UsageLimitPolicy (V2)"),
   corralJournal: pin("0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F", "0x518b65ef4ba1c38a724677c7d22dc38c982740057f459ed9b5ba51df56dd59ea", "CorralJournal (ours, CREATE2)"),
+  ownableValidator: pin("0x000000000013fdB5234E4E3162a810F54d9f7E98", "0x4194d92c6d0b18f35a865f2796c3a0b85b9af299c8110214dfae3f69bee60d11", "OwnableValidator (session signer validator, current)"),
+  // TESTNET: the dev key self-attests the pinned SmartSessions address
+  // (scripts/evmAttestModules.ts) and is the sole trusted attester — the
+  // same mechanism mainnet uses with Rhinestone's attester. See
+  // ChainAddresses.registryGating for why Rhinestone's attester cannot be
+  // used on Base Sepolia.
+  registryGating: { attesters: ["0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9" as Address], threshold: 1 },
 });
 
 const CHAINS: Readonly<Record<number, ChainAddresses>> = Object.freeze({ 84532: BASE_SEPOLIA });

@@ -204,7 +204,7 @@ just check-all                     # everything CI runs
 **Product track**
 - [x] v2 bootstrap 1–6 (Rust core through error taxonomy — retired at T-005; semantics live on in `@corral/core` with test parity)
 - [x] T-001…T-005 Foundations: Coral import, `@corral/core`, CI re-point
-- [ ] T-006…T-008 Contracts + account + session install/verify ⚠️ critical path
+- [x] T-006…T-008 Contracts + account + session install/verify (live on Base Sepolia, 2026-08-23)
 - [ ] Violation matrix
 - [ ] Adapter + planner + execution pipeline
 - [ ] FE re-point (Sui → Base), policy review screen, kill switch, standalone revoke

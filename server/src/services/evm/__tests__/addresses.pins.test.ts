@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  getOwnableValidator,
   getSmartSessionsValidator,
   getSpendingLimitsPolicy,
   getTimeFramePolicy,
@@ -28,6 +29,10 @@ describe("@rhinestone/module-sdk builders agree with pinned addresses", () => {
   it("SmartSessions validator", () => {
     const m = getSmartSessionsValidator({ sessions: [] });
     expect(lc(m.address)).toBe(lc(BASE_SEPOLIA.smartSessions.address));
+  });
+  it("OwnableValidator (current, not legacy)", () => {
+    const m = getOwnableValidator({ threshold: 1, owners: ["0x1111111111111111111111111111111111111111"] });
+    expect(lc(m.address)).toBe(lc(BASE_SEPOLIA.ownableValidator.address));
   });
   it("SpendingLimitsPolicy (V2, not legacy V1)", () => {
     const p = getSpendingLimitsPolicy([{ token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", limit: 1n }]);
