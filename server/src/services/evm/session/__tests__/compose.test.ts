@@ -13,7 +13,6 @@ import { actionId } from "../ids.js";
 const USDC = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
 const WETH = "0x4200000000000000000000000000000000000006";
 const ROUTER = "0x94cc0aac535ccdb3c01d6787d6413c739ae12bc4";
-const PERMIT2 = "0x000000000022d473030f116ddee9f6b43ac78ba3";
 const ACCOUNT = "0xf2A97cd5439C01D5CE8bE75e0f7a8Dc8294C7343" as const;
 const AGENT = "0x1111111111111111111111111111111111111111" as const;
 const SALT = "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
@@ -26,7 +25,7 @@ function wire(overrides: Record<string, unknown> = {}) {
     max_native_value: "0",
     target_scope: [
       { address: USDC, selector: "0x095ea7b3", action: "APPROVE", param_rules: [
-        { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: PERMIT2 }] },
+        { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: ROUTER }] },
         { rule: "LTE", param_index: 1, max: "125000000" } ] },
       { address: ROUTER, selector: "0x04e45aaf", action: "SWAP", param_rules: [
         { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: USDC }] },
@@ -149,7 +148,7 @@ describe("composeSession — parameter rules → UniversalActionPolicy", () => {
     const cfg = rulesOf(0);
     expect(cfg.paramRules.length).toBe(2n);
     expect(cfg.paramRules.rules[0]!.condition).toBe(0);
-    expect(cfg.paramRules.rules[0]!.ref).toBe(`0x${"0".repeat(24)}${PERMIT2.slice(2)}`);
+    expect(cfg.paramRules.rules[0]!.ref).toBe(`0x${"0".repeat(24)}${ROUTER.slice(2)}`);
     expect(cfg.paramRules.rules[1]!.condition).toBe(4); // LESS_THAN_OR_EQUAL
     expect(cfg.paramRules.rules[1]!.ref).toBe(`0x${(125_000_000n).toString(16).padStart(64, "0")}`);
     expect(cfg.paramRules.rules[2]!.condition).toBe(0);

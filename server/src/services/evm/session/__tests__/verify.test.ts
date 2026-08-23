@@ -29,7 +29,7 @@ const composed = composeSession({
         selector: "0x095ea7b3",
         action: "APPROVE",
         param_rules: [
-          { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: "0x000000000022d473030f116ddee9f6b43ac78ba3" }] },
+          { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: "0x94cc0aac535ccdb3c01d6787d6413c739ae12bc4" }] },
           { rule: "LTE", param_index: 1, max: "125000000" },
         ],
       },

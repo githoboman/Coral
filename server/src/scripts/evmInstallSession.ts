@@ -56,7 +56,7 @@ const policy = parsePolicy({
       selector: "0x095ea7b3",
       action: "APPROVE",
       param_rules: [
-        { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: PERMIT2 }] },
+        { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: SWAP_ROUTER_02 }] },
         { rule: "LTE", param_index: 1, max: "125000000" },
       ],
     },

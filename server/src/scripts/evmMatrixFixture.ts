@@ -35,7 +35,7 @@ const policy = parsePolicy({
   max_native_value: "0",
   target_scope: [
     { address: USDC, selector: "0x095ea7b3", action: "APPROVE", param_rules: [
-      { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: PERMIT2 }] },
+      { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: SWAP_ROUTER_02 }] },
       { rule: "LTE", param_index: 1, max: "125000000" } ] },
     { address: SWAP_ROUTER_02, selector: "0x04e45aaf", action: "SWAP", param_rules: [
       { rule: "IN_SET", param_index: 0, allowed: [{ kind: "address", value: USDC }] },

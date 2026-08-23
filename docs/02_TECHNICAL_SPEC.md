@@ -319,7 +319,7 @@ SmartSessions session:
 
   actions:
     A1  USDC.approve(address,uint256)
-          arg0 spender   IN_SET { Permit2 }
+          arg0 spender   IN_SET { SwapRouter02 }   # SwapRouter02 pulls via transferFrom; Permit2 is the Universal Router's flow (corrected 23 Aug 2026)
           arg1 amount    LTE    125_000_000      # per-execution, NOT total budget
     A2  SwapRouter02.exactInputSingle((...))
           tokenIn        IN_SET { USDC }

@@ -35,7 +35,6 @@ contract ViolationMatrix is Test {
     address internal constant USDC = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
     address internal constant WETH = 0x4200000000000000000000000000000000000006;
     address internal constant ROUTER = 0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4;
-    address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant JOURNAL = 0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F;
     /// Another live Safe7579 account with SmartSessions but NOT this permission (dev-owner-salt4).
     address internal constant OTHER_ACCOUNT = 0xB49797eeaf684fB4Fbbc65CCf04cFA78BB094ef0;
@@ -184,16 +183,16 @@ contract ViolationMatrix is Test {
         return abi.encodeCall(ICorralJournal.log, (permissionId, keccak256("intent"), bytes32(0), 1));
     }
 
-    /// A policy-conformant approve: passes validation and executes.
+    /// A policy-conformant approve (spender = SwapRouter02): passes validation and executes.
     function _okApprove(uint256 amount) internal {
-        _submit(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, amount)))));
+        _submit(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, amount)))));
     }
 
     // ── V0: the harness proves a conformant op is accepted AND executed ─────
 
     function test_V0_conformant_approve_is_accepted_and_executed() public {
         _okApprove(100_000_000);
-        assertEq(IERC20(USDC).allowance(account, PERMIT2), 100_000_000, "execution must have happened");
+        assertEq(IERC20(USDC).allowance(account, ROUTER), 100_000_000, "execution must have happened");
     }
 
     // ── V1–V7: scope, budget, ceilings, recipient pin, slippage floor ───────
@@ -212,15 +211,15 @@ contract ViolationMatrix is Test {
             _okApprove(PER_EXEC);
         }
         vm.warp(block.timestamp + 1 days + 1);
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V2 budget + 1 wei");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V2 budget + 1 wei");
     }
 
     function test_V3_per_execution_ceiling_exceeded_reverts() public {
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, PER_EXEC + 1)))), "V3 ceiling + 1");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, PER_EXEC + 1)))), "V3 ceiling + 1");
     }
 
     function test_V4_non_whitelisted_contract_reverts() public {
-        _expectRejected(_ready(_op(account, _single(WETH, 0, _approve(PERMIT2, 1)))), "V4 WETH not a target");
+        _expectRejected(_ready(_op(account, _single(WETH, 0, _approve(ROUTER, 1)))), "V4 WETH not a target");
     }
 
     function test_V5_whitelisted_contract_non_whitelisted_selector_reverts() public {
@@ -247,12 +246,12 @@ contract ViolationMatrix is Test {
 
     function test_V8_execute_after_validUntil_reverts() public {
         vm.warp(validUntil + 1);
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V8 after validUntil");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V8 after validUntil");
     }
 
     function test_V9_execute_before_validAfter_reverts() public {
         vm.warp(validAfter - 1);
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V9 before validAfter");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V9 before validAfter");
     }
 
     function test_V10_exceed_maxExecutions_reverts() public {
@@ -262,7 +261,7 @@ contract ViolationMatrix is Test {
             _okApprove(50_000_000);
         }
         vm.warp(block.timestamp + 1 days + 1);
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V10 9th execution");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V10 9th execution");
     }
 
     function test_V11_exceed_maxExecutionsPer24h_reverts() public {
@@ -270,7 +269,7 @@ contract ViolationMatrix is Test {
         vm.warp(block.timestamp + 1 hours);
         _okApprove(1);
         vm.warp(block.timestamp + 1 hours);
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V11 3rd within 24h");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V11 3rd within 24h");
         // and it frees up once the first falls out of the window
         vm.warp(block.timestamp + 1 days);
         _okApprove(1);
@@ -279,12 +278,12 @@ contract ViolationMatrix is Test {
     // ── V12–V15: native value, approvals, revocation ────────────────────────
 
     function test_V12_native_value_with_zero_cap_reverts() public {
-        _expectRejected(_ready(_op(account, _single(USDC, 1 wei, _approve(PERMIT2, 1)))), "V12 1 wei native value");
+        _expectRejected(_ready(_op(account, _single(USDC, 1 wei, _approve(ROUTER, 1)))), "V12 1 wei native value");
     }
 
     function test_V13_unbounded_approval_reverts() public {
         _expectRejected(
-            _ready(_op(account, _single(USDC, 0, _approve(PERMIT2, type(uint256).max)))), "V13 approve max"
+            _ready(_op(account, _single(USDC, 0, _approve(ROUTER, type(uint256).max)))), "V13 approve max"
         );
     }
 
@@ -296,19 +295,19 @@ contract ViolationMatrix is Test {
         vm.prank(account);
         SS.removeSession(permissionId);
         assertFalse(SS.isPermissionEnabled(permissionId, account));
-        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1)))), "V15 revoked session");
+        _expectRejected(_ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1)))), "V15 revoked session");
     }
 
     // ── V16–V18: replay protection ──────────────────────────────────────────
 
     function test_V16_replay_used_userOp_reverts() public {
-        PackedUserOperation memory op = _ready(_op(account, _single(USDC, 0, _approve(PERMIT2, 1))));
+        PackedUserOperation memory op = _ready(_op(account, _single(USDC, 0, _approve(ROUTER, 1))));
         _submit(op);
         _expectRejected(op, "V16 identical op replayed (nonce)");
     }
 
     function test_V17_userOp_signed_for_another_chain_reverts() public {
-        PackedUserOperation memory op = _op(account, _single(USDC, 0, _approve(PERMIT2, 1)));
+        PackedUserOperation memory op = _op(account, _single(USDC, 0, _approve(ROUTER, 1)));
         vm.chainId(8453); // sign the hash Base mainnet would produce
         bytes32 foreignHash = EP.getUserOpHash(op);
         vm.chainId(84532);
@@ -318,14 +317,14 @@ contract ViolationMatrix is Test {
 
     function test_V18_userOp_signed_for_another_account_reverts() public {
         // Same agent signature envelope, different sender: that account has no such permission.
-        PackedUserOperation memory op = _op(OTHER_ACCOUNT, _single(USDC, 0, _approve(PERMIT2, 1)));
+        PackedUserOperation memory op = _op(OTHER_ACCOUNT, _single(USDC, 0, _approve(ROUTER, 1)));
         _expectRejected(_withPid(_sign(op), permissionId), "V18 session not enabled on that account");
     }
 
     // ── V19–V20: alternative entry points into the account ──────────────────
 
     function test_V19_direct_execute_and_executor_paths_reject_the_agent() public {
-        bytes memory exec = abi.encodePacked(USDC, uint256(0), _approve(PERMIT2, 1));
+        bytes memory exec = abi.encodePacked(USDC, uint256(0), _approve(ROUTER, 1));
         vm.startPrank(agent);
         vm.expectRevert();
         IERC7579Execution(account).execute(MODE_SINGLE, exec);
@@ -336,19 +335,19 @@ contract ViolationMatrix is Test {
 
     function test_V20_fallback_handler_does_not_execute() public {
         vm.prank(agent);
-        (bool ok,) = account.call(abi.encodeWithSelector(bytes4(0xdeadbeef), PERMIT2, uint256(1)));
+        (bool ok,) = account.call(abi.encodeWithSelector(bytes4(0xdeadbeef), ROUTER, uint256(1)));
         assertFalse(ok, "unknown selector must not be routed anywhere useful");
-        assertEq(IERC20(USDC).allowance(account, PERMIT2), 0);
+        assertEq(IERC20(USDC).allowance(account, ROUTER), 0);
     }
 
     // ── V21–V25: batches, journal, paymaster, validators, nesting ───────────
 
     function test_V21_batch_with_one_forbidden_call_rejects_whole_batch() public {
         Execution[] memory execs = new Execution[](2);
-        execs[0] = Execution(USDC, 0, _approve(PERMIT2, 1)); // permitted
+        execs[0] = Execution(USDC, 0, _approve(ROUTER, 1)); // permitted
         execs[1] = Execution(USDC, 0, abi.encodeCall(IERC20.transfer, (attacker, 1))); // forbidden
         _expectRejected(_ready(_op(account, _batch(execs))), "V21 batch with forbidden call");
-        assertEq(IERC20(USDC).allowance(account, PERMIT2), 0, "nothing from the batch may execute");
+        assertEq(IERC20(USDC).allowance(account, ROUTER), 0, "nothing from the batch may execute");
     }
 
     /// V22 — spec: "revert OR preflight reject". The session deliberately does
@@ -357,10 +356,10 @@ contract ViolationMatrix is Test {
     /// epic); on-chain the batch is a normal permitted execution. Stated, not hidden.
     function test_V22_journal_omission_is_a_preflight_rule_not_onchain() public {
         Execution[] memory execs = new Execution[](2);
-        execs[0] = Execution(USDC, 0, _approve(PERMIT2, 1));
+        execs[0] = Execution(USDC, 0, _approve(ROUTER, 1));
         execs[1] = Execution(JOURNAL, 0, _journal());
         _submit(_ready(_op(account, _batch(execs)))); // the product shape: action + journal
-        assertEq(IERC20(USDC).allowance(account, PERMIT2), 1);
+        assertEq(IERC20(USDC).allowance(account, ROUTER), 1);
     }
 
     function test_V23_sponsored_op_cannot_bypass_policy() public {

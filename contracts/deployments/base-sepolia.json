@@ -83,6 +83,25 @@
         "agentSigner": "0x5982833170187bC906C8bB3fa5774A465C43D071 (throwaway, key discarded)"
       },
       "note": "First fully-correct session: rate limit + initialized journal action. The violation matrix fixture uses the salt-5 ACCOUNT with its own test session (vm.prank), not this one."
+    },
+    "dev-owner-salt8-agent-demo": {
+      "address": "0xF633373a0b34D3179Bd02b316EE6aCf9ebfD0A70",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "8",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0xdce309d248f07d4716aba34f64aea5c1b3e5ed10205baad96a7795da6a79daa4",
+        "status": "ACTIVE; first agent execution done",
+        "agentSigner": "0x8ca016515B7521A10E11e527D951789e78f7709f (TESTNET key in server/.env as EVM_AGENT_PRIVATE_KEY)"
+      },
+      "firstAgentExecution": {
+        "block": 45859033,
+        "gas": 507852,
+        "swap": "0.2 USDC -> 0.001367911410436060 WETH (Uniswap v3 0.3%)",
+        "journal": "seq 1, intent 0x58694882…",
+        "note": "J2 proven: policy-bound autonomous execution, output to the account, journaled, via own relayer."
+      }
     }
   },
   "pinnedModules": "see server/src/services/evm/addresses.ts (codehash-asserted)",
