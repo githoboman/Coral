@@ -55,10 +55,26 @@ describe("composeSession — structure", () => {
     expect(expectation.sessionValidatorInitData).toBe(session.sessionValidatorInitData);
   });
 
-  it("userOp policies with a zero native cap: usage limit + time frame (ValueLimitPolicy V2 rejects limit 0; UAP valueLimitPerUse=0 enforces it)", () => {
+  it("rolling 24h cap → CorralRateLimitPolicy (FR-2.7, D26) with the pinned address, limit and 86400s window", () => {
+    const { expectation } = compose();
+    const rl = expectation.userOpPolicies.find((p) => p.kind === "RATE_LIMIT")!;
+    expect(lc(rl.address)).toBe(lc(BASE_SEPOLIA.corralRateLimitPolicy.address));
+    expect(rl.limit).toBe(2n);
+    expect(rl.window).toBe(86_400n);
+    const [limit, window] = decodeAbiParameters([{ type: "uint32" }, { type: "uint32" }], rl.initData);
+    expect([limit, window]).toStrictEqual([2, 86_400]);
+  });
+
+  it("a per-24h cap of 0 installs no rate limit; a cap above MAX_LIMIT (64) is a hard error", () => {
+    const none = compose(wire({ max_executions_per_24h: 0 }));
+    expect(none.expectation.userOpPolicies.some((p) => p.kind === "RATE_LIMIT")).toBe(false);
+    expect(() => compose(wire({ max_executions: 100, max_executions_per_24h: 65 }))).toThrow(ComposeError);
+  });
+
+  it("userOp policies with a zero native cap: usage limit + time frame + rate limit (ValueLimitPolicy V2 rejects limit 0; UAP valueLimitPerUse=0 enforces it)", () => {
     const { expectation } = compose();
     const kinds = expectation.userOpPolicies.map((p) => p.kind).sort();
-    expect(kinds).toStrictEqual(["TIME_FRAME", "USAGE_LIMIT"]);
+    expect(kinds).toStrictEqual(["RATE_LIMIT", "TIME_FRAME", "USAGE_LIMIT"]);
     const tf = expectation.userOpPolicies.find((p) => p.kind === "TIME_FRAME")!;
     expect(tf.packedTimeFrame).toBe((1_756_600_000n << 48n) | 1_754_000_000n);
     expect(expectation.userOpPolicies.find((p) => p.kind === "USAGE_LIMIT")!.limit).toBe(8n);
@@ -75,7 +91,7 @@ describe("composeSession — structure", () => {
     const vl = expectation.userOpPolicies.find((p) => p.kind === "VALUE_LIMIT")!;
     expect(vl.limit).toBe(1_000_000_000_000_000n);
     expect(lc(vl.address)).toBe(lc(BASE_SEPOLIA.valueLimitPolicy.address));
-    expect(expectation.userOpPolicies.map((p) => p.kind).sort()).toStrictEqual(["TIME_FRAME", "USAGE_LIMIT", "VALUE_LIMIT"]);
+    expect(expectation.userOpPolicies.map((p) => p.kind).sort()).toStrictEqual(["RATE_LIMIT", "TIME_FRAME", "USAGE_LIMIT", "VALUE_LIMIT"]);
   });
 
   it("every target becomes an action, plus the journal action is always appended last", () => {

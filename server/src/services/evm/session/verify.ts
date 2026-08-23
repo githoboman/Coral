@@ -18,6 +18,7 @@
 import { decodeAbiParameters, type Address, type Hex } from "viem";
 
 import type { ChainAddresses } from "../addresses.js";
+import { corralRateLimitPolicyAbi } from "../abi/corralRateLimitPolicy.js";
 import { smartSessionsAbi } from "../abi/smartSessions.js";
 import { spendingLimitsPolicyAbi } from "../abi/spendingLimitsPolicy.js";
 import { timeFramePolicyAbi } from "../abi/timeFramePolicy.js";
@@ -124,6 +125,15 @@ export async function verifyInstalledSession(
       case "TIME_FRAME": {
         const v = await read<bigint>(addresses.timeFramePolicy.address, timeFramePolicyAbi, "getTimeFrameConfig", [uoId, ss, account]);
         if (v !== REVERTED && v !== p.packedTimeFrame) miss("TIME_FRAME.config", p.packedTimeFrame, v);
+        break;
+      }
+      case "RATE_LIMIT": {
+        const v = await read<[number, number, number]>(addresses.corralRateLimitPolicy.address, corralRateLimitPolicyAbi, "getRateLimitConfig", [uoId, ss, account]);
+        if (v !== REVERTED) {
+          const [limit, window] = v;
+          if (BigInt(limit) !== p.limit) miss("RATE_LIMIT.limit", p.limit, limit);
+          if (BigInt(window) !== p.window) miss("RATE_LIMIT.window", p.window, window);
+        }
         break;
       }
     }

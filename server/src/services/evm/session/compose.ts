@@ -22,7 +22,7 @@ import {
   getValueLimitPolicy,
   type Session,
 } from "@rhinestone/module-sdk";
-import { pad, toFunctionSelector, toHex, type Address, type Hex } from "viem";
+import { encodeAbiParameters, pad, toFunctionSelector, toHex, type Address, type Hex } from "viem";
 
 import type { ChainAddresses } from "../addresses.js";
 import { actionId } from "./ids.js";
@@ -103,7 +103,18 @@ const zeroRule = (): UapRule => ({
 export type ExpectedUserOpPolicy =
   | { kind: "VALUE_LIMIT"; address: Address; initData: Hex; limit: bigint }
   | { kind: "USAGE_LIMIT"; address: Address; initData: Hex; limit: bigint }
-  | { kind: "TIME_FRAME"; address: Address; initData: Hex; packedTimeFrame: bigint };
+  | { kind: "TIME_FRAME"; address: Address; initData: Hex; packedTimeFrame: bigint }
+  | { kind: "RATE_LIMIT"; address: Address; initData: Hex; limit: bigint; window: bigint };
+
+/** Rolling window of FR-2.7, in seconds. */
+export const RATE_LIMIT_WINDOW_SECONDS = 86_400n;
+/** Mirrors CorralRateLimitPolicy.MAX_LIMIT — bounds validation gas. */
+export const RATE_LIMIT_MAX = 64n;
+
+/** initData for CorralRateLimitPolicy: abi.encode(uint32 limit, uint32 windowSeconds). */
+export function rateLimitInitData(limit: bigint, window: bigint): Hex {
+  return encodeAbiParameters([{ type: "uint32" }, { type: "uint32" }], [Number(limit), Number(window)]);
+}
 
 export type ExpectedActionPolicy =
   | { kind: "UNIVERSAL_ACTION"; address: Address; initData: Hex }
@@ -215,6 +226,22 @@ export function composeSession(input: ComposeInput): ComposedSession {
   if (policy.max_native_value > 0n) {
     const valueLimit = getValueLimitPolicy({ limit: policy.max_native_value });
     userOpPolicies.unshift({ kind: "VALUE_LIMIT", address: valueLimit.policy, initData: valueLimit.initData, limit: policy.max_native_value });
+  }
+  // Rolling 24h cap (FR-2.7, D26) via our own CorralRateLimitPolicy. The
+  // scheduler enforces the same pacing off-chain (defense in depth). A cap
+  // of 0 means "no per-window cap" (the lifetime cap still applies).
+  const perDay = BigInt(policy.max_executions_per_24h);
+  if (perDay > 0n) {
+    if (perDay > RATE_LIMIT_MAX) {
+      throw new ComposeError("RULE_NOT_EXPRESSIBLE", `max_executions_per_24h ${perDay} exceeds CorralRateLimitPolicy.MAX_LIMIT ${RATE_LIMIT_MAX}`);
+    }
+    userOpPolicies.push({
+      kind: "RATE_LIMIT",
+      address: addresses.corralRateLimitPolicy.address,
+      initData: rateLimitInitData(perDay, RATE_LIMIT_WINDOW_SECONDS),
+      limit: perDay,
+      window: RATE_LIMIT_WINDOW_SECONDS,
+    });
   }
 
   // Actions: one per whitelisted (target, selector).

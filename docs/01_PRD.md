@@ -150,7 +150,7 @@ A public verification page: given an account address, show every session ever in
 | FR-2.4 | Policy supports **target scope**: allowlist of (contract address, function selector) pairs | **[MUST]** |
 | FR-2.5 | Policy supports **parameter constraints** on whitelisted calls: e.g. `recipient == account`, `amountOutMinimum >= floor`, `spender ∈ allowlist`, `amount <= max` | **[MUST]** |
 | FR-2.6 | Policy supports **time constraint**: `validAfter` / `validUntil`; expiry invalidates execution with no further action from the user | **[MUST]** |
-| FR-2.7 | Policy supports **usage limit**: max executions per session, and max executions per rolling 24h | **[MUST]** |
+| FR-2.7 | Policy supports **usage limit**: max executions per session (on-chain: UsageLimitPolicy), and max executions per rolling 24h (on-chain: `CorralRateLimitPolicy`, D26; also enforced off-chain by the scheduler as defense in depth) | **[MUST]** |
 | FR-2.8 | Policy supports **action scope**: only actions in the closed DSL may be encoded | **[MUST]** |
 | FR-2.9 | Policies are **immutable** for the life of a session. Changing a policy = revoke + create new | **[MUST]** |
 | FR-2.10 | A policy encoder converts the `corral-core` policy object to on-chain module config, and a decoder reverses it; round-trip is property-tested | **[MUST]** |

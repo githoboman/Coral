@@ -11,7 +11,7 @@
 | | |
 |---|---|
 | **Current phase** | **Bootstrap complete (8/8).** Next epic: violation matrix |
-| **Active ticket** | Violation matrix V1–V25 (`contracts/test/Violations.t.sol`, old C-309) — the highest-value security artifact; write before the pipeline |
+| **Active ticket** | Violation matrix V1–V25 (`contracts/test/Violations.t.sol`, old C-309) — the highest-value security artifact; write before the pipeline. V11 (24h cap) is now enforceable on-chain via `CorralRateLimitPolicy` (D26) |
 | **Next up** | Uniswap adapter + deterministic planner + execution pipeline in `server/` |
 | **Deployed** | `CorralJournal` @ `0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F` on Base Sepolia — see `contracts/deployments/base-sepolia.json` |
 | **Blocked / waiting** | — |
@@ -67,6 +67,15 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 | G5 | Launch checklist green | ☐ |
 
 ## 4. Session log (newest first)
+
+### 2026-08-23 — Session 9: D26 — `CorralRateLimitPolicy` (FR-2.7 on-chain)
+
+- Stakeholder chose **both layers** for the rolling 24h cap: on-chain custom policy + off-chain scheduler pacing (ADR D26; CLAUDE.md §3 custom-Solidity line, PRD FR-2.7 and spec §4.3 amended — the latter also fixes the multi-valued `IN_SET` example).
+- `contracts/src/CorralRateLimitPolicy.sol`: SmartSessions `IUserOpPolicy`; exact trailing window via a ring buffer of the last `limit` accepted timestamps (≤ MAX_LIMIT=64 SLOADs per check); storage keyed `[configId][multiplexer][account]` like Rhinestone's policies; local interface mirror `ISmartSessionPolicy.sol` with **interface id pinned to the value SmartSessions probes (0x7129edce)**. 8 Foundry tests incl. a 1,000-run fuzz against a reference model; **100% lines/statements/branches/functions.**
+- **Caveat recorded (D26):** `block.timestamp` in the validation phase violates public-bundler rules (ERC-7562) — acceptable only because D13 (own relayer) is permanent.
+- Deployed via CREATE2 to **`0x4ABa00153c4c05244F505563Fe2d37ad47990Ca1`** (tx `0x40540bc6…7461`), Basescan-verified, codehash-pinned. Composer emits `RATE_LIMIT` (cap 0 = none; >64 = `ComposeError`); verifier reads `getRateLimitConfig` and compares limit + window. **Live: account `0x6E2A…f360`, permissionId `0x4a8532a8…f539`, verification 0 mismatches → ACTIVE** (tx `0x39ef0b0d…c492`, 2.26M gas).
+- Enforcement proof (a session-signed op rejected on-chain as the 3rd in 24h) lands with the violation matrix (V11) and the execution pipeline (session-key signing).
+- Off-chain half: the scheduler's pacing check is part of the execution-pipeline epic (same `max_executions_per_24h` field).
 
 ### 2026-08-23 — Session 8: T-008 — session install + post-install verification (bootstrap complete)
 

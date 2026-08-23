@@ -66,6 +66,7 @@ function faithfulReader(overrides: Record<string, unknown> = {}): ChainReader {
     if (p.kind === "VALUE_LIMIT") set("getValueLimit", [uo, SS, ACCOUNT], p.limit);
     if (p.kind === "USAGE_LIMIT") set("getUsageLimit", [uo, SS, ACCOUNT], p.limit);
     if (p.kind === "TIME_FRAME") set("getTimeFrameConfig", [uo, SS, ACCOUNT], p.packedTimeFrame);
+    if (p.kind === "RATE_LIMIT") set("getRateLimitConfig", [uo, SS, ACCOUNT], [Number(p.limit), Number(p.window), 0]);
   }
   for (const a of E.actions) {
     set("getActionPolicies", [ACCOUNT, E.permissionId, a.actionId], a.policies.map((p) => p.address));
@@ -121,6 +122,14 @@ describe("verifyInstalledSession", () => {
     const uo = userOpConfigId(ACCOUNT, E.permissionId);
     const r = await verifyInstalledSession(faithfulReader({ [K("getUsageLimit", [uo, SS, ACCOUNT])]: 9n }), BASE_SEPOLIA, E);
     expect(r.mismatches.find((m) => m.what === "USAGE_LIMIT.limit")).toMatchObject({ expected: "8", actual: "9" });
+  });
+
+  it("rate limit stored looser than signed (limit or window) is a mismatch", async () => {
+    const uo = userOpConfigId(ACCOUNT, E.permissionId);
+    const r1 = await verifyInstalledSession(faithfulReader({ [K("getRateLimitConfig", [uo, SS, ACCOUNT])]: [3, 86_400, 0] }), BASE_SEPOLIA, E);
+    expect(r1.mismatches.find((m) => m.what === "RATE_LIMIT.limit")).toMatchObject({ expected: "2", actual: "3" });
+    const r2 = await verifyInstalledSession(faithfulReader({ [K("getRateLimitConfig", [uo, SS, ACCOUNT])]: [2, 3600, 0] }), BASE_SEPOLIA, E);
+    expect(r2.mismatches.find((m) => m.what === "RATE_LIMIT.window")).toMatchObject({ expected: "86400", actual: "3600" });
   });
 
   it("time frame packed differently is a mismatch", async () => {

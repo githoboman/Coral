@@ -324,7 +324,7 @@ SmartSessions session:
     A2  SwapRouter02.exactInputSingle((...))
           tokenIn        IN_SET { USDC }
           tokenOut       IN_SET { WETH }
-          fee            IN_SET { 500, 3000 }
+          fee            IN_SET { 3000 }          # one value per parameter: UniversalActionPolicy ANDs one rule per param, so a multi-valued allowlist is not expressible; composition rejects it (FR-5.3)
           recipient      EQ_ACCOUNT              # prevents exfiltration
           amountIn       LTE    125_000_000
           amountOutMin   GTE    <computed floor>

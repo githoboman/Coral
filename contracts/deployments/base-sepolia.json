@@ -13,6 +13,19 @@
       "solc": "0.8.28",
       "verified": "basescan",
       "note": "CREATE2 with a fixed salt: this address is identical on every chain the same bytecode is deployed to. Changing the salt or the source changes the address everywhere."
+    },
+    "CorralRateLimitPolicy": {
+      "address": "0x4ABa00153c4c05244F505563Fe2d37ad47990Ca1",
+      "deployedAt": "2026-08-23",
+      "txHash": "0x40540bc6966d9f54d949252d921a04572ccbbd4804f247165795e6d8e4d27461",
+      "block": 45855825,
+      "deployer": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "create2Salt": "keccak256(\"corral.ratelimit.v1\")",
+      "codehash": "0x4fc07fca1b0fc6cd217b6a3cf74eecb40b1a64269630e77a1821ffa5334351d4",
+      "solc": "0.8.28",
+      "verified": "basescan",
+      "adr": "D26",
+      "note": "SmartSessions userOp policy: <= limit executions per rolling window (FR-2.7). Reads block.timestamp in validation — own-relayer only (D13)."
     }
   },
   "accounts": {
@@ -40,6 +53,21 @@
         "agentSigner": "0xEe5E520f2DA6e01Ab669Bb7F7e3bFFb469ABA022 (throwaway, key discarded)"
       },
       "note": "T-008 acceptance. First userOp = deploy + setupSafe + installModule(SmartSessions, session) + journal log, owner-signed, own-relayer handleOps, 2,171,365 gas."
+    },
+    "dev-owner-salt5-session-ratelimit": {
+      "address": "0x6E2A6F54703e67f1Bfcc92c4a2Bd602E7546f360",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "5",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "firstUserOpTx": "0x39ef0b0d71ad3c4ca0c8109bea6cb0802776f593523cd607c027888b76a1c492",
+      "block": 45855935,
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0x4a8532a8481822fd55763f8c17bb0427c6aa6cd30290f93cd9f8ce430441f539",
+        "status": "ACTIVE (post-install verification: 0 mismatches, incl. CorralRateLimitPolicy limit 2 / 86400s)",
+        "agentSigner": "0x210Bf6e13547542A210d99631eB0524371D6b932 (throwaway, key discarded)"
+      },
+      "note": "D26 acceptance: first session carrying the rolling 24h cap on-chain."
     }
   },
   "pinnedModules": "see server/src/services/evm/addresses.ts (codehash-asserted)",

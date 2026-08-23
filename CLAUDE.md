@@ -60,7 +60,7 @@ Do not violate these. Do not ask for permission to violate them. If a ticket app
 | Account | ERC-7579 modular smart account behind an `AccountAdapter` interface |
 | Enforcement | SmartSessions + UniversalAction / SpendingLimits / TimeFrame / ValueLimit / UsageLimit modules |
 | Session encoding | **Reference TypeScript SmartSessions SDK, pinned** (D22) — we do not hand-roll encoding |
-| Custom Solidity | `CorralJournal.sol` only, ~40 LOC. **A second contract is an architecture decision — raise it, don't write it.** |
+| Custom Solidity | `CorralJournal.sol` (~40 LOC) and `CorralRateLimitPolicy.sol` (SmartSessions userOp policy for FR-2.7, D26). **Any further contract is an architecture decision — raise it, don't write it.** |
 | Contracts | Foundry, Solidity 0.8.28 |
 | Shared core | `@corral/core` — pure TS: zod `.strict()` schemas, branded `TokenAmount`, error taxonomy, fast-check tests |
 | Backend | **Coral-lineage Express + TypeScript** (`server/`), Supabase Postgres |
