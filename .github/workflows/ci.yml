@@ -25,10 +25,22 @@ jobs:
         run: npm run lint
 
   server:
-    name: "server: tsc + vitest (Coral lineage)"
+    name: "server: tsc + vitest (incl. persistence integration)"
     runs-on: ubuntu-latest
     defaults:
       run: { working-directory: server }
+    services:
+      # The queue's guarantees are Postgres guarantees (FOR UPDATE SKIP
+      # LOCKED, unique partial indexes). An emulator would prove nothing, so
+      # CI runs the real thing.
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_PASSWORD: corral, POSTGRES_DB: corral }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:corral@localhost:5432/corral
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

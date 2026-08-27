@@ -85,7 +85,8 @@ corral/
 │                                  #    consumed by app/ and server/ as a file: dependency (no workspace tool)
 │     └─ src/{policy,action,amount,events,errors,strategy}.ts
 ├─ server/                         # Express + TS backend (imported from Coral, gains:)
-│  └─ src/services/evm/            #   viem chain layer, session install/verify, signer, relayer, planner
+│  ├─ src/services/evm/            #   viem chain layer, session install/verify, adapters, relayer
+│  └─ src/services/corral/         #   execution engine: db, job queue, ledger, planner, pipeline, reconcile
 ├─ app/                            # Vite + React frontend (imported from Coral)
 ├─ contracts/                      # Foundry (EVM)
 │  ├─ src/CorralJournal.sol
@@ -136,6 +137,9 @@ npm --prefix packages/core test    # core: vitest + fast-check
 npm --prefix packages/core run build
 npm --prefix server run build      # tsc
 npm --prefix server test           # vitest (104 inherited + new)
+# Persistence/chaos tests need a real Postgres (skipped without it):
+#   docker run -d --name corral-pg -e POSTGRES_PASSWORD=corral -e POSTGRES_DB=corral -p 55432:5432 postgres:16-alpine
+#   TEST_DATABASE_URL=postgresql://postgres:corral@localhost:55432/corral npm --prefix server test
 npm --prefix app run build         # tsc -b + vite build
 npm --prefix app run lint
 
@@ -206,7 +210,7 @@ just check-all                     # everything CI runs
 - [x] T-001…T-005 Foundations: Coral import, `@corral/core`, CI re-point
 - [x] T-006…T-008 Contracts + account + session install/verify (live on Base Sepolia, 2026-08-23)
 - [x] Violation matrix (26/26 on a Base Sepolia fork, 2026-08-23 — `FORK_RPC_URL` required)
-- [ ] Adapter + planner + execution pipeline
+- [x] Adapter + planner + execution pipeline (J2 live 2026-08-23; persistence, queue, ledger, chaos tests 2026-08-27)
 - [ ] FE re-point (Sui → Base), policy review screen, kill switch, standalone revoke
 - [ ] Security & launch (KMS custody, audit, guarded mainnet)
 

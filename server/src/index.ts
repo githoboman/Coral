@@ -33,6 +33,15 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   } else {
     console.log("[startup] Supabase not configured — skipping scheduler + cache warmer (agent-wallet mode).");
   }
+
+  // Corral execution engine (opt-in: CORRAL_ENGINE=true + DATABASE_URL).
+  // Handlers are registered by the caller that owns the chain clients and the
+  // signer, so this file never touches key material or policy.
+  import("./services/corral/engine").then(({ isEngineEnabled }) => {
+    if (isEngineEnabled()) {
+      console.log("[startup] CORRAL_ENGINE=true — call startEngine({ handlers }) from the deployment entrypoint.");
+    }
+  });
 });
 
 process.on("SIGTERM", () => {
