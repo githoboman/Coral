@@ -74,6 +74,14 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Strategies: DCA_PERCENT, CONDITIONAL_PRICE, lifecycle, compatibility (C-603, C-604, C-605, FR-9.2/9.3/9.5/9.6)** — 26 new tests; server 273/273.
+
+- Every strategy still compiles to the same primitive Actions with no privileged path (FR-9.4). A new strategy is a new way of choosing an *amount*, never a new way of reaching the chain.
+- **`CONDITIONAL_PRICE`**: the trigger is off-chain, and the reason that is acceptable is worth stating plainly — a lying price feed still cannot exceed the budget, reach a new destination, or defeat `amountOutMinimum`. The condition decides *whether*, never *what*. The threshold is expressed as an output quantity, not a "price", so the trigger and the on-chain rule speak the same language. Tested: the trigger cannot change the amount, and a satisfied trigger still hits the budget bound.
+- **`DCA_PERCENT` — a design flaw the tests caught.** The first version capped the computed amount to the remaining budget. That path was dead code: any amount large enough to be capped is by definition more than 25% of what remains, so it could only ever end in `PLAN_UNSAFE_BOUNDS`. Worse, `PLAN_UNSAFE_BOUNDS` is terminal, so a well-behaved strategy reaching the end of its budget would have dead-lettered. Now: `shareBps` is capped at the FR-4.7 sanity share **in the schema** (unsafe percent plans are unrepresentable, not merely rejected), and a run that exceeds what may safely be spent from the remainder **skips** rather than aborting — end of life is not an anomaly.
+- **Lifecycle** (FR-9.5): transitions enforced in code, terminal states have no exit — a completed strategy that could be reactivated would silently reopen a budget the user considers spent. A reachability test proves no state is dead configuration.
+- **Compatibility at creation** (FR-9.6): asset scope, action scope, per-execution ceiling, and "the budget cannot fund a single run", each with a specific reason and **all reported at once**. "Your agent cannot trade WETH because the session only covers USDC" belongs on the creation screen, not in the activity feed a week later.
+
 **Safety jobs: recovery, module monitoring, anomaly detection (C-504, C-506/FR-1.5, C-902/SEC-9)** — 19 new tests; server 247/247.
 
 The unifying idea, and why they landed together: each exists for a failure the on-chain policies do not object to.
