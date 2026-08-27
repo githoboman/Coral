@@ -68,6 +68,19 @@ export interface JournalEntry {
   readonly timestamp: bigint;
 }
 
+/**
+ * How a signed op reaches the chain. Defaults to the direct `handleOps` call;
+ * the engine injects the hardened relayer (allocated nonce, replace-by-fee,
+ * revocation refusal) instead. Kept as an injection point so this module —
+ * and the scripts that use it — stay free of any database dependency.
+ */
+export type SubmitFn = (args: {
+  readonly client: PublicClient;
+  readonly relayer: WalletClient;
+  readonly entryPoint: Address;
+  readonly userOp: UserOperation<"0.7">;
+}) => Promise<SubmitResult>;
+
 export interface ExecutionOutcome {
   readonly submission: SubmitResult;
   /** The journal entry emitted by this op, if execution succeeded. */
@@ -76,10 +89,11 @@ export interface ExecutionOutcome {
 
 /** Submit a signed session op via our relayer and read back its journal entry. */
 export async function executeSessionUserOp(
-  p: { client: PublicClient; relayer: WalletClient; addresses: ChainAddresses },
+  p: { client: PublicClient; relayer: WalletClient; addresses: ChainAddresses; submit?: SubmitFn },
   userOp: UserOperation<"0.7">,
 ): Promise<ExecutionOutcome> {
-  const submission = await submitViaHandleOps({ client: p.client, relayer: p.relayer, entryPoint: p.addresses.entryPoint.address, userOp });
+  const submit = p.submit ?? submitViaHandleOps;
+  const submission = await submit({ client: p.client, relayer: p.relayer, entryPoint: p.addresses.entryPoint.address, userOp });
   let journal: JournalEntry | null = null;
   if (submission.opSuccess) {
     const receipt = await p.client.getTransactionReceipt({ hash: submission.txHash });

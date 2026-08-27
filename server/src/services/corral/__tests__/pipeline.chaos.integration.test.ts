@@ -95,11 +95,20 @@ function fakeClient(chain: FakeChain): PublicClient {
     async estimateFeesPerGas() {
       return { maxFeePerGas: 1_000_000n, maxPriorityFeePerGas: 1_000_000n };
     },
+    async getTransactionCount() {
+      // The allocator reconciles forward against this; the persisted counter
+      // carries the sequence within a test run.
+      return 0;
+    },
     async waitForTransactionReceipt() {
-      die("after-submit");
       return { status: "success", blockNumber: 1n, gasUsed: 100_000n, logs: [userOpEventLog(chain.sender, true)] };
     },
     async getTransactionReceipt() {
+      // "after-submit" is a worker death AFTER the transaction landed, not a
+      // stuck transaction — the relayer now handles the latter itself by
+      // replacing by fee, so the kill point belongs here, on the read-back
+      // that precedes recording the result.
+      die("after-submit");
       return { status: "success", blockNumber: 1n, gasUsed: 100_000n, logs: [userOpEventLog(chain.sender, true)] };
     },
   } as unknown as PublicClient;
@@ -188,7 +197,7 @@ describe.skipIf(!TEST_DB)("pipeline chaos (NFR-7)", () => {
     // Start from empty: session identifiers are generated from a counter that
     // restarts each run, and createSession upserts — so leftovers from a
     // previous run would attach to the same session and inflate the counts.
-    await query("TRUNCATE corral_signer_audit, corral_jobs, corral_executions, corral_budget_mirror, corral_strategies, corral_sessions CASCADE");
+    await query("TRUNCATE corral_relayer_txs, corral_relayer_nonces, corral_signer_audit, corral_jobs, corral_executions, corral_budget_mirror, corral_strategies, corral_sessions CASCADE");
   });
   beforeEach(async () => {
     await query("TRUNCATE corral_jobs CASCADE");

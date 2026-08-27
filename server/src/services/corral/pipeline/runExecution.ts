@@ -17,11 +17,12 @@ import type { ProtocolAdapter } from "../../evm/adapters/protocolAdapter.js";
 import type { ChainAddresses } from "../../evm/addresses.js";
 import { preflight } from "../../evm/execute/preflight.js";
 import type { SessionSigner } from "../../evm/execute/sessionSigner.js";
-import { buildSessionUserOp, executeSessionUserOp } from "../../evm/execute/sessionUserOp.js";
+import { buildSessionUserOp, executeSessionUserOp, type SubmitFn } from "../../evm/execute/sessionUserOp.js";
 import { compilePlan } from "../../evm/planner/compile.js";
 import { claimExecutionSlot, markIncluded, markRejected, markSimulated, markSubmitted } from "../executions/ledger.js";
 import { planDcaFixed, PlanUnsafe, DcaFixedConfigSchema, type DcaFixedConfig } from "../planner/deterministic.js";
 import { refreshBudgetMirror } from "../reconcile/budget.js";
+import { submitRelayed, SubmissionRefused } from "../relayer/submit.js";
 import { guardedSessionSigner, SignerRefused } from "../sessions/guardedSigner.js";
 import { getSession, isExecutable, type SessionRow } from "../sessions/repository.js";
 
@@ -41,6 +42,8 @@ export interface RunDeps {
   /** Raw signer for this session's agent; wrapped in the DB gate before use. */
   readonly signer: SessionSigner;
   readonly adapterFor: (config: DcaFixedConfig) => ProtocolAdapter;
+  /** Override the submission path. Tests supply a fake chain here. */
+  readonly submit?: SubmitFn;
   readonly now?: () => number;
 }
 
@@ -169,7 +172,28 @@ export async function runExecution(
     });
     await markSubmitted(execution.id, keccak256(userOp.signature), null);
 
-    const outcome = await executeSessionUserOp({ client: deps.client, relayer: deps.relayer, addresses: deps.addresses }, userOp);
+    // Submission goes through the hardened relayer: an allocated, persisted
+    // nonce (I-402), replace-by-fee if it does not land (I-403), and a final
+    // refusal for a session revoked after signing (I-406). Tests inject their
+    // own submitter; without one the direct handleOps path is used, which has
+    // no database dependency.
+    const outcome = await executeSessionUserOp(
+      {
+        client: deps.client,
+        relayer: deps.relayer,
+        addresses: deps.addresses,
+        submit:
+          deps.submit ??
+          ((a) =>
+            submitRelayed({
+              ...a,
+              chainId: deps.client.chain?.id ?? session.chain_id,
+              sessionId: session.id,
+              executionId: execution.id,
+            })),
+      },
+      userOp,
+    );
     await markIncluded(execution.id, {
       txHash: outcome.submission.txHash,
       blockNumber: outcome.submission.blockNumber,
@@ -185,6 +209,9 @@ export async function runExecution(
     return { kind: "EXECUTED", executionId: execution.id, txHash: outcome.submission.txHash, journaled: outcome.journal !== null };
   } catch (e) {
     if (e instanceof PlanUnsafe) return abort("PLAN_UNSAFE_BOUNDS", e.message);
+    // The relayer refused at the last gate. Terminal, never retried: the
+    // session stopped being executable between signing and broadcast.
+    if (e instanceof SubmissionRefused) return abort("SESSION_REVOKED", e.reason);
     if (e instanceof SignerRefused) return abort("SESSION_REVOKED", e.reason);
     const msg = e instanceof Error ? (e.message.split("\n")[0] ?? e.message) : String(e);
     return abort("SIMULATION_REVERT", msg);

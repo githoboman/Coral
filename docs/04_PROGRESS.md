@@ -74,6 +74,21 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Production relayer (I-402, I-403, I-406, NFR-14)** — 36 new tests; server now 214/214.
+
+- **Nonce allocator** (`relayer/nonces.ts`, migration `002`). Persisted counter plus a per-(chain, relayer) `pg_advisory_xact_lock`, so concurrent workers serialise instead of racing; the lock is transaction-scoped and cannot be leaked by a crash. Chain I/O happens *before* the transaction opens — the lock is never held across a network call.
+  - `max(persisted, chainPendingNonce)`, never the minimum and never a rewind: a lagging RPC replica reporting an old count must not cause us to re-issue a nonce that is already in flight. Tested both directions.
+  - **Holes are reclaimed, not burned.** A worker that dies between allocating and sending leaves an `ALLOCATED` row with no transaction; that nonce is reused after a visibility timeout. Without this, one crash costs a permanent gap and every later submission queues behind it. A *sent* nonce is never reclaimed — that would be an accidental replacement.
+  - One live claim per nonce is a unique partial index, not a clever query. Asserted directly, the way the per-session concurrency index is.
+  - **50 racing workers get 50 distinct contiguous nonces**, no duplicate and no gap.
+- **Replace-by-fee** (`relayer/fees.ts`). Bumps are computed from the *previous attempt*, not the current market — nodes compare a replacement against the original transaction's fees, so pricing off a fallen market produces a replacement the node rejects and the nonce stays stuck. Percentage increases round **up** (a one-wei shortfall is rejected outright), and escalation stops at a configured ceiling rather than paying any price to clear a stuck transaction.
+- **Submission refusal** (`relayer/submit.ts`, I-406): the session is re-checked immediately before broadcast. Revocation disables the signer first, so nothing new is signed — but an operation signed a second earlier may still be in this function, and because we run our own relayer with no shared mempool (D13) refusing here means it never reaches the chain. This function *is* the residual window in CLAUDE.md §10.
+- **RPC failover** (`evm/chain/clients.ts`, NFR-14): `EVM_RPC_URLS` (comma-separated) behind viem's ranked `fallback`, with `EVM_RPC_URL` still accepted so nothing already deployed breaks. `checkProviders()` reads each endpoint separately, because the dangerous failure is not an unreachable provider but a *stale* one — reads succeed and quietly describe an older chain. Tests assert no function here can echo an endpoint URL (they embed API keys).
+- Pipeline now submits through the hardened path via an injected `submit`, keeping `evm/` free of any database dependency.
+- **Chaos suite updated, and sharpened by it**: with replace-by-fee in place, a receipt timeout is no longer a worker death — it is a stuck transaction the relayer handles itself. The `after-submit` kill point moved to the journal read-back, which models the real NFR-7 case: the transaction landed and the worker died before recording it. All five kill points still yield exactly one execution row and at most one submission.
+
+**Raised, not fixed (adjacent):** `db/pool.ts` sets `search_path` in a `pool.on("connect")` handler with `void client.query(...)` — unawaited, which pg 8.16 warns about and which could in principle let a query run before the schema is set. Test-only path today; worth making awaited before it matters.
+
 **`policySummary()` in `@corral/core` (FR-11.1)** — test-first, 22 new tests, core now 58/58.
 
 - Lives in core, not the frontend, and that placement *is* the requirement: the sentence the user reads before signing is derived from the same code that validates the configuration going on-chain, so it cannot drift from what is enforced. A summary written in the FE would be a second, unverified description of the policy.
