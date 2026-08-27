@@ -185,6 +185,10 @@ describe.skipIf(!TEST_DB)("pipeline chaos (NFR-7)", () => {
     process.env["DATABASE_SCHEMA"] = "corral_test_chaos";
     await query("CREATE SCHEMA IF NOT EXISTS corral_test_chaos");
     await runMigrations();
+    // Start from empty: session identifiers are generated from a counter that
+    // restarts each run, and createSession upserts — so leftovers from a
+    // previous run would attach to the same session and inflate the counts.
+    await query("TRUNCATE corral_signer_audit, corral_jobs, corral_executions, corral_budget_mirror, corral_strategies, corral_sessions CASCADE");
   });
   beforeEach(async () => {
     await query("TRUNCATE corral_jobs CASCADE");

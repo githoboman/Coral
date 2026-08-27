@@ -83,6 +83,9 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 - **Bug the chaos test caught:** persisting a `Plan` threw "Do not know how to serialize a BigInt" — branded amounts must go through `planToWire()` (decimal strings) before touching jsonb. Exactly the money-discipline failure §8.2 warns about.
 - Test isolation: parallel vitest files now each get their own Postgres schema (`DATABASE_SCHEMA`) rather than sharing tables. CI gains a `postgres:16-alpine` service so these run on every push. **Server: 190/190.**
 - Engine is opt-in (`CORRAL_ENGINE=true` + `DATABASE_URL`); the inherited server boots unchanged without it.
+- **API layer** (`server/src/routes/corral.ts`, spec §6.5): session + budget meters with source and freshness (FR-6.4), activity feed including failures and aborts (FR-7.4), `revoke/prepare` (disables the signer, then returns the transaction for the **owner** to send), and the public unauthenticated verification view (FR-7.6, J5). No endpoint accepts calldata, an address or an amount destined for the signer. 7 route tests: ownership enforced (403 for another wallet), auth required, malformed address rejected, no signer material in the public view.
+- **Boundary finding:** importing the inherited `app` to test these routes fails without `GOOGLE_API_KEY` — the chat routes construct an LLM client at import time. The Corral router is therefore tested standalone, which both proves and preserves the §8.4 boundary (Corral paths must not depend on the gamification/chat modules). Worth keeping in mind for deployment: the engine can run in a process that never loads those modules.
+- **Server: 197/197**, repeatable across consecutive runs.
 
 ### 2026-08-23 — Session 12: the standalone kill switch (FR-8.1/8.3/8.4, J3)
 
