@@ -74,6 +74,16 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Safety jobs: recovery, module monitoring, anomaly detection (C-504, C-506/FR-1.5, C-902/SEC-9)** — 19 new tests; server 247/247.
+
+The unifying idea, and why they landed together: each exists for a failure the on-chain policies do not object to.
+
+- **`execution.recover`** — a row sits in SUBMITTED between "we broadcast" and "we saw the receipt". A worker dying in that gap leaves a budget the chain has already spent but the mirror still shows as free. Recovery reads the chain and records what it finds; it **never re-submits** — the idempotency key is already consumed, and re-planning that slot is exactly the double execution NFR-7 forbids. A dropped transaction is closed as ABORTED after a bound, with an anomaly. Uses `updated_at`, which is what migration 001's in-flight index was already built for.
+- **`module.monitor`** — the attack it catches is a second validator with looser rules: the SmartSessions policies are not modified, they are simply no longer the path. Enumerates validators where the account supports it and checks the manifest positively either way. When enumeration is unavailable the snapshot **says so** (`enumerated: false`) rather than reporting a clean bill of health it did not verify — a positive check can prove a required module is gone, never that nothing was added. Pauses only from ACTIVE, so the first cause of a pause stays visible.
+- **`anomaly.scan` (SEC-9)** — the space *inside* the policy. An attacker owning the planner cannot exceed the budget, but can burn a month of it in an hour with every individual execution legitimate, and nothing on-chain will object because nothing on-chain was asked to. Three detectors: burn rate compared against **the session's own schedule** (a weekly DCA firing five times in an hour is the signal; a ten-minute strategy doing six runs is not), outsized single execution, and a rejection streak. Size comparison is integer basis points against a bigint remainder — `amount * 10000 > remaining * bps`, no ratio, no float.
+- **`rpc.health` (NFR-14)** — records an anomaly rather than pausing. A stale provider is an infrastructure fault, not a policy event; pausing every session because one endpoint lagged would be its own outage.
+- All four are enqueued on a slot-keyed dedupe from the engine tick, so several engine processes still produce one job per sweep per slot.
+
 **Production relayer (I-402, I-403, I-406, NFR-14)** — 36 new tests; server now 214/214.
 
 - **Nonce allocator** (`relayer/nonces.ts`, migration `002`). Persisted counter plus a per-(chain, relayer) `pg_advisory_xact_lock`, so concurrent workers serialise instead of racing; the lock is transaction-scoped and cannot be leaked by a crash. Chain I/O happens *before* the transaction opens — the lock is never held across a network call.

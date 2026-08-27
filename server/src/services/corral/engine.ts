@@ -7,7 +7,7 @@
  */
 import { runMigrations } from "./db/migrate.js";
 import { isDatabaseConfigured } from "./db/pool.js";
-import { reapStale } from "./jobs/queue.js";
+import { enqueue, reapStale } from "./jobs/queue.js";
 import { runOnce, scheduleDueStrategies, type JobHandler } from "./jobs/worker.js";
 
 export interface EngineOptions {
@@ -16,7 +16,16 @@ export interface EngineOptions {
   readonly pollIntervalMs?: number;
   readonly tickIntervalMs?: number;
   readonly visibilityTimeoutMs?: number;
+  /**
+   * How often the safety sweeps run. These are cheap reads; the default is
+   * frequent because FR-1.5 wants a module change caught within a block, and
+   * a stranded execution is a budget the chain has already spent.
+   */
+  readonly safetyIntervalMs?: number;
 }
+
+/** Periodic safety work, enqueued rather than run inline so it is claimed once across all workers. */
+const SAFETY_JOBS = ["execution.recover", "module.monitor", "anomaly.scan", "rpc.health"] as const;
 
 export interface EngineHandle {
   stop(): Promise<void>;
@@ -62,11 +71,25 @@ export async function startEngine(opts: EngineOptions): Promise<EngineHandle> {
     });
   }, opts.tickIntervalMs ?? 60_000);
 
+  // Safety sweeps. The dedupe key is the slot, so several engine processes
+  // ticking at once still enqueue one job per sweep per slot.
+  const safetyMs = opts.safetyIntervalMs ?? 30_000;
+  const safety = setInterval(() => {
+    const slot = Math.floor(Date.now() / safetyMs);
+    for (const kind of SAFETY_JOBS) {
+      if (!opts.handlers[kind]) continue;
+      void enqueue({ kind, dedupeKey: `${kind}:${String(slot)}`, maxAttempts: 3 }).catch((e: unknown) => {
+        console.error(`[corral] could not enqueue ${kind}:`, e instanceof Error ? e.message : e);
+      });
+    }
+  }, safetyMs);
+
   console.log(`[corral] engine started (worker ${workerId})`);
   return {
     async stop() {
       stopping = true;
       clearInterval(tick);
+      clearInterval(safety);
       await idle;
       console.log("[corral] engine stopped");
     },
