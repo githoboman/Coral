@@ -66,6 +66,26 @@ export function formatTokenAmount(a: TokenAmount): string {
   return a.toString(10);
 }
 
+/**
+ * Human display of a base-unit amount at a given token scale, by integer
+ * math only — `Number(amount) / 10 ** decimals` loses digits above 2^53 and
+ * an 18-decimal balance passes that at 0.009 ETH.
+ *
+ * Display only. Nothing derived from this value may be fed back into a
+ * policy, a plan, or an amount: the wire form is always base units
+ * (`formatTokenAmount`).
+ */
+export function formatUnits(a: TokenAmount, decimals: number): string {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 77) {
+    throw new RangeError(`decimals out of range: ${String(decimals)}`);
+  }
+  if (decimals === 0) return a.toString(10);
+  const base = 10n ** BigInt(decimals);
+  const whole = (a / base).toString(10);
+  const frac = (a % base).toString(10).padStart(decimals, "0").replace(/0+$/, "");
+  return frac === "" ? whole : `${whole}.${frac}`;
+}
+
 const DECIMAL_ONLY = /^[0-9]+$/;
 
 /**

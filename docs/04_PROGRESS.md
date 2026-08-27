@@ -70,6 +70,19 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 ## 4. Session log (newest first)
 
+### 2026-08-27 — Session 14: closing out everything that does not need the stakeholder
+
+Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
+
+**`policySummary()` in `@corral/core` (FR-11.1)** — test-first, 22 new tests, core now 58/58.
+
+- Lives in core, not the frontend, and that placement *is* the requirement: the sentence the user reads before signing is derived from the same code that validates the configuration going on-chain, so it cannot drift from what is enforced. A summary written in the FE would be a second, unverified description of the policy.
+- Governing rule in the implementation: **never understate**. Tests assert the failure direction that matters — a policy whose TRANSFER target neither pins the recipient nor carries an address allowlist is reported as `unrestricted` with a loud warning, not rounded down to "your own account". `parsePolicy` requires the recipient pin only on SWAP targets, so that policy is valid and dangerous; the summary is where the user finds out.
+- A hostile contract label cannot rename an address out of the summary — labels are display only, identity stays the address (tested).
+- Decimals are supplied by the caller and never guessed: an unknown token renders as "500000000 USDC (smallest units)" plus a warning. Guessing 18 for a 6-decimal token understates a cap by a factor of a trillion.
+- `formatUnits()` added to `amount.ts` — integer-only display math. `Number(amount) / 10 ** decimals` loses digits above 2^53, which an 18-decimal balance passes at 0.009 ETH.
+- The money-path lint (no `Math.*`) fired on percentage and day arithmetic. Rewrote both as exact integer division rather than suppressing — the rule earns its keep by having no exceptions.
+
 ### 2026-08-27 — Session 13: the execution engine — persistence, queue, ledger, chaos
 
 - **⚠️ The supplied Supabase credentials do not work.** `DATABASE_URL` in `server/.env` is a bare hostname, not a connection URI, and that host (`db.<ref>.supabase.co`) **does not resolve on public DNS** — nor does the REST host `<ref>.supabase.co` (checked via 8.8.8.8 and 1.1.1.1; `supabase.com` resolves fine, so it is specific to this project ref). Either the project reference is wrong, or the project is paused/not provisioned. What's needed: Supabase → Project → **Connect → Session pooler** → copy the full URI including the password. Everything below was therefore built and tested against a local Postgres 16 in Docker, which is the stronger test anyway — Supabase is a deployment target, not a dependency of the code.
