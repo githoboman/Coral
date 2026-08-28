@@ -25,6 +25,7 @@ import AgentHistory from "@/pages/agent/History";
 import AgentSettings from "@/pages/agent/Settings";
 import { AgentWalletProvider } from "@/hooks/useAgentWallet";
 import CorralSessionDetail from "@/corral/pages/SessionDetail";
+import CorralShell from "@/corral/pages/CorralLayout";
 import CorralVerify from "@/corral/pages/Verify";
 
 function App() {
@@ -69,8 +70,12 @@ function App() {
             should not be blended into screens designed for another chain.
 
             /verify is public - no wallet, no auth (FR-7.6). */}
-        <Route path="/corral/agents/:id" element={<CorralSessionDetail />} />
-        <Route path="/corral/verify/:address" element={<CorralVerify />} />
+        <Route element={<CorralShell />}>
+          {/* The shell carries the kill switch, so it is one tap from every
+              screen inside it (FR-11.4). */}
+          <Route path="/corral/agents/:id" element={<CorralSessionDetail />} />
+          <Route path="/corral/verify/:address" element={<CorralVerify />} />
+        </Route>
 
         {/* Legacy Tovira screens (kept, not in the Coral flow). */}
         <Route element={<AppLayout />}>

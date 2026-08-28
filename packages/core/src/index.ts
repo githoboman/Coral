@@ -90,3 +90,11 @@ export {
   type SummaryOptions,
   type VenueSummary,
 } from "./summary.js";
+
+export {
+  policyDiff,
+  type DiffField,
+  type DiffSeverity,
+  type PolicyChange,
+  type PolicyDiff,
+} from "./diff.js";

@@ -15,6 +15,7 @@ import { isDatabaseConfigured, query } from "../services/corral/db/pool.js";
 import { listExecutions } from "../services/corral/executions/ledger.js";
 import { depth } from "../services/corral/jobs/queue.js";
 import { getSession, type SessionRow } from "../services/corral/sessions/repository.js";
+import { previewSession } from "../services/corral/planner/preview.js";
 import { requestRevoke, REVOKE_DISCLOSURE } from "../services/corral/sessions/revoke.js";
 
 const router = Router();
@@ -203,6 +204,24 @@ router.get("/corral/sessions/:id/executions.csv", requireAuth, async (req: AuthR
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="corral-${session.id}.csv"`);
   return res.send(lines.join("\r\n"));
+});
+
+/**
+ * GET /api/corral/sessions/:id/upcoming — the next runs (FR-11.5).
+ *
+ * A projection, not a promise, and explicitly labelled as one. Reading this
+ * cannot cause an execution and does not reserve a slot.
+ */
+router.get("/corral/sessions/:id/upcoming", requireAuth, async (req: AuthRequest, res) => {
+  if (!requireEngine(res)) return;
+  const session = await getSession(req.params["id"] as string);
+  if (!session) return res.status(404).json({ error: "session not found" });
+  if (!ownsSession(req, session)) return res.status(403).json({ error: "not your session" });
+  const count = Math.min(Math.max(Number(req.query["count"] ?? 3), 1), 10);
+  return res.json({
+    strategies: await previewSession(session.id, count),
+    note: "These are projections. Prices move, budgets run down, and conditions may not hold.",
+  });
 });
 
 /**

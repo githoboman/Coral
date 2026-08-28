@@ -10,6 +10,12 @@ server/dist/
 packages/core/dist/
 app/.vite/
 
+# tsc -b emits these next to the source because the inherited tsconfig.node.json
+# sets noEmit:false. vite.config.js is actively dangerous to track: Vite
+# resolves .js BEFORE .ts, so a stale compiled config silently shadows the
+# real one. (Raised as an inherited-code issue - see docs/04 session 14.)
+app/vite.config.js
+
 # Generated WASM output is CHECKED IN (CI verifies it is never stale) — do not ignore
 # apps/web/packages/core-wasm/
 
