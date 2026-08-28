@@ -9,20 +9,16 @@
  * After the commit point, failure is recovered by READING this row and
  * reconciling against the chain — never by re-planning from scratch.
  */
-import type { ErrorCode } from "@corral/core";
+import type { ErrorCode, ExecutionStatus } from "@corral/core";
 
 import { isUniqueViolation, query } from "../db/pool.js";
 
-export type ExecutionStatus =
-  | "PLANNED"
-  | "SIMULATED"
-  | "SUBMITTED"
-  | "INCLUDED"
-  | "SUCCEEDED"
-  | "FAILED"
-  | "REJECTED"
-  | "ABORTED"
-  | "EXPIRED";
+// `ExecutionStatus` used to be declared here, duplicating the same union in
+// the database schema and (later) the frontend. CLAUDE.md §2.9 bans exactly
+// that: three definitions of one thing, and the one that drifts is whichever
+// renders a badge to a user. It now lives in @corral/core and is re-exported
+// so existing importers keep working.
+export type { ExecutionStatus };
 
 export interface ExecutionRow {
   readonly id: string;

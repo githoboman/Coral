@@ -73,7 +73,10 @@ jobs:
       - name: "no hand-written shared types outside @corral/core (CLAUDE.md §2.9)"
         run: |
           set -euo pipefail
-          HITS=$(grep -rnE "(interface|type)\s+(Policy|Plan|ExecutionStatus|TokenAmount)\b" \
+          # Anchored to a DECLARATION. The first version matched anywhere on
+          # the line, so `import { type Plan } from "@corral/core"` — the
+          # exact thing this rule exists to encourage — counted as a violation.
+          HITS=$(grep -rnE "^[[:space:]]*(export[[:space:]]+)?(interface|type)[[:space:]]+(Policy|Plan|ExecutionStatus|TokenAmount)[[:space:]]*[=<{]" \
             app/src server/src --include='*.ts' --include='*.tsx' 2>/dev/null || true)
           if [ -n "$HITS" ]; then
             echo "::error::shared types must be imported from @corral/core, never re-declared:"
@@ -83,10 +86,22 @@ jobs:
       - name: "enableSessions only in the session-install module (CLAUDE.md §2.3)"
         run: |
           set -euo pipefail
-          HITS=$(grep -rn "enableSessions" server/src app/src packages/core/src 2>/dev/null \
-            | grep -v "server/src/services/evm/sessionInstall" || true)
+          # Two fixes over the first version of this check, both found the
+          # first time it was actually run:
+          #
+          #  1. The allowlisted path was `services/evm/sessionInstall`, which
+          #     does not exist — the module is `services/evm/session/install.ts`.
+          #     As written the check could only ever have failed.
+          #  2. It matched the ABI file, where the function *name* appears as
+          #     JSON data. An ABI declaring a function is not code calling it.
+          #
+          # So match call sites: viem names the function in `functionName`, and
+          # a direct call reads `.enableSessions(`.
+          HITS=$(grep -rnE "functionName:[[:space:]]*[\"']enableSessions[\"']|\.enableSessions\(" \
+            server/src app/src packages/core/src 2>/dev/null \
+            | grep -v "server/src/services/evm/session/install.ts" || true)
           if [ -n "$HITS" ]; then
-            echo "::error::enableSessions referenced outside the install module:"
+            echo "::error::enableSessions called outside server/src/services/evm/session/install.ts:"
             echo "$HITS"
             exit 1
           fi
@@ -100,7 +115,8 @@ jobs:
           # A summary computed in the frontend is a second, unverified
           # description of the policy, free to drift from what is enforced.
           # Test files are exempt: a fixture has to name the fields it builds.
-          HITS=$(grep -rnE "max_total|min_output_bps|valid_until" app/src/corral/components             --include='*.tsx' --exclude='*.test.tsx' 2>/dev/null || true)
+          HITS=$(grep -rnE "max_total|min_output_bps|valid_until" app/src/corral/components \
+            --include='*.tsx' --exclude='*.test.tsx' 2>/dev/null || true)
           if [ -n "$HITS" ]; then
             echo "::error::policy fields read directly in a component — use policySummary():"
             echo "$HITS"

@@ -74,6 +74,15 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Ran the CI boundary checks locally for the first time — three of the four were broken.** CI has never executed (no GitHub remote), so these had never been exercised.
+
+- **`enableSessions` check: could only ever have failed.** Its allowlist path was `services/evm/sessionInstall`, which does not exist — the module is `services/evm/session/install.ts`. It also matched the ABI file, where the function *name* appears as JSON data; an ABI declaring a function is not code calling it. Now matches call sites (`functionName: "enableSessions"` or `.enableSessions(`) against the correct path.
+- **Shared-types check: matched the correct behaviour as a violation.** The pattern hit anywhere on a line, so `import { type Plan } from "@corral/core"` — the exact thing the rule exists to encourage — counted as a hand-written type. Now anchored to a declaration.
+- **And once anchored, it found a real one:** `executions/ledger.ts` hand-declared `ExecutionStatus`, duplicating the union in the migration and (as of this session) the frontend. Three definitions of one thing, and the one that drifts is whichever renders a badge to a user. Now imported from `@corral/core` and re-exported so existing importers keep working.
+- The FR-11.1 check added earlier also fired on its own test fixtures before being scoped to exclude `*.test.tsx`.
+
+The lesson is uncomfortable and worth writing down: **a guardrail that has never run is not a guardrail.** Four checks, believed to be enforcing four rules, were enforcing one. Creating the GitHub remote matters more than it looks.
+
 **Operations, CI and status (I-602, I-603, I-506, C-002)**
 
 - **`docs/06_OPERATIONS.md`**: deployment topology, 12 alert thresholds each naming its runbook, and **10 runbooks** written to be followed at 3am by someone who did not write the code. The governing rule is stated once and repeated: **pause first, diagnose second** — pausing wrongly costs a missed trade, continuing wrongly costs a budget.
