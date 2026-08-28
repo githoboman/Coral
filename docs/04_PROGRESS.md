@@ -74,6 +74,14 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Prompt-injection corpus (C-901, SEC-4) and compiler property tests (C-405)** — 86 new tests; server 405/405.
+
+- **The corpus is short because the architecture does the work.** No model output reaches execution: unattended runs go through the deterministic planner, which is a pure function of (typed config, chain state, quote) and **has no text input at all**. So adversarial text can only enter at the authoring path, where a proposal must survive `parsePolicy` before anyone can sign it. That reduces SEC-4 to two testable claims, and the corpus is the regression net for both.
+- 20 injection payloads × every string-bearing field, plus 10 structural attacks on the invariants themselves (recipient pin stripped, approval uncapped, approval "capped" at U256_MAX, budget removed, slippage floor removed, extra fields nested and top-level, amount as a bare JSON number). **Every one is either rejected at the parse boundary or yields a policy whose invariants still hold — there is no third outcome**, and an attacker address never becomes a permitted target just by appearing in a string.
+- The sharpest test: **compiled calldata is byte-identical no matter what text is attached to the assets.** Symbols are the one attacker-influenced field that survives into a Plan; if they could change the compiled bytes they would be an execution input. They cannot — identity is the address.
+- Found while writing it: an all-1s attacker sentinel is a substring of an all-1s strategy id, which made a "does not contain" assertion pass for the wrong reason. Sentinel changed to something distinctive.
+- **Compiler properties (C-405)**: determinism, containment (every target is pinned or an asset the plan names), journal always last, zero native value everywhere, approvals exact and never U256_MAX, distinct plans never colliding, and chain-id binding rejecting a plan built for another chain. ~1000 generated plans per property. The other half of C-405 — 10k valid plans through a *real* preflight — needs a fork and is still open.
+
 **Notifications (C-703, FR-10.1-10.5)** — 31 new tests; server 319/319.
 
 - **An outbox, not a send.** FR-10.5 promises a delivery failure can never block or delay an execution, and the only way to actually promise that is for the execution path to write a row and stop — it never opens an SMTP connection and never sees a delivery error. `emit.ts` adds the second half: a bug in *deciding* what to notify is swallowed too. A missed email is a bad day; an execution that aborts because an email could not be composed is a broken product.
