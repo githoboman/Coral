@@ -24,6 +24,8 @@ import AgentChat from "@/pages/agent/AgentChat";
 import AgentHistory from "@/pages/agent/History";
 import AgentSettings from "@/pages/agent/Settings";
 import { AgentWalletProvider } from "@/hooks/useAgentWallet";
+import CorralSessionDetail from "@/corral/pages/SessionDetail";
+import CorralVerify from "@/corral/pages/Verify";
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -60,6 +62,15 @@ function App() {
           <Route path="/agent/history" element={<AgentHistory />} />
           <Route path="/agent/settings" element={<AgentSettings />} />
         </Route>
+
+        {/* Corral (Base) screens. Deliberately their own area rather than a
+            rewrite of the Sui flow above: D21 keeps the Sui lineage dormant
+            but intact, and the Base path has different trust properties that
+            should not be blended into screens designed for another chain.
+
+            /verify is public - no wallet, no auth (FR-7.6). */}
+        <Route path="/corral/agents/:id" element={<CorralSessionDetail />} />
+        <Route path="/corral/verify/:address" element={<CorralVerify />} />
 
         {/* Legacy Tovira screens (kept, not in the Coral flow). */}
         <Route element={<AppLayout />}>

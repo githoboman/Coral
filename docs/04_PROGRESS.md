@@ -74,6 +74,18 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Frontend re-point, part 1 (C-801, C-803-C-806, C-809, C-810; FR-11.1/11.3/11.6/11.7/11.8/11.9, NFR-12)** — 39 new app tests (vitest + jsdom, scoped to `src/corral`); core 79/79.
+
+- **`ExecutionStatus` added to `@corral/core`.** CLAUDE.md §2.9 requires it to be importable only from core, and it had never been defined there — the DB had the enum and nothing else did. Added with `statusTone()`, which encodes the distinction FR-11.6 turns on: `REJECTED` has its own tone because the policy *worked*.
+- **Own area, not a rewrite.** The Corral screens live at `/corral/*` with their own components. D21 keeps the Sui lineage dormant but intact, and the Base path has different trust properties that should not be blended into screens designed for another chain. Nothing in the inherited Sui flow was touched.
+- **Policy review (FR-11.1)** renders entirely from `policySummary()`. The component contains no rules — it arranges sentences. Tests assert it cannot say something softer than the policy permits: a valid-but-dangerous unpinned TRANSFER target shows "any address" with a warning, a hostile symbol cannot change what the screen claims, and a venue's address is always shown so a friendly label can never stand in for identity.
+- **Budget meters (FR-11.3/6.4)** carry source *and* freshness on every figure, and go amber when stale. "on-chain, 12s ago" is a materially different claim from a bare number.
+- **Activity feed (FR-11.6)**: rejections are rendered in a calm tone with "your limits worked — nothing moved", visually distinct from failures. Tested that the two never share a style, that no raw code or revert string reaches the DOM (FR-11.8), and that a better-than-quoted fill reads as an improvement rather than a loss.
+- **Kill switch (FR-11.4/8.4)** states what revoke does *not* do before the action, not after, and always links the standalone `/revoke` page — a fallback nobody knows about is not a fallback.
+- **States (FR-11.7)**: no spinner-only states. Every loading state names what it is reading; every error says the user's money is unaffected; every paused/revoked/expired status has its own copy.
+- **NFR-12 measured, not estimated**: built with and without the Corral routes. **+29.6 KB gzipped** (682.43 → 711.98), against a 150 KB budget. `@corral/core` itself is ~13 KB gzipped.
+- **Noted, not fixed (§7 scope):** `npm run lint` reports 145 pre-existing errors in the inherited app code (mostly `no-explicit-any`). Zero are in `src/corral/`.
+
 **Prompt-injection corpus (C-901, SEC-4) and compiler property tests (C-405)** — 86 new tests; server 405/405.
 
 - **The corpus is short because the architecture does the work.** No model output reaches execution: unattended runs go through the deterministic planner, which is a pure function of (typed config, chain state, quote) and **has no text input at all**. So adversarial text can only enter at the authoring path, where a proposal must survive `parsePolicy` before anyone can sign it. That reduces SEC-4 to two testable claims, and the corpus is the regression net for both.

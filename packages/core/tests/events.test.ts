@@ -9,6 +9,10 @@ import { describe, expect, test } from "vitest";
 import {
   CorralEventSchema,
   EVENT_KINDS,
+  EXECUTION_STATUSES,
+  ExecutionStatusSchema,
+  isTerminalStatus,
+  statusTone,
   eventToWire,
   gasCostWei,
   parseCorralEvent,
@@ -154,5 +158,34 @@ describe("gas", () => {
     const e = parseCorralEvent(baseEvent());
     expect(e.gas?.paidBy).toBe("SPONSOR");
     expect(() => parseCorralEvent({ ...baseEvent(), gas: { ...(baseEvent()["gas"] as object), paidBy: "SOMEONE" } })).toThrow();
+  });
+});
+
+// CLAUDE.md §2.9 — ExecutionStatus is shared, so it lives here and nowhere else.
+describe("execution status", () => {
+  test("a policy rejection reads differently from a failure", () => {
+    // FR-11.6. A user who reads "rejected" as "broken" stops trusting the
+    // thing that protected them.
+    expect(statusTone("REJECTED")).toBe("refused");
+    expect(statusTone("FAILED")).toBe("failure");
+    expect(statusTone("ABORTED")).toBe("failure");
+    expect(statusTone("SUCCEEDED")).toBe("success");
+  });
+
+  test("every status has a tone — no unmapped badge can reach a screen", () => {
+    for (const s of EXECUTION_STATUSES) {
+      expect(typeof statusTone(s)).toBe("string");
+    }
+  });
+
+  test("in-flight statuses are not terminal", () => {
+    expect(isTerminalStatus("SUBMITTED")).toBe(false);
+    expect(isTerminalStatus("PLANNED")).toBe(false);
+    expect(isTerminalStatus("SUCCEEDED")).toBe(true);
+    expect(isTerminalStatus("REJECTED")).toBe(true);
+  });
+
+  test("rejects a status the system does not model", () => {
+    expect(() => ExecutionStatusSchema.parse("PROBABLY_FINE")).toThrow();
   });
 });

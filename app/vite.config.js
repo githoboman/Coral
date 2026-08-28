@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
@@ -13,6 +14,14 @@ export default defineConfig({
         alias: {
             "@": path.resolve(__dirname, "./src"),
         },
+    },
+    // The Corral screens carry security-relevant copy (FR-11.1, FR-11.6,
+    // FR-11.8), so they get real tests. Scoped to src/corral: the inherited Sui
+    // screens are dormant heritage (D21) and are not in scope to retrofit.
+    test: {
+        environment: "jsdom",
+        include: ["src/corral/**/*.test.{ts,tsx}"],
+        globals: true,
     },
     server: {
         host: true,

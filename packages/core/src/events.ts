@@ -18,6 +18,58 @@ import { B256Schema } from "./action.js";
 import { AddressSchema, AssetRefSchema } from "./policy.js";
 
 /**
+ * The lifecycle of one execution (CLAUDE.md §2.9).
+ *
+ * Defined here rather than in the database schema or the frontend because
+ * three components have to agree on it, and the one that drifts is always the
+ * one rendering a status badge to a user.
+ *
+ * The distinction that matters for the UI: REJECTED means the *policy* refused
+ * — the system worked exactly as designed. ABORTED and FAILED mean something
+ * went wrong. FR-11.6 requires those to look different, because a user who
+ * reads "rejected" as "broken" will stop trusting the thing that protected
+ * them.
+ */
+export const EXECUTION_STATUSES = [
+  "PLANNED",
+  "SIMULATED",
+  "SUBMITTED",
+  "INCLUDED",
+  "SUCCEEDED",
+  "FAILED",
+  "REJECTED",
+  "ABORTED",
+  "EXPIRED",
+] as const;
+export const ExecutionStatusSchema = z.enum(EXECUTION_STATUSES);
+export type ExecutionStatus = z.infer<typeof ExecutionStatusSchema>;
+
+/** How a status should read to a user. Not a colour — a meaning. */
+export type StatusTone = "pending" | "success" | "failure" | "refused" | "ended";
+
+const TONES: Record<ExecutionStatus, StatusTone> = {
+  PLANNED: "pending",
+  SIMULATED: "pending",
+  SUBMITTED: "pending",
+  INCLUDED: "pending",
+  SUCCEEDED: "success",
+  FAILED: "failure",
+  ABORTED: "failure",
+  // Deliberately its own tone: the policy did its job.
+  REJECTED: "refused",
+  EXPIRED: "ended",
+};
+
+export function statusTone(status: ExecutionStatus): StatusTone {
+  return TONES[status];
+}
+
+/** Nothing further will happen to an execution in one of these states. */
+export function isTerminalStatus(status: ExecutionStatus): boolean {
+  return status === "SUCCEEDED" || status === "FAILED" || status === "REJECTED" || status === "ABORTED" || status === "EXPIRED";
+}
+
+/**
  * What happened, in the user's terms rather than the chain's.
  *
  * Deliberately a closed set: a feed entry the UI has no copy for is a raw
