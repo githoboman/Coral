@@ -11,7 +11,7 @@
  * class the queue obeys — policy rejections are terminal.
  */
 import { keccak256, stringToHex, type Address, type Hex, type PublicClient, type WalletClient } from "viem";
-import { planToWire, type ErrorCode } from "@corral/core";
+import { planToWire, retryClass, type ErrorCode } from "@corral/core";
 
 import type { ProtocolAdapter } from "../../evm/adapters/protocolAdapter.js";
 import type { ChainAddresses } from "../../evm/addresses.js";
@@ -21,6 +21,7 @@ import { buildSessionUserOp, executeSessionUserOp, type SubmitFn } from "../../e
 import { compilePlan } from "../../evm/planner/compile.js";
 import { claimExecutionSlot, markIncluded, markRejected, markSimulated, markSubmitted } from "../executions/ledger.js";
 import { planDcaFixed, PlanUnsafe, DcaFixedConfigSchema, type DcaFixedConfig } from "../planner/deterministic.js";
+import { notifyBudgetThresholds, notifyExecuted, notifyFailed } from "../notifications/emit.js";
 import { refreshBudgetMirror } from "../reconcile/budget.js";
 import { submitRelayed, SubmissionRefused } from "../relayer/submit.js";
 import { guardedSessionSigner, SignerRefused } from "../sessions/guardedSigner.js";
@@ -98,6 +99,9 @@ export async function runExecution(
   const account = session.account as Address;
   const abort = async (code: ErrorCode, detail: string): Promise<RunOutcome> => {
     await markRejected(execution.id, code, detail, code.startsWith("POLICY_") || code === "SESSION_REVOKED" ? "REJECTED" : "ABORTED");
+    // Best-effort and non-throwing: a notification problem must never turn an
+    // abort into a different abort (FR-10.5).
+    await notifyFailed(session, execution.id, code, retryClass(code)[0] !== "NEVER");
     return { kind: "ABORTED", executionId: execution.id, code, detail };
   };
 
@@ -205,6 +209,8 @@ export async function runExecution(
 
     // 6. Refresh the mirror from chain. Drift pauses the session (FR-6.3).
     await refreshBudgetMirror(deps.client, deps.addresses, session);
+    await notifyExecuted(session, execution.id, `Swapped ${config.amountIn} of ${config.assetIn.symbol} for ${config.assetOut.symbol}.`);
+    await notifyBudgetThresholds(session);
 
     return { kind: "EXECUTED", executionId: execution.id, txHash: outcome.submission.txHash, journaled: outcome.journal !== null };
   } catch (e) {

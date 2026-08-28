@@ -25,7 +25,14 @@ export interface EngineOptions {
 }
 
 /** Periodic safety work, enqueued rather than run inline so it is claimed once across all workers. */
-const SAFETY_JOBS = ["indexer.poll", "execution.recover", "module.monitor", "anomaly.scan", "rpc.health"] as const;
+const SAFETY_JOBS = [
+  "indexer.poll",
+  "execution.recover",
+  "module.monitor",
+  "anomaly.scan",
+  "rpc.health",
+  "notification.dispatch",
+] as const;
 
 export interface EngineHandle {
   stop(): Promise<void>;

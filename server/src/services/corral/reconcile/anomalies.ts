@@ -24,6 +24,8 @@
  * The user's revoke path is unaffected and remains theirs alone.
  */
 import { query } from "../db/pool.js";
+import { notifyAnomaly, notifyPaused } from "../notifications/emit.js";
+import { getSession } from "../sessions/repository.js";
 import { recordAnomaly } from "./budget.js";
 
 export type AnomalyKind = "BURN_RATE" | "OUTSIZED_EXECUTION" | "REJECTION_RATE";
@@ -183,8 +185,10 @@ export async function detectAndPause(
   const findings = await detectAnomalies(sessionId, t);
   let paused = false;
 
+  const session = findings.length > 0 ? await getSession(sessionId) : null;
   for (const f of findings) {
     await recordAnomaly(f.sessionId, f.kind, f.detail);
+    if (session) await notifyAnomaly(session, f.kind);
   }
   if (findings.some((f) => f.shouldPause)) {
     // Pausing stops new plans. It does not touch funds, does not sign, and
@@ -196,6 +200,10 @@ export async function detectAndPause(
       [sessionId],
     );
     paused = rows.length > 0;
+    // A paused agent stays paused until a human looks at it. Saying so is the
+    // difference between a user who knows and a user who assumes it is still
+    // working.
+    if (paused && session) await notifyPaused(session, findings.map((f) => f.kind).join(", "));
   }
   return { findings, paused };
 }

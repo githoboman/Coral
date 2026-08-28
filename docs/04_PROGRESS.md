@@ -74,6 +74,17 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Notifications (C-703, FR-10.1-10.5)** — 31 new tests; server 319/319.
+
+- **An outbox, not a send.** FR-10.5 promises a delivery failure can never block or delay an execution, and the only way to actually promise that is for the execution path to write a row and stop — it never opens an SMTP connection and never sees a delivery error. `emit.ts` adds the second half: a bug in *deciding* what to notify is swallowed too. A missed email is a bad day; an execution that aborts because an email could not be composed is a broken product.
+- **The digest is a unique partial index** (FR-10.3), not a careful query: one PENDING row per (digest key, channel), so a run producing several internal events collapses to one message rather than queueing three.
+- **Copy rules**: every message links to the exact thing it is about and states whether action is needed (FR-10.4). A *retrying* failure is explicitly not action-required and says "no money moved"; a pause always is, because a user who does not know a paused agent stays paused assumes it is still working. Error codes go through `userMessage()` — tests assert no raw code or hex ever reaches the body.
+- Email is the default and only channel; Telegram is opt-in (FR-10.1). Defaulting a user into a chat they never asked for is not a default we get to pick.
+- Channel adapters import the inherited email/Telegram services **lazily, inside the delivery call** — a static import would make every Corral module that transitively touches notifications refuse to boot without an SMTP host, which is the §8.4 coupling the standalone-router test exists to prevent.
+- A message with nowhere to send fails immediately rather than retrying; retrying it is a queue that never drains.
+- Revocation suppresses everything else still queued for the session: a "your agent traded" digest landing after "your agent has been revoked" reads as though revocation did not work.
+- Budget thresholds are recorded *before* sending — a crash between the two repeats the message, and repeating "you have spent everything" is worse than missing it once.
+
 **Indexer, event schema, gas separation, CSV export (C-701, I-501, FR-7.1/7.2/7.3/7.5, FR-6.5)** — 32 new tests; core 75/75, server 288/288.
 
 - **`CorralEvent` now lives in `@corral/core`** (FR-7.1). One definition for the indexer that produces events, the API that serves them and the UI that renders them — a feed whose shape is redefined at each hop is a feed that can disagree with itself. Closed set of event kinds, because a kind the UI has no copy for is a raw revert string waiting to reach a user (FR-11.8).
