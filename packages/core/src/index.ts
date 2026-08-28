@@ -60,6 +60,22 @@ export {
 } from "./policy.js";
 
 export {
+  CorralEventSchema,
+  EVENT_KINDS,
+  EventKindSchema,
+  GasDetailSchema,
+  SwapDetailSchema,
+  eventToWire,
+  gasCostWei,
+  parseCorralEvent,
+  slippageBps,
+  type CorralEvent,
+  type EventKind,
+  type GasDetail,
+  type SwapDetail,
+} from "./events.js";
+
+export {
   NATIVE_KEY,
   policySummary,
   type Destinations,

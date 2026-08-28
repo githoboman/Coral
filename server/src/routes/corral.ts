@@ -89,6 +89,24 @@ router.get("/corral/sessions/:id", requireAuth, async (req: AuthRequest, res) =>
   });
 });
 
+/**
+ * Gas, always its own object (FR-6.5).
+ *
+ * The user's budget is denominated in the asset they allowed the agent to
+ * spend; gas is wei. Returning them as siblings in one flat object is how a
+ * UI ends up adding them together, so the shape makes that awkward on purpose.
+ */
+function gasOf(r: { gas_used: string | null; gas_price_wei: string | null; gas_cost_wei: string | null; gas_paid_by: string | null }): unknown {
+  if (!r.gas_used) return null;
+  return {
+    gasUsed: r.gas_used,
+    effectiveGasPriceWei: r.gas_price_wei,
+    costWei: r.gas_cost_wei,
+    paidBy: r.gas_paid_by ?? "ACCOUNT",
+    note: "gas is charged in ETH and is not part of the asset budget",
+  };
+}
+
 /** GET /api/corral/sessions/:id/executions — the activity feed (FR-7.3, FR-7.4). */
 router.get("/corral/sessions/:id/executions", requireAuth, async (req: AuthRequest, res) => {
   if (!requireEngine(res)) return;
@@ -105,11 +123,86 @@ router.get("/corral/sessions/:id/executions", requireAuth, async (req: AuthReque
       scheduledFor: r.scheduled_for,
       intentHash: r.intent_hash,
       txHash: r.tx_hash,
+      blockNumber: r.block_number,
+      trade:
+        r.amount_in === null
+          ? null
+          : {
+              assetIn: r.asset_in,
+              amountIn: r.amount_in,
+              assetOut: r.asset_out,
+              quotedOut: r.quoted_out,
+              realisedOut: r.realised_out,
+              slippageBps: r.slippage_bps,
+              venue: r.venue,
+            },
+      gas: gasOf(r),
       errorCode: r.error_code,
       errorDetail: r.error_detail,
       plan: r.plan,
     })),
   );
+});
+
+/**
+ * GET /api/corral/sessions/:id/events — the projected feed (FR-7.1, FR-7.2).
+ *
+ * These come from chain logs rather than from what we believed we submitted.
+ * Where the two disagree, this endpoint is the one to trust.
+ */
+router.get("/corral/sessions/:id/events", requireAuth, async (req: AuthRequest, res) => {
+  if (!requireEngine(res)) return;
+  const session = await getSession(req.params["id"] as string);
+  if (!session) return res.status(404).json({ error: "session not found" });
+  if (!ownsSession(req, session)) return res.status(403).json({ error: "not your session" });
+  const rows = await query<{ payload: Record<string, unknown>; occurred_at: Date }>(
+    `SELECT payload, occurred_at FROM corral_events WHERE session_id = $1 ORDER BY occurred_at DESC LIMIT $2`,
+    [session.id, Math.min(Number(req.query["limit"] ?? 50), 200)],
+  );
+  return res.json(rows.map((r) => r.payload));
+});
+
+/** One CSV field: quoted, with embedded quotes doubled. Never interpolated raw. */
+function csvField(value: unknown): string {
+  const s = value === null || value === undefined ? "" : String(value);
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+/**
+ * GET /api/corral/sessions/:id/executions.csv — export (FR-7.5).
+ *
+ * Amounts are exported in **base units**, deliberately. A spreadsheet that
+ * opens this will happily turn 1234.000000000000000001 into a float and lose
+ * the tail; an integer string survives. Gas is its own column group and is
+ * never summed into the asset columns.
+ */
+router.get("/corral/sessions/:id/executions.csv", requireAuth, async (req: AuthRequest, res) => {
+  if (!requireEngine(res)) return;
+  const session = await getSession(req.params["id"] as string);
+  if (!session) return res.status(404).json({ error: "session not found" });
+  if (!ownsSession(req, session)) return res.status(403).json({ error: "not your session" });
+
+  const rows = await listExecutions(session.id, 1000);
+  const header = [
+    "scheduled_for", "status", "seq", "asset_in", "amount_in_base_units", "asset_out",
+    "quoted_out_base_units", "realised_out_base_units", "slippage_bps", "venue",
+    "gas_used", "gas_price_wei", "gas_cost_wei", "gas_paid_by", "tx_hash", "intent_hash", "error_code",
+  ];
+  const lines = [header.join(",")];
+  for (const r of rows) {
+    lines.push(
+      [
+        r.scheduled_for?.toISOString?.() ?? r.scheduled_for, r.status, r.seq, r.asset_in, r.amount_in, r.asset_out,
+        r.quoted_out, r.realised_out, r.slippage_bps, r.venue,
+        r.gas_used, r.gas_price_wei, r.gas_cost_wei, r.gas_paid_by, r.tx_hash, r.intent_hash, r.error_code,
+      ]
+        .map(csvField)
+        .join(","),
+    );
+  }
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="corral-${session.id}.csv"`);
+  return res.send(lines.join("\r\n"));
 });
 
 /**

@@ -39,6 +39,20 @@ export interface ExecutionRow {
   readonly error_code: string | null;
   readonly error_detail: string | null;
   readonly attempts: number;
+  readonly block_number: string | null;
+  // Trade detail, filled by the indexer from chain logs (C-701).
+  readonly asset_in: string | null;
+  readonly amount_in: string | null;
+  readonly asset_out: string | null;
+  readonly quoted_out: string | null;
+  readonly realised_out: string | null;
+  readonly slippage_bps: number | null;
+  readonly venue: string | null;
+  // Gas, always apart from the asset amounts above (FR-6.5).
+  readonly gas_used: string | null;
+  readonly gas_price_wei: string | null;
+  readonly gas_cost_wei: string | null;
+  readonly gas_paid_by: string | null;
 }
 
 export interface SlotInput {

@@ -74,6 +74,16 @@ Status: `☐` not started · `◐` in progress · `☑` done · `✖` blocked. O
 
 Working the remaining tracks in dependency order. Blockers unchanged: Supabase URI, `olaDmenace/corral` remote, Alchemy key rotation.
 
+**Indexer, event schema, gas separation, CSV export (C-701, I-501, FR-7.1/7.2/7.3/7.5, FR-6.5)** — 32 new tests; core 75/75, server 288/288.
+
+- **`CorralEvent` now lives in `@corral/core`** (FR-7.1). One definition for the indexer that produces events, the API that serves them and the UI that renders them — a feed whose shape is redefined at each hop is a feed that can disagree with itself. Closed set of event kinds, because a kind the UI has no copy for is a raw revert string waiting to reach a user (FR-11.8).
+- **Realised output comes from `Transfer` logs, not the router's return value** — the return value is what the router *claims*, the Transfer is what the token *did*. Every crediting transfer is summed, because a two-hop route credits twice and taking only the first would invent slippage that never happened.
+- **Slippage is signed.** A fill better than quoted reports as negative rather than being rendered as damage. `slippageBps` returns a clamped `bigint`; core bans `Number()` outright, so the single narrowing happens once at the event boundary where the clamp has already made it safe.
+- **Gas is its own object** (FR-6.5), in the schema and in the API response and in the CSV. There is no shape of `CorralEvent` in which a gas figure sits beside the asset amounts as a peer — conflating them is made awkward rather than merely discouraged. `paidBy` is recorded because sponsorship changes what the number means.
+- **Reorgs are detected, not assumed away.** The cursor stores the block *hash*; if the chain no longer agrees, the indexer rewinds 30 blocks rather than continuing from a history that no longer exists. An unreadable block counts as a reorg — re-indexing is cheap, a rolled-back trade in someone's feed is not. Events are keyed on (chain, txHash, logIndex), so a rewind updates rather than duplicating.
+- Indexing stays `head − 5` (~10s on Base). An unconfirmed feed entry is right almost always, and the one time it isn't, a user has already read it.
+- CSV export writes **base units**, deliberately: a spreadsheet turns `1234.000000000000000001` into a float and loses the tail; an integer string survives.
+
 **Strategies: DCA_PERCENT, CONDITIONAL_PRICE, lifecycle, compatibility (C-603, C-604, C-605, FR-9.2/9.3/9.5/9.6)** — 26 new tests; server 273/273.
 
 - Every strategy still compiles to the same primitive Actions with no privileged path (FR-9.4). A new strategy is a new way of choosing an *amount*, never a new way of reaching the chain.

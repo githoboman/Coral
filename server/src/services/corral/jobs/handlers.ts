@@ -17,6 +17,7 @@ import { checkProviders, providersHealthy } from "../../evm/chain/clients.js";
 import { query } from "../db/pool.js";
 import { detectAndPause } from "../reconcile/anomalies.js";
 import { recordAnomaly } from "../reconcile/budget.js";
+import { indexOnce } from "../indexer/poller.js";
 import { monitorActiveSessions } from "./moduleMonitor.js";
 import { recoverStranded } from "./recover.js";
 import type { JobHandler } from "./worker.js";
@@ -78,6 +79,23 @@ export function rpcHealthHandler(chainId: number): JobHandler {
   };
 }
 
+/**
+ * `indexer.poll` — rebuild the feed from chain logs (C-701, FR-7.2).
+ *
+ * Runs on the safety cadence rather than a slower one because FR-7.2 wants an
+ * execution visible within 15 seconds of inclusion, and the confirmation
+ * depth already spends most of that budget.
+ */
+export function indexerHandler(deps: SafetyHandlerDeps): JobHandler {
+  return async () => {
+    const r = await indexOnce(deps.client, deps.addresses);
+    return {
+      kind: "DONE",
+      note: `${r.from.toString(10)}-${r.to.toString(10)}: ${String(r.projected)} projected${r.rewound ? " (rewound)" : ""}`,
+    };
+  };
+}
+
 /** The safety handlers, ready to merge with the deployment's `execution.run`. */
 export function safetyHandlers(deps: SafetyHandlerDeps): Record<string, JobHandler> {
   return {
@@ -85,5 +103,6 @@ export function safetyHandlers(deps: SafetyHandlerDeps): Record<string, JobHandl
     "module.monitor": moduleMonitorHandler(deps),
     "anomaly.scan": anomalyScanHandler(),
     "rpc.health": rpcHealthHandler(deps.addresses.chainId),
+    "indexer.poll": indexerHandler(deps),
   };
 }
