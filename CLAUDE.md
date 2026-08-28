@@ -12,6 +12,8 @@ Corral Protocol. This file is the entry point for Claude Code and the authority 
 | `docs/02_TECHNICAL_SPEC.md` | Contracts, on-chain design, pipeline, data model, tests (see its v3 addendum for what's superseded) |
 | `docs/00_FEASIBILITY_AND_TIMELINE.md` | Why a decision was made (ADRs D1–D24), risks |
 | `docs/04_PROGRESS.md` | Every session. The running progress log — updated in the same commit as the work it records |
+| `docs/05_THREAT_MODEL.md` | Before changing a trust boundary, adding a contract, or arguing about what we defend against |
+| `docs/06_OPERATIONS.md` | Deploying, on call, or holding an alert. Topology, alert thresholds, 10 runbooks, restore drill |
 
 **Lineage:** `Tovira-xyz/Coral` (git remote `coral`) is the Sui Overflow 2026 predecessor — same thesis, proven on Sui testnet. We keep its Express+TS+Supabase backend and Vite+React frontend as the product base and rebuild the chain layer for Base/EVM. Its Move contract and DeepBook code are demo-only heritage: never ported, never deleted from their repo. Push nothing to the `coral` remote without explicit stakeholder instruction.
 
@@ -211,7 +213,8 @@ just check-all                     # everything CI runs
 - [x] T-006…T-008 Contracts + account + session install/verify (live on Base Sepolia, 2026-08-23)
 - [x] Violation matrix (26/26 on a Base Sepolia fork, 2026-08-23 — `FORK_RPC_URL` required)
 - [x] Adapter + planner + execution pipeline (J2 live 2026-08-23; persistence, queue, ledger, chaos tests 2026-08-27)
-- [ ] FE re-point (Sui → Base), policy review screen, kill switch, standalone revoke
-- [ ] Security & launch (KMS custody, audit, guarded mainnet)
+- [x] FE re-point (Sui → Base): policy review, budget meters, activity feed, kill switch, plan preview, policy diff, standalone revoke (2026-08-28)
+- [x] Feed, notifications, indexer, safety jobs, production relayer, threat model, runbooks (2026-08-28)
+- [ ] Security & launch (KMS custody, external audit, legal review, guarded mainnet)
 
 Tick these as epics complete. Record any decision change in `docs/00_FEASIBILITY_AND_TIMELINE.md` §6 (the ADR log), not only in a commit message.

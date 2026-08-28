@@ -24,6 +24,9 @@ app-build:
 app-lint:
     npm --prefix app run lint
 
+app-test:
+    npm --prefix app test
+
 forge-build:
     forge build --root contracts
 
@@ -34,4 +37,4 @@ forge-test:
 violations:
     forge test --root contracts --match-path test/Violations.t.sol
 
-check-all: core-build core-test core-lint server-build server-test app-build forge-build
+check-all: core-build core-test core-lint server-build server-test app-build app-test forge-build

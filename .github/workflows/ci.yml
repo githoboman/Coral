@@ -1,6 +1,6 @@
-# Corral CI (v3 — TS stack, ADRs D19–D24). The guardrails from CLAUDE.md §4.
-# eslint + dependency-cruiser boundary enforcement is ticketed as T-005b;
-# until it lands, the boundary jobs below use grep checks.
+# Corral CI (v3 — TS stack, ADRs D19–D26). The guardrails from CLAUDE.md §4.
+# eslint + dependency-cruiser enforce core purity and the money-path bans;
+# the grep jobs below cover the rules a type system cannot express.
 name: ci
 
 on:
@@ -50,7 +50,7 @@ jobs:
       - run: npm test
 
   app:
-    name: "app: tsc -b + vite build"
+    name: "app: tsc -b + vite build + Corral screen tests"
     runs-on: ubuntu-latest
     defaults:
       run: { working-directory: app }
@@ -60,6 +60,10 @@ jobs:
         with: { node-version: 24, cache: npm, cache-dependency-path: app/package-lock.json }
       - run: npm ci --legacy-peer-deps
       - run: npm run build
+      # The Corral screens carry security-relevant copy: the worst-case block
+      # (FR-11.1), the rejection-vs-failure distinction (FR-11.6), and the
+      # no-raw-error rule (FR-11.8). Those are regressions worth failing on.
+      - run: npm test
 
   boundaries:
     name: "core purity + policy-widening + approval greps"
@@ -83,6 +87,22 @@ jobs:
             | grep -v "server/src/services/evm/sessionInstall" || true)
           if [ -n "$HITS" ]; then
             echo "::error::enableSessions referenced outside the install module:"
+            echo "$HITS"
+            exit 1
+          fi
+      - name: "the review screen renders from core, not from the frontend (FR-11.1)"
+        run: |
+          set -euo pipefail
+          if ! grep -rq "policySummary" app/src/corral/components/PolicyReview.tsx; then
+            echo "::error::PolicyReview must render from @corral/core's policySummary()."
+            exit 1
+          fi
+          # A summary computed in the frontend is a second, unverified
+          # description of the policy, free to drift from what is enforced.
+          # Test files are exempt: a fixture has to name the fields it builds.
+          HITS=$(grep -rnE "max_total|min_output_bps|valid_until" app/src/corral/components             --include='*.tsx' --exclude='*.test.tsx' 2>/dev/null || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::policy fields read directly in a component — use policySummary():"
             echo "$HITS"
             exit 1
           fi
