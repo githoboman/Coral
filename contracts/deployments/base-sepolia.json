@@ -1,0 +1,119 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "contracts": {
+    "CorralJournal": {
+      "address": "0x4fd6dad6e04Cf974E94f9AF94B651766c1b6036F",
+      "deployedAt": "2026-08-22",
+      "txHash": "0xcc394ab657bc2c380a45ec293453c13dfcdc51da5500ada197803836562d3600",
+      "block": 45834924,
+      "deployer": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "create2Salt": "keccak256(\"corral.journal.v1\")",
+      "sourceCommit": "30c1cdd",
+      "solc": "0.8.28",
+      "verified": "basescan",
+      "note": "CREATE2 with a fixed salt: this address is identical on every chain the same bytecode is deployed to. Changing the salt or the source changes the address everywhere."
+    },
+    "CorralRateLimitPolicy": {
+      "address": "0x4ABa00153c4c05244F505563Fe2d37ad47990Ca1",
+      "deployedAt": "2026-08-23",
+      "txHash": "0x40540bc6966d9f54d949252d921a04572ccbbd4804f247165795e6d8e4d27461",
+      "block": 45855825,
+      "deployer": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "create2Salt": "keccak256(\"corral.ratelimit.v1\")",
+      "codehash": "0x4fc07fca1b0fc6cd217b6a3cf74eecb40b1a64269630e77a1821ffa5334351d4",
+      "solc": "0.8.28",
+      "verified": "basescan",
+      "adr": "D26",
+      "note": "SmartSessions userOp policy: <= limit executions per rolling window (FR-2.7). Reads block.timestamp in validation — own-relayer only (D13)."
+    }
+  },
+  "accounts": {
+    "dev-owner-salt0": {
+      "address": "0xf2A97cd5439C01D5CE8bE75e0f7a8Dc8294C7343",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "0",
+      "implementation": "Safe 1.4.1 + Safe7579 (launchpad-staged; phase 2 completes on first userOp)",
+      "txHash": "0x0db2e9d9fc57eaae4d9f0f973b01c8b8414a16da4f0c54d78ea5359f7bf0c983",
+      "block": 45835691,
+      "deployedAt": "2026-08-22",
+      "note": "T-007 acceptance account. Counterfactual address matched ProxyCreation event exactly (FR-1.1). SUPERSEDED: launchpad-staged proxy (phase 1 only, never initialized) — do not use. Same for salts 1-3 (0xB740…, 0x3F5f…, 0x9a32…): failed first-userOp experiments."
+    },
+    "dev-owner-salt4-session": {
+      "address": "0xB49797eeaf684fB4Fbbc65CCf04cFA78BB094ef0",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "4",
+      "implementation": "Safe 1.4.1 + Safe7579, fully initialized in first userOp",
+      "firstUserOpTx": "0x6b8e41ed2405537936cf7249900ef3aa6995dfa25269f22bdd68ecd8762c6e32",
+      "block": 45837416,
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0x32ab629374e9d068b02f29344911eef833f2182009c30e6211dd07f4bc3f7e57",
+        "status": "ACTIVE (post-install verification: 0 mismatches)",
+        "agentSigner": "0xEe5E520f2DA6e01Ab669Bb7F7e3bFFb469ABA022 (throwaway, key discarded)"
+      },
+      "note": "T-008 acceptance. First userOp = deploy + setupSafe + installModule(SmartSessions, session) + journal log, owner-signed, own-relayer handleOps, 2,171,365 gas."
+    },
+    "dev-owner-salt5-session-ratelimit": {
+      "address": "0x6E2A6F54703e67f1Bfcc92c4a2Bd602E7546f360",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "5",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "firstUserOpTx": "0x39ef0b0d71ad3c4ca0c8109bea6cb0802776f593523cd607c027888b76a1c492",
+      "block": 45855935,
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0x4a8532a8481822fd55763f8c17bb0427c6aa6cd30290f93cd9f8ce430441f539",
+        "status": "ACTIVE (post-install verification: 0 mismatches, incl. CorralRateLimitPolicy limit 2 / 86400s)",
+        "agentSigner": "0x210Bf6e13547542A210d99631eB0524371D6b932 (throwaway, key discarded)"
+      },
+      "note": "D26 acceptance: first session carrying the rolling 24h cap on-chain. SUPERSEDED: its journal action was composed with zero rules and is uninitialized on-chain (UAP PolicyNotInitialized) — journaled executions would be rejected."
+    },
+    "dev-owner-salt6-session": {
+      "address": "0xBB7a2A845f0A14EA23811a614eb102eedDcB40d7",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "6",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "firstUserOpTx": "0xf32853a1e22a41b8aaa16bc7866b0fd6320c89d7b9fe41d0be24bd92d25824b2",
+      "block": 45858213,
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0x9d7e0eb3912cc413e53aff4006548b02edeedf1a27eafc5504fcb0d7ccfde242",
+        "status": "ACTIVE (post-install verification: 0 mismatches; journal action pinned to permissionId)",
+        "agentSigner": "0x5982833170187bC906C8bB3fa5774A465C43D071 (throwaway, key discarded)"
+      },
+      "note": "First fully-correct session: rate limit + initialized journal action. The violation matrix fixture uses the salt-5 ACCOUNT with its own test session (vm.prank), not this one."
+    },
+    "dev-owner-salt8-agent-demo": {
+      "address": "0xF633373a0b34D3179Bd02b316EE6aCf9ebfD0A70",
+      "owner": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9",
+      "saltNonce": "8",
+      "implementation": "Safe 1.4.1 + Safe7579, initialized in first userOp",
+      "deployedAt": "2026-08-23",
+      "session": {
+        "permissionId": "0xdce309d248f07d4716aba34f64aea5c1b3e5ed10205baad96a7795da6a79daa4",
+        "status": "ACTIVE; first agent execution done",
+        "agentSigner": "0x8ca016515B7521A10E11e527D951789e78f7709f (TESTNET key in server/.env as EVM_AGENT_PRIVATE_KEY)"
+      },
+      "firstAgentExecution": {
+        "block": 45859033,
+        "gas": 507852,
+        "swap": "0.2 USDC -> 0.001367911410436060 WETH (Uniswap v3 0.3%)",
+        "journal": "seq 1, intent 0x58694882…",
+        "note": "J2 proven: policy-bound autonomous execution, output to the account, journaled, via own relayer."
+      }
+    }
+  },
+  "pinnedModules": "see server/src/services/evm/addresses.ts (codehash-asserted)",
+  "testnetAttestation": {
+    "attester": "0x91ac808850c33E15dc028a12Bfcaad70F1F8e6f9 (dev key; TESTNET ONLY)",
+    "module": "SmartSessions 0x00000000008bDABA73cD9815d79069c247Eb4bDA",
+    "moduleTypes": [
+      1,
+      7
+    ],
+    "schemaUID": "0x93d46fcca4ef7d66a413c7bde08bb1ff14bacbd04c4069bb24cd7c21729d7bf1",
+    "txHash": "0xccfa637bacb37f4464967df729e728bab5759f63bae5aa8d0d949e8766510f83",
+    "why": "Neither Rhinestone attester nor mock attester has attested SmartSessions/V2 policies on Base Sepolia; Safe7579 launchpad requires a non-empty trusted attester set. Mainnet uses Rhinestone attester — see addresses.ts registryGating."
+  }
+}

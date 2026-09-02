@@ -1,0 +1,158 @@
+# Corral CI (v3 — TS stack, ADRs D19–D26). The guardrails from CLAUDE.md §4.
+# eslint + dependency-cruiser enforce core purity and the money-path bans;
+# the grep jobs below cover the rules a type system cannot express.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    name: "@corral/core: strict tsc + vitest/fast-check"
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: packages/core }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: packages/core/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: "purity + money-path lint (eslint + dependency-cruiser, T-005b)"
+        run: npm run lint
+
+  server:
+    name: "server: tsc + vitest (incl. persistence integration)"
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: server }
+    services:
+      # The queue's guarantees are Postgres guarantees (FOR UPDATE SKIP
+      # LOCKED, unique partial indexes). An emulator would prove nothing, so
+      # CI runs the real thing.
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_PASSWORD: corral, POSTGRES_DB: corral }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:corral@localhost:5432/corral
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: server/package-lock.json }
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      - run: npm test
+
+  app:
+    name: "app: tsc -b + vite build + Corral screen tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: app }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm, cache-dependency-path: app/package-lock.json }
+      - run: npm ci --legacy-peer-deps
+      - run: npm run build
+      # The Corral screens carry security-relevant copy: the worst-case block
+      # (FR-11.1), the rejection-vs-failure distinction (FR-11.6), and the
+      # no-raw-error rule (FR-11.8). Those are regressions worth failing on.
+      - run: npm test
+
+  boundaries:
+    name: "core purity + policy-widening + approval greps"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: "no hand-written shared types outside @corral/core (CLAUDE.md §2.9)"
+        run: |
+          set -euo pipefail
+          # Anchored to a DECLARATION. The first version matched anywhere on
+          # the line, so `import { type Plan } from "@corral/core"` — the
+          # exact thing this rule exists to encourage — counted as a violation.
+          HITS=$(grep -rnE "^[[:space:]]*(export[[:space:]]+)?(interface|type)[[:space:]]+(Policy|Plan|ExecutionStatus|TokenAmount)[[:space:]]*[=<{]" \
+            app/src server/src --include='*.ts' --include='*.tsx' 2>/dev/null || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::shared types must be imported from @corral/core, never re-declared:"
+            echo "$HITS"
+            exit 1
+          fi
+      - name: "enableSessions only in the session-install module (CLAUDE.md §2.3)"
+        run: |
+          set -euo pipefail
+          # Two fixes over the first version of this check, both found the
+          # first time it was actually run:
+          #
+          #  1. The allowlisted path was `services/evm/sessionInstall`, which
+          #     does not exist — the module is `services/evm/session/install.ts`.
+          #     As written the check could only ever have failed.
+          #  2. It matched the ABI file, where the function *name* appears as
+          #     JSON data. An ABI declaring a function is not code calling it.
+          #
+          # So match call sites: viem names the function in `functionName`, and
+          # a direct call reads `.enableSessions(`.
+          HITS=$(grep -rnE "functionName:[[:space:]]*[\"']enableSessions[\"']|\.enableSessions\(" \
+            server/src app/src packages/core/src 2>/dev/null \
+            | grep -v "server/src/services/evm/session/install.ts" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::enableSessions called outside server/src/services/evm/session/install.ts:"
+            echo "$HITS"
+            exit 1
+          fi
+      - name: "the review screen renders from core, not from the frontend (FR-11.1)"
+        run: |
+          set -euo pipefail
+          if ! grep -rq "policySummary" app/src/corral/components/PolicyReview.tsx; then
+            echo "::error::PolicyReview must render from @corral/core's policySummary()."
+            exit 1
+          fi
+          # A summary computed in the frontend is a second, unverified
+          # description of the policy, free to drift from what is enforced.
+          # Test files are exempt: a fixture has to name the fields it builds.
+          HITS=$(grep -rnE "max_total|min_output_bps|valid_until" app/src/corral/components \
+            --include='*.tsx' --exclude='*.test.tsx' 2>/dev/null || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::policy fields read directly in a component — use policySummary():"
+            echo "$HITS"
+            exit 1
+          fi
+      - name: "no unbounded approvals (CLAUDE.md §2.5)"
+        run: |
+          set -euo pipefail
+          HITS=$(grep -rniE "maxUint256|MAX_UINT256" server/src packages/core/src 2>/dev/null \
+            | grep -i "approv" || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::possible unbounded approval:"
+            echo "$HITS"
+            exit 1
+          fi
+
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run: { working-directory: contracts }
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge build
+      # The violation matrix (test/Violations.t.sol) forks Base Sepolia and
+      # self-skips without FORK_RPC_URL. Set the secret so CI enforces it.
+      - run: forge test -vvv
+        env:
+          FORK_RPC_URL: ${{ secrets.FORK_RPC_URL }}
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
