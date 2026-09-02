@@ -9,7 +9,11 @@ services:
     region: oregon
     plan: free
     rootDir: server
-    buildCommand: npm install --legacy-peer-deps && npm run build
+    # @corral/core is a file: dependency whose dist/ is gitignored, so it must be
+    # built before the server compiles against it. core's `prepare` hook usually
+    # handles this on install; building it explicitly first keeps the deploy green
+    # even when npm skips lifecycle scripts.
+    buildCommand: npm --prefix ../packages/core install --legacy-peer-deps && npm --prefix ../packages/core run build && npm install --legacy-peer-deps && npm run build
     startCommand: npm start
     # Must be a 200 route — `/api` returns 404 (routes are mounted UNDER it), which
     # makes Render's health check fail and the deploy "Time Out". `/health` is 200.

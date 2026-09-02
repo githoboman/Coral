@@ -13,6 +13,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "// prepare": "npm runs this after installing this package as a file: dependency, so server/ and app/ get a built dist/ without the deploy having to know about the monorepo. dist/ is gitignored, and main/types point into it, so an unbuilt core breaks every downstream build.",
+    "prepare": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests && depcruise src --config .dependency-cruiser.cjs"
