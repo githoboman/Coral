@@ -31,7 +31,7 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 
 // ── Sui network config ────────────────────────────────────────────────
 const network = (import.meta.env.VITE_SUI_NETWORK || "testnet") as
@@ -54,13 +54,13 @@ const SOLANA_RPC =
   import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const solanaWallets = [new PhantomWalletAdapter()];
 
-// ── Wagmi / Ethereum config ───────────────────────────────────────────
+// ── Wagmi / EVM config (Base) ───────────────────────────────────────────
 const wagmiConfig = createConfig({
-  chains: [sepolia],
+  chains: [baseSepolia],
   transports: {
-    [sepolia.id]: http(
-      import.meta.env.VITE_ETH_RPC_URL ||
-        "https://eth-sepolia.g.alchemy.com/v2/demo",
+    [baseSepolia.id]: http(
+      import.meta.env.VITE_EVM_RPC_URL ||
+        "https://sepolia.base.org",
     ),
   },
 });

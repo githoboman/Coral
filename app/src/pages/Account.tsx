@@ -35,9 +35,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
-import { WalletPhantom } from '@web3icons/react'
-import { WalletMetamask } from '@web3icons/react'
+import { injected, coinbaseWallet } from "wagmi/connectors";
+import { WalletPhantom, WalletMetamask, WalletCoinbase } from '@web3icons/react'
 
 
 // ─────────────────────────────────────────────────────────────────────
@@ -278,14 +277,20 @@ const ExternalWalletConnect = () => {
     ? `${publicKey.toBase58().slice(0, 5)}...${publicKey.toBase58().slice(-4)}`
     : null;
 
-  // MetaMask
-  const { address: ethAddress, isConnected: ethConnected } = useAccount();
-  const { connect: ethConnect, isPending: ethPending } = useConnect();
+  // EVM
+  const { address: ethAddress, isConnected: ethConnected, connector: activeConnector } = useAccount();
+  const { connect: ethConnect, isPending: ethPending, variables: connectVariables } = useConnect();
   const { disconnect: ethDisconnect } = useDisconnect();
   const [noMetaMask, setNoMetaMask] = useState(false);
   const shortEthAddress = ethAddress
     ? `${ethAddress.slice(0, 5)}...${ethAddress.slice(-4)}`
     : null;
+
+  const isMetaMaskConnected = ethConnected && activeConnector?.name?.toLowerCase().includes('metamask');
+  const isCoinbaseConnected = ethConnected && activeConnector?.name?.toLowerCase().includes('coinbase');
+  
+  const isMetaMaskPending = ethPending && connectVariables?.connector?.type === 'injected';
+  const isCoinbasePending = ethPending && connectVariables?.connector?.type === 'coinbaseWallet';
 
   function handleEthConnect() {
     if (typeof window !== "undefined" && !(window as any).ethereum) {
@@ -294,6 +299,10 @@ const ExternalWalletConnect = () => {
       return;
     }
     ethConnect({ connector: injected() });
+  }
+
+  function handleCoinbaseConnect() {
+    ethConnect({ connector: coinbaseWallet({ appName: 'Coral' }) });
   }
 
 
@@ -307,7 +316,7 @@ const ExternalWalletConnect = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-full bg-[#1A1A1A] border border-white/10 flex items-center justify-center overflow-hidden -mr-3 relative z-0">
-              <WalletMetamask size={22} />
+              <WalletCoinbase size={22} />
             </div>
             <div className="w-8 h-8 rounded-full bg-[#9a8be6] border border-white/10 flex items-center justify-center overflow-hidden relative z-10">
               <WalletPhantom size={22} variant="mono" className="text-white" />
@@ -369,7 +378,7 @@ const ExternalWalletConnect = () => {
               <WalletMetamask size={24} />
               <div className="flex flex-col">
                 <span className="text-white/80 text-sm">MetaMask</span>
-                {ethConnected && shortEthAddress ? (
+                {isMetaMaskConnected && shortEthAddress ? (
                   <span className="text-white/40 text-xs flex items-center gap-1">
                     <CheckCircle2 size={10} className="text-emerald-400" />
                     {shortEthAddress}
@@ -383,17 +392,50 @@ const ExternalWalletConnect = () => {
                 )}
               </div>
             </div>
-            {ethConnected ? (
+            {isMetaMaskConnected ? (
               <button onClick={() => ethDisconnect()} className="bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-medium py-1.5 px-4 rounded-full transition-colors">
                 Disconnect
               </button>
             ) : (
               <button
                 onClick={handleEthConnect}
-                disabled={ethPending}
+                disabled={isMetaMaskPending}
                 className="bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-medium py-1.5 px-4 rounded-full transition-colors disabled:opacity-50"
               >
-                {ethPending ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
+                {isMetaMaskPending ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
+              </button>
+            )}
+          </div>
+
+          <div className="h-px bg-white/5 mx-2" />
+
+          {/* Coinbase Wallet row */}
+          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+            <div className="flex items-center gap-2.5">
+              <WalletCoinbase size={24} />
+              <div className="flex flex-col">
+                <span className="text-white/80 text-sm">Coinbase (Base)</span>
+                {isCoinbaseConnected && shortEthAddress ? (
+                  <span className="text-white/40 text-xs flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-400" />
+                    {shortEthAddress}
+                  </span>
+                ) : (
+                  <span className="text-white/30 text-xs">Not connected</span>
+                )}
+              </div>
+            </div>
+            {isCoinbaseConnected ? (
+              <button onClick={() => ethDisconnect()} className="bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-medium py-1.5 px-4 rounded-full transition-colors">
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={handleCoinbaseConnect}
+                disabled={isCoinbasePending}
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-medium py-1.5 px-4 rounded-full transition-colors disabled:opacity-50"
+              >
+                {isCoinbasePending ? <Loader2 size={10} className="animate-spin" /> : "Connect"}
               </button>
             )}
           </div>
