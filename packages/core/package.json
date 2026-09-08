@@ -13,8 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "// prepare": "npm runs this after installing this package as a file: dependency, so server/ and app/ get a built dist/ without the deploy having to know about the monorepo. dist/ is gitignored, and main/types point into it, so an unbuilt core breaks every downstream build.",
-    "prepare": "tsc",
+    "// no-prepare": "Deliberately NO prepare hook. npm runs a file: dependency's prepare during a CONSUMER's `npm install`, but before core's own devDeps (typescript) are on PATH, so `tsc` fails with `command not found` (exit 127) on any fresh install (Vercel/CI/fresh clone). It only ever worked when core's node_modules already existed. Consumers build core explicitly instead — app via `build:core`, server via render.yaml buildCommand — so dist/ (gitignored; main/types point into it) exists before anything compiles against it.",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests && depcruise src --config .dependency-cruiser.cjs"
