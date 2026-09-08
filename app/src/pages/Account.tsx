@@ -279,7 +279,7 @@ const ExternalWalletConnect = () => {
 
   // EVM
   const { address: ethAddress, isConnected: ethConnected, connector: activeConnector } = useAccount();
-  const { connect: ethConnect, isPending: ethPending, variables: connectVariables } = useConnect();
+  const { connect: ethConnect, isPending: ethPending } = useConnect();
   const { disconnect: ethDisconnect } = useDisconnect();
   const [noMetaMask, setNoMetaMask] = useState(false);
   const shortEthAddress = ethAddress
@@ -289,8 +289,10 @@ const ExternalWalletConnect = () => {
   const isMetaMaskConnected = ethConnected && activeConnector?.name?.toLowerCase().includes('metamask');
   const isCoinbaseConnected = ethConnected && activeConnector?.name?.toLowerCase().includes('coinbase');
   
-  const isMetaMaskPending = ethPending && connectVariables?.connector?.type === 'injected';
-  const isCoinbasePending = ethPending && connectVariables?.connector?.type === 'coinbaseWallet';
+  const [connectingWallet, setConnectingWallet] = useState<'metamask' | 'coinbase' | null>(null);
+
+  const isMetaMaskPending = ethPending && connectingWallet === 'metamask';
+  const isCoinbasePending = ethPending && connectingWallet === 'coinbase';
 
   function handleEthConnect() {
     if (typeof window !== "undefined" && !(window as any).ethereum) {
@@ -298,11 +300,13 @@ const ExternalWalletConnect = () => {
       setTimeout(() => setNoMetaMask(false), 3000);
       return;
     }
-    ethConnect({ connector: injected() });
+    setConnectingWallet('metamask');
+    ethConnect({ connector: injected() }, { onSettled: () => setConnectingWallet(null) });
   }
 
   function handleCoinbaseConnect() {
-    ethConnect({ connector: coinbaseWallet({ appName: 'Coral' }) });
+    setConnectingWallet('coinbase');
+    ethConnect({ connector: coinbaseWallet({ appName: 'Coral' }) }, { onSettled: () => setConnectingWallet(null) });
   }
 
 
