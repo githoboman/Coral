@@ -598,12 +598,27 @@ router.post("/login", async (req: Request, res: Response) => {
 
     console.log(`[AUTH] Verifying signature for ${normalizedWallet}...`);
     
-    // Verify signature
-    const pubKey = await verifyPersonalMessageSignature(message, signature, {
-      client: suiClient,
-    });
+    let derivedAddress = "";
 
-    const derivedAddress = normalizeAddr(pubKey.toSuiAddress());
+    if (normalizedWallet.startsWith("0x") && normalizedWallet.length === 42) {
+      // EVM signature verification
+      const { verifyMessage } = await import("viem");
+      const isValid = await verifyMessage({
+        address: normalizedWallet as `0x${string}`,
+        message: expectedMessage,
+        signature: signature as `0x${string}`,
+      });
+      if (!isValid) {
+        throw new Error("EVM signature verification failed");
+      }
+      derivedAddress = normalizedWallet;
+    } else {
+      // Sui signature verification
+      const pubKey = await verifyPersonalMessageSignature(message, signature, {
+        client: suiClient,
+      });
+      derivedAddress = normalizeAddr(pubKey.toSuiAddress());
+    }
     
     if (derivedAddress !== normalizedWallet) {
       console.warn(`[AUTH] Address mismatch: Derived ${derivedAddress} vs Provided ${normalizedWallet}`);

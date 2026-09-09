@@ -3,6 +3,9 @@ import { useConnectWallet, useWallets, useCurrentAccount } from "@mysten/dapp-ki
 import { isEnokiWallet, type AuthProvider } from "@mysten/enoki";
 import { sileo } from "sileo";
 import { useNavigate } from "react-router-dom";
+import { useConnect as useWagmiConnect } from 'wagmi';
+import { coinbaseWallet, injected } from 'wagmi/connectors';
+import { WalletMetamask, WalletCoinbase } from '@web3icons/react';
 import {
   FiArrowRight,
   FiShield,
@@ -39,6 +42,7 @@ export default function Signin() {
   const currentAccount      = useCurrentAccount();
   const navigate            = useNavigate();
   const [isConnecting, setIsConnecting] = useState(false);
+  const { connect: ethConnect } = useWagmiConnect();
 
   const enokiWallets = allWallets.filter(isEnokiWallet);
   const nativeWallets = allWallets.filter((w) => !isEnokiWallet(w));
@@ -88,6 +92,21 @@ export default function Signin() {
           sileo.error({ title: "Connection Failed", description: error.message || "Failed to connect wallet" });
         },
       },
+    );
+  };
+
+  const handleEthConnect = (connectorName: 'metamask' | 'coinbase') => {
+    setIsConnecting(true);
+    const connector = connectorName === 'metamask' ? injected() : coinbaseWallet({ appName: 'Coral' });
+    ethConnect(
+      { connector },
+      {
+        onSuccess: () => { setIsConnecting(false); navigate("/"); },
+        onError: (error) => {
+          setIsConnecting(false);
+          sileo.error({ title: "Connection Failed", description: error.message || "Failed to connect wallet" });
+        }
+      }
     );
   };
 
@@ -236,7 +255,7 @@ export default function Signin() {
               </div>
               <div>
                 <h2 className="text-[20px] font-bold leading-none">Get started</h2>
-                <p className="text-[12px] text-white/45 mt-1">Connect a Sui wallet to delegate the agent</p>
+                <p className="text-[12px] text-white/45 mt-1">Connect a Sui or Base wallet to delegate the agent</p>
               </div>
             </div>
 
@@ -306,6 +325,49 @@ export default function Signin() {
                   </a>
                 </div>
               )}
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-[#0C0C0C] px-4 text-white/30 text-[11px] font-medium uppercase tracking-widest">
+                    Base (EVM)
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleEthConnect('metamask')}
+                disabled={isConnecting}
+                className="
+                  w-full bg-[#161616]/60 hover:bg-[#1F1F1F]
+                  border border-white/5 hover:border-[#FF6B00]/30
+                  rounded-2xl py-4 px-6
+                  flex items-center justify-center gap-3
+                  transition-all duration-200 disabled:opacity-50
+                  font-medium cursor-pointer
+                "
+              >
+                <WalletMetamask size={20} />
+                <span className="text-white/85 text-base">MetaMask</span>
+              </button>
+
+              <button
+                onClick={() => handleEthConnect('coinbase')}
+                disabled={isConnecting}
+                className="
+                  w-full bg-[#161616]/60 hover:bg-[#1F1F1F]
+                  border border-white/5 hover:border-[#FF6B00]/30
+                  rounded-2xl py-4 px-6
+                  flex items-center justify-center gap-3
+                  transition-all duration-200 disabled:opacity-50
+                  font-medium cursor-pointer
+                "
+              >
+                <WalletCoinbase size={20} />
+                <span className="text-white/85 text-base">Coinbase Wallet</span>
+              </button>
             </div>
 
             {isConnecting ? (

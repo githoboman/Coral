@@ -8,6 +8,7 @@ import {
   useDisconnectWallet,
   useSignPersonalMessage,
 } from "@mysten/dapp-kit";
+import { useAccount, useSignMessage, useDisconnect } from "wagmi";
 
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAppDispatch } from "@/store/hooks";
@@ -58,6 +59,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const currentAccount = useCurrentAccount();
   const { mutate: disconnectWallet } = useDisconnectWallet();
   const { connectionStatus } = useCurrentWallet();
+  
+  const { address: ethAddress, isConnected: ethConnected } = useAccount();
+  const { disconnect: ethDisconnect } = useDisconnect();
+  const { signMessageAsync } = useSignMessage();
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -99,7 +104,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (isInitializing) return;
 
-    const isAuthenticated = !!currentAccount;
+    const isAuthenticated = !!currentAccount || (ethConnected && !!ethAddress);
     const isSigninPage = location.pathname === "/signin";
     const isMaintenancePage = location.pathname === "/maintenance";
 
@@ -122,7 +127,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // ADDED: Give the wallet kit 2 seconds to recover before kicking the user out.
         // This fixes flickering connection status (common with Enoki/Google login).
         const recoverTimer = setTimeout(() => {
-          if (!currentAccount) {
+          if (!currentAccount && !ethAddress) {
             // Only remember agent-area paths to return to — never /signin,
             // /maintenance, / or legacy routes (those cause post-login loops).
             if (location.pathname.startsWith("/agent")) {
@@ -150,7 +155,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       navigate(safePath, { replace: true });
     }
 
-    const activeAddress = currentAccount.address;
+    const activeAddress = currentAccount?.address || ethAddress;
+    
+    if (!activeAddress) return;
 
     if (checkedWalletRef.current === activeAddress) return;
 
@@ -178,7 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       checkedWalletRef.current = activeAddress;
       handleAuthentication(activeAddress);
     }
-  }, [isInitializing, hasCheckedInit, currentAccount, location.pathname, navigate]);
+  }, [isInitializing, hasCheckedInit, currentAccount, ethConnected, ethAddress, location.pathname, navigate]);
 
   const handleAuthentication = async (walletAddress: string) => {
     try {
@@ -229,7 +236,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const messageToSign = `Welcome to Coral!\n\nClick to sign in and accept the Coral Terms of Service.\n\nThis request will not trigger a blockchain transaction or cost any gas fees.\n\nNonce: ${nonce}`;
       const messageBytes = new TextEncoder().encode(messageToSign);
 
-      const signatureResult = await signPersonalMessage({ message: messageBytes });
+      let signatureResult: { signature: string };
+      
+      if (currentAccount && walletAddress === currentAccount.address) {
+        signatureResult = await signPersonalMessage({ message: messageBytes });
+      } else if (ethAddress && walletAddress === ethAddress) {
+        const sig = await signMessageAsync({ message: messageToSign });
+        signatureResult = { signature: sig };
+      } else {
+        throw new Error("No matching wallet found for signing");
+      }
 
       // Read referral code from localStorage
       const referralCode = localStorage.getItem('coral_referral') || undefined;
@@ -442,6 +458,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       disconnectWallet();
+      ethDisconnect();
 
       // Clear Redux stores
       dispatch(clearLeaderboard());
