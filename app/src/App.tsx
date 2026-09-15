@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useAccount as useWagmiAccount } from "wagmi";
 
 import {
   AppLayout,
@@ -86,13 +87,15 @@ function App() {
 /** Root: send connected users to the agent app, others to sign-in. */
 function HomeRedirect() {
   const account = useCurrentAccount();
-  return <Navigate to={account ? "/agent" : "/signin"} replace />;
+  const { isConnected: ethConnected } = useWagmiAccount();
+  return <Navigate to={(account || ethConnected) ? "/agent" : "/signin"} replace />;
 }
 
 /** Gate the agent area on a connected wallet — no wallet ⇒ sign-in. */
 function RequireWallet({ children }: { children: React.ReactNode }) {
   const account = useCurrentAccount();
-  if (!account) return <Navigate to="/signin" replace />;
+  const { isConnected: ethConnected } = useWagmiAccount();
+  if (!account && !ethConnected) return <Navigate to="/signin" replace />;
   return <>{children}</>;
 }
 
