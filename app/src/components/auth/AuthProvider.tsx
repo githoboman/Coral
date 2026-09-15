@@ -130,7 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (!currentAccount && !ethAddress) {
             // Only remember agent-area paths to return to — never /signin,
             // /maintenance, / or legacy routes (those cause post-login loops).
-            if (location.pathname.startsWith("/agent")) {
+            if (location.pathname.startsWith("/agent") || location.pathname.startsWith("/corral")) {
               sessionStorage.setItem("coral_intended_path", location.pathname + location.search);
             }
             navigate("/signin", { replace: true });
@@ -150,8 +150,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       sessionStorage.removeItem("coral_intended_path");
       // Only honor an intended path if it's inside the Coral agent area; otherwise
       // (stale/legacy/loop-prone paths like /signin, /chat, /leaderboard) go home.
+      let defaultPath = "/agent";
+      if (!currentAccount && ethConnected && ethAddress) {
+        defaultPath = `/corral/verify/${ethAddress}`;
+      }
       const safePath =
-        intendedPath && intendedPath.startsWith("/agent") ? intendedPath : "/agent";
+        intendedPath && (intendedPath.startsWith("/agent") || intendedPath.startsWith("/corral")) ? intendedPath : defaultPath;
       navigate(safePath, { replace: true });
     }
 

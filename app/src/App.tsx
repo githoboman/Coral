@@ -27,6 +27,11 @@ import AgentHistory from "@/pages/agent/History";
 import AgentSettings from "@/pages/agent/Settings";
 import { AgentWalletProvider } from "@/hooks/useAgentWallet";
 
+// Base Integration (Corral)
+import BaseCorralLayout from "@/corral/pages/CorralLayout";
+import BaseSessionDetail from "@/corral/pages/SessionDetail";
+import BaseVerify from "@/corral/pages/Verify";
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -75,6 +80,12 @@ function App() {
           <Route path="/chat/:chatId?" element={<Dashboard />} />
         </Route>
 
+        {/* Corral Base Integration routes */}
+        <Route path="/corral" element={<BaseCorralLayout />}>
+          <Route path="agents/:id" element={<BaseSessionDetail />} />
+          <Route path="verify/:address" element={<BaseVerify />} />
+        </Route>
+
         {/* Anything else → home (which routes by auth), not a blank screen. */}
         <Route path="*" element={<HomeRedirect />} />
       </Routes>
@@ -87,8 +98,12 @@ function App() {
 /** Root: send connected users to the agent app, others to sign-in. */
 function HomeRedirect() {
   const account = useCurrentAccount();
-  const { isConnected: ethConnected } = useWagmiAccount();
-  return <Navigate to={(account || ethConnected) ? "/agent" : "/signin"} replace />;
+  const { address: ethAddress, isConnected: ethConnected } = useWagmiAccount();
+  
+  if (account) return <Navigate to="/agent" replace />;
+  if (ethConnected && ethAddress) return <Navigate to={`/corral/verify/${ethAddress}`} replace />;
+  
+  return <Navigate to="/signin" replace />;
 }
 
 /** Gate the agent area on a connected wallet — no wallet ⇒ sign-in. */
