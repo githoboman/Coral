@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { MdOutlineMenuOpen } from "react-icons/md";
 import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
+import { useAccount as useWagmiAccount } from "wagmi";
 import { useTheme } from "@/hooks/useTheme";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { WalletDrawer } from "@/components/agent/WalletDrawer";
@@ -48,7 +49,10 @@ export default function CorralLayout() {
   const [helpOpen,   setHelpOpen]     = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const account        = useCurrentAccount();
+  const { address: ethAddress } = useWagmiAccount();
   const { status, policy } = useAgentWallet();
+  
+  const activeAddress = account?.address || ethAddress;
 
   // Show the first-run tutorial once the user has connected (so it lands in the
   // real app, not on a blank pre-connect screen). Persisted so it shows once.
@@ -62,7 +66,7 @@ export default function CorralLayout() {
       }, 600);
       return () => clearTimeout(t);
     }
-  }, [account?.address]);
+  }, [activeAddress]);
 
   const { data: agentBal } = useSuiClientQuery(
     "getBalance",
@@ -90,7 +94,7 @@ export default function CorralLayout() {
 
   const usedPct    = policy ? Math.min(100, Math.round(policy.usedPercent)) : 0;
   const active     = status?.bound && policy?.isActive;
-  const agentState = !account
+  const agentState = !activeAddress
     ? "Disconnected"
     : !status
     ? "Not initialized"
@@ -309,7 +313,7 @@ export default function CorralLayout() {
 
             <NotificationBell />
 
-            {account ? (
+            {activeAddress ? (
               <>
                 {/* Wallet icon */}
                 <button
@@ -349,7 +353,7 @@ export default function CorralLayout() {
                   title="You (owner) — signs policy & revoke"
                 >
                   <span className="text-[10px] font-bold uppercase tracking-wide opacity-50 hidden sm:inline">You</span>
-                  <span className="font-mono">{account.address.slice(0, 6)}…{account.address.slice(-4)}</span>
+                  <span className="font-mono">{activeAddress.slice(0, 6)}…{activeAddress.slice(-4)}</span>
                 </button>
               </>
             ) : (
@@ -366,7 +370,7 @@ export default function CorralLayout() {
         </div>
       </main>
 
-      {walletOpen && account && <WalletDrawer onClose={() => setWalletOpen(false)} />}
+      {walletOpen && activeAddress && <WalletDrawer onClose={() => setWalletOpen(false)} />}
       {helpOpen   && <HelpModal onClose={() => setHelpOpen(false)} onReplayTutorial={() => { setHelpOpen(false); setTutorialOpen(true); }} />}
       {tutorialOpen && <Tutorial onClose={() => setTutorialOpen(false)} />}
     </div>

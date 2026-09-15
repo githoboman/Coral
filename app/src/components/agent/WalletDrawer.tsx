@@ -6,6 +6,7 @@ import {
 } from "react-icons/fi";
 import { TokenSUI } from "@web3icons/react";
 import { useCurrentAccount, useDisconnectWallet, useSuiClientQuery } from "@mysten/dapp-kit";
+import { useAccount as useWagmiAccount, useDisconnect as useWagmiDisconnect } from "wagmi";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { QrCode } from "@/components/agent/QrCode";
 
@@ -31,18 +32,22 @@ export function WalletDrawer({ onClose }: { onClose: () => void }) {
   const account = useCurrentAccount();
   const { status, agentSend, ownerSend } = useAgentWallet();
   const { mutate: disconnect } = useDisconnectWallet();
+  const { address: ethAddress } = useWagmiAccount();
+  const { disconnect: disconnectEth } = useWagmiDisconnect();
+  
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState<"owner" | "agent" | null>(null);
   const [view, setView] = useState<View>({ kind: "main" });
 
-  const ownerAddr = account?.address ?? "";
+  const ownerAddr = account?.address ?? ethAddress ?? "";
   const agentAddr = status?.agentAddress ?? "";
   const network = import.meta.env.VITE_SUI_NETWORK || "testnet";
 
+  const isEvm = ownerAddr.startsWith("0x") && ownerAddr.length === 42;
   const { data: ownerBal } = useSuiClientQuery(
     "getBalance",
     { owner: ownerAddr },
-    { enabled: !!ownerAddr, refetchInterval: 15_000 },
+    { enabled: !!ownerAddr && !isEvm, refetchInterval: 15_000 },
   );
   const { data: agentBal } = useSuiClientQuery(
     "getBalance",
@@ -58,6 +63,11 @@ export function WalletDrawer({ onClose }: { onClose: () => void }) {
   const close = () => {
     setVisible(false);
     setTimeout(onClose, 300);
+  };
+
+  const handleDisconnect = () => {
+    if (ethAddress) disconnectEth();
+    disconnect(undefined, { onSuccess: close });
   };
 
   const toSui = (b: any) => (b ? Number(b.totalBalance) / MIST : 0);
@@ -215,7 +225,7 @@ export function WalletDrawer({ onClose }: { onClose: () => void }) {
         {/* Footer */}
         <div className="flex-shrink-0 border-t border-line px-5 py-5">
           <button
-            onClick={() => disconnect(undefined, { onSuccess: close })}
+            onClick={handleDisconnect}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] bg-danger/15 text-danger border border-danger/30 text-[15px] font-semibold hover:bg-danger/25 transition-colors cursor-pointer active:scale-[0.98]"
           >
             <FiLogOut className="text-[15px]" />

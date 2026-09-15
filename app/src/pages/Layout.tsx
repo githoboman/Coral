@@ -23,6 +23,7 @@ import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
+import { useAccount as useWagmiAccount } from "wagmi";
 import { Transaction } from "@mysten/sui/transactions";
 
 import { Sidebar } from "@/components/app/Sidebar";
@@ -808,11 +809,12 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
+  const { address: ethAddress } = useWagmiAccount();
 
   const { signOut } = useAuth();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
-  const address = currentAccount?.address || null;
+  const address = currentAccount?.address || ethAddress || null;
 
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] =
     useState(true);
