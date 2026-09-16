@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch ./src/index.ts",
-    "build": "tsc",
+    "build": "npm --prefix ../packages/core install && npm --prefix ../packages/core run build && tsc",
     "start": "node --import tsx dist/index.js",
     "clean": "rimraf dist",
     "whitelist": "tsx scripts/whitelist.ts",
