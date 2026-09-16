@@ -19,6 +19,7 @@ import bridgeTransactionsRouter from "./bridgeTransactions";
 import walletRouter from "./wallet";
 import referralsRouter from "./referrals";
 import agentWalletRouter from "./agentWallet";
+import corralRouter from "./corral";
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.use("/bridge", bridgeTransactionsRouter);
 router.use(walletRouter);
 router.use("/referrals", referralsRouter);
 router.use(agentWalletRouter);
+router.use(corralRouter);
 
 router.get("/info", (_req: Request, res: Response) => {
   res.json({
