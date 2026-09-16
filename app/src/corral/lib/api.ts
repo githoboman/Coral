@@ -12,7 +12,7 @@
  */
 import type { CorralEvent, ExecutionStatus, RawPolicy } from "@corral/core";
 
-export const API_BASE = import.meta.env["VITE_API_BASE"] ?? "/api";
+export const API_BASE = import.meta.env["VITE_API_BASE"] ?? (import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api` : "/api");
 
 export interface BudgetMeter {
   readonly asset: string;
