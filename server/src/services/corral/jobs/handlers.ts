@@ -18,7 +18,6 @@ import { query } from "../db/pool.js";
 import { detectAndPause } from "../reconcile/anomalies.js";
 import { recordAnomaly } from "../reconcile/budget.js";
 import { indexOnce } from "../indexer/poller.js";
-import { defaultChannels } from "../notifications/channels.js";
 import { dispatchHandler } from "../notifications/dispatch.js";
 import { getPrefs } from "../notifications/outbox.js";
 import { monitorActiveSessions } from "./moduleMonitor.js";
@@ -108,7 +107,7 @@ export function safetyHandlers(deps: SafetyHandlerDeps): Record<string, JobHandl
     "rpc.health": rpcHealthHandler(deps.addresses.chainId),
     "indexer.poll": indexerHandler(deps),
     "notification.dispatch": dispatchHandler({
-      channels: defaultChannels(),
+      channels: {},
       resolve: async (owner) => {
         const prefs = await getPrefs(owner);
         return { email: prefs?.email ?? null, telegramChatId: prefs?.telegram_chat_id ?? null };

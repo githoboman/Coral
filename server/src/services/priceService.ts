@@ -42,11 +42,6 @@ class PriceService {
         const result = { price: info.price, change24h: info.change24h };
         this.cache[coinType] = { ...result, timestamp: Date.now() };
 
-        // Persist to Supabase for Analytics
-        this.persistPrice(coinType, info.price, info.change24h).catch(err =>
-          console.error(`[PriceService] Failed to persist price for ${coinType}:`, err)
-        );
-
         return result;
       }
     } catch (error) {
@@ -59,11 +54,6 @@ class PriceService {
       try {
         console.log(`[PriceService] Fetching ${coinGeckoId} from CoinGecko...`);
         const result = await this.getCoinGeckoPrice(coinGeckoId);
-
-        // Persist to Supabase for Analytics
-        this.persistPrice(coinType, result.price, result.change24h).catch(err =>
-          console.error(`[PriceService] Failed to persist price for ${coinType}:`, err)
-        );
 
         return result;
       } catch (error) {
@@ -81,23 +71,7 @@ class PriceService {
     return { price: 0, change24h: 0 };
   }
 
-  /**
-   * Persist price to Supabase
-   */
-  private async persistPrice(coinType: string, price: number, change24h: number) {
-    try {
-      const { getSupabaseClient } = await import('../config/supabase.js');
-      const supabase = getSupabaseClient();
-      await supabase.from('prices').insert({
-        coin_type: coinType,
-        price,
-        change_24h: change24h,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      // Fail silently, don't block main flow
-    }
-  }
+  // Removed legacy persistPrice
 
   /**
    * Get price from CoinGecko API (fallback)

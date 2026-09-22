@@ -1,7 +1,4 @@
 import crypto from 'crypto';
-import getSupabaseClient, { isSupabaseConfigured } from '../config/supabase';
-
-const supabase = getSupabaseClient();
 
 const HMAC_SECRET = process.env.TOKEN_HMAC_SECRET;
 if (!HMAC_SECRET) {
@@ -93,27 +90,7 @@ export async function createToken(
   expiresInDays: number = TOKEN_EXPIRES_DAYS,
 ): Promise<{ rawToken: string; expiresAt: Date }> {
   const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
-
-  // No DB configured -> issue a self-contained, HMAC-signed stateless token.
-  if (!isSupabaseConfigured) {
-    return { rawToken: makeStatelessToken(userId, expiresAt.getTime()), expiresAt };
-  }
-
-  const rawToken = generateToken();
-  const tokenHash = hashToken(rawToken);
-
-  const { error } = await supabase.from('user_tokens').insert({
-    user_id: userId,
-    token_hash: tokenHash,
-    name,
-    expires_at: expiresAt.toISOString(),
-  });
-
-  if (error) {
-    throw new Error(`[tokenService] Failed to create token: ${error.message}`);
-  }
-
-  return { rawToken, expiresAt };
+  return { rawToken: makeStatelessToken(userId, expiresAt.getTime()), expiresAt };
 }
 
 /**
@@ -128,31 +105,7 @@ export async function validateToken(rawToken: string): Promise<string | null> {
   if (rawToken.startsWith(`${STATELESS_PREFIX}.`)) {
     return validateStatelessToken(rawToken);
   }
-
-  const tokenHash = hashToken(rawToken);
-
-  const { data, error } = await supabase
-    .from('user_tokens')
-    .select('id, user_id, expires_at')
-    .eq('token_hash', tokenHash)
-    .maybeSingle();
-
-  if (error || !data) return null;
-
-  if (new Date(data.expires_at) < new Date()) {
-    // Expired — clean it up
-    await supabase.from('user_tokens').delete().eq('id', data.id);
-    return null;
-  }
-
-  // Update last_used_at (fire-and-forget, non-blocking)
-  supabase
-    .from('user_tokens')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('id', data.id)
-    .then(() => {});
-
-  return data.user_id as string;
+  return null;
 }
 
 /**
@@ -160,25 +113,8 @@ export async function validateToken(rawToken: string): Promise<string | null> {
  * Hashes the raw token and deletes the matching row.
  */
 export async function revokeToken(rawToken: string): Promise<void> {
-  if (!isSupabaseConfigured) return; // stateless tokens aren't stored
-  const tokenHash = hashToken(rawToken);
-  await supabase.from('user_tokens').delete().eq('token_hash', tokenHash);
+  // Stateless tokens aren't stored, so they cannot be revoked.
 }
 
-/**
- * Revoke ALL tokens for a user (logout all devices).
- * Deletes every row in user_tokens where user_id matches.
- */
-export async function revokeAllTokens(userId: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  await supabase.from('user_tokens').delete().eq('user_id', userId);
-}
-
-/**
- * Revoke all tokens for a specific user and device name.
- * Prevents growing piles of tokens per device.
- */
-export async function revokeDeviceTokens(userId: string, name: string): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  await supabase.from('user_tokens').delete().eq('user_id', userId).eq('name', name);
-}
+export async function revokeAllTokens(userId: string): Promise<void> {}
+export async function revokeDeviceTokens(userId: string, name: string): Promise<void> {}

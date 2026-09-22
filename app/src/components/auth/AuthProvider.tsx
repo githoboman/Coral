@@ -291,20 +291,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
       }
       
-      // In the Coral agent app the wallet connection IS the session — the agent
-      // routes run on wallet + backend dev-auth, and Supabase is optional. So a
-      // failed Supabase verify must NOT disconnect the wallet (that caused the
-      // "login -> dashboard -> logged out" loop). Keep the wallet connected and
-      // just stop the auth flow. (Set VITE_REQUIRE_SUPABASE_AUTH=true to restore
-      // the strict sign-out behavior when a real Supabase backend is wired.)
-      const requireSupabaseAuth = import.meta.env.VITE_REQUIRE_SUPABASE_AUTH === "true";
-      if (!isUserRejection && requireSupabaseAuth) {
-        signOut();
-      } else {
-        // Stay connected; allow the user to retry without being kicked out.
-        checkingRef.current = false;
-        checkedWalletRef.current = null;
-      }
+      // In the Coral agent app the wallet connection IS the session.
+      // If authentication fails, stay connected; allow the user to retry without being kicked out.
+      checkingRef.current = false;
+      checkedWalletRef.current = null;
     } finally {
       checkingRef.current = false;
     }

@@ -1,8 +1,8 @@
-import { getSupabaseClient } from "../../config/supabase.js";
+import { query } from "../corral/db/pool.js";
 import type { AgentWalletRecord } from "./types.js";
 
 /**
- * Persistence for agent wallet records. Backed by the Supabase `agent_wallets`
+ * Persistence for agent wallet records. Backed by the `agent_wallets`
  * table; falls back to an in-process map if the table is absent (so local dev and
  * the demo run without a migration). Keyed by agent address.
  *
@@ -24,7 +24,7 @@ export class AgentWalletStore {
       owner_address: r.ownerAddress,
       policy_id: r.policyId,
       capability_id: r.capabilityId,
-      encrypted_secret_key: r.encryptedSecretKey,
+      encrypted_secret_key: JSON.stringify(r.encryptedSecretKey),
       created_at: r.createdAt,
     };
   }
@@ -35,7 +35,7 @@ export class AgentWalletStore {
       ownerAddress: row.owner_address,
       policyId: row.policy_id ?? null,
       capabilityId: row.capability_id ?? null,
-      encryptedSecretKey: row.encrypted_secret_key,
+      encryptedSecretKey: typeof row.encrypted_secret_key === "string" ? JSON.parse(row.encrypted_secret_key) : row.encrypted_secret_key,
       createdAt: row.created_at,
     };
   }
@@ -45,10 +45,18 @@ export class AgentWalletStore {
     if (this.tableMissing) return;
 
     try {
-      const { error } = await getSupabaseClient()
-        .from("agent_wallets")
-        .upsert(this.toRow(record), { onConflict: "agent_address" });
-      if (error) this.handleDbError(error);
+      const row = this.toRow(record);
+      await query(
+        `INSERT INTO agent_wallets (agent_address, owner_address, policy_id, capability_id, encrypted_secret_key, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (agent_address) DO UPDATE SET
+         owner_address = EXCLUDED.owner_address,
+         policy_id = EXCLUDED.policy_id,
+         capability_id = EXCLUDED.capability_id,
+         encrypted_secret_key = EXCLUDED.encrypted_secret_key,
+         created_at = EXCLUDED.created_at`,
+        [row.agent_address, row.owner_address, row.policy_id, row.capability_id, row.encrypted_secret_key, row.created_at]
+      );
     } catch (err) {
       this.handleDbError(err);
     }
@@ -58,16 +66,8 @@ export class AgentWalletStore {
     if (this.tableMissing) return this.memory.get(agentAddress) ?? null;
 
     try {
-      const { data, error } = await getSupabaseClient()
-        .from("agent_wallets")
-        .select("*")
-        .eq("agent_address", agentAddress)
-        .maybeSingle();
-      if (error) {
-        this.handleDbError(error);
-        return this.memory.get(agentAddress) ?? null;
-      }
-      return data ? this.fromRow(data) : (this.memory.get(agentAddress) ?? null);
+      const rows = await query("SELECT * FROM agent_wallets WHERE agent_address = $1 LIMIT 1", [agentAddress]);
+      return rows.length > 0 ? this.fromRow(rows[0]) : (this.memory.get(agentAddress) ?? null);
     } catch (err) {
       this.handleDbError(err);
       return this.memory.get(agentAddress) ?? null;
@@ -83,17 +83,12 @@ export class AgentWalletStore {
     }
 
     try {
-      const { data, error } = await getSupabaseClient()
-        .from("agent_wallets")
-        .select("*")
-        .eq("owner_address", ownerAddress)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) {
-        this.handleDbError(error);
-      } else if (data) {
-        return this.fromRow(data);
+      const rows = await query(
+        "SELECT * FROM agent_wallets WHERE owner_address = $1 ORDER BY created_at DESC LIMIT 1",
+        [ownerAddress]
+      );
+      if (rows.length > 0) {
+        return this.fromRow(rows[0]);
       }
     } catch (err) {
       this.handleDbError(err);
